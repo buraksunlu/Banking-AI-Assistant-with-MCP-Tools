@@ -76,7 +76,7 @@ Migration geçmişi:
 - [x] DOC-05 — docs/database-design.md altı tablo kararına göre güncellendi. Nullable CategoryId, FirstName/LastName, güncel tipler ve gerçek mevcut durum ayrı gösteriliyor.
 - [ ] DOC-06 — PLAN.md'deki eski kategori ve opportunity-cost yöntem ifadelerini son kararla uyumlu yap. Her harcama tarihinde varsayımsal alım yöntemiyle, özelliğin hangi sorularda sunulacağı kararını ayrı tut.
 - [x] DOC-07 — Incremental migration yaklaşımı seçildi. Mevcut migration geçmişi korunacak; her schema değişikliği yeni migration olarak eklenecek. Veritabanı resetlenmeyecek ve uygulanmış migration dosyaları geriye dönük değiştirilmeyecek.
-- [ ] DOC-08 — Yerel Git takibini oluşturmayı değerlendir. Önce .env ve build çıktılarının dışarıda olduğunu doğrula; paylaşım/remote/push ayrı karar olsun.
+- [x] DOC-08 — Yerel Git takibi oluşturuldu. `.env`, build çıktıları ve `.DS_Store` dışarıda doğrulandı; ilk yerel snapshot commit'i oluşturuldu. Remote/push ayrı karar olarak kaldı.
 
 ## 2. MarketAsset — tek sınıf, sonra eşleme, sonra tablo
 
