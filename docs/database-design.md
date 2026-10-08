@@ -9,18 +9,19 @@ domain tablosu vardır: `Customers`, `Accounts`, `TransactionCategories`,
 
 ## Gerçek mevcut durum
 
-Aktif veritabanı `bankingai_foundation`dır. Şu beş domain tablosu uygulanmıştır:
+Aktif veritabanı `bankingai_foundation`dır. Şu altı domain tablosu uygulanmıştır:
 
 - `Customers`
 - `Accounts`
 - `TransactionCategories`
 - `Transactions`
 - `MarketAssets`
+- `DailyMarketPrices`
 
-`DailyMarketPrices` henüz oluşturulmadı. Kategori/asset seed'i,
-synthetic banking seed'i ve historical market import'u henüz yok.
+İki market tablosu da boştur. Kategori/asset seed'i, synthetic banking seed'i
+ve historical market import'u henüz yok.
 
-Aktif veritabanında altı migration uygulanmıştır:
+Aktif veritabanında yedi migration uygulanmıştır:
 
 1. `CreateCustomers`
 2. `AddCustomerPreferences`
@@ -28,6 +29,7 @@ Aktif veritabanında altı migration uygulanmıştır:
 4. `AddTransactions`
 5. `SplitCustomerName`
 6. `AddMarketAssets`
+7. `AddDailyMarketPrices`
 
 Migration yaklaşımı incremental'dır: her schema değişikliği yeni bir migration
 olarak eklenir. Uygulanmış migration'lar silinmez veya geriye dönük değiştirilmez;
@@ -190,8 +192,22 @@ Bir asset'ın belirli piyasa günündeki günlük referans fiyatını tutar.
 | Price | `decimal` | `numeric(20,8)` | Required, pozitif ve sonlu |
 | Source | `string?` | `varchar(100)` | Nullable, gerçek importta doldurulur |
 
-`(MarketAssetId, PriceDate)` unique olmalıdır. Eksik hafta sonu/tatil günleri
+`(MarketAssetId, PriceDate)` birleşik unique index olarak uygulandı. Aynı
+alanlara ek normal index yoktur. MarketAssets ilişkisi `ON DELETE RESTRICT`
+kullanır: fiyat kaydı bulunan varlık silinemez. Eksik hafta sonu/tatil günleri
 rastgele fiyatla doldurulmaz.
+
+8 Ekim 2026 MP-03/04/05 doğrulaması: AddDailyMarketPrices migration'ı ve
+üretilen SQL incelenerek aktif DB'ye uygulandı. Geçici .NET/EF programında
+aynı varlık/gün, olmayan varlık, sıfır/negatif fiyat ve NaN reddedildi.
+Infinity/-Infinity değerleri numeric(20,8) tipi tarafından reddedildi.
+Fiyat kaydı bulunan varlığı silme denemesi RESTRICT tarafından engellendi.
+Farklı gün ve farklı varlık kayıtları kabul edildi. EF üzerinden DateOnly
+UTC ve Europe/Istanbul oturumlarında 2026-10-08 olarak okundu; sekiz ondalıklı
+decimal değer, nullable Source ve otomatik identity doğrulandı. Test
+kayıtları transaction sonunda geri alındı; iki market tablosu boş kaldı.
+Identity sequence'in tükettiği numaralar rollback ile geri dönmez; ID
+boşlukları normaldir. Bu kontroller kalıcı otomatik test projesi değildir.
 
 ## Ortak kurallar
 

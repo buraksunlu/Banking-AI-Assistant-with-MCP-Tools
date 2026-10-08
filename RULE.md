@@ -1277,11 +1277,13 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 
 COMPLETED
 - .NET 10 BankingAI.Data console, EF Core/Npgsql ve ortam değişkenli bağlantı.
-- Customer, Account, TransactionCategory, Transaction entity'leri; iki transaction enum'u.
-- Accounts, TransactionCategories ve Transactions configuration'ları; Customer eşlemesi DbContext içinde.
-- bankingai_foundation üzerinde dört domain tablosu ve __EFMigrationsHistory.
-- Dört uygulanmış migration: CreateCustomers, AddCustomerPreferences,
-  AddAccountsAndTransactionCategories, AddTransactions.
+- Customer, Account, TransactionCategory, Transaction, MarketAsset ve DailyMarketPrice entity'leri; iki transaction enum'u.
+- Account, TransactionCategory, Transaction, MarketAsset ve DailyMarketPrice configuration'ları; Customer eşlemesi DbContext içinde.
+- bankingai_foundation üzerinde altı domain tablosu ve __EFMigrationsHistory.
+- Yedi uygulanmış migration: CreateCustomers, AddCustomerPreferences,
+  AddAccountsAndTransactionCategories, AddTransactions, SplitCustomerName,
+  AddMarketAssets, AddDailyMarketPrices.
+- DailyMarketPrice → MarketAsset RESTRICT ilişkisi ve varlık/gün unique index'i uygulandı; testlerden sonra iki market tablosu boş.
 - PK/FK/unique/check/index eşlemeleri ve hesap/işlem currency eşleşmesi.
 - Bir demo Customer var; son kontrolde Accounts, TransactionCategories ve Transactions boş.
 - todo.md oluşturuldu; tamamlanan ve bekleyen küçük adımlar ayrıldı.
@@ -1290,13 +1292,12 @@ IN PROGRESS
 - Database foundation; kullanıcı review'üyle küçük adımlar halinde devam ediyor.
 
 NEXT
-- Kullanıcının seçtiği adım. Öneri: Customer alan farkını netleştirmek,
-  sonra MarketAsset ve DailyMarketPrice sınıf/configuration/migration adımları.
+- Kullanıcının seçtiği adım. Öneri: VAL-01 ile girdi doğrulama kurallarını belirlemek.
 
 KNOWN ISSUES
-- Market tabloları, lookup/synthetic seed ve historical import henüz yok.
+- Lookup/synthetic seed ve historical import henüz yok; market tabloları hazır.
 - Transaction eklenmesi Account.Balance'ı otomatik güncellemez; atomik yazma akışı yok.
-- Customer'ın son hedef tarifine geçişi henüz yapılmadı.
+- Customer FirstName/LastName geçişi SplitCustomerName migration'ıyla uygulandı.
 - Null/precision/UTC/kategorilendirme tutarlılığı gibi bazı giriş kontrolleri sonraki adımlarda.
 - README güncel console/database durumuna getirildi; database-design içindeki kalan uyarlamalar todo.md'de takip ediliyor.
 - Controller/API/DTO/service, SwiftUI, AI ve MCP henüz oluşturulmadı.
@@ -1312,4 +1313,5 @@ TEST STATUS
 - Customer kısıtları ve 12 paralel numara üretimi; Account/Category temel DB kısıtları;
   Transaction nullable/kategorili yazımı ve 13 geçersiz veri kontrolü PostgreSQL'de denendi.
 - Test kayıtları rollback edildi. Seed/market import/bakiye concurrency/HTTP/AI/MCP testleri henüz yok.
+- DailyMarketPrice duplicate varlık/gün, olmayan varlık, geçersiz fiyat ve RESTRICT kontrolleri gerçek PostgreSQL'de geçti. EF DateOnly okuması UTC ve Europe/Istanbul oturumlarında, decimal/identity/nullable Source ile birlikte doğrulandı; tüm deneme kayıtları geri alındı.
 - Önceki silinmiş uygulamanın 48 xUnit testi ve API sonuçları bu projeye ait tamamlanma kanıtı değildir.

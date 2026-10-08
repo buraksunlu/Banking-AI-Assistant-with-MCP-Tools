@@ -11,6 +11,7 @@ public sealed class BankingDbContext : DbContext
     public DbSet<TransactionCategory> TransactionCategories => Set<TransactionCategory>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<MarketAsset> MarketAssets => Set<MarketAsset>();
+    public DbSet<DailyMarketPrice> DailyMarketPrices => Set<DailyMarketPrice>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -27,6 +28,7 @@ public sealed class BankingDbContext : DbContext
         modelBuilder.ApplyConfiguration(new TransactionCategoryConfiguration());
         modelBuilder.ApplyConfiguration(new TransactionConfiguration());
         modelBuilder.ApplyConfiguration(new MarketAssetConfiguration());
+        modelBuilder.ApplyConfiguration(new DailyMarketPriceConfiguration());
         modelBuilder.HasSequence<long>("CustomerNumberSequence");
         var customer = modelBuilder.Entity<Customer>();
         customer.ToTable("Customers", table =>

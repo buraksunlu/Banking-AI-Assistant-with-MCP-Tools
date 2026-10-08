@@ -52,11 +52,11 @@ canlı PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna 
 | Öğe | Durum |
 | --- | --- |
 | Aktif DB | bankingai_foundation |
-| Domain tabloları | Customers, Accounts, TransactionCategories, Transactions, MarketAssets |
+| Domain tabloları | Customers, Accounts, TransactionCategories, Transactions, MarketAssets, DailyMarketPrices |
 | EF yardımcı tablosu | __EFMigrationsHistory |
-| Uygulanmış migration | 6 |
+| Uygulanmış migration | 7 |
 | Veri | 1 Customer; 0 Account; 0 Category; 0 Transaction |
-| Market tabloları | MarketAssets mevcut ve boş; DailyMarketPrices henüz yok |
+| Market tabloları | MarketAssets ve DailyMarketPrices mevcut; testler geri alındı, ikisi de boş |
 | Bakiye güncelleme akışı | Henüz yok; SQL ile transaction eklemek bakiyeyi otomatik değiştirmez |
 | Kalıcı otomatik test projesi | Henüz yok; önceki kontroller geçici program/SQL ile yapıldı |
 | API / SwiftUI / AI / MCP | Henüz yok |
@@ -68,6 +68,7 @@ Migration geçmişi:
 4. 20261008090052_AddTransactions
 5. 20261008111025_SplitCustomerName
 6. 20261008124728_AddMarketAssets
+7. 20261008132653_AddDailyMarketPrices
 
 ## 1. Mevcut kararları ve belgeleri tutarlı hale getir
 
@@ -90,11 +91,11 @@ Migration geçmişi:
 
 ## 3. DailyMarketPrice — günlük fiyat tablosu
 
-- [ ] MP-01 — DailyMarketPrice.cs oluştur. Id: long; MarketAssetId: short; PriceDate: DateOnly; Price: decimal; Source: string?. DateOnly ile UTC timestamp farkını açıkla.
-- [ ] MP-02 — Configuration oluştur. Id bigint identity; FK smallint; PriceDate date; Price numeric(20,8); Source varchar(100) nullable. Price pozitif ve sonlu olmalı; NaN kabul edilmesin.
-- [ ] MP-03 — MarketAsset 1:N DailyMarketPrice ilişkisini RESTRICT ile kur. MarketAssetId + PriceDate unique yapı ekle; aynı alanlara tekrar normal index ekleme.
-- [ ] MP-04 — DbSet/configuration kaydını ve migration'ı hazırla; yeni tablo ve ilişkiyi inceleyip PostgreSQL'e uygula.
-- [ ] MP-05 — Aynı asset/gün tekrarı, olmayan asset, sıfır/negatif fiyat ve doğru DateOnly okumasını doğrula. Test kayıtlarını geri al.
+- [x] MP-01 — DailyMarketPrice.cs oluşturuldu: Id long (private set), MarketAssetId short, PriceDate DateOnly, Price decimal, Source string?. DateOnly'nin takvim gününü, UTC timestamp'in belirli bir anı temsil ettiği açıklandı. Derleme: 0 hata, 0 uyarı. Yalnızca entity hazır; identity, FK, fiyat ve unique kuralları henüz eşlenmedi, tablo oluşturulmadı.
+- [x] MP-02 — DailyMarketPriceConfiguration oluşturuldu. Id bigint identity; MarketAssetId smallint; PriceDate date; Price numeric(20,8); Source varchar(100) nullable. Price için pozitiflik ve NaN/Infinity/-Infinity reddi CHECK kısıtı tanımlandı. Derleme: 0 hata, 0 uyarı. FK/unique ilişki, DbContext kaydı ve migration MP-03/04 adımlarında tamamlandı; DB kontrolleri MP-05'te yapıldı.
+- [x] MP-03 — MarketAsset 1:N DailyMarketPrice ilişkisi RESTRICT ile kuruldu. MarketAssetId + PriceDate unique index eklendi; DB'de yalnızca PK index'i ve bu birleşik unique index bulunduğu doğrulandı.
+- [x] MP-04 — DbSet/configuration kaydı ve AddDailyMarketPrices migration'ı oluşturuldu. C# migration, model farkı ve üretilen SQL incelendi; yalnızca DailyMarketPrices tablosu, kısıtları/index'i ve migration geçmişi kaydı eklendi. bankingai_foundation üzerinde uygulandı; kolon tipleri ve identity doğrulandı.
+- [x] MP-05 — Geçici .NET/EF doğrulama programı ile gerçek PostgreSQL'de aynı asset/gün, olmayan asset, sıfır/negatif/NaN/sonsuz fiyat ve RESTRICT silme reddi denendi. Farklı gün ve farklı asset kabul edildi; DateOnly UTC ve Europe/Istanbul oturumlarında aynı gün olarak okundu. Identity, nullable Source ve 8 ondalıklı decimal okuması doğrulandı. Denemeler ROLLBACK edildi; iki market tablosu da boş. Kalıcı test projesi henüz yok.
 
 ## 4. Banking modelinin kalan doğrulama kararları
 
@@ -326,6 +327,6 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Önerilen sonraki küçük iş: MA-03 ile varlık türü, para birimi ve Symbol/BaseUnit uyum kurallarını gözden geçirmek; tür ve TRY kısıtları configuration içinde tanımlandı, seed uyumu henüz doğrulanmadı.
+Önerilen sonraki küçük iş: VAL-01 ile girdi doğrulama kurallarını tablo halinde belirlemek. MA-03'ün seed eşleşme doğrulaması seed aşamasını bekliyor; diğer açık maddeler listede korunuyor.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

@@ -19,9 +19,11 @@ Mevcut domain tabloları:
 - `Accounts`
 - `TransactionCategories`
 - `Transactions`
+- `MarketAssets`
+- `DailyMarketPrices`
 
 EF Core ayrıca migration geçmişi için `__EFMigrationsHistory` tablosunu yönetir.
-Market tabloları, seed verisi ve historical market import henüz yapılmadı.
+Market tabloları oluşturuldu; market seed verisi ve historical market import henüz yok.
 
 ## Gereksinimler
 
@@ -117,6 +119,12 @@ kalabilir. İşlem para birimi hesap para birimiyle database ilişkisinde doğru
 Bakiye güncelleyen transaction yazma akışı henüz oluşturulmadı; şu anda bir
 Transaction satırı eklemek Account.Balance değerini otomatik değiştirmez.
 
+`MarketAsset`, fiyatı izlenen varlığı tanımlar. `DailyMarketPrice`, bu varlığın
+belirli takvim günündeki fiyatını tutar. Varlık/gün çifti unique'dir; fiyat
+kaydı bulunan varlık RESTRICT nedeniyle silinemez. Tarih `DateOnly`/`date`,
+fiyat `decimal`/`numeric(20,8)` olarak tutulur. Geçici EF/PostgreSQL kontrolleri
+geçti; test kayıtları geri alındı, iki market tablosu boştur.
+
 ## Migration geçmişi
 
 Aktif veritabanında sırasıyla şu migration'lar uygulanmıştır:
@@ -126,6 +134,8 @@ Aktif veritabanında sırasıyla şu migration'lar uygulanmıştır:
 3. `AddAccountsAndTransactionCategories`
 4. `AddTransactions`
 5. `SplitCustomerName`
+6. `AddMarketAssets`
+7. `AddDailyMarketPrices`
 
 Eski migration dosyaları tarihçedir; son modelde kullanılmayan eski sütunları
 göstermeleri normaldir. Uygulanmış migration dosyaları silinmez veya geriye
@@ -135,8 +145,8 @@ dönük değiştirilmez.
 
 Database-first sırası devam edecek:
 
-1. `MarketAsset` entity ve configuration.
-2. `DailyMarketPrice` entity ve configuration.
+1. Girdi doğrulama kurallarını netleştirmek.
+2. Kalan veri modeli doğrulamalarını küçük adımlarla uygulamak.
 3. Kategori ve market asset seed'i.
 4. Kontrollü synthetic Customer, Account ve Transaction seed'i.
 5. Üç varlık için en az iki yıllık gerçek historical market data import'u.
