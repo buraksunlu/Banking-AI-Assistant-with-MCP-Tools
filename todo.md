@@ -52,11 +52,11 @@ canlı PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna 
 | Öğe | Durum |
 | --- | --- |
 | Aktif DB | bankingai_foundation |
-| Domain tabloları | Customers, Accounts, TransactionCategories, Transactions |
+| Domain tabloları | Customers, Accounts, TransactionCategories, Transactions, MarketAssets |
 | EF yardımcı tablosu | __EFMigrationsHistory |
-| Uygulanmış migration | 5 |
+| Uygulanmış migration | 6 |
 | Veri | 1 Customer; 0 Account; 0 Category; 0 Transaction |
-| Market tabloları | Henüz yok |
+| Market tabloları | MarketAssets mevcut ve boş; DailyMarketPrices henüz yok |
 | Bakiye güncelleme akışı | Henüz yok; SQL ile transaction eklemek bakiyeyi otomatik değiştirmez |
 | Kalıcı otomatik test projesi | Henüz yok; önceki kontroller geçici program/SQL ile yapıldı |
 | API / SwiftUI / AI / MCP | Henüz yok |
@@ -67,6 +67,7 @@ Migration geçmişi:
 3. 20261008083922_AddAccountsAndTransactionCategories
 4. 20261008090052_AddTransactions
 5. 20261008111025_SplitCustomerName
+6. 20261008124728_AddMarketAssets
 
 ## 1. Mevcut kararları ve belgeleri tutarlı hale getir
 
@@ -83,9 +84,9 @@ Migration geçmişi:
 
 - [x] MA-01 — MarketAsset.cs oluşturuldu ve açıklandı. Id: short; Symbol: string; Name: string; AssetType: string; BaseUnit: string; QuoteCurrency: string; IsActive: bool. Proje 0 hata, 0 uyarıyla derlendi. Yalnızca entity hazır; EF eşlemesi, tablo ve veri doğrulama kuralları henüz eklenmedi.
 - [x] MA-02 — MarketAssetConfiguration oluşturuldu. Id smallint ve otomatik üretilmez; Symbol varchar(30) unique; Name varchar(100); AssetType varchar(30); BaseUnit varchar(20); QuoteCurrency char(3); IsActive boolean. Zorunluluk, pozitif ID, boş metin, Currency/Commodity ve TRY kısıtları tanımlandı. Derleme: 0 hata, 0 uyarı. DbContext kaydı ve migration henüz yok; DB kısıtları uygulanmadı/doğrulanmadı.
-- [ ] MA-03 — Varlık tip/para birimi kurallarını ekle. İlk tipler Currency/Commodity, quote TRY; Symbol/BaseUnit ilişkisini seed incelemesinde doğrula. Gereksiz ek lookup tablo açma.
-- [ ] MA-04 — DbSet ve configuration kaydını ekle; yalnızca MarketAssets tablosunu ekleyen migration üretip SQL içeriğini incele.
-- [ ] MA-05 — Migration'ı aktif DB'ye uygula; pgAdmin'de kolonları göster. Unique, required ve uzunluk kısıtlarını rollback edilen kayıtlarla doğrula.
+- [x] MA-03 — Tür/para birimi kısmı tamamlandı: Currency/Commodity ve quote TRY kısıtları aktif PostgreSQL'de doğrulandı. Üç geçerli kayıt kabul edildi; beş geçersiz tür/quote örneği beklenen CHECK kısıtlarınca reddedildi, tüm denemeler geri alındı. Symbol/BaseUnit eşleşme sözleşmesi docs/database-design.md içinde yazıldı. DB bu eşleşmeyi korumuyor; gerçek seed incelemesi SEED-04/SEED-05'i bekliyor. Bu nedenle madde bütünüyle tamamlandı işaretlenmedi. Ek lookup tablo yok.
+- [x] MA-04 — DbSet ve configuration kaydını ekle; yalnızca MarketAssets tablosunu ekleyen migration üretip SQL içeriğini incele.
+- [x] MA-05 — Migration'ı aktif DB'ye uygula; pgAdmin'de kolonları göster. Unique, required ve uzunluk kısıtlarını rollback edilen kayıtlarla doğrula.
 
 ## 3. DailyMarketPrice — günlük fiyat tablosu
 
@@ -111,7 +112,7 @@ Migration geçmişi:
 - [ ] SEED-02 — TransactionCategories seed'ini yaz. Sabit 1–11 ID ile FOOD, GROCERY, CLOTHING, TRANSPORTATION, ENTERTAINMENT, SUBSCRIPTION, TRAVEL, FUEL, BILLS, HEALTH, OTHER ve Türkçe görünen adları ekle.
 - [ ] SEED-03 — Kategori seed'ini iki kez çalıştır. Satır sayısı 11 kalmalı; aynı ID altında farklı kod varsa sessizce üzerine yazılmamalı. Eşzamanlı çalıştırmanın davranışını da doğrula.
 - [ ] SEED-04 — MarketAssets seed'ini yaz. USDTRY/USD/Currency, EURTRY/EUR/Currency, GRAM_GOLD_TRY/GRAM/Commodity; quote TRY ve IsActive true olsun.
-- [ ] SEED-05 — Market seed tekrarını doğrula. Üç varlık çoğalmamalı; birim ve semboller beklenen değerlerle eşleşmeli.
+- [ ] SEED-05 — Market seed tekrarını doğrula. Üç varlık çoğalmamalı; Symbol/AssetType/BaseUnit/QuoteCurrency birlikte docs/database-design.md içindeki MA-03 sözleşmesiyle eşleşmeli. Hem seed girdisinde hem mevcut DB kaydında USDTRY/EUR gibi yanlış eşleşmeleri dene; sessiz düzeltme/atlama yerine açıklayıcı hata ver. Bu doğrulama geçince MA-03'ün kalan kısmını tamamlandı işaretle.
 
 ## 6. Kontrollü synthetic müşteri ve hesaplar
 

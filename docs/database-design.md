@@ -9,23 +9,25 @@ domain tablosu vardır: `Customers`, `Accounts`, `TransactionCategories`,
 
 ## Gerçek mevcut durum
 
-Aktif veritabanı `bankingai_foundation`dır. Şu dört domain tablosu uygulanmıştır:
+Aktif veritabanı `bankingai_foundation`dır. Şu beş domain tablosu uygulanmıştır:
 
 - `Customers`
 - `Accounts`
 - `TransactionCategories`
 - `Transactions`
+- `MarketAssets`
 
-`MarketAssets` ve `DailyMarketPrices` henüz oluşturulmadı. Kategori/asset seed'i,
+`DailyMarketPrices` henüz oluşturulmadı. Kategori/asset seed'i,
 synthetic banking seed'i ve historical market import'u henüz yok.
 
-Aktif veritabanında beş migration uygulanmıştır:
+Aktif veritabanında altı migration uygulanmıştır:
 
 1. `CreateCustomers`
 2. `AddCustomerPreferences`
 3. `AddAccountsAndTransactionCategories`
 4. `AddTransactions`
 5. `SplitCustomerName`
+6. `AddMarketAssets`
 
 Migration yaklaşımı incremental'dır: her schema değişikliği yeni bir migration
 olarak eklenir. Uygulanmış migration'lar silinmez veya geriye dönük değiştirilmez;
@@ -142,6 +144,39 @@ Tarihsel fiyatı izlenen varlığı tanımlar.
 
 İlk asset'ler: `USDTRY` (USD), `EURTRY` (EUR), `GRAM_GOLD_TRY` (GRAM).
 OHLC, volume veya asset başına birden fazla fiyat serisi ilk kapsamda yoktur.
+
+### MA-03 — Tür, para birimi ve seed eşleşmesi
+
+`MarketAssetConfiguration.cs` içindeki `CK_MarketAssets_AssetType` yalnızca
+`Currency` ve `Commodity` değerlerini; `CK_MarketAssets_QuoteCurrency` yalnızca
+`TRY` değerini kabul eder. Bu kurallar `AddMarketAssets` migration'ıyla aktif
+veritabanına uygulanmıştır. `IsRequired()` eşlemeleri NULL değerleri de engeller.
+Bu DB kuralları C# nesnesi oluşturulurken çalışan doğrulamalar değildir.
+
+Seed aşamasında her kaydın aşağıdaki dört alanı birlikte kontrol edilecek:
+
+| Symbol | AssetType | BaseUnit | QuoteCurrency |
+| --- | --- | --- | --- |
+| USDTRY | Currency | USD | TRY |
+| EURTRY | Currency | EUR | TRY |
+| GRAM_GOLD_TRY | Commodity | GRAM | TRY |
+
+`BaseUnit` fiyatlanan birimdir; `QuoteCurrency` fiyatın ifade edildiği para
+birimidir. Örneğin USDTRY fiyatı, 1 USD karşılığındaki TRY tutarını ifade eder.
+Varlık türü veya para birimi için ayrı lookup tablo oluşturulmaz.
+
+Mevcut DB kısıtları bu dört alanın birbirine uyumunu denetlemez. Örneğin
+`USDTRY / Currency / EUR / TRY` kaydı DB tarafından kabul edilir; seed kodu
+bu eşleşmeyi reddetmelidir. SEED-04/SEED-05 kapsamında beklenen eşleşmelerle
+hem yazılacak kayıtlar hem mevcut kayıtlar karşılaştırılacak; uyuşmazlıkta
+sessiz düzeltme veya atlama yerine açıklayıcı hata verilecektir.
+
+8 Ekim 2026 doğrulaması: PostgreSQL'de üç geçerli eşleşme kabul edildi;
+Stock, Bond, küçük harfli currency türleri ile USD ve küçük harfli try quote
+değerleri beklenen CHECK kısıtlarınca reddedildi. USDTRY/EUR uyumsuzluğunun
+mevcut DB tarafından kabul edildiği de doğrulandı. Bütün deneme kayıtları
+aynı transaction içinde ROLLBACK edildi; tablo boş kaldı. Seed henüz
+uygulanmadığından gerçek seed eşleşme doğrulaması tamamlanmış değildir.
 
 ## DailyMarketPrices
 
