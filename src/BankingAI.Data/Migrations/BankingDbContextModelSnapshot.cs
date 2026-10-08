@@ -136,6 +136,39 @@ namespace BankingAI.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BankingAI.Data.Entities.DailyMarketPrice", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<short>("MarketAssetId")
+                        .HasColumnType("smallint");
+
+                    b.Property<decimal>("Price")
+                        .HasPrecision(20, 8)
+                        .HasColumnType("numeric(20,8)");
+
+                    b.Property<DateOnly>("PriceDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MarketAssetId", "PriceDate")
+                        .IsUnique();
+
+                    b.ToTable("DailyMarketPrices", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_DailyMarketPrices_Price_PositiveFinite", "\"Price\" > 0 AND \"Price\" NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric)");
+                        });
+                });
+
             modelBuilder.Entity("BankingAI.Data.Entities.MarketAsset", b =>
                 {
                     b.Property<short>("Id")
@@ -299,6 +332,15 @@ namespace BankingAI.Data.Migrations
                     b.HasOne("BankingAI.Data.Entities.Customer", null)
                         .WithMany()
                         .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BankingAI.Data.Entities.DailyMarketPrice", b =>
+                {
+                    b.HasOne("BankingAI.Data.Entities.MarketAsset", null)
+                        .WithMany()
+                        .HasForeignKey("MarketAssetId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
