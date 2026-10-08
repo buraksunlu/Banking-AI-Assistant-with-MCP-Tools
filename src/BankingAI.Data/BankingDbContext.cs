@@ -10,6 +10,7 @@ public sealed class BankingDbContext : DbContext
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<TransactionCategory> TransactionCategories => Set<TransactionCategory>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
+    public DbSet<MarketAsset> MarketAssets => Set<MarketAsset>();
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -25,6 +26,7 @@ public sealed class BankingDbContext : DbContext
         modelBuilder.ApplyConfiguration(new AccountConfiguration());
         modelBuilder.ApplyConfiguration(new TransactionCategoryConfiguration());
         modelBuilder.ApplyConfiguration(new TransactionConfiguration());
+        modelBuilder.ApplyConfiguration(new MarketAssetConfiguration());
         modelBuilder.HasSequence<long>("CustomerNumberSequence");
         var customer = modelBuilder.Entity<Customer>();
         customer.ToTable("Customers", table =>

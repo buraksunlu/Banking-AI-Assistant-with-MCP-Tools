@@ -81,8 +81,8 @@ Migration geçmişi:
 
 ## 2. MarketAsset — tek sınıf, sonra eşleme, sonra tablo
 
-- [ ] MA-01 — MarketAsset.cs oluştur ve açıkla. Id: short; Symbol: string; Name: string; AssetType: string; BaseUnit: string; QuoteCurrency: string; IsActive: bool. Bu adımda yalnızca sınıfı derle.
-- [ ] MA-02 — MarketAssetConfiguration oluştur. Id sabit seed değeri; Symbol varchar(30) unique; Name varchar(100); AssetType varchar(30); BaseUnit varchar(20); QuoteCurrency char(3); IsActive boolean. Alanlar zorunlu, boş metinler geçersiz olsun.
+- [x] MA-01 — MarketAsset.cs oluşturuldu ve açıklandı. Id: short; Symbol: string; Name: string; AssetType: string; BaseUnit: string; QuoteCurrency: string; IsActive: bool. Proje 0 hata, 0 uyarıyla derlendi. Yalnızca entity hazır; EF eşlemesi, tablo ve veri doğrulama kuralları henüz eklenmedi.
+- [x] MA-02 — MarketAssetConfiguration oluşturuldu. Id smallint ve otomatik üretilmez; Symbol varchar(30) unique; Name varchar(100); AssetType varchar(30); BaseUnit varchar(20); QuoteCurrency char(3); IsActive boolean. Zorunluluk, pozitif ID, boş metin, Currency/Commodity ve TRY kısıtları tanımlandı. Derleme: 0 hata, 0 uyarı. DbContext kaydı ve migration henüz yok; DB kısıtları uygulanmadı/doğrulanmadı.
 - [ ] MA-03 — Varlık tip/para birimi kurallarını ekle. İlk tipler Currency/Commodity, quote TRY; Symbol/BaseUnit ilişkisini seed incelemesinde doğrula. Gereksiz ek lookup tablo açma.
 - [ ] MA-04 — DbSet ve configuration kaydını ekle; yalnızca MarketAssets tablosunu ekleyen migration üretip SQL içeriğini incele.
 - [ ] MA-05 — Migration'ı aktif DB'ye uygula; pgAdmin'de kolonları göster. Unique, required ve uzunluk kısıtlarını rollback edilen kayıtlarla doğrula.
@@ -325,6 +325,6 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Önerilen ilk küçük iş: MA-01 ile yalnızca MarketAsset sınıfını oluşturmak.
+Önerilen sonraki küçük iş: MA-03 ile varlık türü, para birimi ve Symbol/BaseUnit uyum kurallarını gözden geçirmek; tür ve TRY kısıtları configuration içinde tanımlandı, seed uyumu henüz doğrulanmadı.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

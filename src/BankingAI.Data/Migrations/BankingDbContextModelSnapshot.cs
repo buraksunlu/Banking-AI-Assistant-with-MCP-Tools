@@ -136,6 +136,59 @@ namespace BankingAI.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BankingAI.Data.Entities.MarketAsset", b =>
+                {
+                    b.Property<short>("Id")
+                        .HasColumnType("smallint");
+
+                    b.Property<string>("AssetType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("BaseUnit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("QuoteCurrency")
+                        .IsRequired()
+                        .HasColumnType("char(3)");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Symbol")
+                        .IsUnique();
+
+                    b.ToTable("MarketAssets", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_MarketAssets_AssetType", "\"AssetType\" IN ('Currency', 'Commodity')");
+
+                            t.HasCheckConstraint("CK_MarketAssets_BaseUnit_NotBlank", "\"BaseUnit\" ~ '[^[:space:]]'");
+
+                            t.HasCheckConstraint("CK_MarketAssets_Id_Positive", "\"Id\" > 0");
+
+                            t.HasCheckConstraint("CK_MarketAssets_Name_NotBlank", "\"Name\" ~ '[^[:space:]]'");
+
+                            t.HasCheckConstraint("CK_MarketAssets_QuoteCurrency", "\"QuoteCurrency\" = 'TRY'");
+
+                            t.HasCheckConstraint("CK_MarketAssets_Symbol_NotBlank", "\"Symbol\" ~ '[^[:space:]]'");
+                        });
+                });
+
             modelBuilder.Entity("BankingAI.Data.Entities.Transaction", b =>
                 {
                     b.Property<Guid>("Id")
