@@ -2,7 +2,7 @@
 
 Son güncelleme: 8 Ekim 2026.
 
-Bu dosya küçük, uygulanabilir işlerin listesidir. PLAN.md genel yol haritasıdır;
+Bu dosya projenin tek planıdır ve küçük, uygulanabilir işlerin listesidir.
 RULE.md çalışma kurallarını tutar. En son açık kullanıcı kararı, eski taslaklardan
 önceliklidir. Bu listedeki gelecek işler henüz uygulanmış değildir.
 
@@ -23,7 +23,7 @@ Bu bölüm mevcut kaynak dosyaları, bu sohbetin doğrulama sonuçları ve 8 Eki
 canlı PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna dahil değildir.
 
 - [x] DONE-01 — Önceki uygulama temizlendi; database-first başlangıca geçildi.
-- [x] DONE-02 — PLAN.md içine önce veritabanı, sonra uygulama katmanları sırası yazıldı.
+- [x] DONE-02 — Önce veritabanı, sonra uygulama katmanları sırası todo.md içine yazıldı.
 - [x] DONE-03 — Küçük adımlar ve kullanıcı review kuralı belirlendi; aktarılmayı bekleyen metin docs/rule-update.md içinde tutuldu. RULE.md ile birleştirme 8 Ekim 2026 tarihinde tamamlandı (DOC-04).
 - [x] DONE-04 — .NET 10 veri/console projesi oluşturuldu: src/BankingAI.Data.
 - [x] DONE-05 — EF Core, Npgsql ve yerel dotnet-ef aracı eklendi.
@@ -54,7 +54,7 @@ canlı PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna 
 | Aktif DB | bankingai_foundation |
 | Domain tabloları | Customers, Accounts, TransactionCategories, Transactions |
 | EF yardımcı tablosu | __EFMigrationsHistory |
-| Uygulanmış migration | 4 |
+| Uygulanmış migration | 5 |
 | Veri | 1 Customer; 0 Account; 0 Category; 0 Transaction |
 | Market tabloları | Henüz yok |
 | Bakiye güncelleme akışı | Henüz yok; SQL ile transaction eklemek bakiyeyi otomatik değiştirmez |
@@ -66,6 +66,7 @@ Migration geçmişi:
 2. 20261007143550_AddCustomerPreferences
 3. 20261008083922_AddAccountsAndTransactionCategories
 4. 20261008090052_AddTransactions
+5. 20261008111025_SplitCustomerName
 
 ## 1. Mevcut kararları ve belgeleri tutarlı hale getir
 
@@ -74,9 +75,9 @@ Migration geçmişi:
 - [x] DOC-03 — README gerçek mevcut duruma getirildi. Silinmiş API, script, seed ve test sonuçları kaldırıldı; mevcut console ve migration komutları yazıldı.
 - [x] DOC-04 — RULE.md ile docs/rule-update.md kuralları 8 Ekim 2026 tarihinde birleştirildi. Küçük adım/review, database-first, altı tablo ve hesaplama kararları güncellendi; eski tamamlanma kayıtları düzeltildi.
 - [x] DOC-05 — docs/database-design.md altı tablo kararına göre güncellendi. Nullable CategoryId, FirstName/LastName, güncel tipler ve gerçek mevcut durum ayrı gösteriliyor.
-- [ ] DOC-06 — PLAN.md'deki eski kategori ve opportunity-cost yöntem ifadelerini son kararla uyumlu yap. Her harcama tarihinde varsayımsal alım yöntemiyle, özelliğin hangi sorularda sunulacağı kararını ayrı tut.
+- [x] DOC-06 — Eski ayrı yol haritası dosyası kaldırıldı; todo.md projenin tek planı oldu. Kategori ve opportunity-cost kararları son kullanıcı kararıyla uyumlu tutuldu.
 - [x] DOC-07 — Incremental migration yaklaşımı seçildi. Mevcut migration geçmişi korunacak; her schema değişikliği yeni migration olarak eklenecek. Veritabanı resetlenmeyecek ve uygulanmış migration dosyaları geriye dönük değiştirilmeyecek.
-- [x] DOC-08 — Yerel Git takibi oluşturuldu. `.env`, build çıktıları ve `.DS_Store` dışarıda doğrulandı; ilk yerel snapshot commit'i oluşturuldu. Remote/push ayrı karar olarak kaldı.
+- [x] DOC-08 — Yerel Git takibi oluşturuldu. .env ve build çıktıları dışarıda doğrulandı; remote/push ayrı karar olarak bırakıldı.
 
 ## 2. MarketAsset — tek sınıf, sonra eşleme, sonra tablo
 
@@ -324,7 +325,6 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Önerilen ilk küçük iş: DOC-01 ile Customer alanlarının nihai halini netleştirmek.
-Ardından MA-01 ile yalnızca MarketAsset sınıfını oluşturmak.
+Önerilen ilk küçük iş: MA-01 ile yalnızca MarketAsset sınıfını oluşturmak.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

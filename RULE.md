@@ -4,8 +4,8 @@
 Son kural güncellemesi: 8 Ekim 2026.
 
 Bu dosya proje kararlarının esas kaynağıdır. Kullanıcının son açık talimatı,
-eski doküman veya taslakla çeliştiğinde önceliklidir. PLAN.md genel yol haritası,
-todo.md küçük adımların tamamlanma takibidir. Güncel stack kararları, önceki
+eski doküman veya taslakla çeliştiğinde önceliklidir. todo.md projenin tek iş
+planı ve küçük adımların tamamlanma takibidir. Güncel stack kararları, önceki
 bölümlerdeki farklı veya daha genel ifadelerden önceliklidir. Hedef stack,
 bileşenlerin tamamının şu anda uygulanmış olduğu anlamına gelmez; geliştirme
 mevcut kod üzerinden, küçük ve ihtiyaç duyulan adımlarla devam eder.
@@ -807,7 +807,8 @@ Ama bütün sistemi gereksiz Docker complexity ile bozma.
 21. GÜNCEL 7 HAFTALIK YOL HARİTASI
 ==================================================
 
-Ana roadmap PLAN.md dosyasıdır; küçük uygulanabilir adımlar todo.md içindedir. Eski haftalık sıralamanın yerini alır.
+Ana roadmap ve iş takibi todo.md dosyasındadır. Eski haftalık sıralama ve
+taslaklar yalnızca tarihsel referans olarak kabul edilir; yeni işler todo.md'ye eklenir.
 Haftalık hedefler mevcut tamamlanma durumu değildir.
 
 WEEK 1: Database-first; PostgreSQL + EF Core + altı tablo + kontrollü synthetic veri + en az iki yıllık gerçek market verisi.
@@ -1297,7 +1298,7 @@ KNOWN ISSUES
 - Transaction eklenmesi Account.Balance'ı otomatik güncellemez; atomik yazma akışı yok.
 - Customer'ın son hedef tarifine geçişi henüz yapılmadı.
 - Null/precision/UTC/kategorilendirme tutarlılığı gibi bazı giriş kontrolleri sonraki adımlarda.
-- README güncel console/database durumuna getirildi; PLAN ve database-design içindeki kalan uyarlamalar todo.md'de takip ediliyor.
+- README güncel console/database durumuna getirildi; database-design içindeki kalan uyarlamalar todo.md'de takip ediliyor.
 - Controller/API/DTO/service, SwiftUI, AI ve MCP henüz oluşturulmadı.
 
 TECHNICAL DEBT

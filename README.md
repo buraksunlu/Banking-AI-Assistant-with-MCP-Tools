@@ -91,7 +91,6 @@ src/BankingAI.Data/
 Kök dosyaları:
 
 - `RULE.md`: Projenin kalıcı çalışma ve teknik karar kuralları.
-- `PLAN.md`: Yedi haftalık genel yol haritası.
 - `todo.md`: Küçük, sırayla uygulanacak iş listesi.
 - `docs/`: Tasarım ve review açıklamaları.
 - `.env.example`: Gerçek parola içermeyen bağlantı şablonu.
