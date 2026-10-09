@@ -20,10 +20,11 @@ Aktif veritabanı `bankingai_foundation`dır. Şu altı domain tablosu uygulanm�
 
 `MarketAssets` tablosunda üç başlangıç seed kaydı vardır; `DailyMarketPrices`
 henüz boştur. 11 kategori, demo dahil dört Customer ve beş dummy Account vardır.
-Transactions tablosunda 14 kategorisiz Credit ve altı kategorili abonelik Debit'i
-bulunur. Historical market import henüz yoktur.
+Transactions tablosunda 14 kategorisiz Credit ve 18 Debit bulunur: altı abonelik,
+altı tekil kategori örneği ve Ağustos/Eylül GROCERY dönemleri için altı hareket.
+Historical market import henüz yoktur.
 
-Aktif veritabanında yedi migration uygulanmıştır:
+Aktif veritabanında sekiz migration uygulanmıştır:
 
 1. `CreateCustomers`
 2. `AddCustomerPreferences`
@@ -32,6 +33,7 @@ Aktif veritabanında yedi migration uygulanmıştır:
 5. `SplitCustomerName`
 6. `AddMarketAssets`
 7. `AddDailyMarketPrices`
+8. `EnforceInputValidation`
 
 Migration yaklaşımı incremental'dır: her schema değişikliği yeni bir migration
 olarak eklenir. Uygulanmış migration'lar silinmez veya geriye dönük değiştirilmez;
@@ -61,13 +63,15 @@ dotnet run --project src/BankingAI.Data -- import market-prices --asset USDTRY -
 
 `seed categories` SEED-02 ile, `seed market-assets` SEED-04 ile uygulanmıştır.
 `seed customers` SYN-03 ile, `seed accounts` SYN-04/05 ile uygulanmıştır.
-`seed transactions credits` SYN-06, `seed transactions subscriptions` SYN-07
-ile uygulanmıştır. Tarihler, tutarlar, tekrar davranışı ve bakiye doğrulaması
+`seed transactions credits` SYN-06, `subscriptions` SYN-07,
+`category-examples` SYN-08 ve `grocery-growth` SYN-09 ile uygulanmıştır.
+SYN-09'un sabit beklenen toplamları 2025-08 GROCERY=24.000 TRY ve
+2025-09 GROCERY=31.000 TRY'dir. Tarihler, tutarlar, tekrar davranışı ve bakiye doğrulaması
 [synthetic seed belgesinde](synthetic-seed.md) bulunur.
 Hesap seed'inden önce müşteri seed'i çalıştırılır; sabit dummy hesaplar ve
 doğrulama sonuçları [synthetic seed belgesinde](synthetic-seed.md) açıklanır.
-`seed synthetic` ve `import market-prices` bu tasarım adımında henüz mevcut
-değildir. Her scope uygulanmadan önce kapsamı olmayan `seed` veya `import`
+`seed synthetic` ve `import market-prices` henüz mevcut değildir. Her scope
+uygulanmadan önce kapsamı olmayan `seed` veya `import`
 komutu kullanım hatası vermelidir. İlk aşamada genel `seed all` komutu
 tanımlanmaz; böylece yeni bir seed scope'u eklenmesi mevcut veriye sessizce
 eklenmez.

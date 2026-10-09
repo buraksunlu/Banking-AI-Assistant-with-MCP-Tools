@@ -1,6 +1,7 @@
 # Deterministic synthetic seed
 
-SYN-01 yalnızca gelecekte üretilecek sentetik verinin değişmeyen ayarlarını tanımlar. Bu adımda Customer, Account veya Transaction kaydı üretilmez ve veritabanına yazılmaz.
+SYN-01 sentetik veri ayarlarını sabitler. Aşağıdaki sonraki adımlar kontrollü
+Customer, Account ve Transaction kayıtlarını ayrı komutlarla veritabanına yazar.
 
 - `RandomSeed`: `20261009`
 - `ReferenceUtc`: `2025-10-01T00:00:00Z`
@@ -129,3 +130,47 @@ aynı ID farklı içerikle bulunursa hata verir. Her kayıt `TransactionSeedWrit
 Credit − Debit toplamıyla eşleşti: Ada TRY 269.010,06; Ada USD 500; Deniz TRY
 330.000; Ege EUR 1.000; boş hesap 0. Credit kategorileri null ve açılış
 fonlaması için eşleşen Debit sayısı sıfırdır.
+
+## SYN-08 tekil kategori örnekleri
+
+`seed transactions category-examples` aşağıdaki altı sentetik Debit'i ekler.
+RawDescription, banka ekstresinden gelebilecek ham açıklama biçimini;
+NormalizedMerchant ise eşleştirme/analiz için sade merchant adını temsil eder.
+
+| Tarih (UTC) | Kategori | Tutar | RawDescription | NormalizedMerchant |
+| --- | --- | ---: | --- | --- |
+| 2025-05-10 | FOOD | 185 TRY | `POS 4412 STARBUCKS KADIKOY` | Starbucks |
+| 2025-05-14 | GROCERY | 2.500 TRY | `POS 1820 AILE MARKETI KADIKOY` | Aile Marketi |
+| 2025-06-02 | CLOTHING | 3.200 TRY | `POS 0731 COCUK GIYIM` | Çocuk Giyim |
+| 2025-06-04 | TRANSPORTATION | 450 TRY | `ISTANBULKART ULASIM ODEME` | Şehir Ulaşım |
+| 2025-06-08 | FUEL | 1.900 TRY | `POS 6621 AKARYAKIT ISTASYONU` | Akaryakıt İstasyonu |
+| 2025-06-15 | BILLS | 1.450 TRY | `ELEKTRIK FATURA TAHSILATI` | Elektrik Faturası |
+
+Komut hesap/para birimi eşleşmesini ve kategori ID'sinin beklenen Code değerine
+karşılık geldiğini eklemeden önce kontrol eder. Tutarlar sentetiktir, gerçek fiyat
+iddiası değildir.
+
+## SYN-09 sabit GROCERY dönem toplamları
+
+`seed transactions grocery-growth` Deniz'in TRY hesabına aşağıdaki sabit üçer
+hareketi ekler. İki dönem de tamamlanmış aydır; hedef toplamlar çalışan sistem
+saatinden bağımsızdır.
+
+| Dönem | Hareket tutarları | Beklenen GROCERY toplamı |
+| --- | --- | ---: |
+| 2025-08 | 9.800 + 8.200 + 6.000 TRY | **24.000 TRY** |
+| 2025-09 | 12.500 + 10.500 + 8.000 TRY | **31.000 TRY** |
+
+Altı kaydın tamamında kategori GROCERY, NormalizedMerchant `Aile Marketi`, yön
+Debit'tir. RawDescription içindeki POS/şube kodları değişirken merchant adı aynı
+kalır. Sabit beklenen değerler, dönem karşılaştırmasının 7.000 TRY artışı
+bulması için bağımsız kontrol sağlar.
+
+## SYN-08 / SYN-09 tekrar ve bakiye kontrolü
+
+9 Ekim 2026'da iki komutun ilk çalıştırması ayrı ayrı 6 kayıt ekledi; tekrar
+çalıştırmalarının her biri 0 ekledi. PostgreSQL'de GROCERY toplamları Ağustos'ta
+24.000 TRY, Eylül'de 31.000 TRY olarak okundu. Altı tekil örneğin açıklaması,
+merchant'ı ve kategorisi de DB'den kontrol edildi. Tüm hareketler
+`TransactionSeedWriter` üzerinden eklendiğinden bakiye etkisi de aynı DB
+transaction'ında yazıldı. Güncel hesap bakiyeleri todo.md'de yer alır.

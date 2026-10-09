@@ -9,6 +9,8 @@ public static class SyntheticTransactionSeeder
     private const short SubscriptionCategoryId = 6;
     public const int CreditCount = 14;
     public const int SubscriptionCount = 6;
+    public const int CategoryExampleCount = 6;
+    public const int GroceryGrowthCount = 6;
 
     public static Task<int> SeedCreditsAsync(BankingDbContext db, CancellationToken cancellationToken = default)
     {
@@ -46,6 +48,39 @@ public static class SyntheticTransactionSeeder
         return SeedAsync(db, definitions, cancellationToken);
     }
 
+    public static Task<int> SeedCategoryExamplesAsync(BankingDbContext db, CancellationToken cancellationToken = default)
+    {
+        var adaTry = Guid.Parse("20000000-0000-0000-0000-000000000001");
+        var denizTry = Guid.Parse("20000000-0000-0000-0000-000000000003");
+        var definitions = new List<Transaction>
+        {
+            Purchase(201, adaTry, 185m, "POS 4412 STARBUCKS KADIKOY", "Starbucks", 1, new(2025, 5, 10, 9, 0, 0, TimeSpan.Zero)),
+            Purchase(202, denizTry, 2500m, "POS 1820 AILE MARKETI KADIKOY", "Aile Marketi", 2, new(2025, 5, 14, 12, 0, 0, TimeSpan.Zero)),
+            Purchase(203, denizTry, 3200m, "POS 0731 COCUK GIYIM", "Çocuk Giyim", 3, new(2025, 6, 2, 10, 0, 0, TimeSpan.Zero)),
+            Purchase(204, denizTry, 450m, "ISTANBULKART ULASIM ODEME", "Şehir Ulaşım", 4, new(2025, 6, 4, 7, 0, 0, TimeSpan.Zero)),
+            Purchase(205, denizTry, 1900m, "POS 6621 AKARYAKIT ISTASYONU", "Akaryakıt İstasyonu", 8, new(2025, 6, 8, 14, 0, 0, TimeSpan.Zero)),
+            Purchase(206, denizTry, 1450m, "ELEKTRIK FATURA TAHSILATI", "Elektrik Faturası", 9, new(2025, 6, 15, 8, 0, 0, TimeSpan.Zero))
+        };
+
+        return SeedAsync(db, definitions, cancellationToken);
+    }
+
+    public static Task<int> SeedGroceryGrowthAsync(BankingDbContext db, CancellationToken cancellationToken = default)
+    {
+        var denizTry = Guid.Parse("20000000-0000-0000-0000-000000000003");
+        var definitions = new List<Transaction>
+        {
+            Purchase(301, denizTry, 9800m, "POS 4801 AILE MARKETI SUBE 04", "Aile Marketi", 2, new(2025, 8, 2, 11, 0, 0, TimeSpan.Zero)),
+            Purchase(302, denizTry, 8200m, "POS 4817 AILE MARKETI SUBE 04", "Aile Marketi", 2, new(2025, 8, 12, 11, 0, 0, TimeSpan.Zero)),
+            Purchase(303, denizTry, 6000m, "POS 4893 AILE MARKETI SUBE 04", "Aile Marketi", 2, new(2025, 8, 23, 11, 0, 0, TimeSpan.Zero)),
+            Purchase(304, denizTry, 12500m, "POS 5120 AILE MARKETI SUBE 04", "Aile Marketi", 2, new(2025, 9, 3, 11, 0, 0, TimeSpan.Zero)),
+            Purchase(305, denizTry, 10500m, "POS 5174 AILE MARKETI SUBE 04", "Aile Marketi", 2, new(2025, 9, 13, 11, 0, 0, TimeSpan.Zero)),
+            Purchase(306, denizTry, 8000m, "POS 5238 AILE MARKETI SUBE 04", "Aile Marketi", 2, new(2025, 9, 24, 11, 0, 0, TimeSpan.Zero))
+        };
+
+        return SeedAsync(db, definitions, cancellationToken);
+    }
+
     private static async Task<int> SeedAsync(
         BankingDbContext db,
         IReadOnlyCollection<Transaction> definitions,
@@ -68,12 +103,19 @@ public static class SyntheticTransactionSeeder
                     $"Synthetic transaction seed hesabı bulunamadı veya para birimi eşleşmiyor: {expected.AccountId}/{expected.CurrencyCode}. Önce 'seed accounts' çalıştırın.");
         }
 
-        if (definitions.Any(t => t.CategoryId == SubscriptionCategoryId))
+        var categoryIds = definitions.Where(t => t.CategoryId.HasValue)
+            .Select(t => t.CategoryId!.Value).Distinct().ToArray();
+        if (categoryIds.Length > 0)
         {
-            var categoryExists = await db.TransactionCategories.AsNoTracking()
-                .AnyAsync(c => c.Id == SubscriptionCategoryId && c.Code == "SUBSCRIPTION", cancellationToken);
-            if (!categoryExists)
-                throw new InvalidOperationException("SUBSCRIPTION kategorisi yok. Önce 'seed categories' çalıştırın.");
+            var categories = await db.TransactionCategories.AsNoTracking()
+                .Where(c => categoryIds.Contains(c.Id))
+                .ToDictionaryAsync(c => c.Id, c => c.Code, cancellationToken);
+            foreach (var categoryId in categoryIds)
+            {
+                if (!categories.TryGetValue(categoryId, out var code) || code != CategoryCode(categoryId))
+                    throw new InvalidOperationException(
+                        $"Synthetic transaction seed için kategori Id {categoryId} eksik veya beklenen kodla eşleşmiyor. Önce 'seed categories' çalıştırın.");
+            }
         }
 
         var existing = await db.Transactions.AsNoTracking()
@@ -110,6 +152,29 @@ public static class SyntheticTransactionSeeder
         Create(ordinal, accountId, amount, TransactionDirection.Debit, "TRY", $"{merchant} aylık abonelik ödemesi",
             merchant, SubscriptionCategoryId, CategorizationSource.Rule,
             new DateTimeOffset(2025, month, day, 7, 0, 0, TimeSpan.Zero));
+
+    private static Transaction Purchase(
+        int ordinal,
+        Guid accountId,
+        decimal amount,
+        string rawDescription,
+        string normalizedMerchant,
+        short categoryId,
+        DateTimeOffset occurredAt) =>
+        Create(ordinal, accountId, amount, TransactionDirection.Debit, "TRY", rawDescription,
+            normalizedMerchant, categoryId, CategorizationSource.Rule, occurredAt);
+
+    private static string CategoryCode(short id) => id switch
+    {
+        1 => "FOOD",
+        2 => "GROCERY",
+        3 => "CLOTHING",
+        4 => "TRANSPORTATION",
+        6 => "SUBSCRIPTION",
+        8 => "FUEL",
+        9 => "BILLS",
+        _ => throw new InvalidOperationException($"Synthetic seed için beklenmeyen kategori Id {id}.")
+    };
 
     private static Transaction Create(
         int ordinal,

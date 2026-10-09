@@ -55,8 +55,8 @@ canlı PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna 
 | Domain tabloları | Customers, Accounts, TransactionCategories, Transactions, MarketAssets, DailyMarketPrices |
 | EF yardımcı tablosu | __EFMigrationsHistory |
 | Uygulanmış migration | 8 |
-| Veri | 4 Customer; 5 Account; 11 Category; 20 Transaction (14 Credit, 6 subscription Debit) |
-| Hesap bakiyeleri | Ada TRY 269010.06; Ada USD 500; Deniz TRY 330000; Ege EUR 1000; boş TRY 0 |
+| Veri | 4 Customer; 5 Account; 11 Category; 32 Transaction (14 Credit, 18 Debit) |
+| Hesap bakiyeleri | Ada TRY 268825.06; Ada USD 500; Deniz TRY 265500; Ege EUR 1000; boş TRY 0 |
 | Market tabloları | MarketAssets mevcut ve üç seed kaydı var; DailyMarketPrices henüz boş |
 | Bakiye güncelleme akışı | `TransactionSeedWriter` insert ve atomik bakiye delta'sını aynı DB transaction'ında yazar; BAL-03/04 PostgreSQL kabul testleri geçti |
 | Kalıcı otomatik test projesi | tests/BankingAI.Data.Tests; C# ve rollback edilen PostgreSQL kontrolleri |
@@ -70,6 +70,7 @@ Migration geçmişi:
 5. 20261008111025_SplitCustomerName
 6. 20261008124728_AddMarketAssets
 7. 20261008132653_AddDailyMarketPrices
+8. 20261009104108_EnforceInputValidation
 
 ## 1. Mevcut kararları ve belgeleri tutarlı hale getir
 
@@ -132,8 +133,8 @@ Migration geçmişi:
 - [x] BAL-04 — İki hata yönü PostgreSQL'de doğrulandı: var olmayan kategori FK'siyle transaction insert'i reddedildi ve bakiye aynı kaldı; 100.01 TRY Debit insert sonrasında yetersiz bakiye nedeniyle reddedildi, transaction rollback oldu ve bakiye 100 kaldı. Test hesap/hareketleri temizlendi. Tüm suite 20/20 geçti.
 - [x] SYN-06 — `seed transactions credits` ile 14 sabit ID'li Credit eklendi: Ada ve Deniz için Nisan–Eylül 2025'in her ayının 5'inde sırasıyla 45.000 TRY ve 55.000 TRY maaş; 1 Nisan'da Ada USD hesabına 500 USD ve Ege EUR hesabına 1.000 EUR açılış fonlaması. Bütün Credit kategori alanları null; fonlamalara karşı başka hesapta Debit yok.
 - [x] SYN-07 — `seed transactions subscriptions` ile Netflix 229.99 TRY (ayın 12'si) ve Spotify 99.99 TRY (ayın 18'i) Temmuz–Eylül 2025 boyunca Ada'nın TRY hesabına eklendi. Her merchant üç ay tekrarlanıyor, `SUBSCRIPTION` kategorisi Rule kaynağıyla atanıyor.
-- [ ] SYN-08 — Starbucks, market, giyim, ulaşım, yakıt ve fatura örneklerini ayrı küçük gruplarla ekle. RawDescription ile NormalizedMerchant ayrımını koru.
-- [ ] SYN-09 — Kategori bazlı dönem artışını oluştur. Tamamlanmış iki ay için 24.000 → 31.000 gibi bağımsız beklenen toplamlar belirle; dönemler ilerledikçe kendiliğinden kaymasın.
+- [x] SYN-08 — `seed transactions category-examples` ile Starbucks/FOOD, Aile Marketi/GROCERY, giyim/CLOTHING, ulaşım/TRANSPORTATION, yakıt/FUEL ve elektrik faturası/BILLS için altı sabit Debit eklendi. Her harekette POS/banka açıklaması `RawDescription`, sade ad `NormalizedMerchant`; kategoriler mevcut ID+Code ile doğrulanıyor. İlk çalıştırma 6, tekrar 0 kayıt ekledi.
+- [x] SYN-09 — `seed transactions grocery-growth` ile Deniz'in TRY hesabında GROCERY/Aile Marketi harcaması Ağustos 2025'te 24.000 TRY, Eylül 2025'te 31.000 TRY olacak şekilde üçer sabit hareket eklendi. Beklenen toplamlar tarihten bağımsız sabit; 1 Ekim 2025 referansına göre iki ay tamamlanmış. İlk çalıştırma 6, tekrar 0 kayıt ekledi; DB toplamları doğrulandı.
 - [ ] SYN-10 — Kategorisiz ve merchant'ı bulunmayan hareketleri ekle. OTHER ile null kategori birbirinden ayrı test edilsin.
 - [ ] SYN-11 — Banking seed idempotency'sini uygula. Sabit işlem ID'leri ve DB transaction sınırı kullan; tekrar çalıştırınca bakiye ikinci kez artıp azalmasın. Paralel seed yarışını engelle.
 - [ ] SYN-12 — Dataset toplamlarını bağımsız fixture ile doğrula. Her hesabın bakiyesi bütün Credit toplamı eksi Debit toplamına eşit olsun; yanlış sonucu aynı generator ile tekrar hesaplayıp test etme.
@@ -328,6 +329,6 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Önerilen sonraki küçük iş: SYN-08 ile kahve, market, giyim, ulaşım, yakıt ve fatura Debit örneklerini ayrı gruplar halinde eklemek. SYN-01–07 ve BAL-01–04 tamamlandı; dataset henüz tam değil.
+Önerilen sonraki küçük iş: SYN-10 ile kategorisiz ve merchant'ı bulunmayan hareketleri eklemek; OTHER ile null kategoriyi ayrı tutmak. SYN-01–09 ve BAL-01–04 tamamlandı; dataset henüz tam değil.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

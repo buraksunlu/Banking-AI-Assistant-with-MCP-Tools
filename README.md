@@ -65,6 +65,8 @@ dotnet run --project src/BankingAI.Data -- seed customers
 dotnet run --project src/BankingAI.Data -- seed accounts
 dotnet run --project src/BankingAI.Data -- seed transactions credits
 dotnet run --project src/BankingAI.Data -- seed transactions subscriptions
+dotnet run --project src/BankingAI.Data -- seed transactions category-examples
+dotnet run --project src/BankingAI.Data -- seed transactions grocery-growth
 ```
 
 `migrate`, projede bulunan ve veritabanına henüz uygulanmamış EF Core
@@ -91,10 +93,13 @@ sıfırdır. Aynı müşterinin TRY/USD hesapları, diğer müşteri hesapları 
 örneği vardır. Tekrar çalıştırmak hesapları çoğaltmaz ve mevcut bakiyeyi sıfırlamaz.
 Hesap listesi ve doğrulamalar [synthetic seed belgesinde](docs/synthetic-seed.md) açıklanır.
 `seed transactions credits` altı aylık maaş ve iki döviz hesabının açılış
-fonlamasını; `seed transactions subscriptions` Netflix/Spotify ödemelerini ekler.
-İkisi de sabit transaction ID kullanır, tekrar çalıştırmada mevcut aynı kaydı
-ve bakiyeyi yeniden uygulamaz. Credit işlemleri kategorisizdir; açılış
-fonlamalarına karşı başka hesapta Debit oluşturulmaz.
+fonlamasını; `subscriptions` Netflix/Spotify ödemelerini ekler.
+`category-examples` Starbucks, market, giyim, ulaşım, yakıt ve fatura örneklerini;
+`grocery-growth` ise Ağustos 2025 için 24.000 TRY ve Eylül 2025 için 31.000 TRY
+GROCERY toplamını ekler. Her kapsam sabit transaction ID kullanır; aynı kayıt
+tekrar yazılmaz ve bakiye ikinci kez değiştirilmez. Credit işlemleri kategorisizdir;
+açılış fonlamalarına karşı başka hesapta Debit oluşturulmaz. RawDescription ham
+banka açıklamasını, NormalizedMerchant sadeleştirilmiş merchant adını taşır.
 `migrate` seed çalıştırmaz. Diğer `seed` ve `import` komutları da uygulama
 açılışında otomatik çalışmayacak; her biri kullanıcı komutuyla başlayacak.
 
@@ -168,6 +173,7 @@ Aktif veritabanında sırasıyla şu migration'lar uygulanmıştır:
 5. `SplitCustomerName`
 6. `AddMarketAssets`
 7. `AddDailyMarketPrices`
+8. `EnforceInputValidation`
 
 Eski migration dosyaları tarihçedir; son modelde kullanılmayan eski sütunları
 göstermeleri normaldir. Uygulanmış migration dosyaları silinmez veya geriye

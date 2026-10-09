@@ -1319,19 +1319,18 @@ COMPLETED
   AddMarketAssets, AddDailyMarketPrices, EnforceInputValidation.
 - DailyMarketPrice → MarketAsset RESTRICT ilişkisi ve varlık/gün unique index'i uygulandı; MarketAssets'te üç seed kaydı, DailyMarketPrices'ta henüz fiyat kaydı yok.
 - PK/FK/unique/check/index eşlemeleri ve hesap/işlem currency eşleşmesi.
-- Bir demo Customer var; 11 TransactionCategory seed kaydı ve 3 MarketAsset seed kaydı var; Accounts ve Transactions boş.
+- Bir demo Customer, 11 TransactionCategory ve 3 MarketAsset seed kaydı; SYN-03–05 ile üç dummy Customer ve beş Account; SYN-06–09 ile 32 Transaction (14 Credit, 18 Debit) vardır. DailyMarketPrices'ta fiyat kaydı yoktur.
 - todo.md oluşturuldu; tamamlanan ve bekleyen küçük adımlar ayrıldı.
 
 IN PROGRESS
 - Database foundation; kullanıcı review'üyle küçük adımlar halinde devam ediyor.
 
 NEXT
-- Kullanıcının seçtiği adım. VAL-01–VAL-07 kuralları docs/input-validation.md
-  içinde yazıldı ve temel doğrulama sınırları uygulandı; atomik bakiye yazma
-  için BAL adımları bekleniyor.
+- Kullanıcının seçtiği adım. Todo'daki sıradaki küçük iş SYN-10: kategorisiz ve
+  merchant'ı olmayan Debit örnekleri; `OTHER` ve null kategori ayrımı.
 
 KNOWN ISSUES
-- Synthetic banking seed ve historical import henüz yok; kategori ve market asset seed'leri hazır.
+- Synthetic seed kapsamları parça parça hazırdır: categories, market-assets, customers, accounts ve seçili transaction komutları. Tek komutluk `seed synthetic` ve historical market import henüz yoktur.
 - `TransactionSeedWriter` seed işlem insert'i ile Account.Balance delta'sını aynı
   DB transaction'ında yazar. BAL-03/04 concurrency/rollback PostgreSQL kontrolleri geçti.
 - Customer FirstName/LastName geçişi SplitCustomerName migration'ıyla uygulandı.
@@ -1340,7 +1339,7 @@ KNOWN ISSUES
 - Controller/API/DTO/service, SwiftUI, AI ve MCP henüz oluşturulmadı.
 
 TECHNICAL DEBT
-- Kalıcı otomatik test altyapısı yok; mevcut kontroller geçici program ve SQL ile yapıldı.
+- `tests/BankingAI.Data.Tests` otomatik test projesi vardır; her veri/DB değişikliği için uygun kontroller sürdürülür.
 - Tek başlangıç migration isteğiyle mevcut artımlı geçmişin nasıl uzlaştırılacağı ayrı karar.
 - Veri ve connection yönetiminin tekrarlanabilir yerel kurulum dokümanı tamamlanacak.
 
