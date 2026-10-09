@@ -23,7 +23,8 @@ Mevcut domain tabloları:
 - `DailyMarketPrices`
 
 EF Core ayrıca migration geçmişi için `__EFMigrationsHistory` tablosunu yönetir.
-Market tabloları oluşturuldu; market seed verisi ve historical market import henüz yok.
+Market tabloları oluşturuldu ve üç başlangıç MarketAsset seed kaydı eklendi;
+historical market import henüz yok.
 
 ## Gereksinimler
 
@@ -59,6 +60,7 @@ Komutlar proje kökünde çalıştırılır:
 dotnet run --project src/BankingAI.Data -- migrate
 dotnet run --project src/BankingAI.Data -- show
 dotnet run --project src/BankingAI.Data -- seed categories
+dotnet run --project src/BankingAI.Data -- seed market-assets
 ```
 
 `migrate`, projede bulunan ve veritabanına henüz uygulanmamış EF Core
@@ -68,17 +70,17 @@ kendiliğinden çalışmaz.
 `show`, ilk 10 Customer kaydını okur ve CustomerNumber, FirstName, LastName,
 PreferredCurrency, TimeZone ve UTC CreatedAt değerlerini gösterir.
 
-Kategori seed komutu artık uygulanmıştır. Market asset, synthetic seed ve market
-import komutları henüz uygulanmadı; aşağıdaki iki komut tasarım sözleşmesidir ve
+Kategori ve market asset seed komutları uygulanmıştır. Synthetic seed ve market
+import komutları henüz uygulanmadı; aşağıdaki komutlar tasarım sözleşmesidir ve
 şu anda çalıştırılmamalıdır:
 
 ```sh
-dotnet run --project src/BankingAI.Data -- seed market-assets
 dotnet run --project src/BankingAI.Data -- seed synthetic
 dotnet run --project src/BankingAI.Data -- import market-prices --asset USDTRY --from 2024-01-01 --to 2024-01-31
 ```
 
 `seed categories` yalnızca bu komut açıkça çalıştırıldığında kategori ekler.
+`seed market-assets` USDTRY, EURTRY ve GRAM_GOLD_TRY kayıtlarını açıkça ekler.
 `migrate` seed çalıştırmaz. Diğer `seed` ve `import` komutları da uygulama
 açılışında otomatik çalışmayacak; her biri kullanıcı komutuyla başlayacak.
 
@@ -138,7 +140,8 @@ Transaction satırı eklemek Account.Balance değerini otomatik değiştirmez.
 belirli takvim günündeki fiyatını tutar. Varlık/gün çifti unique'dir; fiyat
 kaydı bulunan varlık RESTRICT nedeniyle silinemez. Tarih `DateOnly`/`date`,
 fiyat `decimal`/`numeric(20,8)` olarak tutulur. Geçici EF/PostgreSQL kontrolleri
-geçti; test kayıtları geri alındı, iki market tablosu boştur.
+geçti; MarketAssets tablosunda üç seed kaydı, DailyMarketPrices tablosunda henüz
+fiyat kaydı yoktur.
 
 ## Migration geçmişi
 

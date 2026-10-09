@@ -54,9 +54,9 @@ canlı PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna 
 | Aktif DB | bankingai_foundation |
 | Domain tabloları | Customers, Accounts, TransactionCategories, Transactions, MarketAssets, DailyMarketPrices |
 | EF yardımcı tablosu | __EFMigrationsHistory |
-| Uygulanmış migration | 7 |
-| Veri | 1 Customer; 0 Account; 0 Category; 0 Transaction |
-| Market tabloları | MarketAssets ve DailyMarketPrices mevcut; testler geri alındı, ikisi de boş |
+| Uygulanmış migration | 8 |
+| Veri | 1 Customer; 0 Account; 11 Category; 0 Transaction |
+| Market tabloları | MarketAssets mevcut ve üç seed kaydı var; DailyMarketPrices henüz boş |
 | Bakiye güncelleme akışı | Henüz yok; SQL ile transaction eklemek bakiyeyi otomatik değiştirmez |
 | Kalıcı otomatik test projesi | Henüz yok; önceki kontroller geçici program/SQL ile yapıldı |
 | API / SwiftUI / AI / MCP | Henüz yok |
@@ -112,7 +112,7 @@ Migration geçmişi:
 - [x] SEED-01 — Manuel komut sözleşmesi docs/database-design.md ve README'ye yazıldı. `migrate` yalnızca şemayı, açık kapsamlı `seed` lookup/synthetic veriyi, açık parametreli `import` historical market verisini işler; uygulama açılışında otomatik veri eklenmez. Komutlar henüz uygulanmadı; şu an çalışan console komutları yalnızca `migrate` ve `show`.
 - [x] SEED-02 — `seed categories` komutu ve `TransactionCategorySeeder` oluşturuldu. Sabit 1–11 ID, kararlı Code değerleri ve Türkçe DisplayName değerleri ekleniyor. Aynı ID/kod aynı içerikle mevcutsa işlem tekrarsız; çelişki varsa sessizce ezmek yerine hata veriliyor. Seed işlemi transaction içinde çalışıyor; market/synthetic seed henüz yok.
 - [x] SEED-03 — Kategori seed'i iki kez çalıştırıldı: ilkinde 11 eklendi, ikincisinde 0 eklendi ve 11 değişmeden kaldı. Boş tabloyla iki eşzamanlı komutta biri 11 ekledi, diğeri advisory lock sonrasında 0 ekledi; sonuç 11 kaldı. Id 1 geçici olarak çelişkili Code ile denendi, seed `InvalidOperationException` verdi ve sessiz overwrite yapmadı; değer geri yüklendi.
-- [ ] SEED-04 — MarketAssets seed'ini yaz. USDTRY/USD/Currency, EURTRY/EUR/Currency, GRAM_GOLD_TRY/GRAM/Commodity; quote TRY ve IsActive true olsun.
+- [x] SEED-04 — `seed market-assets` komutu ve `MarketAssetSeeder` oluşturuldu. Sabit Id 1–3 ile USDTRY/USD/Currency, EURTRY/EUR/Currency ve GRAM_GOLD_TRY/GRAM/Commodity kayıtları; quote TRY ve IsActive true olarak tanımlandı. Aynı Id/Symbol çelişkisi sessizce düzeltilmiyor. Tekrar/eşzamanlılık ve yanlış alan eşleşmesi SEED-05'te doğrulanacak.
 - [ ] SEED-05 — Market seed tekrarını doğrula. Üç varlık çoğalmamalı; Symbol/AssetType/BaseUnit/QuoteCurrency birlikte docs/database-design.md içindeki MA-03 sözleşmesiyle eşleşmeli. Hem seed girdisinde hem mevcut DB kaydında USDTRY/EUR gibi yanlış eşleşmeleri dene; sessiz düzeltme/atlama yerine açıklayıcı hata ver. Bu doğrulama geçince MA-03'ün kalan kısmını tamamlandı işaretle.
 
 ## 6. Kontrollü synthetic müşteri ve hesaplar
@@ -327,6 +327,6 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Önerilen sonraki küçük iş: SEED-04 ile MarketAssets seed'ini yazmak. Kategori seed tekrar/çakışma/eşzamanlılık kontrolleri tamamlandı; market seed'i henüz yok.
+Önerilen sonraki küçük iş: SEED-05 ile MarketAssets seed tekrarını ve alan eşleşmelerini doğrulamak. Synthetic seed henüz yok.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

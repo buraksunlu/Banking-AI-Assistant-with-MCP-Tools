@@ -18,8 +18,9 @@ Aktif veritabanı `bankingai_foundation`dır. Şu altı domain tablosu uygulanm�
 - `MarketAssets`
 - `DailyMarketPrices`
 
-İki market tablosu da boştur. Kategori/asset seed'i, synthetic banking seed'i
-ve historical market import'u henüz yok.
+`MarketAssets` tablosunda üç başlangıç seed kaydı vardır; `DailyMarketPrices`
+henüz boştur. Kategori seed'i de uygulanmıştır. Synthetic banking seed'i ve
+historical market import'u henüz yoktur.
 
 Aktif veritabanında yedi migration uygulanmıştır:
 
@@ -57,8 +58,8 @@ dotnet run --project src/BankingAI.Data -- seed synthetic
 dotnet run --project src/BankingAI.Data -- import market-prices --asset USDTRY --from 2024-01-01 --to 2024-01-31
 ```
 
-`seed categories` SEED-02 ile uygulanmıştır. `seed synthetic`,
-`seed market-assets` ve `import market-prices` bu tasarım adımında henüz mevcut
+`seed categories` SEED-02 ile, `seed market-assets` SEED-04 ile uygulanmıştır.
+`seed synthetic` ve `import market-prices` bu tasarım adımında henüz mevcut
 değildir. Her scope uygulanmadan önce kapsamı olmayan `seed` veya `import`
 komutu kullanım hatası vermelidir. İlk aşamada genel `seed all` komutu
 tanımlanmaz; böylece yeni bir seed scope'u eklenmesi mevcut veriye sessizce
@@ -255,7 +256,8 @@ Fiyat kaydı bulunan varlığı silme denemesi RESTRICT tarafından engellendi.
 Farklı gün ve farklı varlık kayıtları kabul edildi. EF üzerinden DateOnly
 UTC ve Europe/Istanbul oturumlarında 2026-10-08 olarak okundu; sekiz ondalıklı
 decimal değer, nullable Source ve otomatik identity doğrulandı. Test
-kayıtları transaction sonunda geri alındı; iki market tablosu boş kaldı.
+Bu doğrulama sırasındaki test kayıtları transaction sonunda geri alındı; seed
+uygulanmadan önce iki market tablosu boş kaldı.
 Identity sequence'in tükettiği numaralar rollback ile geri dönmez; ID
 boşlukları normaldir. Bu kontroller kalıcı otomatik test projesi değildir.
 

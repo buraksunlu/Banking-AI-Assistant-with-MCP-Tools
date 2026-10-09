@@ -1313,12 +1313,12 @@ COMPLETED
 - Customer, Account, TransactionCategory, Transaction, MarketAsset ve DailyMarketPrice entity'leri; iki transaction enum'u.
 - Account, TransactionCategory, Transaction, MarketAsset ve DailyMarketPrice configuration'ları; Customer eşlemesi DbContext içinde.
 - bankingai_foundation üzerinde altı domain tablosu ve __EFMigrationsHistory.
-- Yedi uygulanmış migration: CreateCustomers, AddCustomerPreferences,
+- Sekiz uygulanmış migration: CreateCustomers, AddCustomerPreferences,
   AddAccountsAndTransactionCategories, AddTransactions, SplitCustomerName,
-  AddMarketAssets, AddDailyMarketPrices.
-- DailyMarketPrice → MarketAsset RESTRICT ilişkisi ve varlık/gün unique index'i uygulandı; testlerden sonra iki market tablosu boş.
+  AddMarketAssets, AddDailyMarketPrices, EnforceInputValidation.
+- DailyMarketPrice → MarketAsset RESTRICT ilişkisi ve varlık/gün unique index'i uygulandı; MarketAssets'te üç seed kaydı, DailyMarketPrices'ta henüz fiyat kaydı yok.
 - PK/FK/unique/check/index eşlemeleri ve hesap/işlem currency eşleşmesi.
-- Bir demo Customer var; son kontrolde Accounts, TransactionCategories ve Transactions boş.
+- Bir demo Customer var; 11 TransactionCategory seed kaydı ve 3 MarketAsset seed kaydı var; Accounts ve Transactions boş.
 - todo.md oluşturuldu; tamamlanan ve bekleyen küçük adımlar ayrıldı.
 
 IN PROGRESS
@@ -1329,7 +1329,7 @@ NEXT
   öneri: VAL-06 ile negatif bakiye politikasını belirlemek.
 
 KNOWN ISSUES
-- Lookup/synthetic seed ve historical import henüz yok; market tabloları hazır.
+- Synthetic banking seed ve historical import henüz yok; kategori ve market asset seed'leri hazır.
 - Transaction eklenmesi Account.Balance'ı otomatik güncellemez; atomik yazma akışı yok.
 - Customer FirstName/LastName geçişi SplitCustomerName migration'ıyla uygulandı.
 - Null/precision/UTC/kategorilendirme tutarlılığı gibi bazı giriş kontrolleri sonraki adımlarda.
