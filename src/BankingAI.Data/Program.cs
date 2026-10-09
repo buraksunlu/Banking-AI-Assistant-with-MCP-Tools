@@ -6,10 +6,12 @@ var isSeedCategories = args.Length == 2 && args[0] == "seed" && args[1] == "cate
 var isSeedMarketAssets = args.Length == 2 && args[0] == "seed" && args[1] == "market-assets";
 var isSeedCustomers = args.Length == 2 && args[0] == "seed" && args[1] == "customers";
 var isSeedAccounts = args.Length == 2 && args[0] == "seed" && args[1] == "accounts";
+var isSeedCredits = args.Length == 3 && args[0] == "seed" && args[1] == "transactions" && args[2] == "credits";
+var isSeedSubscriptions = args.Length == 3 && args[0] == "seed" && args[1] == "transactions" && args[2] == "subscriptions";
 var isSingleCommand = args.Length == 1 && (args[0] == "migrate" || args[0] == "show");
-if (!isSingleCommand && !isSeedCategories && !isSeedMarketAssets && !isSeedCustomers && !isSeedAccounts)
+if (!isSingleCommand && !isSeedCategories && !isSeedMarketAssets && !isSeedCustomers && !isSeedAccounts && !isSeedCredits && !isSeedSubscriptions)
 {
-    Console.WriteLine("Usage: BankingAI.Data migrate | show | seed categories | seed market-assets | seed customers | seed accounts");
+    Console.WriteLine("Usage: BankingAI.Data migrate | show | seed categories | seed market-assets | seed customers | seed accounts | seed transactions credits | seed transactions subscriptions");
     return 1;
 }
 
@@ -45,6 +47,16 @@ else if (isSeedAccounts)
 {
     var added = await SyntheticAccountSeeder.SeedAsync(db);
     Console.WriteLine($"Synthetic accounts seeded. Added: {added}; unchanged: {SyntheticAccountSeeder.AccountCount - added}.");
+}
+else if (isSeedCredits)
+{
+    var added = await SyntheticTransactionSeeder.SeedCreditsAsync(db);
+    Console.WriteLine($"Synthetic Credit transactions seeded. Added: {added}; unchanged: {SyntheticTransactionSeeder.CreditCount - added}.");
+}
+else if (isSeedSubscriptions)
+{
+    var added = await SyntheticTransactionSeeder.SeedSubscriptionsAsync(db);
+    Console.WriteLine($"Synthetic subscription transactions seeded. Added: {added}; unchanged: {SyntheticTransactionSeeder.SubscriptionCount - added}.");
 }
 else
 {

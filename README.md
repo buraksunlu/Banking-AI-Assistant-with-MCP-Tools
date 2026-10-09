@@ -63,6 +63,8 @@ dotnet run --project src/BankingAI.Data -- seed categories
 dotnet run --project src/BankingAI.Data -- seed market-assets
 dotnet run --project src/BankingAI.Data -- seed customers
 dotnet run --project src/BankingAI.Data -- seed accounts
+dotnet run --project src/BankingAI.Data -- seed transactions credits
+dotnet run --project src/BankingAI.Data -- seed transactions subscriptions
 ```
 
 `migrate`, projede bulunan ve veritabanına henüz uygulanmamış EF Core
@@ -72,8 +74,8 @@ kendiliğinden çalışmaz.
 `show`, ilk 10 Customer kaydını okur ve CustomerNumber, FirstName, LastName,
 PreferredCurrency, TimeZone ve UTC CreatedAt değerlerini gösterir.
 
-Kategori, market asset, müşteri ve hesap seed komutları uygulanmıştır. Bütün synthetic
-dataset'i üreten `seed synthetic` ve market import henüz uygulanmadı; aşağıdaki komutlar tasarım sözleşmesidir ve
+Kategori, market asset, müşteri, hesap ve seçili transaction seed komutları uygulanmıştır. Bütün synthetic
+dataset'i tek seferde üreten `seed synthetic` ve market import henüz uygulanmadı; aşağıdaki komutlar tasarım sözleşmesidir ve
 şu anda çalıştırılmamalıdır:
 
 ```sh
@@ -88,6 +90,11 @@ dotnet run --project src/BankingAI.Data -- import market-prices --asset USDTRY -
 sıfırdır. Aynı müşterinin TRY/USD hesapları, diğer müşteri hesapları ve boş hesap
 örneği vardır. Tekrar çalıştırmak hesapları çoğaltmaz ve mevcut bakiyeyi sıfırlamaz.
 Hesap listesi ve doğrulamalar [synthetic seed belgesinde](docs/synthetic-seed.md) açıklanır.
+`seed transactions credits` altı aylık maaş ve iki döviz hesabının açılış
+fonlamasını; `seed transactions subscriptions` Netflix/Spotify ödemelerini ekler.
+İkisi de sabit transaction ID kullanır, tekrar çalıştırmada mevcut aynı kaydı
+ve bakiyeyi yeniden uygulamaz. Credit işlemleri kategorisizdir; açılış
+fonlamalarına karşı başka hesapta Debit oluşturulmaz.
 `migrate` seed çalıştırmaz. Diğer `seed` ve `import` komutları da uygulama
 açılışında otomatik çalışmayacak; her biri kullanıcı komutuyla başlayacak.
 

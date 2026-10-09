@@ -55,7 +55,8 @@ canlı PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna 
 | Domain tabloları | Customers, Accounts, TransactionCategories, Transactions, MarketAssets, DailyMarketPrices |
 | EF yardımcı tablosu | __EFMigrationsHistory |
 | Uygulanmış migration | 8 |
-| Veri | 4 Customer (demo + 3 synthetic); 5 Account (bakiyeler 0); 11 Category; 0 Transaction |
+| Veri | 4 Customer; 5 Account; 11 Category; 20 Transaction (14 Credit, 6 subscription Debit) |
+| Hesap bakiyeleri | Ada TRY 269010.06; Ada USD 500; Deniz TRY 330000; Ege EUR 1000; boş TRY 0 |
 | Market tabloları | MarketAssets mevcut ve üç seed kaydı var; DailyMarketPrices henüz boş |
 | Bakiye güncelleme akışı | `TransactionSeedWriter` insert ve atomik bakiye delta'sını aynı DB transaction'ında yazar; BAL-03/04 PostgreSQL kabul testleri geçti |
 | Kalıcı otomatik test projesi | tests/BankingAI.Data.Tests; C# ve rollback edilen PostgreSQL kontrolleri |
@@ -129,8 +130,8 @@ Migration geçmişi:
 - [x] BAL-02 — Bakiye `ExecuteUpdate` ile DB içinde `Balance + delta` olarak değiştirilir; eski değer uygulamada okunup yazılmaz. WHERE koşulu negatif ve numeric(18,2) üst sınırını engeller; Debit yetersiz bakiyede reddedilir. Insert/güncelleme hatasında rollback yapılır; aynı Transaction ID tekrar bakiye delta'sı uygulamaz.
 - [x] BAL-03 — PostgreSQL entegrasyon testinde bakiye 0'dan 100 Credit'e çıkarıldı; 100 TRY üstünden iki eşzamanlı işlem (25 Credit, 40 Debit) çalıştırıldı. Son bakiye tüm transaction kayıtlarından bağımsız formülle `başlangıç + Credit − Debit = 85 TRY` çıktı; 3 kayıt vardı.
 - [x] BAL-04 — İki hata yönü PostgreSQL'de doğrulandı: var olmayan kategori FK'siyle transaction insert'i reddedildi ve bakiye aynı kaldı; 100.01 TRY Debit insert sonrasında yetersiz bakiye nedeniyle reddedildi, transaction rollback oldu ve bakiye 100 kaldı. Test hesap/hareketleri temizlendi. Tüm suite 20/20 geçti.
-- [ ] SYN-06 — Aylık maaş ve açılış fonlaması Credit hareketlerini ekle. Tarihler, tutarlar ve hesap para birimleri açık olsun. VAL-05'e göre bunlar harcamadan düşülmez; kategori alanları null kalır ve açılış fonlamasına karşı başka hesapta Debit transfer üretilmez.
-- [ ] SYN-07 — Netflix ve Spotify recurring Debit pattern'lerini ekle. En az üç farklı ay ve benzer ödeme günleri olsun.
+- [x] SYN-06 — `seed transactions credits` ile 14 sabit ID'li Credit eklendi: Ada ve Deniz için Nisan–Eylül 2025'in her ayının 5'inde sırasıyla 45.000 TRY ve 55.000 TRY maaş; 1 Nisan'da Ada USD hesabına 500 USD ve Ege EUR hesabına 1.000 EUR açılış fonlaması. Bütün Credit kategori alanları null; fonlamalara karşı başka hesapta Debit yok.
+- [x] SYN-07 — `seed transactions subscriptions` ile Netflix 229.99 TRY (ayın 12'si) ve Spotify 99.99 TRY (ayın 18'i) Temmuz–Eylül 2025 boyunca Ada'nın TRY hesabına eklendi. Her merchant üç ay tekrarlanıyor, `SUBSCRIPTION` kategorisi Rule kaynağıyla atanıyor.
 - [ ] SYN-08 — Starbucks, market, giyim, ulaşım, yakıt ve fatura örneklerini ayrı küçük gruplarla ekle. RawDescription ile NormalizedMerchant ayrımını koru.
 - [ ] SYN-09 — Kategori bazlı dönem artışını oluştur. Tamamlanmış iki ay için 24.000 → 31.000 gibi bağımsız beklenen toplamlar belirle; dönemler ilerledikçe kendiliğinden kaymasın.
 - [ ] SYN-10 — Kategorisiz ve merchant'ı bulunmayan hareketleri ekle. OTHER ile null kategori birbirinden ayrı test edilsin.
@@ -327,6 +328,6 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Önerilen sonraki küçük iş: SYN-06 ile aylık maaş ve açılış fonlaması Credit hareketlerini eklemek. SYN-01–05 ve BAL-01–04 tamamlandı; gerçek demo transaction seed'i henüz yok.
+Önerilen sonraki küçük iş: SYN-08 ile kahve, market, giyim, ulaşım, yakıt ve fatura Debit örneklerini ayrı gruplar halinde eklemek. SYN-01–07 ve BAL-01–04 tamamlandı; dataset henüz tam değil.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

@@ -60,8 +60,9 @@ Sıfır kuralı **yeni hesap açılışı** içindir; ilerideki işlemlerin baki
 CreatedAt mevcut DbContext tarafından kayıt anında UTC atanır; sabit ID ve
 numaralar tekrar üretilebilir olsa da kayıt zamanı sabit dataset tarihi değildir.
 
-9 Ekim 2026 doğrulaması: ilk çalıştırmada 5, ikincide 0 eklendi. DB'deki beş
-hesabın sahipleri/para birimleri doğrulandı; tüm bakiyeler 0, hareket sayıları 0.
+SYN-05 aşamasındaki 9 Ekim 2026 doğrulaması: ilk çalıştırmada 5, ikincide 0
+hesap eklendi. O aşamada beş hesabın bakiyesi 0 ve hareket sayısı 0 idi; SYN-06/07
+sonrasında aşağıdaki bakiye özeti günceldir.
 PostgreSQL testinde tekrar, bakiye/tarih koruma, sahiplik ve numara çelişkileri,
 unique numara, olmayan müşteri FK'si ve geçersiz currency kontrol edildi.
 Test değişiklikleri transaction rollback ile geri alındı.
@@ -93,3 +94,38 @@ BAL-03 testinde 0 başlangıç + 100/25 Credit − 40 Debit sonucu 85 doğruland
 BAL-04 testinde insert FK hatası ve sonradan reddedilen yetersiz Debit ayrı ayrı
 denendi; her ikisinde de kısmi kayıt/bakiye etkisi kalmadı. Writer başarısızlıkta EF change tracker'ı temizler;
 çağıran aynı context ile kayda devam etmeden önce entity'leri yeniden yüklemelidir.
+
+## SYN-06 gelir ve açılış fonlamaları
+
+`seed transactions credits` 14 sabit ID'li hareket üretir:
+
+- Ada'nın TRY hesabına 2025 Nisan–Eylül aylarının her birinde ayın 5'i 06:00 UTC'de 45.000 TRY maaş Credit'i.
+- Deniz'in TRY hesabına aynı günlerde 55.000 TRY maaş Credit'i.
+- 1 Nisan 2025 08:00 UTC'de Ada'nın USD hesabına 500 USD ve Ege'nin EUR hesabına 1.000 EUR açılış Credit'i.
+
+Her Credit'in `CategoryId`, `CategorizationSource`, `CategoryConfidence` ve
+`CategorizedAt` alanları null'dır. Açılış fonlaması bağımsız para girişi olarak
+kalır; başka hesapta karşı Debit/transfer yaratılmaz. Para birimi hesapla eşleşir.
+
+## SYN-07 recurring subscriptions
+
+`seed transactions subscriptions` Ada'nın TRY hesabında şu Debit hareketlerini
+Temmuz, Ağustos ve Eylül 2025'te üretir:
+
+| Merchant | Tutar | Gün ve saat | Kategori |
+| --- | --- | --- | --- |
+| Netflix | 229.99 TRY | Ayın 12'si, 07:00 UTC | `SUBSCRIPTION`, Rule |
+| Spotify | 99.99 TRY | Ayın 18'i, 07:00 UTC | `SUBSCRIPTION`, Rule |
+
+Bu örnekler tamamlanmış abonelik ödemeleridir. Her iki merchant üç ayrı ayda
+aynı güne ve aynı tutara sahiptir. Sentetik tutarlar güncel ticari fiyat iddiası
+değildir.
+
+Her iki komut da sabit Transaction ID kullanır. Aynı içerik zaten varsa atlanır;
+aynı ID farklı içerikle bulunursa hata verir. Her kayıt `TransactionSeedWriter`
+üzerinden yazıldığı için transaction ve bakiye aynı DB transaction'ında değişir.
+9 Ekim 2026 doğrulamasında ilk çalıştırma 14 Credit ve 6 Debit ekledi; tekrar
+çalıştırma 0/0 ekledi. DB bakiyeleri transaction'lardan yeniden hesaplanan
+Credit − Debit toplamıyla eşleşti: Ada TRY 269.010,06; Ada USD 500; Deniz TRY
+330.000; Ege EUR 1.000; boş hesap 0. Credit kategorileri null ve açılış
+fonlaması için eşleşen Debit sayısı sıfırdır.
