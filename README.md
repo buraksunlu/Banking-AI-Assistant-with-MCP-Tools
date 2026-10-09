@@ -67,6 +67,19 @@ kendiliğinden çalışmaz.
 `show`, ilk 10 Customer kaydını okur ve CustomerNumber, FirstName, LastName,
 PreferredCurrency, TimeZone ve UTC CreatedAt değerlerini gösterir.
 
+Seed ve market import komutları henüz uygulanmadı. Tasarlanan ayrı komut
+sözleşmesi aşağıdadır; bunları şu anda çalıştırmayın:
+
+```sh
+dotnet run --project src/BankingAI.Data -- seed categories
+dotnet run --project src/BankingAI.Data -- seed market-assets
+dotnet run --project src/BankingAI.Data -- seed synthetic
+dotnet run --project src/BankingAI.Data -- import market-prices --asset USDTRY --from 2024-01-01 --to 2024-01-31
+```
+
+`migrate` seed çalıştırmaz. `seed` veya `import` uygulama açılışında otomatik
+çalışmayacak; her biri kullanıcının açık komutuyla başlayacak.
+
 Yeni migration oluşturmak için `dotnet-ef` aracı kullanılacak:
 
 ```sh

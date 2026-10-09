@@ -35,6 +35,48 @@ Migration yaklaşımı incremental'dır: her schema değişikliği yeni bir migr
 olarak eklenir. Uygulanmış migration'lar silinmez veya geriye dönük değiştirilmez;
 veritabanı tek başlangıç migration'ına dönmek için resetlenmez.
 
+## SEED-01 — Migration, seed ve import sınırları
+
+Veri yazan işlemler açık komutlarla ayrı tutulur. Uygulamanın açılması, `show`
+komutu veya ileride API'nin başlaması kendiliğinden seed/import çalıştırmaz.
+
+| Komut | Sorumluluk | Veri yazabilir mi? |
+| --- | --- | --- |
+| `migrate` | Bekleyen EF Core migration'larını uygular; tablo, kolon, index ve constraint oluşturur | Yalnızca şema metadata'sı ve migration'ın açıkça tanımladığı şema işlemleri |
+| `seed <scope>` | Önceden tanımlı lookup veya synthetic veriyi açıkça üretir | Evet; yalnızca seçilen scope |
+| `import <scope> ...` | Dış kaynaktan tarihsel market verisini alır | Evet; yalnızca belirtilen varlık ve tarih aralığı |
+| `show` | Örnek veriyi okur | Hayır |
+
+İlk manuel komut sözleşmesi şöyledir:
+
+```text
+dotnet run --project src/BankingAI.Data -- migrate
+dotnet run --project src/BankingAI.Data -- seed categories
+dotnet run --project src/BankingAI.Data -- seed market-assets
+dotnet run --project src/BankingAI.Data -- seed synthetic
+dotnet run --project src/BankingAI.Data -- import market-prices --asset USDTRY --from 2024-01-01 --to 2024-01-31
+```
+
+`seed synthetic` ve `import market-prices` bu tasarım adımında henüz mevcut
+değildir. Her scope uygulanmadan önce kapsamı olmayan `seed` veya `import`
+komutu kullanım hatası vermelidir. İlk aşamada genel `seed all` komutu
+tanımlanmaz; böylece yeni bir seed scope'u eklenmesi mevcut veriye sessizce
+eklenmez.
+
+Seed işlemleri sabit kimlik ve kontrollü transaction sınırı kullanır. Aynı seed
+tekrar çalıştırıldığında kayıt çoğalmamalıdır. Aynı kimlikte farklı içerik veya
+aynı benzersiz kodda çelişkili içerik bulunursa sessizce güncelleme/atlama yerine
+açıklayıcı hata verilmelidir. Bu idempotency ve çakışma kontrolleri SEED-02/03,
+SEED-04/05 ve SYN-11 adımlarında uygulanacaktır.
+
+Import da seed'den bağımsız çalışır; dış kaynağın `Source`, tarih aralığı ve
+varlık parametreleri açıkça belirtilir. Günlük fiyatlarda `(MarketAssetId,
+PriceDate)` unique kuralı tekrarları korur. Import scheduler'ı veya uygulama
+başlangıcında otomatik çalışma bu aşamanın dışındadır.
+
+Bu bölüm bir komut tasarımıdır. Bu turda `Program.cs` değiştirilmediği için
+gerçekte kullanılabilen komutlar hâlâ yalnızca `migrate` ve `show`dur.
+
 ## İlişkiler
 
 ```text

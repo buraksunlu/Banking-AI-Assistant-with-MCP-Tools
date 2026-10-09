@@ -109,7 +109,7 @@ Migration geçmişi:
 
 ## 5. Sabit lookup seed'leri
 
-- [ ] SEED-01 — Manuel seed komutunun tasarımını yap. migrate, seed ve import ayrı çalıştırılsın; uygulama her açıldığında veri eklenmesin.
+- [x] SEED-01 — Manuel komut sözleşmesi docs/database-design.md ve README'ye yazıldı. `migrate` yalnızca şemayı, açık kapsamlı `seed` lookup/synthetic veriyi, açık parametreli `import` historical market verisini işler; uygulama açılışında otomatik veri eklenmez. Komutlar henüz uygulanmadı; şu an çalışan console komutları yalnızca `migrate` ve `show`.
 - [ ] SEED-02 — TransactionCategories seed'ini yaz. Sabit 1–11 ID ile FOOD, GROCERY, CLOTHING, TRANSPORTATION, ENTERTAINMENT, SUBSCRIPTION, TRAVEL, FUEL, BILLS, HEALTH, OTHER ve Türkçe görünen adları ekle.
 - [ ] SEED-03 — Kategori seed'ini iki kez çalıştır. Satır sayısı 11 kalmalı; aynı ID altında farklı kod varsa sessizce üzerine yazılmamalı. Eşzamanlı çalıştırmanın davranışını da doğrula.
 - [ ] SEED-04 — MarketAssets seed'ini yaz. USDTRY/USD/Currency, EURTRY/EUR/Currency, GRAM_GOLD_TRY/GRAM/Commodity; quote TRY ve IsActive true olsun.
@@ -327,6 +327,6 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Önerilen sonraki küçük iş: VAL-06 ile negatif bakiye politikasını belirlemek. MA-03'ün seed eşleşme doğrulaması seed aşamasını bekliyor; diğer açık maddeler listede korunuyor.
+Önerilen sonraki küçük iş: SEED-02 ile TransactionCategories seed'ini yazmak. SEED-01 yalnızca komut tasarımını belgeledi; uygulanabilir seed komutları ve idempotency sonraki maddelerde yapılacak.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.
