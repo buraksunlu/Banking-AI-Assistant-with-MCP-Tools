@@ -58,6 +58,7 @@ Komutlar proje kökünde çalıştırılır:
 ```sh
 dotnet run --project src/BankingAI.Data -- migrate
 dotnet run --project src/BankingAI.Data -- show
+dotnet run --project src/BankingAI.Data -- seed categories
 ```
 
 `migrate`, projede bulunan ve veritabanına henüz uygulanmamış EF Core
@@ -67,18 +68,19 @@ kendiliğinden çalışmaz.
 `show`, ilk 10 Customer kaydını okur ve CustomerNumber, FirstName, LastName,
 PreferredCurrency, TimeZone ve UTC CreatedAt değerlerini gösterir.
 
-Seed ve market import komutları henüz uygulanmadı. Tasarlanan ayrı komut
-sözleşmesi aşağıdadır; bunları şu anda çalıştırmayın:
+Kategori seed komutu artık uygulanmıştır. Market asset, synthetic seed ve market
+import komutları henüz uygulanmadı; aşağıdaki iki komut tasarım sözleşmesidir ve
+şu anda çalıştırılmamalıdır:
 
 ```sh
-dotnet run --project src/BankingAI.Data -- seed categories
 dotnet run --project src/BankingAI.Data -- seed market-assets
 dotnet run --project src/BankingAI.Data -- seed synthetic
 dotnet run --project src/BankingAI.Data -- import market-prices --asset USDTRY --from 2024-01-01 --to 2024-01-31
 ```
 
-`migrate` seed çalıştırmaz. `seed` veya `import` uygulama açılışında otomatik
-çalışmayacak; her biri kullanıcının açık komutuyla başlayacak.
+`seed categories` yalnızca bu komut açıkça çalıştırıldığında kategori ekler.
+`migrate` seed çalıştırmaz. Diğer `seed` ve `import` komutları da uygulama
+açılışında otomatik çalışmayacak; her biri kullanıcı komutuyla başlayacak.
 
 Yeni migration oluşturmak için `dotnet-ef` aracı kullanılacak:
 

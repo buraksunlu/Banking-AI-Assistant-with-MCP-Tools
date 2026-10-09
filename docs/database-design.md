@@ -57,7 +57,8 @@ dotnet run --project src/BankingAI.Data -- seed synthetic
 dotnet run --project src/BankingAI.Data -- import market-prices --asset USDTRY --from 2024-01-01 --to 2024-01-31
 ```
 
-`seed synthetic` ve `import market-prices` bu tasarım adımında henüz mevcut
+`seed categories` SEED-02 ile uygulanmıştır. `seed synthetic`,
+`seed market-assets` ve `import market-prices` bu tasarım adımında henüz mevcut
 değildir. Her scope uygulanmadan önce kapsamı olmayan `seed` veya `import`
 komutu kullanım hatası vermelidir. İlk aşamada genel `seed all` komutu
 tanımlanmaz; böylece yeni bir seed scope'u eklenmesi mevcut veriye sessizce

@@ -110,7 +110,7 @@ Migration geçmişi:
 ## 5. Sabit lookup seed'leri
 
 - [x] SEED-01 — Manuel komut sözleşmesi docs/database-design.md ve README'ye yazıldı. `migrate` yalnızca şemayı, açık kapsamlı `seed` lookup/synthetic veriyi, açık parametreli `import` historical market verisini işler; uygulama açılışında otomatik veri eklenmez. Komutlar henüz uygulanmadı; şu an çalışan console komutları yalnızca `migrate` ve `show`.
-- [ ] SEED-02 — TransactionCategories seed'ini yaz. Sabit 1–11 ID ile FOOD, GROCERY, CLOTHING, TRANSPORTATION, ENTERTAINMENT, SUBSCRIPTION, TRAVEL, FUEL, BILLS, HEALTH, OTHER ve Türkçe görünen adları ekle.
+- [x] SEED-02 — `seed categories` komutu ve `TransactionCategorySeeder` oluşturuldu. Sabit 1–11 ID, kararlı Code değerleri ve Türkçe DisplayName değerleri ekleniyor. Aynı ID/kod aynı içerikle mevcutsa işlem tekrarsız; çelişki varsa sessizce ezmek yerine hata veriliyor. Seed işlemi transaction içinde çalışıyor; market/synthetic seed henüz yok.
 - [ ] SEED-03 — Kategori seed'ini iki kez çalıştır. Satır sayısı 11 kalmalı; aynı ID altında farklı kod varsa sessizce üzerine yazılmamalı. Eşzamanlı çalıştırmanın davranışını da doğrula.
 - [ ] SEED-04 — MarketAssets seed'ini yaz. USDTRY/USD/Currency, EURTRY/EUR/Currency, GRAM_GOLD_TRY/GRAM/Commodity; quote TRY ve IsActive true olsun.
 - [ ] SEED-05 — Market seed tekrarını doğrula. Üç varlık çoğalmamalı; Symbol/AssetType/BaseUnit/QuoteCurrency birlikte docs/database-design.md içindeki MA-03 sözleşmesiyle eşleşmeli. Hem seed girdisinde hem mevcut DB kaydında USDTRY/EUR gibi yanlış eşleşmeleri dene; sessiz düzeltme/atlama yerine açıklayıcı hata ver. Bu doğrulama geçince MA-03'ün kalan kısmını tamamlandı işaretle.
