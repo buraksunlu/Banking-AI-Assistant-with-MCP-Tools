@@ -1,7 +1,7 @@
 # PROJECT MASTER PROMPT
 # AI-Powered Transaction Intelligence Platform
 
-Son kural güncellemesi: 8 Ekim 2026.
+Son kural güncellemesi: 9 Ekim 2026.
 
 Bu dosya proje kararlarının esas kaynağıdır. Kullanıcının son açık talimatı,
 eski doküman veya taslakla çeliştiğinde önceliklidir. todo.md projenin tek iş
@@ -866,6 +866,9 @@ En az şu sorular çalışmalı:
 - Yetkilendirilmiş adımın rutin uygulama, hata düzeltme ve kontrollerinde tekrar
   izin isteme. Açıkça önce tasarım/onay istenirse kod yazmadan o noktada dur.
 - Adım sonunda dosyaların görevini, önemli kod seçimlerini ve test sonucunu açıkla.
+- Her görev sonunda kullanıcıya hangi dosyada ne değiştiğini, neden bu seçimin
+  yapıldığını ve davranışa etkisini kısa ve somut örneklerle anlat. Yapılan
+  doğrulamayı ve kalan eksikleri belirt; doküman kararı ile uygulanmış kodu ayır.
 - required/init/nullability ile runtime validation ve DB constraint'lerini ayır.
   C# sınıfı oluşturmak tablo oluşturmaz; build geçmesi DB doğrulaması değildir.
 - Üretilen kodu doğru varsayma; invalid input, null, concurrency, naming,
@@ -1292,7 +1295,8 @@ IN PROGRESS
 - Database foundation; kullanıcı review'üyle küçük adımlar halinde devam ediyor.
 
 NEXT
-- Kullanıcının seçtiği adım. Öneri: VAL-01 ile girdi doğrulama kurallarını belirlemek.
+- Kullanıcının seçtiği adım. VAL-01 kuralları docs/input-validation.md içinde yazıldı;
+  öneri: VAL-02 ile para precision ve fazla ondalıklı giriş politikasını belirlemek.
 
 KNOWN ISSUES
 - Lookup/synthetic seed ve historical import henüz yok; market tabloları hazır.

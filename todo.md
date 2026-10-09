@@ -1,6 +1,6 @@
 # Proje TODO — AI-Powered Transaction Intelligence Platform
 
-Son güncelleme: 8 Ekim 2026.
+Son güncelleme: 9 Ekim 2026.
 
 Bu dosya projenin tek planıdır ve küçük, uygulanabilir işlerin listesidir.
 RULE.md çalışma kurallarını tutar. En son açık kullanıcı kararı, eski taslaklardan
@@ -99,7 +99,7 @@ Migration geçmişi:
 
 ## 4. Banking modelinin kalan doğrulama kararları
 
-- [ ] VAL-01 — Girdi kurallarını tablo halinde belirle. Boş GUID, null/whitespace, maksimum metin uzunluğu, para birimi, enum ve confidence sınırları için beklenen davranışı yaz.
+- [x] VAL-01 — [Girdi kuralları](docs/input-validation.md) tablosu oluşturuldu. Altı entity için GUID/ID, null/whitespace, metin uzunlukları, para birimleri, enum ve confidence sınırları yazıldı; mevcut korumalar ile eksikler ayrıldı. Kaynak kodla karşılaştırıldı; bu adımda doğrulama kodu veya DB değişikliği yapılmadı. Uygulama VAL-07'de.
 - [ ] VAL-02 — Para precision politikasını belirle. Amount ve Balance iki ondalık basamakta; fazla basamaklı giriş sessizce yuvarlanmasın. PostgreSQL numeric tipi tek başına bu giriş politikasını sağlamaz.
 - [ ] VAL-03 — Tarih kurallarını belirle. UTC/offset 0, default timestamp, gelecekteki işlem ve geçmiş import davranışlarını açıklaştır; OccurredAt ile CreatedAt farklı olabilir.
 - [ ] VAL-04 — Kategorilendirme tutarlılığını kararlaştır. CategoryId, source, confidence ve CategorizedAt alanlarının birlikte hangi kombinasyonlarda geçerli olduğunu belirle; LLM threshold'u DB'ye koyma.
@@ -327,6 +327,6 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Önerilen sonraki küçük iş: VAL-01 ile girdi doğrulama kurallarını tablo halinde belirlemek. MA-03'ün seed eşleşme doğrulaması seed aşamasını bekliyor; diğer açık maddeler listede korunuyor.
+Önerilen sonraki küçük iş: VAL-02 ile para precision ve fazla ondalıklı giriş politikasını belirlemek. MA-03'ün seed eşleşme doğrulaması seed aşamasını bekliyor; diğer açık maddeler listede korunuyor.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.
