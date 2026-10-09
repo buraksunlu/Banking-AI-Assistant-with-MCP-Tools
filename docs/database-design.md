@@ -19,8 +19,9 @@ Aktif veritabanı `bankingai_foundation`dır. Şu altı domain tablosu uygulanm�
 - `DailyMarketPrices`
 
 `MarketAssets` tablosunda üç başlangıç seed kaydı vardır; `DailyMarketPrices`
-henüz boştur. Kategori seed'i de uygulanmıştır. Synthetic banking seed'i ve
-historical market import'u henüz yoktur.
+henüz boştur. Kategori seed'i de uygulanmıştır. Customer seed'i üç müşteri,
+Account seed'i beş sıfır bakiyeli hesap eklemiştir; mevcut demo müşteri korunur.
+Transaction seed'i ve historical market import'u henüz yoktur.
 
 Aktif veritabanında yedi migration uygulanmıştır:
 
@@ -59,6 +60,9 @@ dotnet run --project src/BankingAI.Data -- import market-prices --asset USDTRY -
 ```
 
 `seed categories` SEED-02 ile, `seed market-assets` SEED-04 ile uygulanmıştır.
+`seed customers` SYN-03 ile, `seed accounts` SYN-04/05 ile uygulanmıştır.
+Hesap seed'inden önce müşteri seed'i çalıştırılır; sabit dummy hesaplar ve
+doğrulama sonuçları [synthetic seed belgesinde](synthetic-seed.md) açıklanır.
 `seed synthetic` ve `import market-prices` bu tasarım adımında henüz mevcut
 değildir. Her scope uygulanmadan önce kapsamı olmayan `seed` veya `import`
 komutu kullanım hatası vermelidir. İlk aşamada genel `seed all` komutu

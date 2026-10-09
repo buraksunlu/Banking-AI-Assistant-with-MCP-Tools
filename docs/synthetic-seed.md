@@ -29,3 +29,39 @@ VAL-05 gereği bu profiller yalnızca tamamlanmış mal/hizmet, abonelik ve fatu
 `seed customers` komutu üç sabit GUID kullanır. İsimler ve merchant kalıpları demo amaçlıdır; telefon, TCKN, adres veya gerçek kişi bilgisi üretilmez. `CustomerNumber` PostgreSQL sequence tarafından oluşturulur, seed tarafından elle verilmez.
 
 Seed mevcut demo kaydını silmez veya güncellemez. Sabit GUID mevcut değilse kayıt eklenir; aynı GUID aynı içerikle zaten varsa atlanır. Aynı GUID farklı ad, soyad, para birimi veya saat dilimiyle mevcutsa seed sessizce üzerine yazmak yerine hata verir. Advisory lock eşzamanlı çalıştırmaları sıraya alır.
+
+## SYN-04 / SYN-05 Account seed'i
+
+Önce `seed customers`, ardından `seed accounts` çalıştırılır. Eksik müşteri varsa
+Account seed açıklayıcı hata verir; kendiliğinden müşteri oluşturmaz.
+
+| Sabit Account ID | Müşteri | Dummy numara | Para birimi | Amaç |
+| --- | --- | --- | --- | --- |
+| `20000000-0000-0000-0000-000000000001` | Ada Kahve | `DUMMY-ADA-TRY-001` | TRY | Günlük harcama |
+| `20000000-0000-0000-0000-000000000002` | Ada Kahve | `DUMMY-ADA-USD-001` | USD | Aynı müşteride ikinci para birimi |
+| `20000000-0000-0000-0000-000000000003` | Deniz Market | `DUMMY-DENIZ-TRY-001` | TRY | Başka müşteri sahipliği |
+| `20000000-0000-0000-0000-000000000004` | Ege Yolcu | `DUMMY-EGE-EUR-001` | EUR | Seyahat profili |
+| `20000000-0000-0000-0000-000000000005` | Ada Kahve | `DUMMY-ADA-EMPTY-001` | TRY | Gelecek transaction seed'lerinde de boş bırakılacak hesap |
+
+Customer ID'leri SYN-03'teki `10000000-...0001/0002/0003` değerleridir.
+Numaralar gerçek IBAN değildir. Yeni hesapların tamamı `Balance = 0` ile açılır;
+bu adımda hiçbir hesaba transaction eklenmez. İleride yalnızca EMPTY hesabı
+özellikle boş tutulur, diğerlerine hareket eklenebilir.
+
+Seed girdileri mevcut entity doğrulamasından geçer (TRY/USD/EUR/GBP whitelist'i
+dahil); kendi içinde duplicate ID/numara ve sıfır başlangıç bakiyesi de kontrol edilir.
+DB'de eksik Customer önceden kontrol edilir, FK son korumayı sağlar.
+Aynı ID'de farklı sahiplik, numara, para birimi veya ad varsa hata verilir.
+Dummy numara farklı bir ID'de kullanılıyorsa hata verilir. Bütün kontrol ve insert'ler
+tek transaction içindedir; advisory lock aynı account seed komutlarını sıraya alır.
+
+Tekrar çalıştırma mevcut hesabın bakiyesini veya CreatedAt değerini değiştirmez.
+Sıfır kuralı **yeni hesap açılışı** içindir; ilerideki işlemlerin bakiyesi silinmez.
+CreatedAt mevcut DbContext tarafından kayıt anında UTC atanır; sabit ID ve
+numaralar tekrar üretilebilir olsa da kayıt zamanı sabit dataset tarihi değildir.
+
+9 Ekim 2026 doğrulaması: ilk çalıştırmada 5, ikincide 0 eklendi. DB'deki beş
+hesabın sahipleri/para birimleri doğrulandı; tüm bakiyeler 0, hareket sayıları 0.
+PostgreSQL testinde tekrar, bakiye/tarih koruma, sahiplik ve numara çelişkileri,
+unique numara, olmayan müşteri FK'si ve geçersiz currency kontrol edildi.
+Test değişiklikleri transaction rollback ile geri alındı.

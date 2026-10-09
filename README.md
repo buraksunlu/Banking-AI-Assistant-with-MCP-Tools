@@ -61,6 +61,8 @@ dotnet run --project src/BankingAI.Data -- migrate
 dotnet run --project src/BankingAI.Data -- show
 dotnet run --project src/BankingAI.Data -- seed categories
 dotnet run --project src/BankingAI.Data -- seed market-assets
+dotnet run --project src/BankingAI.Data -- seed customers
+dotnet run --project src/BankingAI.Data -- seed accounts
 ```
 
 `migrate`, projede bulunan ve veritabanına henüz uygulanmamış EF Core
@@ -70,8 +72,8 @@ kendiliğinden çalışmaz.
 `show`, ilk 10 Customer kaydını okur ve CustomerNumber, FirstName, LastName,
 PreferredCurrency, TimeZone ve UTC CreatedAt değerlerini gösterir.
 
-Kategori ve market asset seed komutları uygulanmıştır. Synthetic seed ve market
-import komutları henüz uygulanmadı; aşağıdaki komutlar tasarım sözleşmesidir ve
+Kategori, market asset, müşteri ve hesap seed komutları uygulanmıştır. Bütün synthetic
+dataset'i üreten `seed synthetic` ve market import henüz uygulanmadı; aşağıdaki komutlar tasarım sözleşmesidir ve
 şu anda çalıştırılmamalıdır:
 
 ```sh
@@ -81,6 +83,11 @@ dotnet run --project src/BankingAI.Data -- import market-prices --asset USDTRY -
 
 `seed categories` yalnızca bu komut açıkça çalıştırıldığında kategori ekler.
 `seed market-assets` USDTRY, EURTRY ve GRAM_GOLD_TRY kayıtlarını açıkça ekler.
+`seed customers` üç dummy müşteri ekler; mevcut demo müşteriyi korur.
+`seed accounts`, bu müşteriler mevcutsa beş sabit dummy hesap ekler; yeni bakiyeler
+sıfırdır. Aynı müşterinin TRY/USD hesapları, diğer müşteri hesapları ve boş hesap
+örneği vardır. Tekrar çalıştırmak hesapları çoğaltmaz ve mevcut bakiyeyi sıfırlamaz.
+Hesap listesi ve doğrulamalar [synthetic seed belgesinde](docs/synthetic-seed.md) açıklanır.
 `migrate` seed çalıştırmaz. Diğer `seed` ve `import` komutları da uygulama
 açılışında otomatik çalışmayacak; her biri kullanıcı komutuyla başlayacak.
 

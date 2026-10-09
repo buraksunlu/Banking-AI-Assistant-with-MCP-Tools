@@ -55,10 +55,10 @@ canlı PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna 
 | Domain tabloları | Customers, Accounts, TransactionCategories, Transactions, MarketAssets, DailyMarketPrices |
 | EF yardımcı tablosu | __EFMigrationsHistory |
 | Uygulanmış migration | 8 |
-| Veri | 1 Customer; 0 Account; 11 Category; 0 Transaction |
+| Veri | 4 Customer (demo + 3 synthetic); 5 Account (bakiyeler 0); 11 Category; 0 Transaction |
 | Market tabloları | MarketAssets mevcut ve üç seed kaydı var; DailyMarketPrices henüz boş |
 | Bakiye güncelleme akışı | Henüz yok; SQL ile transaction eklemek bakiyeyi otomatik değiştirmez |
-| Kalıcı otomatik test projesi | Henüz yok; önceki kontroller geçici program/SQL ile yapıldı |
+| Kalıcı otomatik test projesi | tests/BankingAI.Data.Tests; C# ve rollback edilen PostgreSQL kontrolleri |
 | API / SwiftUI / AI / MCP | Henüz yok |
 
 Migration geçmişi:
@@ -120,8 +120,8 @@ Migration geçmişi:
 - [x] SYN-01 — Bogus 35.6.5 yalnızca synthetic seed ihtiyacı için eklendi. `SyntheticSeedSettings` içinde random seed `20261009`, UTC referans tarihi `2025-10-01T00:00:00Z` ve dataset sürümü `synthetic-v1` sabitlendi. Her çağrıda bağımsız `Faker.UseSeed(...)` oluşturuluyor; DB'ye synthetic kayıt yazılmadı. Tekrarlanabilirlik testleri eklendi (`docs/synthetic-seed.md`).
 - [x] SYN-02 — `SyntheticCustomerProfileCatalog` içinde üç kontrollü profil tanımlandı: `COFFEE_SUBSCRIPTIONS`, `FAMILY_MARKET`, `TRANSPORT_TRAVEL`. Ana/ikincil kategori ve recurring/tek seferlik merchant kalıpları sabit immutable listelerde tutuldu; gerçek müşteri bilgisi kullanılmadı. VAL-05 kapsamı korundu: yalnızca tamamlanmış mal/hizmet, abonelik ve fatura Debit kalıpları; transfer, refund/iptal, nakit, yatırım ve bekleyen işlem yok. Henüz DB kaydı üretilmedi (`docs/synthetic-seed.md`).
 - [x] SYN-03 — `seed customers` komutu ve `SyntheticCustomerSeeder` eklendi. Üç sabit GUID kullanılıyor; mevcut demo kayıt silinmiyor/güncellenmiyor. Aynı GUID aynı içerikle varsa atlanıyor, farklı içerikle varsa açıklayıcı hata veriliyor; `CustomerNumber` DB sequence'e bırakılıyor. Gerçek telefon/TCKN/adres üretilmiyor (`docs/synthetic-seed.md`).
-- [ ] SYN-04 — Account seed'ini yaz. Aynı müşteri için TRY ve döviz hesapları, başka müşterinin hesabı ve boş hesap örneği oluştur; numaralar açıkça dummy olsun.
-- [ ] SYN-05 — Seed bütünlüğünü doğrula. Her hesap mevcut müşteriye ait olsun; numaralar unique, para birimleri whitelist içinde, başlangıç bakiyesi sıfır olsun.
+- [x] SYN-04 — `SyntheticAccountSeeder` ve `seed accounts` eklendi. Sabit GUID/DUMMY numaralarıyla Ada TRY/USD/boş TRY, Deniz TRY, Ege EUR olmak üzere beş hesap oluşturuldu. Eksik müşteri veya çelişen hesap bilgisi hata verir; tekrar çalıştırma mevcut bakiyeyi/tarihi değiştirmez.
+- [x] SYN-05 — PostgreSQL'de beş hesabın mevcut müşterilere bağlı, numaralarının unique, para birimlerinin whitelist içinde ve ilk bakiyelerinin 0 olduğu doğrulandı. İlk seed 5, tekrar 0 ekledi. Kalıcı testte sahiplik/numara çelişkisi, duplicate numara, olmayan müşteri FK'si, geçersiz currency ve bakiye/tarih koruması denendi; test değişiklikleri rollback edildi. 18/18 test geçti.
 
 ## 7. Synthetic hareket ve bakiye tutarlılığı
 
@@ -327,6 +327,6 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Önerilen sonraki küçük iş: SYN-04 ile sabit kapsamlı Account seed tasarımını yapmak. SYN-01 deterministic seed ayarları, SYN-02 profilleri, SYN-03 Customer seed'i ve Market seed/MA-03 eşleşme doğrulaması tamamlandı.
+Önerilen sonraki küçük iş: BAL-01 ile transaction ekleme ve bakiye değişiminin atomik yazma yolunu tasarlamak. SYN-01–05 tamamlandı; beş hesap sıfır bakiye ile hazır, henüz transaction seed'i yok.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

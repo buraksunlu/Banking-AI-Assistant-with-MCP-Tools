@@ -5,10 +5,11 @@ using Microsoft.EntityFrameworkCore;
 var isSeedCategories = args.Length == 2 && args[0] == "seed" && args[1] == "categories";
 var isSeedMarketAssets = args.Length == 2 && args[0] == "seed" && args[1] == "market-assets";
 var isSeedCustomers = args.Length == 2 && args[0] == "seed" && args[1] == "customers";
+var isSeedAccounts = args.Length == 2 && args[0] == "seed" && args[1] == "accounts";
 var isSingleCommand = args.Length == 1 && (args[0] == "migrate" || args[0] == "show");
-if (!isSingleCommand && !isSeedCategories && !isSeedMarketAssets && !isSeedCustomers)
+if (!isSingleCommand && !isSeedCategories && !isSeedMarketAssets && !isSeedCustomers && !isSeedAccounts)
 {
-    Console.WriteLine("Usage: BankingAI.Data migrate | show | seed categories | seed market-assets | seed customers");
+    Console.WriteLine("Usage: BankingAI.Data migrate | show | seed categories | seed market-assets | seed customers | seed accounts");
     return 1;
 }
 
@@ -39,6 +40,11 @@ else if (isSeedCustomers)
 {
     var added = await SyntheticCustomerSeeder.SeedAsync(db);
     Console.WriteLine($"Synthetic customers seeded. Added: {added}; unchanged: {3 - added}.");
+}
+else if (isSeedAccounts)
+{
+    var added = await SyntheticAccountSeeder.SeedAsync(db);
+    Console.WriteLine($"Synthetic accounts seeded. Added: {added}; unchanged: {SyntheticAccountSeeder.AccountCount - added}.");
 }
 else
 {
