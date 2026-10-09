@@ -219,17 +219,19 @@ birimidir. Örneğin USDTRY fiyatı, 1 USD karşılığındaki TRY tutarını if
 Varlık türü veya para birimi için ayrı lookup tablo oluşturulmaz.
 
 Mevcut DB kısıtları bu dört alanın birbirine uyumunu denetlemez. Örneğin
-`USDTRY / Currency / EUR / TRY` kaydı DB tarafından kabul edilir; seed kodu
-bu eşleşmeyi reddetmelidir. SEED-04/SEED-05 kapsamında beklenen eşleşmelerle
-hem yazılacak kayıtlar hem mevcut kayıtlar karşılaştırılacak; uyuşmazlıkta
-sessiz düzeltme veya atlama yerine açıklayıcı hata verilecektir.
+`USDTRY / Currency / EUR / TRY` kaydı DB tarafından kabul edilebilir; seed kodu
+bu eşleşmeyi reddeder. SEED-04/SEED-05 kapsamında beklenen eşleşmelerle hem
+yazılacak kayıtlar hem mevcut kayıtlar karşılaştırıldı; uyuşmazlıkta sessiz
+düzeltme veya atlama yerine açıklayıcı hata verilir. QuoteCurrency için temel
+`TRY` DB CHECK'i ayrıca koruma sağlar.
 
 8 Ekim 2026 doğrulaması: PostgreSQL'de üç geçerli eşleşme kabul edildi;
 Stock, Bond, küçük harfli currency türleri ile USD ve küçük harfli try quote
 değerleri beklenen CHECK kısıtlarınca reddedildi. USDTRY/EUR uyumsuzluğunun
 mevcut DB tarafından kabul edildiği de doğrulandı. Bütün deneme kayıtları
 aynı transaction içinde ROLLBACK edildi; tablo boş kaldı. Seed henüz
-uygulanmadığından gerçek seed eşleşme doğrulaması tamamlanmış değildir.
+uygulanmadan önceki bu migration kontrolünün ardından gerçek seed eşleşmesi de
+SEED-05 ile doğrulandı; aktif MarketAssets tablosunda üç doğru kayıt vardır.
 
 ## DailyMarketPrices
 

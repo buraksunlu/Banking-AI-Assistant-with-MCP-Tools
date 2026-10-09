@@ -85,7 +85,7 @@ Migration geçmişi:
 
 - [x] MA-01 — MarketAsset.cs oluşturuldu ve açıklandı. Id: short; Symbol: string; Name: string; AssetType: string; BaseUnit: string; QuoteCurrency: string; IsActive: bool. Proje 0 hata, 0 uyarıyla derlendi. Yalnızca entity hazır; EF eşlemesi, tablo ve veri doğrulama kuralları henüz eklenmedi.
 - [x] MA-02 — MarketAssetConfiguration oluşturuldu. Id smallint ve otomatik üretilmez; Symbol varchar(30) unique; Name varchar(100); AssetType varchar(30); BaseUnit varchar(20); QuoteCurrency char(3); IsActive boolean. Zorunluluk, pozitif ID, boş metin, Currency/Commodity ve TRY kısıtları tanımlandı. Derleme: 0 hata, 0 uyarı. DbContext kaydı ve migration henüz yok; DB kısıtları uygulanmadı/doğrulanmadı.
-- [x] MA-03 — Tür/para birimi kısmı tamamlandı: Currency/Commodity ve quote TRY kısıtları aktif PostgreSQL'de doğrulandı. Üç geçerli kayıt kabul edildi; beş geçersiz tür/quote örneği beklenen CHECK kısıtlarınca reddedildi, tüm denemeler geri alındı. Symbol/BaseUnit eşleşme sözleşmesi docs/database-design.md içinde yazıldı. DB bu eşleşmeyi korumuyor; gerçek seed incelemesi SEED-04/SEED-05'i bekliyor. Bu nedenle madde bütünüyle tamamlandı işaretlenmedi. Ek lookup tablo yok.
+- [x] MA-03 — Currency/Commodity ve quote TRY kısıtları aktif PostgreSQL'de doğrulandı. USDTRY, EURTRY ve GRAM_GOLD_TRY seed kayıtlarının Symbol/AssetType/BaseUnit/QuoteCurrency eşleşmeleri doğrulandı; yanlış BaseUnit ve AssetType mevcut kayıtları sessizce düzeltilmeden hata verdi. DB bu alanlar arasındaki tüm kombinasyon ilişkisini değil, temel alan kısıtlarını korur; seed doğrulaması bunu tamamlar. Ek lookup tablo yok.
 - [x] MA-04 — DbSet ve configuration kaydını ekle; yalnızca MarketAssets tablosunu ekleyen migration üretip SQL içeriğini incele.
 - [x] MA-05 — Migration'ı aktif DB'ye uygula; pgAdmin'de kolonları göster. Unique, required ve uzunluk kısıtlarını rollback edilen kayıtlarla doğrula.
 
@@ -112,8 +112,8 @@ Migration geçmişi:
 - [x] SEED-01 — Manuel komut sözleşmesi docs/database-design.md ve README'ye yazıldı. `migrate` yalnızca şemayı, açık kapsamlı `seed` lookup/synthetic veriyi, açık parametreli `import` historical market verisini işler; uygulama açılışında otomatik veri eklenmez. Şu an çalışan seed kapsamları `categories` ve `market-assets`tir; synthetic seed/import sonraki adımlardadır.
 - [x] SEED-02 — `seed categories` komutu ve `TransactionCategorySeeder` oluşturuldu. Sabit 1–11 ID, kararlı Code değerleri ve Türkçe DisplayName değerleri ekleniyor. Aynı ID/kod aynı içerikle mevcutsa işlem tekrarsız; çelişki varsa sessizce ezmek yerine hata veriliyor. Seed işlemi transaction içinde çalışıyor; market/synthetic seed henüz yok.
 - [x] SEED-03 — Kategori seed'i iki kez çalıştırıldı: ilkinde 11 eklendi, ikincisinde 0 eklendi ve 11 değişmeden kaldı. Boş tabloyla iki eşzamanlı komutta biri 11 ekledi, diğeri advisory lock sonrasında 0 ekledi; sonuç 11 kaldı. Id 1 geçici olarak çelişkili Code ile denendi, seed `InvalidOperationException` verdi ve sessiz overwrite yapmadı; değer geri yüklendi.
-- [x] SEED-04 — `seed market-assets` komutu ve `MarketAssetSeeder` oluşturuldu. Sabit Id 1–3 ile USDTRY/USD/Currency, EURTRY/EUR/Currency ve GRAM_GOLD_TRY/GRAM/Commodity kayıtları; quote TRY ve IsActive true olarak tanımlandı. Aynı Id/Symbol çelişkisi sessizce düzeltilmiyor. Tekrar/eşzamanlılık ve yanlış alan eşleşmesi SEED-05'te doğrulanacak.
-- [ ] SEED-05 — Market seed tekrarını doğrula. Üç varlık çoğalmamalı; Symbol/AssetType/BaseUnit/QuoteCurrency birlikte docs/database-design.md içindeki MA-03 sözleşmesiyle eşleşmeli. Hem seed girdisinde hem mevcut DB kaydında USDTRY/EUR gibi yanlış eşleşmeleri dene; sessiz düzeltme/atlama yerine açıklayıcı hata ver. Bu doğrulama geçince MA-03'ün kalan kısmını tamamlandı işaretle.
+- [x] SEED-04 — `seed market-assets` komutu ve `MarketAssetSeeder` oluşturuldu. Sabit Id 1–3 ile USDTRY/USD/Currency, EURTRY/EUR/Currency ve GRAM_GOLD_TRY/GRAM/Commodity kayıtları; quote TRY ve IsActive true olarak tanımlandı.
+- [x] SEED-05 — Market seed'i tekrar çalıştırıldı: her tekrar ve eşzamanlı çalıştırmada toplam 3 kayıt kaldı. USDTRY için yanlış Symbol/BaseUnit, EURTRY için yanlış AssetType geçici olarak denendi; seed açıklayıcı hata verdi, sessiz düzeltme yapmadı ve doğru değerler geri yüklendi. Yanlış QuoteCurrency doğrudan DB CHECK'i tarafından reddedildi. Son DB eşleşmeleri MA-03 sözleşmesiyle uyumlu.
 
 ## 6. Kontrollü synthetic müşteri ve hesaplar
 
@@ -327,6 +327,6 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Önerilen sonraki küçük iş: SEED-05 ile MarketAssets seed tekrarını ve alan eşleşmelerini doğrulamak. Synthetic seed henüz yok.
+Önerilen sonraki küçük iş: SYN-01 ile deterministic synthetic seed tasarımını yapmak. Market seed ve MA-03 eşleşme doğrulaması tamamlandı.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.
