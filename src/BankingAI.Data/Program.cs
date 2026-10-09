@@ -4,10 +4,11 @@ using Microsoft.EntityFrameworkCore;
 
 var isSeedCategories = args.Length == 2 && args[0] == "seed" && args[1] == "categories";
 var isSeedMarketAssets = args.Length == 2 && args[0] == "seed" && args[1] == "market-assets";
+var isSeedCustomers = args.Length == 2 && args[0] == "seed" && args[1] == "customers";
 var isSingleCommand = args.Length == 1 && (args[0] == "migrate" || args[0] == "show");
-if (!isSingleCommand && !isSeedCategories && !isSeedMarketAssets)
+if (!isSingleCommand && !isSeedCategories && !isSeedMarketAssets && !isSeedCustomers)
 {
-    Console.WriteLine("Usage: BankingAI.Data migrate | show | seed categories | seed market-assets");
+    Console.WriteLine("Usage: BankingAI.Data migrate | show | seed categories | seed market-assets | seed customers");
     return 1;
 }
 
@@ -33,6 +34,11 @@ else if (isSeedCategories)
 {
     var added = await TransactionCategorySeeder.SeedAsync(db);
     Console.WriteLine($"Transaction categories seeded. Added: {added}; unchanged: {11 - added}.");
+}
+else if (isSeedCustomers)
+{
+    var added = await SyntheticCustomerSeeder.SeedAsync(db);
+    Console.WriteLine($"Synthetic customers seeded. Added: {added}; unchanged: {3 - added}.");
 }
 else
 {

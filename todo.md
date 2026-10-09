@@ -117,9 +117,9 @@ Migration geçmişi:
 
 ## 6. Kontrollü synthetic müşteri ve hesaplar
 
-- [ ] SYN-01 — Bogus'u yalnızca seed ihtiyacı için ekle. Sabit random seed, sabit referans tarih ve dataset sürümü seç; sonuçların tekrar üretilebilir olmasını sağla.
-- [ ] SYN-02 — Küçük müşteri profilleri tanımla. Kahve/abonelik ağırlıklı, market/aile, ulaşım/seyahat gibi farklı pattern'leri yaz; gerçek müşteri bilgisi kullanma. VAL-05 izinli hareket listesini koru; transfer/refund/nakit/yatırım/bekleyen işlem üretme.
-- [ ] SYN-03 — Customer seed'ini yaz. Mevcut demo kayıtla çakışmayı yönet; sabit ID'ler kullan, gerçek telefon/TCKN/adres üretme.
+- [x] SYN-01 — Bogus 35.6.5 yalnızca synthetic seed ihtiyacı için eklendi. `SyntheticSeedSettings` içinde random seed `20261009`, UTC referans tarihi `2025-10-01T00:00:00Z` ve dataset sürümü `synthetic-v1` sabitlendi. Her çağrıda bağımsız `Faker.UseSeed(...)` oluşturuluyor; DB'ye synthetic kayıt yazılmadı. Tekrarlanabilirlik testleri eklendi (`docs/synthetic-seed.md`).
+- [x] SYN-02 — `SyntheticCustomerProfileCatalog` içinde üç kontrollü profil tanımlandı: `COFFEE_SUBSCRIPTIONS`, `FAMILY_MARKET`, `TRANSPORT_TRAVEL`. Ana/ikincil kategori ve recurring/tek seferlik merchant kalıpları sabit immutable listelerde tutuldu; gerçek müşteri bilgisi kullanılmadı. VAL-05 kapsamı korundu: yalnızca tamamlanmış mal/hizmet, abonelik ve fatura Debit kalıpları; transfer, refund/iptal, nakit, yatırım ve bekleyen işlem yok. Henüz DB kaydı üretilmedi (`docs/synthetic-seed.md`).
+- [x] SYN-03 — `seed customers` komutu ve `SyntheticCustomerSeeder` eklendi. Üç sabit GUID kullanılıyor; mevcut demo kayıt silinmiyor/güncellenmiyor. Aynı GUID aynı içerikle varsa atlanıyor, farklı içerikle varsa açıklayıcı hata veriliyor; `CustomerNumber` DB sequence'e bırakılıyor. Gerçek telefon/TCKN/adres üretilmiyor (`docs/synthetic-seed.md`).
 - [ ] SYN-04 — Account seed'ini yaz. Aynı müşteri için TRY ve döviz hesapları, başka müşterinin hesabı ve boş hesap örneği oluştur; numaralar açıkça dummy olsun.
 - [ ] SYN-05 — Seed bütünlüğünü doğrula. Her hesap mevcut müşteriye ait olsun; numaralar unique, para birimleri whitelist içinde, başlangıç bakiyesi sıfır olsun.
 
@@ -327,6 +327,6 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Önerilen sonraki küçük iş: SYN-01 ile deterministic synthetic seed tasarımını yapmak. Market seed ve MA-03 eşleşme doğrulaması tamamlandı.
+Önerilen sonraki küçük iş: SYN-04 ile sabit kapsamlı Account seed tasarımını yapmak. SYN-01 deterministic seed ayarları, SYN-02 profilleri, SYN-03 Customer seed'i ve Market seed/MA-03 eşleşme doğrulaması tamamlandı.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.
