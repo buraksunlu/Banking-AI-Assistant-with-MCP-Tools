@@ -6,6 +6,7 @@ using Xunit;
 
 namespace BankingAI.Data.Tests;
 
+[Collection(PostgreSqlCollection.Name)]
 public class PostgreSqlValidationTests
 {
     [Fact]

@@ -6,6 +6,7 @@ using Xunit;
 
 namespace BankingAI.Data.Tests;
 
+[Collection(PostgreSqlCollection.Name)]
 public sealed class SyntheticAccountSeederTests
 {
     [Fact]

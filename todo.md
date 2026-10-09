@@ -57,7 +57,7 @@ canlı PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna 
 | Uygulanmış migration | 8 |
 | Veri | 4 Customer (demo + 3 synthetic); 5 Account (bakiyeler 0); 11 Category; 0 Transaction |
 | Market tabloları | MarketAssets mevcut ve üç seed kaydı var; DailyMarketPrices henüz boş |
-| Bakiye güncelleme akışı | `TransactionSeedWriter` transaction insert'i ve atomik bakiye farkını tek DB transaction'ında yazar; eşzamanlılık/rollback kabul testleri BAL-03/04'te |
+| Bakiye güncelleme akışı | `TransactionSeedWriter` insert ve atomik bakiye delta'sını aynı DB transaction'ında yazar; BAL-03/04 PostgreSQL kabul testleri geçti |
 | Kalıcı otomatik test projesi | tests/BankingAI.Data.Tests; C# ve rollback edilen PostgreSQL kontrolleri |
 | API / SwiftUI / AI / MCP | Henüz yok |
 
@@ -126,9 +126,9 @@ Migration geçmişi:
 ## 7. Synthetic hareket ve bakiye tutarlılığı
 
 - [x] BAL-01 — Seed için `TransactionSeedWriter` tasarlandı ve eklendi. Tek bir DB transaction'ında önce transaction insert edilir, sonra Account.Balance delta ile güncellenir; commit ikisi de başarılı olunca yapılır. API/application service katmanı eklenmedi.
-- [x] BAL-02 — Bakiye `ExecuteUpdate` ile DB içinde `Balance + delta` olarak değiştirilir; eski değer uygulamada okunup yazılmaz. WHERE koşulu negatif ve numeric(18,2) üst sınırını engeller; Debit yetersiz bakiyede reddedilir. Insert/güncelleme hatasında rollback yapılır; aynı Transaction ID tekrar bakiye delta'sı uygulamaz. Eşzamanlılık ve hata sonrası DB kabul testleri BAL-03/04'te.
-- [ ] BAL-03 — İki eşzamanlı işlemle lost update testi yap. Son bakiye başlangıç + Credit − Debit ile aynı olmalı.
-- [ ] BAL-04 — Kasıtlı insert hatası üret. Transaction reddedildiğinde bakiye değişmemeli; ters yöndeki başarısızlık da yarım kayıt bırakmamalı.
+- [x] BAL-02 — Bakiye `ExecuteUpdate` ile DB içinde `Balance + delta` olarak değiştirilir; eski değer uygulamada okunup yazılmaz. WHERE koşulu negatif ve numeric(18,2) üst sınırını engeller; Debit yetersiz bakiyede reddedilir. Insert/güncelleme hatasında rollback yapılır; aynı Transaction ID tekrar bakiye delta'sı uygulamaz.
+- [x] BAL-03 — PostgreSQL entegrasyon testinde bakiye 0'dan 100 Credit'e çıkarıldı; 100 TRY üstünden iki eşzamanlı işlem (25 Credit, 40 Debit) çalıştırıldı. Son bakiye tüm transaction kayıtlarından bağımsız formülle `başlangıç + Credit − Debit = 85 TRY` çıktı; 3 kayıt vardı.
+- [x] BAL-04 — İki hata yönü PostgreSQL'de doğrulandı: var olmayan kategori FK'siyle transaction insert'i reddedildi ve bakiye aynı kaldı; 100.01 TRY Debit insert sonrasında yetersiz bakiye nedeniyle reddedildi, transaction rollback oldu ve bakiye 100 kaldı. Test hesap/hareketleri temizlendi. Tüm suite 20/20 geçti.
 - [ ] SYN-06 — Aylık maaş ve açılış fonlaması Credit hareketlerini ekle. Tarihler, tutarlar ve hesap para birimleri açık olsun. VAL-05'e göre bunlar harcamadan düşülmez; kategori alanları null kalır ve açılış fonlamasına karşı başka hesapta Debit transfer üretilmez.
 - [ ] SYN-07 — Netflix ve Spotify recurring Debit pattern'lerini ekle. En az üç farklı ay ve benzer ödeme günleri olsun.
 - [ ] SYN-08 — Starbucks, market, giyim, ulaşım, yakıt ve fatura örneklerini ayrı küçük gruplarla ekle. RawDescription ile NormalizedMerchant ayrımını koru.
@@ -327,6 +327,6 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Önerilen sonraki küçük iş: BAL-03 ile eşzamanlı Debit/Credit yazımlarında lost update olmadığını doğrulamak. SYN-01–05 ve BAL-01/02 tamamlandı; henüz transaction seed verisi yok.
+Önerilen sonraki küçük iş: SYN-06 ile aylık maaş ve açılış fonlaması Credit hareketlerini eklemek. SYN-01–05 ve BAL-01–04 tamamlandı; gerçek demo transaction seed'i henüz yok.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

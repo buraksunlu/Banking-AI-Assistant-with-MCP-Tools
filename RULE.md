@@ -1333,7 +1333,7 @@ NEXT
 KNOWN ISSUES
 - Synthetic banking seed ve historical import henüz yok; kategori ve market asset seed'leri hazır.
 - `TransactionSeedWriter` seed işlem insert'i ile Account.Balance delta'sını aynı
-  DB transaction'ında yazar. BAL-03/04 concurrency/rollback kabul kontrolleri bekliyor.
+  DB transaction'ında yazar. BAL-03/04 concurrency/rollback PostgreSQL kontrolleri geçti.
 - Customer FirstName/LastName geçişi SplitCustomerName migration'ıyla uygulandı.
 - Dış API giriş sözleşmesi API adımlarında; atomik seed yazma yolu BAL-01/02'de eklendi.
 - README güncel console/database durumuna getirildi; database-design içindeki kalan uyarlamalar todo.md'de takip ediliyor.

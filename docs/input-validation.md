@@ -428,7 +428,7 @@ tamamlandığı anlamına gelmez; bunlar ilgili BAL/API görevlerinde ele alına
   `CK_Accounts_Balance_NonNegative` DB CHECK'i ile reddedilir. Seed yazma yolu
   `TransactionSeedWriter` işlemi ve bakiye farkını aynı transaction'a alır;
   bakiye DB'de atomik artırılıp/azaltılır, yetersiz Debit reddedilir. Eşzamanlılık
-  ve hata rollback kabul testleri BAL-03/04 kapsamındadır.
+  ve hata rollback kabul testleri BAL-03/04 kapsamında PostgreSQL'de geçti.
 - `InputRules` para precision, metin, UTC tarih ve kategori kombinasyonlarını
   düzeltme yapmadan reddeder. `EntityValidation` altı entity için ortak sınırı
   uygular. `BankingDbContext.SaveChanges/SaveChangesAsync` bu kontrolü yazma
@@ -436,3 +436,16 @@ tamamlandığı anlamına gelmez; bunlar ilgili BAL/API görevlerinde ele alına
 - `EnforceInputValidation` migration'ı aktif DB'ye uygulanmıştır. C# unit ve
   PostgreSQL integration testleri toplam 12/12 geçti; deneme kayıtları rollback
   edildi. Testler `.env` değişkenleri yüklenerek çalıştırılmalıdır.
+
+## BAL-03/BAL-04 atomik bakiye yazma kabul testleri
+
+`tests/BankingAI.Data.Tests/AtomicTransactionSeedWriterTests.cs` gerçek PostgreSQL
+üzerinde iki senaryoyu doğrular. Sıfır başlangıç bakiyesine önce 100 TRY Credit,
+ardından eşzamanlı 25 TRY Credit ve 40 TRY Debit uygulandı. Sonuç
+`0 + 100 + 25 - 40 = 85 TRY` oldu; test bunu saklanan işlem kayıtlarından
+hesaplayıp Account.Balance ile karşılaştırır.
+
+İkinci senaryoda geçersiz Category FK'si transaction insert'ini reddetti ve
+bakiye değişmedi. Ardından 100 TRY bakiyeden 100.01 TRY Debit denendi; insert
+önce başarılı olmasına rağmen bakiye güncellemesi reddedildi, transaction geri
+alındı ve bakiye 100 TRY kaldı. Teste özel hesap ve hareketler sonunda silindi.

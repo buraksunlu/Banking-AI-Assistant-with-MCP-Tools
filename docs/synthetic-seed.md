@@ -89,6 +89,7 @@ Akış:
 PostgreSQL aynı hesabın eşzamanlı UPDATE işlemlerini satır kilidiyle sıraya alır;
 her UPDATE güncel satır bakiyesine delta ekler. Uygulamada önceden okuma ve tüm
 bakiye değerini üzerine yazma yapılmadığı için klasik lost update oluşmaz.
-Bu davranışın eşzamanlı iki işlem ve kasıtlı insert hatasıyla kabul testleri
-BAL-03/04'te doğrulanacaktır. Writer başarısızlıkta EF change tracker'ı temizler;
+BAL-03 testinde 0 başlangıç + 100/25 Credit − 40 Debit sonucu 85 doğrulandı.
+BAL-04 testinde insert FK hatası ve sonradan reddedilen yetersiz Debit ayrı ayrı
+denendi; her ikisinde de kısmi kayıt/bakiye etkisi kalmadı. Writer başarısızlıkta EF change tracker'ı temizler;
 çağıran aynı context ile kayda devam etmeden önce entity'leri yeniden yüklemelidir.

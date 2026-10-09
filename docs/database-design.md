@@ -132,7 +132,7 @@ Gerçek IBAN üretilmez. İşlem bulunan hesabın currency'si değiştirilemez.
 Kredili hesap yoktur; negatif/yetersiz bakiye reddedilir. `TransactionSeedWriter`
 transaction insert'i ile bakiye delta'sını aynı DB transaction'ında uygular.
 Delta DB üzerinde atomik yazılır; bakiye önceden okunup uygulamadan üzerine yazılmaz.
-BAL-03/04 eşzamanlılık ve rollback kabul kontrollerini tamamlar.
+BAL-03/04 PostgreSQL testlerinde eşzamanlı delta ve iki yönlü rollback kontrolleri geçti.
 
 ## TransactionCategories
 
