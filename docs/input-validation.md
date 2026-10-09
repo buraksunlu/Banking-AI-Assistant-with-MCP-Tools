@@ -1,10 +1,10 @@
-# Girdi kuralları — VAL-01
+# Girdi kuralları — VAL-01–VAL-05
 
 Tarih: 9 Ekim 2026.
 
 Bu belge altı entity için beklenen davranışı tanımlar. Mevcut durum, entity,
 configuration, DbContext ve migration kaynak kodlarının incelenmesine dayanır;
-bu adımda canlı DB testleri yeniden çalıştırılmadı. Yeni doğrulama kodu veya
+VAL-01 adımında canlı DB testleri yeniden çalıştırılmadı. Yeni doğrulama kodu veya
 migration eklenmedi. Eksik kontroller VAL-07 kapsamında uygulanacak.
 
 ## Ortak davranış
@@ -89,19 +89,331 @@ kontrolü gereklidir; yalnızca alanların ayrı ayrı geçerli olması yeterli 
 | Alan | Beklenen davranış | Mevcut koruma / sonraki karar |
 | --- | --- | --- |
 | Transaction.CategoryConfidence | null veya 0–1 dahil; 0 ve 1 geçerli, -0.1 ve 1.1 geçersiz | numeric(5,4) ve DB aralık CHECK var; C# setter kontrolü yok |
-| CategoryConfidence için hassas sınır | 1.00001 gibi 1'den büyük ham değer reddedilmeli | DB önce 4 ondalığa yuvarlayıp sonra CHECK uygulayabilir; ham girdi aralığı yazma yolunda kontrol edilmeli. Fazla ondalık politikası ayrıca netleştirilecek |
+| CategoryConfidence için hassas sınır | 1.00001 gibi 1'den büyük ham değer reddedilmeli | DB önce 4 ondalığa yuvarlayıp sonra CHECK uygulayabilir; ham girdi aralığı yazma yolunda kontrol edilmeli. VAL-04'e göre dört ondalıkla kayıpsız temsil zorunlu; uygulaması henüz yok |
 | Confidence için NaN/sonsuz | Reddet | C# decimal bu değerleri taşımaz; PostgreSQL aralık CHECK/precision koruması var |
-| Transaction.Amount | Pozitif ve sonlu | Entity guard ve DB CHECK var; numeric(18,2). Fazla ondalık davranışı VAL-02'de |
+| Transaction.Amount | Pozitif, sonlu, iki ondalıkla kayıpsız temsil edilebilir | Entity guard ve DB CHECK var; numeric(18,2). Aşağıdaki VAL-02 precision/aralık kontrolleri henüz kodda yok |
 | Account.Balance | Sonlu; yeni hesapta 0 | private set, DB numeric(18,2) ve NaN CHECK var. Negatif bakiye kararı VAL-06'da; burada yeni yasak tanımlanmadı |
 | DailyMarketPrice.Price | Pozitif ve sonlu | DB numeric(20,8) ve CHECK var; entity guard henüz yok. Kaynak hassasiyeti/import dönüşümü ayrıca belirlenecek |
 
+## VAL-02 — Amount ve Balance precision politikası
+
+Kapsam Transaction.Amount ve Account.Balance'tır. İkisinin mevcut EF eşlemesi
+`HasPrecision(18, 2)`, DB karşılığı `numeric(18,2)` olarak kalır. Precision toplam
+18 basamak, scale ondalık kısımda 2 basamak demektir; tam kısma 16 basamak kalır.
+Tutarlar C# tarafında decimal ile taşınır; float/double üzerinden dönüştürülmez.
+
+### Kabul ve ret kararları
+
+| Kural | Karar ve gerekçe |
+| --- | --- |
+| İki ondalık sınırı | Değer, iki ondalıkla kayıpsız temsil edilebilmeli. Değeri değiştiren yuvarlama veya kesme yapılmaz |
+| Sondaki sıfırlar | 12.340 ve 12.3400 kabul edilir; sayısal olarak 12.34 ile aynıdır. Yazımdaki basamak sayısı yerine değer esas alınır |
+| Fazla anlamlı ondalık | 12.345, 12.341 ve 0.001 reddedilir; kaydetmek için Round/Truncate uygulanmaz |
+| Amount aralığı | 0.01 ile 9999999999999999.99 dahil. Sıfır/negatif Amount reddedilir; yön Direction ile belirlenir |
+| Balance temsil aralığı | -9999999999999999.99 ile 9999999999999999.99 dahil. Bu teknik sınırdır; negatif bakiyeye iş kuralı olarak izin verilip verilmeyeceği VAL-06'da kararlaştırılacak |
+| Yeni hesap bakiyesi | 0.00; dış girdiden bakiye atanmaz. Açılış fonlaması Credit işlemle temsil edilir |
+| Bakiye değişimi | Geçerli Amount ile hesaplanan yeni bakiye de precision ve temsil aralığı kontrolünden geçer. Taşmada işlem ve bakiye değişimi birlikte geri alınır; BAL adımlarında uygulanacak |
+| Para birimleri | Mevcut TRY/USD/EUR/GBP kapsamının tamamında bu iki ondalık politikası geçerli. Yeni para birimi eklenirse hassasiyet kararı yeniden incelenir |
+| Hata davranışı | Alan ve nedeni bildirilir: örneğin “Amount en fazla iki anlamlı ondalık basamak içerebilir.” Değer sessizce düzeltilmez ve kayıt yapılmaz |
+
+### VAL-07 için kabul örnekleri
+
+Aşağıdaki sonuçlar hedef davranıştır; bu tabloda yazılması testlerin çalıştırıldığı
+anlamına gelmez. SQL/C# gösterimine uygun olarak ondalık ayırıcı nokta kullanıldı.
+
+| Girdi / işlem | Beklenen sonuç |
+| --- | --- |
+| Amount = 12, 12.3, 12.34 | Kabul; DB'de sırasıyla 12.00, 12.30, 12.34 |
+| Amount = 12.3400 | Kabul; 12.34 ile aynı parasal değer |
+| Amount = 12.345 veya 12.341 | Precision hatası; 12.35/12.34'e dönüştürülmez |
+| Amount = 0.001 | Reddet; 0.00'a dönüştürülmez |
+| Amount = 0 veya -1.00 | Pozitiflik hatası |
+| Amount = 0.01 | Kabul; en küçük pozitif tutar |
+| Amount = 9999999999999999.99 | Teknik üst sınırda kabul |
+| Amount = 10000000000000000.00 | Temsil aralığı hatası |
+| Yeni Balance = 0.00 | Kabul |
+| Yeni Balance = -12.345 | Precision hatası; negatif bakiye kararı beklenmeden reddedilebilir |
+| Yeni Balance = -12.34 | Precision/aralık açısından geçerli; iş kuralı sonucu VAL-06'ya bağlı |
+| Balance üst sınırdayken Credit 0.01 | Bakiye taşması; işlem ve bakiye birlikte başarısız olmalı |
+| Balance = 0.10, Credit = 0.20 | Sonuç tam 0.30; decimal ile hesaplanmalı |
+
+### Kontrol nerede uygulanacak?
+
+Seed, import ve ileride API gibi her yazma yolu, yuvarlanmamış değeri DB'ye
+göndermeden önce doğrulamalı. Amount için entity guard'ı; bakiye için kontrollü
+güncelleme yolu VAL-07/BAL adımlarında ele alınacak. Önce temsil aralığı,
+ardından değerin iki ondalıkla kayıpsız temsil edilip edilmediği kontrol edilir.
+Örneğin decimal değer ile iki ondalığa yuvarlanmış karşılığını karşılaştırmak
+doğrulamada kullanılabilir; karşılığı orijinalin yerine atayıp kaydetmek yasaktır.
+Kontrol sırasında ölçeksiz decimal.MaxValue değerini 100 ile çarparak taşma
+yaratılmamalıdır. Ham metin/JSON decimal'e çevrilirken oluşabilecek hassasiyet
+kaybı da giriş sözleşmesinde engellenmeli; parser'ın önceden yuvarladığı değerle
+yapılan sonradan kontrol yeterli değildir. API parsing ayrıntısı API adımındadır.
+
+PostgreSQL `numeric(18,2)`, fazla ondalıklı girdiyi scale'e uydurmak için
+yuvarlar; 12.345 değeri 12.35 olabilir. Sütundaki CHECK, başlangıçtaki ham değeri
+geri getiremez; örneğin aynı sütuna `Amount = round(Amount, 2)` eklemek kaybolan
+basamakları tespit etmez. `HasPrecision(18,2)` da C# runtime doğrulaması değildir.
+Kaynak: [PostgreSQL 18 numeric açıklaması](https://www.postgresql.org/docs/18/datatype-numeric.html).
+
+Bu nedenle doğrudan SQL ile uygulama doğrulamasını atlayan yazımlarda, mevcut
+şema tek başına sessiz yuvarlamayı engellemez. Bu sınır açıkça korunuyor; bu
+adımda şema veya migration değiştirilmedi.
+
+DailyMarketPrice.Price'ın numeric(20,8) eşlemesi ve CategoryConfidence'ın
+numeric(5,4) eşlemesi bu iki ondalık politikasına dahil değildir. Yatırım
+hesaplamalarında ara birimleri iki ondalığa yuvarlama kararı da verilmedi.
+
+Doğrulama: mevcut entity ve configuration kaynakları incelendi. 9 Ekim'deki
+salt okunur DB örnek sorgusu bağlantı kurulamadığından çalışmadı; canlı DB testi
+başarılı sayılmadı. PostgreSQL yuvarlama davranışı resmî dokümandan doğrulandı.
+Bu adım yalnızca politikayı tanımlar; uygulanacak kod ve kabul testleri VAL-07'de.
+
+## VAL-03 — Tarih ve zaman politikası
+
+Bu bölüm bir tasarım kararıdır; yeni entity guard'ı, parser veya DB kısıtı
+henüz uygulanmadı. Uygulama ve geçersiz girdi testleri VAL-07'de yapılacak.
+
+### Alanların anlamı
+
+| Alan | Anlam ve beklenen davranış | Mevcut kod |
+| --- | --- | --- |
+| Transaction.OccurredAt | İşlemin gerçekten gerçekleştiği an; zorunlu, sonlu, UTC. Geçmiş olabilir; gelecek olamaz | required DateTimeOffset ve timestamptz eşlemesi var; default/gelecek tarih guard'ı yok |
+| Customer/Account/Transaction.CreatedAt | Bu sistemde kayıt oluşturma zamanı; backend üretir, istemciden alınmaz. Güncellemede ve tekrar importta korunur | Entity oluşturulurken UtcNow varsayılanı var; public init ile değiştirilebilir, backend kontrolü henüz garanti değil |
+| Transaction.CategorizedAt | Backend'in kategoriyi atadığı/güncellediği an; null olabilir, doluysa sonlu UTC | Nullable DateTimeOffset ve timestamptz eşlemesi var. CategoryId/source/confidence ile birlikte kurallar aşağıdaki VAL-04 bölümünde tanımlandı; henüz uygulanmadı |
+| DailyMarketPrice.PriceDate | Kaynağın fiyatı ait saydığı takvim günü; DateOnly. Saat veya offset içermez | date eşlemesi var; default, en büyük tarih ve gelecek gün kontrolü yok |
+
+### UTC, varsayılan değer ve gelecek tarih
+
+| Durum | Karar |
+| --- | --- |
+| Açık Z veya offset içeren işlem zamanı | Kabul edilebilir; karşılaştırmadan ve entity'ye atamadan önce ToUniversalTime ile aynı anı UTC/offset 0 olarak temsil et |
+| Offset içermeyen zaman metni | Reddet; sunucunun yerel saat dilimini tahmin olarak kullanma. Tarihsel kaynağın belgelenmiş saat dilimi varsa import adaptörü açıkça dönüştürebilir |
+| Entity/persistence sınırı | DateTimeOffset.Offset sıfır olmalı. Offset 0 olmayan değer entity/yazma yolu sınırında reddedilmeli; dönüşüm giriş/import adaptörünün sorumluluğu |
+| Saat dilimi dönüşümünde belirsiz/geçersiz yerel saat | Kaynak offset veya açık çözüm sağlamıyorsa reddet; rastgele offset seçme |
+| Zorunlu timestamp eksik/null/default | Reddet. OccurredAt eksikken otomatik UtcNow atama; gerçek işlem zamanını uydurma |
+| MinValue/MaxValue ve DB infinity değerleri | Olay zamanlarında ve PriceDate'te reddet; bunlar gerçek olay/piyasa tarihi yerine sentinel olarak kullanılmayacak |
+| İşlemin kabul anı | Yazma işleminin başında backend saatinden bir kez referenceUtc al. Aynı yazımdaki kontroller ve yeni CreatedAt için bu referansı kullan |
+| OccurredAt > referenceUtc | Reddet; ilk kapsamda tolerans 0. Tarihi şimdiye kırpma. Zamanlanmış/gelecek işlemler bu modelin kapsamında değil |
+| OccurredAt == referenceUtc | Kabul; aynı anda oluşturulan işlem geçerli |
+| OccurredAt < referenceUtc | Diğer kurallar geçerliyse kabul. Son altı ay/iki yıl sorgu veya veri kapsamı hedefidir; genel girdi yaş sınırı değildir |
+| PriceDate | Kaynağın takvim günü korunur. İlk TRY piyasa kapsamı için referenceUtc'nin Europe/Istanbul karşılığındaki günden ileri olmamalı; bugünkü veri yalnızca kaynak gerçekten yayımladıysa alınır |
+
+Npgsql, timestamptz yazımında DateTimeOffset için offset 0 bekler. PostgreSQL
+timestamptz orijinal saat dilimi adını/offset'i saklamaz; pgAdmin'deki gösterim
+oturum saat dilimine göre değişebilir. Npgsql tarih tiplerinde MinValue/MaxValue
+ile infinity eşlemeleri yapabildiği için yalnızca NOT NULL kontrolü yeterli değildir.
+Kaynak: [Npgsql tarih/zaman eşlemeleri](https://www.npgsql.org/doc/types/datetime.html).
+
+### Geçmiş import ve synthetic seed
+
+- Geçmiş işlemde OccurredAt kaynağın olay zamanıdır. CreatedAt bu sisteme ilk
+  kayıt zamanıdır; iki alan eşit olmak zorunda değildir. Yeni kayıtta
+  OccurredAt <= CreatedAt olmalıdır. Tekrar import CreatedAt'ı yenilemez.
+- Account.CreatedAt hesabın bu sistemde kayıt zamanıdır; gerçek hesap açılış
+  tarihi alanımız yoktur. Tarihsel importu sırf işlem Account.CreatedAt'tan
+  eski diye reddetmeyiz. Hesabın mevcut olması ve diğer FK kuralları yine gerekir.
+- Tarihsel fiyatlarda PriceDate import günüyle değiştirilmez. Günlük piyasa
+  verisi için saat uydurulmaz; eksik günler fiyat üretilerek doldurulmaz.
+- Synthetic seed, tekrarlanabilirlik için sabit bir UTC referans kullanabilir;
+  bu yalnızca güvenilen seed/test yoluna aittir. Seçilen referans çalıştırma
+  anından ileri olmamalı; üretilen OccurredAt referansı aşmamalı. CreatedAt
+  için de belgelenmiş sabit seed zamanı kullanılabilir. Normal dış girdiye
+  referenceUtc veya CreatedAt belirleme yetkisi verilmez.
+- Veri kaynağının tarih biçimi ve saat dilimi import adaptöründe açıkça
+  tanımlanır. İşlem anından piyasa günü çıkarılırken Europe/Istanbul'a
+  çevrilip tarih alınır; doğrudan UTC tarih kısmı kullanılmaz.
+
+### VAL-07 için örnekler
+
+Referans: 2026-10-09T09:00:00Z. Bu örnekler kabul kriteridir, çalıştırılmış test değildir.
+
+| Girdi | Beklenen sonuç |
+| --- | --- |
+| OccurredAt = 2026-10-09T12:00:00+03:00 | Girişte 09:00:00Z'ye dönüştürülür; kabul |
+| OccurredAt = 2026-10-09T09:00:01Z | Gelecek tarih; reddet |
+| OccurredAt = 2026-03-01T10:00:00Z | Geçmiş import kabul; yeni CreatedAt = 2026-10-09T09:00:00Z |
+| OccurredAt = 2026-10-09T12:00:00 (offset yok) | Kaynak saat dilimi de belli değilse reddet |
+| OccurredAt = default | Reddet; şimdiyle doldurma |
+| CategorizedAt = null | Tarih açısından kabul; kategori alanlarıyla uyum VAL-04'e bağlı |
+| PriceDate = 2026-10-10 | Referansın Türkiye gününden ileri; reddet |
+| PriceDate = default(DateOnly) veya DateOnly.MaxValue | Reddet |
+| İşlem anı = 2026-10-08T22:30:00Z | Türkiye takvim günü 2026-10-09; piyasa fiyatı araması bu günü esas alır |
+
+Kontroller, ham tarih yorumlandıktan sonra fakat DB yazımından önce yapılmalı.
+Npgsql'nin offset kontrolü iş kuralı doğrulamasının yerine geçmez. Bu adımda
+kaynak kod ve resmî sağlayıcı dokümanı incelendi; yeni DB testi veya build yapılmadı.
+
+## VAL-04 — Kategorilendirme alanlarının birlikte tutarlılığı
+
+Bu dört alan, kabul edilerek kaydedilmiş son kategori atamasını temsil eder;
+başarısız veya kabul edilmeyen model önerisini saklamak için kullanılmaz.
+Aşağıdaki tablo tasarım kararıdır; mevcut kodda ortak kısıt henüz yoktur.
+
+| Durum | CategoryId | CategorizationSource | CategoryConfidence | CategorizedAt |
+| --- | --- | --- | --- | --- |
+| Kategorisiz | null | null | null | null |
+| Deterministik kuralla atanmış | Mevcut kategori ID'si | Rule (1) | null | Backend tarafından üretilmiş UTC zaman |
+| LLM önerisi kabul edilmiş | Mevcut kategori ID'si | Llm (2) | Zorunlu; sonlu, 0–1 dahil | Backend tarafından üretilmiş UTC zaman |
+| Manuel atanmış | Mevcut kategori ID'si | Manual (3) | null | Backend tarafından üretilmiş UTC zaman |
+
+Bu dört biçim dışındaki kombinasyonlar reddedilir. Rule ve Manual için
+confidence = 1 üretilmez: atama yönteminin deterministik veya insan tarafından
+olması yüzde yüz doğruluk kanıtı değildir. CategoryId için mevcut FK geçerlidir;
+LLM yeni kategori yaratamaz, backend mevcut Code'u doğrulayıp ID'ye eşler.
+
+### Atama, değiştirme ve kaldırma
+
+- Dört alan aynı yazma işleminde birlikte güncellenir. CategoryId tek başına
+  değiştirilip önceki source/confidence/tarih bırakılamaz. Hata olursa eski
+  geçerli durum korunur; yarım kategori bilgisi kaydedilmez.
+- CategorizedAt, son kabul edilen atamanın backend zamanıdır; VAL-03'teki UTC,
+  sonlu tarih ve gelecek olmama kuralları geçerlidir. CreatedAt'tan önce olamaz;
+  kayıtla aynı anda atamada eşit olabilir. Geçmiş importta OccurredAt eski olsa
+  da bugün yapılan kategorilendirmenin tarihi bugündür.
+- LLM sonucunu manuel düzeltirken source Manual, confidence null ve tarih yeni
+  atama zamanı olur. Aynı kategori farklı yöntemle yeniden atanırsa yöntem ve
+  tarih de yeni atamayı yansıtır. Tekrar denenen aynı başarılı yazım sırf retry
+  nedeniyle yeni atama sayılıp zamanını değiştirmemeli; ayrıntı yazma yolunda.
+- Kategoriyi açıkça kaldırma işleminde dört alan birlikte null yapılır.
+  OTHER atamak kaldırma değildir; OTHER da tabloya uygun source/tarih gerektirir.
+- Model hatası, bilinmeyen kod veya kabul edilmeyen öneri mevcut kategoriyi
+  silmez. İlk atamada kabul edilmiş sonuç yoksa işlem dört alanı da null kalır.
+- Otomatik akış manuel atamayı kendiliğinden ezmemeli. Eşzamanlı yeniden
+  kategorilendirmede yalnızca atomik yazımın yeterli olmadığı dikkate alınacak;
+  beklenen önceki durumla güncelleme gibi koruma CAT-06 uygulamasında ele alınacak.
+
+### Confidence ve LLM kabul eşiği
+
+- Confidence aralığı 0–1 dahildir; 0/1 sınır değerleri veri modeli açısından
+  geçerlidir. Model skoru kalibre edilmiş doğruluk olasılığı varsayılmaz.
+- Mevcut numeric(5,4) ile kayıpsız temsil edilebilen skor kullanılır: 0.85000
+  kabul edilebilir, 0.85001 precision hatasıdır. Ham skor aralık/precision
+  kontrolünden geçmeden yuvarlanıp eşikle karşılaştırılmaz. Bu, DB'nin sessiz
+  yuvarlamasının kabul kararını değiştirmesini önler; kontrol henüz kodda yoktur.
+- Otomatik atama için uygulama katmanında yapılandırılmış bir eşik kullanılacak.
+  Eşik değeri burada uydurulmadı; CAT-05'te değerlendirme örnekleriyle seçilecek.
+  Seçildiğinde confidence >= eşik koşulu kullanılacak; geçerli kategori ve
+  diğer girdi kuralları da sağlanmalı. Eşik belirlenmeden otomatik atama açılmaz.
+- Düşük skor kategorisiz işlemde dört alanın null kalmasına yol açar; mevcut
+  kategori varsa korunur. Düşük skor nedeniyle otomatik OTHER atanmaz. OTHER,
+  değerlendirilip diğer kategorilere uymayan işlem anlamını korur.
+- DB'ye yalnızca alan kombinasyonu ve genel aralık kuralları konacak; belirli
+  bir LLM kabul eşiği yazılmayacak. Eşiğin değişmesi migration gerektirmemeli;
+  daha önce kabul edilmiş kayıtları kendiliğinden geçersiz kılmamalı.
+
+### Geçersiz örnekler ve mevcut eksikler
+
+| Örnek | Beklenen davranış |
+| --- | --- |
+| CategoryId null, source Llm, confidence 0.9 | Reddet; kabul edilmemiş öneri kategori alanlarında tutulamaz |
+| CategoryId dolu, source veya CategorizedAt null | Reddet; atamanın yöntemi ve zamanı eksik |
+| CategoryId dolu, source Llm, confidence null | Reddet; LLM atamasının skoru eksik |
+| CategoryId dolu, source Rule/Manual, confidence 1 | Reddet; bu yöntemler için confidence null olmalı |
+| CategoryId dolu, source Llm, confidence -0.1 veya 1.1 | Reddet; aralık dışı |
+| CategoryId dolu, source 0 veya 4 | Reddet; tanımsız enum |
+| CategoryId dolu, geçerli source/skor, tarih default veya gelecekte | Reddet; VAL-03 tarih kuralları |
+| Llm ataması manuel düzeltilmiş ama eski confidence kalmış | Reddet; dört alan birlikte değiştirilmeliydi |
+
+Mevcut nullable FK, source enum CHECK ve confidence aralık CHECK ayrı ayrı
+koruma sağlar; alanların birlikte tutarlılığını sağlamaz. Entity'deki public
+setter'lar da geçersiz kombinasyon kurulmasına izin verir. VAL-07'de ortak
+yazma doğrulaması ve DB kombinasyon CHECK'i eklenecek; SQL'in NULL davranışı
+nedeniyle CHECK'in UNKNOWN sonucuyla geçersiz satır kabul etmemesine dikkat
+edilecek. Mevcut kayıtlar taranıp uyuşmazlık varsa sessizce tarih/source
+uydurulmadan raporlanacak. Uygulama ayrı incremental migration ile ilerleyecek.
+
+Bu adım kaynak kod incelemesi ve karar belgesidir; yukarıdaki örnekler henüz
+çalıştırılmış testler değildir. CategoryConfidence/tarih/atama akışı testleri
+VAL-07 ve CAT adımlarında yapılacak. Yeni AI kodu veya tablo eklenmedi.
+
+## VAL-05 — İlk dataset'in harcama kapsamı
+
+İlk bankacılık dataset'i kontrollü synthetic veridir. Bu bölüm işlem üretim
+ve analiz kapsamını belirler; TransactionKind alanı/enum'u veya yeni tablo
+eklemez. Mevcut Direction yalnızca para yönüdür, işlemin ekonomik türü değildir.
+
+### Dahil edilen ve dışarıda bırakılan hareketler
+
+| Hareket | İlk dataset | Direction | Harcama toplamına etkisi |
+| --- | --- | --- | --- |
+| Yeme-içme, market, giyim, ulaşım, eğlence, seyahat, yakıt, sağlık alışverişleri | Dahil; tamamlanmış mal/hizmet ödemeleri | Debit | Amount eklenir |
+| Abonelik ve faturalar | Dahil; tamamlanmış ödemeler | Debit | Amount eklenir |
+| OTHER ile sınıflandırılmış mal/hizmet ödemesi | Dahil; OTHER transfer torbası değildir | Debit | Amount eklenir |
+| Kategorisi henüz belirlenmemiş mal/hizmet ödemesi | Dahil; üretici bunun harcama olduğunu biliyor, kategori alanları null | Debit | Genel toplama eklenir; dağılımda kategorisiz grupta gösterilir |
+| Maaş | Dahil; bağımsız synthetic para girişi | Credit | Harcamadan düşülmez |
+| Açılış fonlaması | Dahil; başlangıç bakiyesi 0 olan hesaba synthetic fon girişi | Credit | Harcamadan düşülmez; başka hesapta karşı Debit üretilmez |
+| Kendi hesapları arası transfer, EFT/havale, kişiye para gönderme/alma | Hariç | Üretilmez | Alışveriş olarak sayılmamalı |
+| Nakit çekme/yatırma | Hariç | Üretilmez | Nakit çekmek harcamanın gerçekleştiğini kanıtlamaz |
+| Döviz/altın alım-satımı ve yatırım hesabına aktarım | Hariç | Üretilmez | Tarihsel varsayımsal karşılaştırma, gerçek yatırım işlemi değildir |
+| İade, kısmi iade, iptal/ters kayıt, chargeback | Hariç | Üretilmez | Net harcama henüz desteklenmez |
+| Kredi kullanımı/ödemesi, kredi kartı borcu ödemesi, faiz ve banka komisyonları | Hariç | Üretilmez | İlk veri setinde mal/hizmet harcamalarıyla karıştırılmaz |
+| Bekleyen provizyon, başarısız veya planlanmış işlem | Hariç | Üretilmez | Mevcut modelde durum alanı yok; yalnızca tamamlanmış hareket üretilir |
+
+Açılış fonlaması demo için dış kaynaklı bir başlangıç girişidir; bu tercih
+gerçek dünyadaki bütün Credit hareketlerinin gelir olduğu anlamına gelmez.
+
+### Analiz sözleşmesi
+
+- Bu kontrollü dataset'te harcama = müşteri/hesap + OccurredAt dönemi + tek
+  para birimi kapsamındaki Debit Amount toplamıdır. Kategori filtresi varsa
+  yalnızca seçilen kategori dahil edilir. Dönem CreatedAt'a göre seçilmez.
+- Bu toplam brüt mal/hizmet harcamasıdır; Credit toplamı çıkarılarak net harcama
+  üretilmez. Örneğin 1000 TRY maaş ve 100 TRY alışverişte harcama 100 TRY,
+  başlangıç bakiyesi 0 ise bakiye 900 TRY olur. Bakiye ile harcama farklıdır.
+- Maaş/açılış fonlaması kategori alanları null kalacak; harcama kategorilendirme
+  akışı bu Credit kayıtlarını atlayacak. Kategorisiz Debit, harcama analizinden
+  düşürülmeyecek. Merchant bulunmaması da kaydı genel harcama toplamından çıkarmaz.
+- TRY, USD, EUR ve GBP birbirine dönüştürülmeden toplanmaz. Farklı para
+  birimlerindeki hesaplara ayrı synthetic fonlama yapılabilir; karşılıklı
+  transfer/döviz alım-satım hareketi üretilmez.
+- Yatırım karşılaştırması aynı harcama tanımının TRY alt kümesini kullanır.
+  Maaş veya açılış fonlaması “harcasaydın” karşılaştırmasına dahil edilmez.
+
+### Bu kapsam nasıl korunacak?
+
+Seed senaryoları açıkça yukarıdaki izinli hareketlerden üretilecek. Her seed
+grubunun beklenen harcama ve bakiye toplamı bağımsız fixture ile doğrulanacak.
+Kategori ve merchant etiketi işlemin harcama olduğunu kanıtlamaz. RawDescription
+içinde “transfer” arayıp karar vermek veya LLM'ye tür tahmin ettirmek kapsam
+koruması olarak kullanılmayacak. Mevcut DB, Debit'in alışveriş mi transfer mi
+olduğunu anlayamaz; bu sınır veri üretim/yazma yoluna aittir.
+
+Gerçek/belirsiz bankacılık verisi veya serbest işlem yazma yolu açılmadan önce
+bu kapsam yeniden ele alınmalı. Mevcut modelin ayıramadığı bir Debit transferi
+sessizce alışveriş sayılmamalı; desteklenmeyen kaynak/yazma senaryosu mevcut
+analize alınmamalıdır. Bu karar bir runtime tür tespit algoritması eklendiği
+anlamına gelmez. API-11 yalnızca kontrollü synthetic kapsamı koruyacak.
+
+### İade ve net harcama için ayrı karar
+
+Şimdilik refund ve net harcama gereksinimi yoktur. İade daha sonra istenirse
+işlem türü, iadenin orijinal işleme bağlantısı, kısmi/çoklu iadeler, para birimi,
+iade dönemi/orijinal harcama dönemi ve çift sayımı önleme birlikte tasarlanacak.
+Bu karar alınmadan bütün Credit'leri iade saymak veya Amount'u negatif yapmak
+yasaktır. TransactionKind kendiliğinden eklenmez; model değişikliği kullanıcıyla
+ayrı adımda kararlaştırılır.
+
+### Sonraki seed/analytics testleri için kabul örnekleri
+
+| Örnek | Beklenen sonuç |
+| --- | --- |
+| 1000 TRY açılış Credit + 100 TRY yemek Debit + 50 TRY abonelik Debit | Harcama 150 TRY, bakiye 850 TRY |
+| Yukarıdaki 50 TRY Debit kategorisiz | Genel harcama yine 150 TRY; kategorisiz grup 50 TRY |
+| 100 TRY Debit ve 10 USD Debit | Ayrı toplamlar; 110 diye birleşik harcama verilmez |
+| Mart işlemi ekimde import edilmiş | Mart harcamasına dahil; CreatedAt nedeniyle ekime taşınmaz |
+| Seed senaryosuna transfer veya refund eklenmesi | İlk kapsamın ihlali; senaryo incelemesi/fixture kontrolünde reddedilir, harcama toplamına sokulmaz |
+
+Bu adım karar belgesidir; seed veya analytics kodu yazılmadı, bu kabul örnekleri
+henüz test olarak çalıştırılmadı. İlgili uygulama işleri SYN/BAL/ANA adımlarındadır.
+
 ## Sonraki adımlara bırakılanlar
 
-- VAL-02: para precision ve fazla ondalıklı giriş politikası.
-- VAL-03: UTC, varsayılan tarih, gelecek/geçmiş tarih davranışı.
-- VAL-04: CategoryId, source, confidence ve CategorizedAt birlikte tutarlılık.
-- VAL-05: harcama, transfer ve iade kapsamı.
+- VAL-02 politikası yukarıda tanımlandı; kodda uygulanması VAL-07'de.
+- VAL-03 politikası yukarıda tanımlandı; kodda uygulanması VAL-07'de.
+- VAL-04 politikası yukarıda tanımlandı; kod/DB korumaları VAL-07, LLM eşik seçimi CAT-05'te.
+- VAL-05 kapsamı yukarıda tanımlandı; seed/yazma/analytics uygulaması SYN/BAL/ANA adımlarında.
 - VAL-06: negatif bakiye politikası.
 - VAL-07: bu belgede eksik görünen kontrollerin uygulanması ve geçersiz girdi testleri.
 
-VAL-01'in tamamlanması bu kontrollerin hepsinin kodda uygulanmış olduğu anlamına gelmez.
+VAL-01–VAL-05'in tamamlanması bu kontrollerin hepsinin kodda uygulanmış olduğu anlamına gelmez.

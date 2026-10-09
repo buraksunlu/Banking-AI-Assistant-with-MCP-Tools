@@ -1222,15 +1222,36 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 - Transaction para birimi hesabıyla eşleşir. Mevcut birleşik FK
   (AccountId, CurrencyCode) → Accounts(Id, CurrencyCode) bunu DB'de korur.
 - Amount pozitif decimal, Direction smallint enum: Debit=1, Credit=2.
-  Debit tek başına alışveriş olduğunu kanıtlamaz; transfer/iade kapsamı ayrıca netleşir.
+  Debit tek başına alışveriş olduğunu kanıtlamaz; ilk dataset kapsamı VAL-05 ile sınırlıdır.
+- VAL-05: ilk synthetic dataset'te yalnızca tamamlanmış mal/hizmet, abonelik
+  ve fatura ödemeleri Debit; maaş/açılış fonlaması Credit olur. Transfer, nakit,
+  yatırım, kredi/borç hareketleri, komisyon/faiz, refund/iptal ve bekleyen
+  hareketler üretilmez. Harcama OccurredAt döneminde tek para birimindeki
+  brüt Debit toplamıdır; Credit çıkarılmaz, kategorisiz Debit kaybolmaz.
+  Bu varsayım gerçek banka verisine genellenmez. Refund/net harcama ayrı model
+  kararı gerektirir; TransactionKind kendiliğinden eklenmez. Ayrıntılar
+  docs/input-validation.md içinde; seed/analytics kodu henüz uygulanmadı.
 - Balance ve Amount numeric(18,2). Fazla basamaklı girdiyi sessiz yuvarlamama
   politikası yazma yolunda doğrulanmalıdır; numeric sütun tek başına bunu sağlamaz.
+- VAL-02: Amount/Balance iki ondalıkla kayıpsız temsil edilebilmeli. 12.3400
+  kabul edilir, 12.345 reddedilir; otomatik yuvarlama/kesme yapılmaz. Temsil
+  sınırı mutlak 9999999999999999.99; Amount pozitiftir. Negatif bakiye kararı
+  VAL-06'ya aittir. Bakiye taşmasında işlem ve bakiye birlikte geri alınır.
+  Politika docs/input-validation.md içinde; uygulama VAL-07/BAL adımlarında.
 - Yeni bakiye 0; açılış fonlaması Credit işlemle temsil edilir. İleride insert ve
   atomik bakiye değişimi aynı DB transaction'ında olacak; sadece transaction açmak
   lost update'i engellemez. Bu yazma akışı henüz implement edilmedi.
 - Negatif bakiye ve future/backdated işlem politikaları henüz kesinleşmedi.
 - Olay zamanları UTC DateTimeOffset/timestamptz. Npgsql yazımı offset 0;
   timestamptz saat dilimi adını/orijinal offset'i saklamaz. Market günü DateOnly/date.
+- VAL-03: açık offset girişte UTC'ye çevrilir; saat dilimi belirsiz, default
+  ve MinValue/MaxValue/sonsuz tarihler reddedilir. Backend yazım başında tek
+  referenceUtc alır; ileri OccurredAt reddedilir (tolerans 0), geçmiş import
+  kabul edilir. OccurredAt olay zamanı, CreatedAt backend kayıt zamanıdır;
+  yeni kayıtta OccurredAt <= CreatedAt, tekrar importta CreatedAt korunur.
+  PriceDate kaynak günüdür; ilk kapsamda Türkiye takviminde gelecekte olamaz.
+  Güvenilen synthetic seed sabit geçmiş UTC referansı kullanabilir. Ayrıntılar
+  docs/input-validation.md içinde; kod uygulaması VAL-07'de yapılacak.
 - Kategori lookup listesi: FOOD, GROCERY, CLOTHING, TRANSPORTATION, ENTERTAINMENT,
   SUBSCRIPTION, TRAVEL, FUEL, BILLS, HEALTH, OTHER. Code unique.
 - CategoryId null kategorize edilmemiştir; OTHER bunun yerine otomatik atanmaz.
@@ -1240,6 +1261,15 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 - CategorizationSource: Rule=1, Llm=2, Manual=3; nullable. CategoryConfidence
   nullable numeric(5,4), 0–1. CategorizedAt nullable UTC. Alanlar birlikte tutarlı
   güncellenmelidir; confidence eşiği application kararıdır, DB business logic'i değildir.
+- VAL-04: kategorisiz işlemde CategoryId/source/confidence/CategorizedAt tümü
+  null olur. Rule ve Manual atamalarında kategori+tarih zorunlu, confidence
+  null; Llm atamasında kategori+tarih+0–1 aralığında confidence zorunludur.
+  Confidence numeric(5,4) ile kayıpsız temsil edilmeli; sessiz yuvarlama yok.
+  Atama/kaldırma dört alanı birlikte günceller; düşük skorlu/başarısız öneri
+  mevcut kategoriyi silmez ve otomatik OTHER atanmaz. Manuel atama otomatik
+  akışla kendiliğinden ezilmez. CategorizedAt backend zamanıdır ve CreatedAt'tan
+  önce olamaz. Eşik CAT-05'te ölçümle seçilir, DB'ye yazılmaz. Ayrıntılar
+  docs/input-validation.md içinde; kod/DB uygulaması VAL-07'de yapılacak.
 - Kategorilendirme ground truth'u tests/data fixture'ında tutulur;
   Transactions'a ExpectedCategoryId gibi test-only alanlar eklenmez.
 - Banking seed: Bogus + sabit seed/tarih + kontrollü pattern'ler. Maaş, abonelik,
@@ -1295,8 +1325,8 @@ IN PROGRESS
 - Database foundation; kullanıcı review'üyle küçük adımlar halinde devam ediyor.
 
 NEXT
-- Kullanıcının seçtiği adım. VAL-01 kuralları docs/input-validation.md içinde yazıldı;
-  öneri: VAL-02 ile para precision ve fazla ondalıklı giriş politikasını belirlemek.
+- Kullanıcının seçtiği adım. VAL-01–VAL-05 kuralları docs/input-validation.md içinde yazıldı;
+  öneri: VAL-06 ile negatif bakiye politikasını belirlemek.
 
 KNOWN ISSUES
 - Lookup/synthetic seed ve historical import henüz yok; market tabloları hazır.

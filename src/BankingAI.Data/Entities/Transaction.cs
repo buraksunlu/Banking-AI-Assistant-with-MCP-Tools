@@ -1,4 +1,5 @@
 using BankingAI.Data.Enums;
+using BankingAI.Data.Validation;
 
 namespace BankingAI.Data.Entities;
 
@@ -28,8 +29,7 @@ public sealed class Transaction
         get => _amount;
         init
         {
-            if (value <= 0m)
-                throw new ArgumentOutOfRangeException(nameof(Amount), value, "Amount must be positive.");
+            InputRules.Money(value, nameof(Amount), positive: true);
 
             _amount = value;
         }
@@ -44,4 +44,27 @@ public sealed class Transaction
     public DateTimeOffset? CategorizedAt { get; set; }
     public required DateTimeOffset OccurredAt { get; init; }
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
+
+    public void SetCategorization(short categoryId, CategorizationSource source, decimal? confidence = null)
+    {
+        var now = DateTimeOffset.UtcNow;
+        InputRules.Require(Direction == TransactionDirection.Debit, nameof(Direction), "Yalnızca Debit kategorize edilir.");
+        InputRules.Require(CategorizationSource != Enums.CategorizationSource.Manual || source == Enums.CategorizationSource.Manual,
+            nameof(CategorizationSource), "Manuel kategori otomatik yöntemle ezilemez.");
+        InputRules.Categorization(categoryId, source, confidence, now);
+        InputRules.Timestamp(CreatedAt, now, nameof(CreatedAt));
+        // Validate first so failure leaves all four previous values untouched.
+        CategoryId = categoryId;
+        CategorizationSource = source;
+        CategoryConfidence = confidence;
+        CategorizedAt = now;
+    }
+
+    public void ClearCategorization()
+    {
+        CategoryId = null;
+        CategorizationSource = null;
+        CategoryConfidence = null;
+        CategorizedAt = null;
+    }
 }

@@ -17,6 +17,20 @@ public sealed class TransactionConfiguration : IEntityTypeConfiguration<Transact
             table.HasCheckConstraint("CK_Transactions_RawDescription_NotBlank", "\"RawDescription\" ~ '[^[:space:]]'");
             table.HasCheckConstraint("CK_Transactions_CategorizationSource", "\"CategorizationSource\" IS NULL OR \"CategorizationSource\" IN (1, 2, 3)");
             table.HasCheckConstraint("CK_Transactions_CategoryConfidence", "\"CategoryConfidence\" IS NULL OR (\"CategoryConfidence\" >= 0 AND \"CategoryConfidence\" <= 1)");
+            table.HasCheckConstraint("CK_Transactions_NormalizedMerchant_NotBlank", "\"NormalizedMerchant\" IS NULL OR \"NormalizedMerchant\" ~ '[^[:space:]]'");
+            table.HasCheckConstraint("CK_Transactions_Categorization", """
+                ("CategoryId" IS NULL AND "CategorizationSource" IS NULL AND "CategoryConfidence" IS NULL AND "CategorizedAt" IS NULL)
+                OR
+                ("CategoryId" IS NOT NULL AND "CategoryId" > 0 AND "CategorizationSource" IS NOT NULL AND "CategorizedAt" IS NOT NULL
+                 AND (("CategorizationSource" IN (1, 3) AND "CategoryConfidence" IS NULL)
+                      OR ("CategorizationSource" = 2 AND "CategoryConfidence" IS NOT NULL AND "CategoryConfidence" BETWEEN 0 AND 1)))
+                """);
+            table.HasCheckConstraint("CK_Transactions_Credit_Uncategorized", "\"Direction\" <> 2 OR \"CategoryId\" IS NULL");
+            table.HasCheckConstraint("CK_Transactions_Timestamps", """
+                "CreatedAt" > '0001-01-01T00:00:00Z'::timestamptz AND "CreatedAt" < '9999-12-31T23:59:59.999999Z'::timestamptz
+                AND "OccurredAt" > '0001-01-01T00:00:00Z'::timestamptz AND "OccurredAt" <= "CreatedAt"
+                AND ("CategorizedAt" IS NULL OR ("CategorizedAt" >= "CreatedAt" AND "CategorizedAt" < '9999-12-31T23:59:59.999999Z'::timestamptz))
+                """);
         });
 
         builder.HasKey(t => t.Id);

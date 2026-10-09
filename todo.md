@@ -100,10 +100,10 @@ Migration geçmişi:
 ## 4. Banking modelinin kalan doğrulama kararları
 
 - [x] VAL-01 — [Girdi kuralları](docs/input-validation.md) tablosu oluşturuldu. Altı entity için GUID/ID, null/whitespace, metin uzunlukları, para birimleri, enum ve confidence sınırları yazıldı; mevcut korumalar ile eksikler ayrıldı. Kaynak kodla karşılaştırıldı; bu adımda doğrulama kodu veya DB değişikliği yapılmadı. Uygulama VAL-07'de.
-- [ ] VAL-02 — Para precision politikasını belirle. Amount ve Balance iki ondalık basamakta; fazla basamaklı giriş sessizce yuvarlanmasın. PostgreSQL numeric tipi tek başına bu giriş politikasını sağlamaz.
-- [ ] VAL-03 — Tarih kurallarını belirle. UTC/offset 0, default timestamp, gelecekteki işlem ve geçmiş import davranışlarını açıklaştır; OccurredAt ile CreatedAt farklı olabilir.
-- [ ] VAL-04 — Kategorilendirme tutarlılığını kararlaştır. CategoryId, source, confidence ve CategorizedAt alanlarının birlikte hangi kombinasyonlarda geçerli olduğunu belirle; LLM threshold'u DB'ye koyma.
-- [ ] VAL-05 — Harcama kapsamını belirle. Debit transferi alışveriş sanmamak için ilk dataset'te hangi işlem türlerinin yer alacağını yaz; refund/net harcama ihtiyacı varsa ayrıca model kararı al. Kendiliğinden TransactionKind ekleme.
+- [x] VAL-02 — docs/input-validation.md içinde Amount/Balance numeric(18,2) politikası belirlendi: iki ondalıkla kayıpsız temsil, sondaki sıfırlara izin, fazla anlamlı ondalıkta ret, temsil sınırları ve bakiye taşmasında atomik başarısızlık. Ham değer DB öncesinde doğrulanacak; sessiz yuvarlama yok. Mevcut kod incelendi, PostgreSQL davranışı resmî dokümandan doğrulandı; canlı DB bağlantısı kurulamadı. Doğrulama kodu ve kabul testleri VAL-07/BAL adımlarında.
+- [x] VAL-03 — docs/input-validation.md içinde tarih politikası belirlendi: açık offset girişte UTC'ye çevrilir, persistence offset 0 kullanır; belirsiz/default/sonsuz ve gelecekteki işlem zamanları reddedilir. OccurredAt olay, CreatedAt sisteme kayıt zamanıdır; geçmiş import korunur, backend tek UTC referansı kullanır. DateOnly piyasa günü ve kontrollü sabit seed zamanı açıklandı. Kod uygulaması/testler VAL-07'de; bu adım belge kararıdır.
+- [x] VAL-04 — docs/input-validation.md içinde dört geçerli kategori durumu belirlendi: kategorisiz tümü null; Rule/Manual kategori+tarih dolu ve confidence null; Llm kategori+tarih+0–1 confidence zorunlu. Atomik atama/kaldırma, eski kategoriyi koruma, skor precision ve tarih kuralları açıklandı. LLM eşiği DB'ye konmayacak; CAT-05'te seçilecek. Kod ve ortak DB CHECK uygulaması VAL-07'de, henüz eklenmedi.
+- [x] VAL-05 — docs/input-validation.md içinde ilk synthetic dataset kapsamı belirlendi: tamamlanmış mal/hizmet, abonelik ve fatura Debit; maaş/açılış fonlaması Credit. Transfer, nakit, yatırım, refund/iptal ve bekleyen hareketler kapsam dışında. Harcama tek para biriminde brüt Debit toplamı; Credit düşülmez. Net harcama/refund ayrı model kararı gerektirir; TransactionKind eklenmedi. Bu adım belge kararıdır.
 - [ ] VAL-06 — Negatif bakiye politikasını netleştir. Kredili hesap simülasyonu var mı, yetersiz bakiye reddedilecek mi? Karar gelmeden Balance >= 0 kuralı ekleme.
 - [ ] VAL-07 — Kararlaştırılan kontrolleri küçük parçalarla uygula. Entity, veri yazma yolu ve DB sorumluluklarını ayır; her yeni kural için geçersiz örnek dene.
 
@@ -118,7 +118,7 @@ Migration geçmişi:
 ## 6. Kontrollü synthetic müşteri ve hesaplar
 
 - [ ] SYN-01 — Bogus'u yalnızca seed ihtiyacı için ekle. Sabit random seed, sabit referans tarih ve dataset sürümü seç; sonuçların tekrar üretilebilir olmasını sağla.
-- [ ] SYN-02 — Küçük müşteri profilleri tanımla. Kahve/abonelik ağırlıklı, market/aile, ulaşım/seyahat gibi farklı pattern'leri yaz; gerçek müşteri bilgisi kullanma.
+- [ ] SYN-02 — Küçük müşteri profilleri tanımla. Kahve/abonelik ağırlıklı, market/aile, ulaşım/seyahat gibi farklı pattern'leri yaz; gerçek müşteri bilgisi kullanma. VAL-05 izinli hareket listesini koru; transfer/refund/nakit/yatırım/bekleyen işlem üretme.
 - [ ] SYN-03 — Customer seed'ini yaz. Mevcut demo kayıtla çakışmayı yönet; sabit ID'ler kullan, gerçek telefon/TCKN/adres üretme.
 - [ ] SYN-04 — Account seed'ini yaz. Aynı müşteri için TRY ve döviz hesapları, başka müşterinin hesabı ve boş hesap örneği oluştur; numaralar açıkça dummy olsun.
 - [ ] SYN-05 — Seed bütünlüğünü doğrula. Her hesap mevcut müşteriye ait olsun; numaralar unique, para birimleri whitelist içinde, başlangıç bakiyesi sıfır olsun.
@@ -129,7 +129,7 @@ Migration geçmişi:
 - [ ] BAL-02 — Atomik bakiye değişimini uygula. Eski bakiyeyi okuyup üzerine yazmak yerine DB'de fark ekleme veya uygun eşzamanlılık kontrolü kullan; başarısızlıkta tamamı rollback olsun.
 - [ ] BAL-03 — İki eşzamanlı işlemle lost update testi yap. Son bakiye başlangıç + Credit − Debit ile aynı olmalı.
 - [ ] BAL-04 — Kasıtlı insert hatası üret. Transaction reddedildiğinde bakiye değişmemeli; ters yöndeki başarısızlık da yarım kayıt bırakmamalı.
-- [ ] SYN-06 — Aylık maaş ve açılış fonlaması Credit hareketlerini ekle. Tarihler, tutarlar ve hesap para birimleri açık olsun.
+- [ ] SYN-06 — Aylık maaş ve açılış fonlaması Credit hareketlerini ekle. Tarihler, tutarlar ve hesap para birimleri açık olsun. VAL-05'e göre bunlar harcamadan düşülmez; kategori alanları null kalır ve açılış fonlamasına karşı başka hesapta Debit transfer üretilmez.
 - [ ] SYN-07 — Netflix ve Spotify recurring Debit pattern'lerini ekle. En az üç farklı ay ve benzer ödeme günleri olsun.
 - [ ] SYN-08 — Starbucks, market, giyim, ulaşım, yakıt ve fatura örneklerini ayrı küçük gruplarla ekle. RawDescription ile NormalizedMerchant ayrımını koru.
 - [ ] SYN-09 — Kategori bazlı dönem artışını oluştur. Tamamlanmış iki ay için 24.000 → 31.000 gibi bağımsız beklenen toplamlar belirle; dönemler ilerledikçe kendiliğinden kaymasın.
@@ -191,7 +191,7 @@ Migration geçmişi:
 ## 12. Deterministik analytics — bir sorgu, bir adım
 
 - [ ] ANA-01 — Ortak dönem sözleşmesini oluştur. Tek referans zamanı, Türkiye takvimi ve [başlangıç, bitiş) UTC sınırları; bu ay/son üç ay/geçen yıl anlamlarını netleştir.
-- [ ] ANA-02 — Harcama özeti hesapla. Onaylanan Debit kapsamını ve para birimini filtrele; farklı para birimlerini dönüştürmeden toplama.
+- [ ] ANA-02 — VAL-05 kapsamındaki tamamlanmış synthetic mal/hizmet Debit hareketlerinin brüt harcama özetini hesapla. OccurredAt dönemi ve müşteri/hesap/tek para birimi filtresi kullan; kategorisiz Debit'i kaybetme. Maaş/açılış Credit'ini düşme, farklı para birimlerini birleştirme; bu varsayımı gerçek transfer/refund verisine genelleme.
 - [ ] ANA-03 — Kategori dağılımını hesapla. Null kategori ayrı grup olsun; toplam dağılım harcama özetiyle tutarlı olsun.
 - [ ] ANA-04 — Merchant dağılımını hesapla. NormalizedMerchant üzerinden grupla; bilinmeyen merchant'ı kaybetme.
 - [ ] ANA-05 — Transaction aramasını ekle. Hesap/tarih/kategori/merchant filtreleri ve sayfalama; boş veya belirsiz arama davranışı açık olsun.
@@ -260,7 +260,7 @@ Migration geçmişi:
 - [ ] CAT-02 — Bilinen örnekler için küçük deterministik kurallar yaz. Starbucks, Zara, Migros, Netflix, Shell gibi örnekleri doğrula; ayrı Merchant tablosu oluşturma.
 - [ ] CAT-03 — Qwen structured output sözleşmesini oluştur. normalizedMerchant, mevcut categoryCode ve confidence; bilinmeyen kategori/bozuk confidence reddedilsin.
 - [ ] CAT-04 — Hybrid akışı kur. Önce rule; çözülemeyen örnekte model. Her işlemde gereksiz LLM çağrısı yapma.
-- [ ] CAT-05 — Düşük confidence politikasını ölçerek belirle. OTHER veya kategorisiz bırakma kararı application katmanında olsun; confidence'ı doğruluk kanıtı sayma.
+- [ ] CAT-05 — LLM otomatik kabul eşiğini ölçerek seç ve uygulama ayarında tut; DB'ye koyma. VAL-04'e göre düşük skorda mevcut kategori korunur, kategorisiz işlem kategorisiz kalır; otomatik OTHER atanmaz. Confidence doğruluk kanıtı değildir; ham skor aralık/precision doğrulamasından sonra eşikle karşılaştırılır.
 - [ ] CAT-06 — Sonucu atomik olarak kaydet. CategoryId/source/confidence/CategorizedAt birlikte güncellensin; RawDescription korunsun.
 - [ ] CAT-07 — Tekrar kategorilendirme politikasını belirle. Manual sonucu otomatik işlemle ezme; retry ve eşzamanlı güncellemeyi test et.
 - [ ] CAT-08 — Fixture üzerinde merchant ve kategori doğruluğunu ölç. Yanlış örnekleri kaydet; evaluation örnekleriyle başarıyı yapay şişirecek veri sızıntısını önle.
@@ -327,6 +327,6 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Önerilen sonraki küçük iş: VAL-02 ile para precision ve fazla ondalıklı giriş politikasını belirlemek. MA-03'ün seed eşleşme doğrulaması seed aşamasını bekliyor; diğer açık maddeler listede korunuyor.
+Önerilen sonraki küçük iş: VAL-06 ile negatif bakiye politikasını belirlemek. MA-03'ün seed eşleşme doğrulaması seed aşamasını bekliyor; diğer açık maddeler listede korunuyor.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

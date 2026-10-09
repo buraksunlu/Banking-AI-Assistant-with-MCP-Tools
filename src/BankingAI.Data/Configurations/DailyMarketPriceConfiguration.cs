@@ -10,6 +10,8 @@ public sealed class DailyMarketPriceConfiguration : IEntityTypeConfiguration<Dai
     {
         builder.ToTable("DailyMarketPrices", table =>
         {
+            table.HasCheckConstraint("CK_DailyMarketPrices_Source_NotBlank", "\"Source\" IS NULL OR \"Source\" ~ '[^[:space:]]'");
+            table.HasCheckConstraint("CK_DailyMarketPrices_PriceDate_Finite", "\"PriceDate\" > DATE '0001-01-01' AND \"PriceDate\" < DATE '9999-12-31'");
             table.HasCheckConstraint(
                 "CK_DailyMarketPrices_Price_PositiveFinite",
                 "\"Price\" > 0 AND \"Price\" NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric)");

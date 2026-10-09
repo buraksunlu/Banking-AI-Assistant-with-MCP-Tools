@@ -68,7 +68,11 @@ namespace BankingAI.Data.Migrations
 
                             t.HasCheckConstraint("CK_Accounts_AccountNumber_NotBlank", "\"AccountNumber\" ~ '[^[:space:]]'");
 
+                            t.HasCheckConstraint("CK_Accounts_Balance_NonNegative", "\"Balance\" >= 0");
+
                             t.HasCheckConstraint("CK_Accounts_Balance_NotNaN", "\"Balance\" <> 'NaN'::numeric");
+
+                            t.HasCheckConstraint("CK_Accounts_CreatedAt_Finite", "\"CreatedAt\" > '0001-01-01T00:00:00Z'::timestamptz AND \"CreatedAt\" < '9999-12-31T23:59:59.999999Z'::timestamptz");
 
                             t.HasCheckConstraint("CK_Accounts_CurrencyCode", "\"CurrencyCode\" IN ('TRY', 'USD', 'EUR', 'GBP')");
 
@@ -124,11 +128,15 @@ namespace BankingAI.Data.Migrations
 
                     b.ToTable("Customers", null, t =>
                         {
+                            t.HasCheckConstraint("CK_Customers_CreatedAt_Finite", "\"CreatedAt\" > '0001-01-01T00:00:00Z'::timestamptz AND \"CreatedAt\" < '9999-12-31T23:59:59.999999Z'::timestamptz");
+
                             t.HasCheckConstraint("CK_Customers_CustomerNumber_Format", "\"CustomerNumber\" ~ '^CUST-[1-9][0-9]*$'");
 
-                            t.HasCheckConstraint("CK_Customers_FirstName_NotBlank", "char_length(btrim(\"FirstName\")) > 0");
+                            t.HasCheckConstraint("CK_Customers_FirstName_NotBlank", "\"FirstName\" ~ '[^[:space:]]'");
 
-                            t.HasCheckConstraint("CK_Customers_LastName_NotBlank", "char_length(btrim(\"LastName\")) > 0");
+                            t.HasCheckConstraint("CK_Customers_Id_NotEmpty", "\"Id\" <> '00000000-0000-0000-0000-000000000000'::uuid");
+
+                            t.HasCheckConstraint("CK_Customers_LastName_NotBlank", "\"LastName\" ~ '[^[:space:]]'");
 
                             t.HasCheckConstraint("CK_Customers_PreferredCurrency", "\"PreferredCurrency\" IN ('TRY', 'USD', 'EUR')");
 
@@ -165,7 +173,11 @@ namespace BankingAI.Data.Migrations
 
                     b.ToTable("DailyMarketPrices", null, t =>
                         {
+                            t.HasCheckConstraint("CK_DailyMarketPrices_PriceDate_Finite", "\"PriceDate\" > DATE '0001-01-01' AND \"PriceDate\" < DATE '9999-12-31'");
+
                             t.HasCheckConstraint("CK_DailyMarketPrices_Price_PositiveFinite", "\"Price\" > 0 AND \"Price\" NOT IN ('NaN'::numeric, 'Infinity'::numeric, '-Infinity'::numeric)");
+
+                            t.HasCheckConstraint("CK_DailyMarketPrices_Source_NotBlank", "\"Source\" IS NULL OR \"Source\" ~ '[^[:space:]]'");
                         });
                 });
 
@@ -283,9 +295,13 @@ namespace BankingAI.Data.Migrations
                         {
                             t.HasCheckConstraint("CK_Transactions_Amount_Positive", "\"Amount\" > 0 AND \"Amount\" <> 'NaN'::numeric");
 
+                            t.HasCheckConstraint("CK_Transactions_Categorization", "(\"CategoryId\" IS NULL AND \"CategorizationSource\" IS NULL AND \"CategoryConfidence\" IS NULL AND \"CategorizedAt\" IS NULL)\nOR\n(\"CategoryId\" IS NOT NULL AND \"CategoryId\" > 0 AND \"CategorizationSource\" IS NOT NULL AND \"CategorizedAt\" IS NOT NULL\n AND ((\"CategorizationSource\" IN (1, 3) AND \"CategoryConfidence\" IS NULL)\n      OR (\"CategorizationSource\" = 2 AND \"CategoryConfidence\" IS NOT NULL AND \"CategoryConfidence\" BETWEEN 0 AND 1)))");
+
                             t.HasCheckConstraint("CK_Transactions_CategorizationSource", "\"CategorizationSource\" IS NULL OR \"CategorizationSource\" IN (1, 2, 3)");
 
                             t.HasCheckConstraint("CK_Transactions_CategoryConfidence", "\"CategoryConfidence\" IS NULL OR (\"CategoryConfidence\" >= 0 AND \"CategoryConfidence\" <= 1)");
+
+                            t.HasCheckConstraint("CK_Transactions_Credit_Uncategorized", "\"Direction\" <> 2 OR \"CategoryId\" IS NULL");
 
                             t.HasCheckConstraint("CK_Transactions_CurrencyCode", "\"CurrencyCode\" IN ('TRY', 'USD', 'EUR', 'GBP')");
 
@@ -293,7 +309,11 @@ namespace BankingAI.Data.Migrations
 
                             t.HasCheckConstraint("CK_Transactions_Id_NotEmpty", "\"Id\" <> '00000000-0000-0000-0000-000000000000'::uuid");
 
+                            t.HasCheckConstraint("CK_Transactions_NormalizedMerchant_NotBlank", "\"NormalizedMerchant\" IS NULL OR \"NormalizedMerchant\" ~ '[^[:space:]]'");
+
                             t.HasCheckConstraint("CK_Transactions_RawDescription_NotBlank", "\"RawDescription\" ~ '[^[:space:]]'");
+
+                            t.HasCheckConstraint("CK_Transactions_Timestamps", "\"CreatedAt\" > '0001-01-01T00:00:00Z'::timestamptz AND \"CreatedAt\" < '9999-12-31T23:59:59.999999Z'::timestamptz\nAND \"OccurredAt\" > '0001-01-01T00:00:00Z'::timestamptz AND \"OccurredAt\" <= \"CreatedAt\"\nAND (\"CategorizedAt\" IS NULL OR (\"CategorizedAt\" >= \"CreatedAt\" AND \"CategorizedAt\" < '9999-12-31T23:59:59.999999Z'::timestamptz))");
                         });
                 });
 

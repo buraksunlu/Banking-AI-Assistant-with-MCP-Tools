@@ -16,6 +16,8 @@ public sealed class AccountConfiguration : IEntityTypeConfiguration<Account>
             table.HasCheckConstraint("CK_Accounts_AccountNumber_NotBlank", "\"AccountNumber\" ~ '[^[:space:]]'");
             table.HasCheckConstraint("CK_Accounts_CurrencyCode", "\"CurrencyCode\" IN ('TRY', 'USD', 'EUR', 'GBP')");
             table.HasCheckConstraint("CK_Accounts_Balance_NotNaN", "\"Balance\" <> 'NaN'::numeric");
+            table.HasCheckConstraint("CK_Accounts_Balance_NonNegative", "\"Balance\" >= 0");
+            table.HasCheckConstraint("CK_Accounts_CreatedAt_Finite", "\"CreatedAt\" > '0001-01-01T00:00:00Z'::timestamptz AND \"CreatedAt\" < '9999-12-31T23:59:59.999999Z'::timestamptz");
         });
 
         builder.HasKey(a => a.Id);
