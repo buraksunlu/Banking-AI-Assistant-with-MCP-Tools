@@ -64,11 +64,12 @@ komutu kullanım hatası vermelidir. İlk aşamada genel `seed all` komutu
 tanımlanmaz; böylece yeni bir seed scope'u eklenmesi mevcut veriye sessizce
 eklenmez.
 
-Seed işlemleri sabit kimlik ve kontrollü transaction sınırı kullanır. Aynı seed
-tekrar çalıştırıldığında kayıt çoğalmamalıdır. Aynı kimlikte farklı içerik veya
-aynı benzersiz kodda çelişkili içerik bulunursa sessizce güncelleme/atlama yerine
-açıklayıcı hata verilmelidir. Bu idempotency ve çakışma kontrolleri SEED-02/03,
-SEED-04/05 ve SYN-11 adımlarında uygulanacaktır.
+Seed işlemleri sabit kimlik ve kontrollü transaction sınırı kullanır. Kategori
+seed'i aynı komut tekrar çalıştırıldığında kayıt çoğaltmaz. Aynı kimlikte farklı
+içerik veya aynı benzersiz kodda çelişkili içerik bulunursa sessizce
+güncelleme/atlama yerine açıklayıcı hata verir. Kategori seed'inde eşzamanlı
+komutlar transaction-scoped PostgreSQL advisory lock ile sıraya alınır; diğer
+seed scope'ları kendi adımlarında aynı davranışı sağlamalıdır.
 
 Import da seed'den bağımsız çalışır; dış kaynağın `Source`, tarih aralığı ve
 varlık parametreleri açıkça belirtilir. Günlük fiyatlarda `(MarketAssetId,

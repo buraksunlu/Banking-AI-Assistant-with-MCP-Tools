@@ -111,7 +111,7 @@ Migration geçmişi:
 
 - [x] SEED-01 — Manuel komut sözleşmesi docs/database-design.md ve README'ye yazıldı. `migrate` yalnızca şemayı, açık kapsamlı `seed` lookup/synthetic veriyi, açık parametreli `import` historical market verisini işler; uygulama açılışında otomatik veri eklenmez. Komutlar henüz uygulanmadı; şu an çalışan console komutları yalnızca `migrate` ve `show`.
 - [x] SEED-02 — `seed categories` komutu ve `TransactionCategorySeeder` oluşturuldu. Sabit 1–11 ID, kararlı Code değerleri ve Türkçe DisplayName değerleri ekleniyor. Aynı ID/kod aynı içerikle mevcutsa işlem tekrarsız; çelişki varsa sessizce ezmek yerine hata veriliyor. Seed işlemi transaction içinde çalışıyor; market/synthetic seed henüz yok.
-- [ ] SEED-03 — Kategori seed'ini iki kez çalıştır. Satır sayısı 11 kalmalı; aynı ID altında farklı kod varsa sessizce üzerine yazılmamalı. Eşzamanlı çalıştırmanın davranışını da doğrula.
+- [x] SEED-03 — Kategori seed'i iki kez çalıştırıldı: ilkinde 11 eklendi, ikincisinde 0 eklendi ve 11 değişmeden kaldı. Boş tabloyla iki eşzamanlı komutta biri 11 ekledi, diğeri advisory lock sonrasında 0 ekledi; sonuç 11 kaldı. Id 1 geçici olarak çelişkili Code ile denendi, seed `InvalidOperationException` verdi ve sessiz overwrite yapmadı; değer geri yüklendi.
 - [ ] SEED-04 — MarketAssets seed'ini yaz. USDTRY/USD/Currency, EURTRY/EUR/Currency, GRAM_GOLD_TRY/GRAM/Commodity; quote TRY ve IsActive true olsun.
 - [ ] SEED-05 — Market seed tekrarını doğrula. Üç varlık çoğalmamalı; Symbol/AssetType/BaseUnit/QuoteCurrency birlikte docs/database-design.md içindeki MA-03 sözleşmesiyle eşleşmeli. Hem seed girdisinde hem mevcut DB kaydında USDTRY/EUR gibi yanlış eşleşmeleri dene; sessiz düzeltme/atlama yerine açıklayıcı hata ver. Bu doğrulama geçince MA-03'ün kalan kısmını tamamlandı işaretle.
 
@@ -327,6 +327,6 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Önerilen sonraki küçük iş: SEED-02 ile TransactionCategories seed'ini yazmak. SEED-01 yalnızca komut tasarımını belgeledi; uygulanabilir seed komutları ve idempotency sonraki maddelerde yapılacak.
+Önerilen sonraki küçük iş: SEED-04 ile MarketAssets seed'ini yazmak. Kategori seed tekrar/çakışma/eşzamanlılık kontrolleri tamamlandı; market seed'i henüz yok.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

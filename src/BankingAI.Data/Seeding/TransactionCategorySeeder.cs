@@ -5,6 +5,8 @@ namespace BankingAI.Data.Seeding;
 
 public static class TransactionCategorySeeder
 {
+    private const long SeedLockKey = 2026100902;
+
     public static async Task<int> SeedAsync(BankingDbContext db, CancellationToken cancellationToken = default)
     {
         var definitions = new[]
@@ -23,6 +25,9 @@ public static class TransactionCategorySeeder
         };
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+        // Transaction-scoped lock serializes concurrent category seed commands.
+        await db.Database.ExecuteSqlRawAsync(
+            $"SELECT pg_advisory_xact_lock({SeedLockKey})", cancellationToken);
         var existing = await db.TransactionCategories
             .AsNoTracking()
             .ToListAsync(cancellationToken);
