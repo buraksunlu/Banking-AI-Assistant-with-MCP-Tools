@@ -1235,13 +1235,14 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   politikası yazma yolunda doğrulanmalıdır; numeric sütun tek başına bunu sağlamaz.
 - VAL-02: Amount/Balance iki ondalıkla kayıpsız temsil edilebilmeli. 12.3400
   kabul edilir, 12.345 reddedilir; otomatik yuvarlama/kesme yapılmaz. Temsil
-  sınırı mutlak 9999999999999999.99; Amount pozitiftir. Negatif bakiye kararı
-  VAL-06'ya aittir. Bakiye taşmasında işlem ve bakiye birlikte geri alınır.
-  Politika docs/input-validation.md içinde; uygulama VAL-07/BAL adımlarında.
+  sınırı mutlak 9999999999999999.99; Amount pozitiftir. Kredili hesap yoktur,
+  negatif bakiye reddedilir. C# ve DB kontrolleri VAL-07 ile uygulanmıştır;
+  bakiye taşmasında atomik yazma BAL adımlarındadır.
 - Yeni bakiye 0; açılış fonlaması Credit işlemle temsil edilir. İleride insert ve
   atomik bakiye değişimi aynı DB transaction'ında olacak; sadece transaction açmak
   lost update'i engellemez. Bu yazma akışı henüz implement edilmedi.
-- Negatif bakiye ve future/backdated işlem politikaları henüz kesinleşmedi.
+- Negatif bakiye politikası kesinleşti: kredili hesap yok, negatif bakiye ve
+  yetersiz bakiye reddedilir. Future/backdated işlem kontrolleri uygulanmıştır.
 - Olay zamanları UTC DateTimeOffset/timestamptz. Npgsql yazımı offset 0;
   timestamptz saat dilimi adını/orijinal offset'i saklamaz. Market günü DateOnly/date.
 - VAL-03: açık offset girişte UTC'ye çevrilir; saat dilimi belirsiz, default
@@ -1251,7 +1252,7 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   yeni kayıtta OccurredAt <= CreatedAt, tekrar importta CreatedAt korunur.
   PriceDate kaynak günüdür; ilk kapsamda Türkiye takviminde gelecekte olamaz.
   Güvenilen synthetic seed sabit geçmiş UTC referansı kullanabilir. Ayrıntılar
-  docs/input-validation.md içinde; kod uygulaması VAL-07'de yapılacak.
+  docs/input-validation.md içinde; kod uygulaması VAL-07 ile yapılmıştır.
 - Kategori lookup listesi: FOOD, GROCERY, CLOTHING, TRANSPORTATION, ENTERTAINMENT,
   SUBSCRIPTION, TRAVEL, FUEL, BILLS, HEALTH, OTHER. Code unique.
 - CategoryId null kategorize edilmemiştir; OTHER bunun yerine otomatik atanmaz.
@@ -1269,7 +1270,7 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   mevcut kategoriyi silmez ve otomatik OTHER atanmaz. Manuel atama otomatik
   akışla kendiliğinden ezilmez. CategorizedAt backend zamanıdır ve CreatedAt'tan
   önce olamaz. Eşik CAT-05'te ölçümle seçilir, DB'ye yazılmaz. Ayrıntılar
-  docs/input-validation.md içinde; kod/DB uygulaması VAL-07'de yapılacak.
+  docs/input-validation.md içinde; C# ve DB uygulaması VAL-07 ile yapılmıştır.
 - Kategorilendirme ground truth'u tests/data fixture'ında tutulur;
   Transactions'a ExpectedCategoryId gibi test-only alanlar eklenmez.
 - Banking seed: Bogus + sabit seed/tarih + kontrollü pattern'ler. Maaş, abonelik,
@@ -1325,14 +1326,15 @@ IN PROGRESS
 - Database foundation; kullanıcı review'üyle küçük adımlar halinde devam ediyor.
 
 NEXT
-- Kullanıcının seçtiği adım. VAL-01–VAL-05 kuralları docs/input-validation.md içinde yazıldı;
-  öneri: VAL-06 ile negatif bakiye politikasını belirlemek.
+- Kullanıcının seçtiği adım. VAL-01–VAL-07 kuralları docs/input-validation.md
+  içinde yazıldı ve temel doğrulama sınırları uygulandı; atomik bakiye yazma
+  için BAL adımları bekleniyor.
 
 KNOWN ISSUES
 - Synthetic banking seed ve historical import henüz yok; kategori ve market asset seed'leri hazır.
 - Transaction eklenmesi Account.Balance'ı otomatik güncellemez; atomik yazma akışı yok.
 - Customer FirstName/LastName geçişi SplitCustomerName migration'ıyla uygulandı.
-- Null/precision/UTC/kategorilendirme tutarlılığı gibi bazı giriş kontrolleri sonraki adımlarda.
+- Atomik bakiye yazma/concurrency ve dış API giriş sözleşmesi sonraki adımlarda.
 - README güncel console/database durumuna getirildi; database-design içindeki kalan uyarlamalar todo.md'de takip ediliyor.
 - Controller/API/DTO/service, SwiftUI, AI ve MCP henüz oluşturulmadı.
 
@@ -1343,7 +1345,8 @@ TECHNICAL DEBT
 
 TEST STATUS
 - Entity build'leri ve migration build/uygulamaları geçti; bu tüm foundation'ın bittiği anlamına gelmez.
-- AccountId/Amount guard'ları geçici programla kontrol edildi.
+- InputRules/EntityValidation ve AccountId/Amount guard'ları C# testleriyle,
+  DB CHECK'leri PostgreSQL integration testleriyle kontrol edildi.
 - Customer kısıtları ve 12 paralel numara üretimi; Account/Category temel DB kısıtları;
   Transaction nullable/kategorili yazımı ve 13 geçersiz veri kontrolü PostgreSQL'de denendi.
 - Test kayıtları rollback edildi. Seed/market import/bakiye concurrency/HTTP/AI/MCP testleri henüz yok.

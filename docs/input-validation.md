@@ -1,11 +1,12 @@
-# Girdi kuralları — VAL-01–VAL-05
+# Girdi kuralları — VAL-01–VAL-07
 
 Tarih: 9 Ekim 2026.
 
-Bu belge altı entity için beklenen davranışı tanımlar. Mevcut durum, entity,
-configuration, DbContext ve migration kaynak kodlarının incelenmesine dayanır;
-VAL-01 adımında canlı DB testleri yeniden çalıştırılmadı. Yeni doğrulama kodu veya
-migration eklenmedi. Eksik kontroller VAL-07 kapsamında uygulanacak.
+Bu belge altı entity için beklenen davranışı ve uygulanan doğrulama sınırlarını
+tanımlar. Entity, DbContext, configuration ve migration kontrolleri VAL-07 ile
+uygulandı; geçersiz örnekler C# ve gerçek PostgreSQL üzerinde test edildi.
+Transaction ekleme ile Account.Balance değişimini aynı atomik yazma yolunda
+birleştirme henüz BAL görevlerinin kapsamındadır.
 
 ## Ortak davranış
 
@@ -64,7 +65,7 @@ karakterler için C# `string.Length` (UTF-16 birimleri) ile farkı dikkate alın
 | DailyMarketPrice.Source | 100 | null kabul; gerçek import kaynağı dolu ve whitespace olmayan metin sağlamalı. DB'de uzunluk var, boş metin kontrolü yok |
 
 DB regex whitespace tanımı ile .NET whitespace tanımının bütün Unicode
-karakterleri için aynı olduğu varsayılmamalı; VAL-07 testleri bu sınırı ele almalı.
+karakterleri için aynı olduğu varsayılmamalı; VAL-07 testleri bu sınırı ele aldı.
 
 ## Para birimleri, kodlar ve enum'lar
 
@@ -92,7 +93,7 @@ kontrolü gereklidir; yalnızca alanların ayrı ayrı geçerli olması yeterli 
 | CategoryConfidence için hassas sınır | 1.00001 gibi 1'den büyük ham değer reddedilmeli | DB önce 4 ondalığa yuvarlayıp sonra CHECK uygulayabilir; ham girdi aralığı yazma yolunda kontrol edilmeli. VAL-04'e göre dört ondalıkla kayıpsız temsil zorunlu; uygulaması henüz yok |
 | Confidence için NaN/sonsuz | Reddet | C# decimal bu değerleri taşımaz; PostgreSQL aralık CHECK/precision koruması var |
 | Transaction.Amount | Pozitif, sonlu, iki ondalıkla kayıpsız temsil edilebilir | Entity guard ve DB CHECK var; numeric(18,2). Aşağıdaki VAL-02 precision/aralık kontrolleri henüz kodda yok |
-| Account.Balance | Sonlu; yeni hesapta 0 | private set, DB numeric(18,2) ve NaN CHECK var. Negatif bakiye kararı VAL-06'da; burada yeni yasak tanımlanmadı |
+| Account.Balance | Sonlu, yeni hesapta 0 ve bu projede negatif olamaz | private set, C# doğrulaması, DB numeric(18,2), NaN ve `Balance >= 0` CHECK var |
 | DailyMarketPrice.Price | Pozitif ve sonlu | DB numeric(20,8) ve CHECK var; entity guard henüz yok. Kaynak hassasiyeti/import dönüşümü ayrıca belirlenecek |
 
 ## VAL-02 — Amount ve Balance precision politikası
@@ -110,7 +111,7 @@ Tutarlar C# tarafında decimal ile taşınır; float/double üzerinden dönüşt
 | Sondaki sıfırlar | 12.340 ve 12.3400 kabul edilir; sayısal olarak 12.34 ile aynıdır. Yazımdaki basamak sayısı yerine değer esas alınır |
 | Fazla anlamlı ondalık | 12.345, 12.341 ve 0.001 reddedilir; kaydetmek için Round/Truncate uygulanmaz |
 | Amount aralığı | 0.01 ile 9999999999999999.99 dahil. Sıfır/negatif Amount reddedilir; yön Direction ile belirlenir |
-| Balance temsil aralığı | -9999999999999999.99 ile 9999999999999999.99 dahil. Bu teknik sınırdır; negatif bakiyeye iş kuralı olarak izin verilip verilmeyeceği VAL-06'da kararlaştırılacak |
+| Balance temsil aralığı | 0 ile 9999999999999999.99 dahil | Kredili hesap yok; negatif değer iş kuralı ve DB CHECK ile reddedilir |
 | Yeni hesap bakiyesi | 0.00; dış girdiden bakiye atanmaz. Açılış fonlaması Credit işlemle temsil edilir |
 | Bakiye değişimi | Geçerli Amount ile hesaplanan yeni bakiye de precision ve temsil aralığı kontrolünden geçer. Taşmada işlem ve bakiye değişimi birlikte geri alınır; BAL adımlarında uygulanacak |
 | Para birimleri | Mevcut TRY/USD/EUR/GBP kapsamının tamamında bu iki ondalık politikası geçerli. Yeni para birimi eklenirse hassasiyet kararı yeniden incelenir |
@@ -118,8 +119,9 @@ Tutarlar C# tarafında decimal ile taşınır; float/double üzerinden dönüşt
 
 ### VAL-07 için kabul örnekleri
 
-Aşağıdaki sonuçlar hedef davranıştır; bu tabloda yazılması testlerin çalıştırıldığı
-anlamına gelmez. SQL/C# gösterimine uygun olarak ondalık ayırıcı nokta kullanıldı.
+Aşağıdaki sonuçlar hedef davranış ve kabul örnekleridir; VAL-07 testlerinde
+ilgili C# ve DB kontrolleri çalıştırıldı. SQL/C# gösterimine uygun olarak
+ondalık ayırıcı nokta kullanıldı.
 
 | Girdi / işlem | Beklenen sonuç |
 | --- | --- |
@@ -132,8 +134,8 @@ anlamına gelmez. SQL/C# gösterimine uygun olarak ondalık ayırıcı nokta kul
 | Amount = 9999999999999999.99 | Teknik üst sınırda kabul |
 | Amount = 10000000000000000.00 | Temsil aralığı hatası |
 | Yeni Balance = 0.00 | Kabul |
-| Yeni Balance = -12.345 | Precision hatası; negatif bakiye kararı beklenmeden reddedilebilir |
-| Yeni Balance = -12.34 | Precision/aralık açısından geçerli; iş kuralı sonucu VAL-06'ya bağlı |
+| Yeni Balance = -12.345 | Negatif bakiye iş kuralı ve precision nedeniyle reddedilir |
+| Yeni Balance = -12.34 | Parasal precision açısından iki basamaklı olsa da kredili hesap olmadığı için reddedilir |
 | Balance üst sınırdayken Credit 0.01 | Bakiye taşması; işlem ve bakiye birlikte başarısız olmalı |
 | Balance = 0.10, Credit = 0.20 | Sonuç tam 0.30; decimal ile hesaplanmalı |
 
@@ -141,7 +143,7 @@ anlamına gelmez. SQL/C# gösterimine uygun olarak ondalık ayırıcı nokta kul
 
 Seed, import ve ileride API gibi her yazma yolu, yuvarlanmamış değeri DB'ye
 göndermeden önce doğrulamalı. Amount için entity guard'ı; bakiye için kontrollü
-güncelleme yolu VAL-07/BAL adımlarında ele alınacak. Önce temsil aralığı,
+güncelleme yolu VAL-07'de temel entity/SaveChanges sınırında ele alındı. Önce temsil aralığı,
 ardından değerin iki ondalıkla kayıpsız temsil edilip edilmediği kontrol edilir.
 Örneğin decimal değer ile iki ondalığa yuvarlanmış karşılığını karşılaştırmak
 doğrulamada kullanılabilir; karşılığı orijinalin yerine atayıp kaydetmek yasaktır.
@@ -167,12 +169,14 @@ hesaplamalarında ara birimleri iki ondalığa yuvarlama kararı da verilmedi.
 Doğrulama: mevcut entity ve configuration kaynakları incelendi. 9 Ekim'deki
 salt okunur DB örnek sorgusu bağlantı kurulamadığından çalışmadı; canlı DB testi
 başarılı sayılmadı. PostgreSQL yuvarlama davranışı resmî dokümandan doğrulandı.
-Bu adım yalnızca politikayı tanımlar; uygulanacak kod ve kabul testleri VAL-07'de.
+Bu politika `InputRules` ve `BankingDbContext.SaveChanges` sınırında uygulanır;
+geçersiz precision örnekleri testlerde reddedilir.
 
 ## VAL-03 — Tarih ve zaman politikası
 
-Bu bölüm bir tasarım kararıdır; yeni entity guard'ı, parser veya DB kısıtı
-henüz uygulanmadı. Uygulama ve geçersiz girdi testleri VAL-07'de yapılacak.
+Bu bölümdeki entity guard'ları, SaveChanges kontrolleri ve DB kısıtları VAL-07
+ile uygulandı. UTC, gelecek tarih, default tarih ve geçmiş import örnekleri
+test edildi.
 
 ### Alanların anlamı
 
@@ -180,7 +184,7 @@ henüz uygulanmadı. Uygulama ve geçersiz girdi testleri VAL-07'de yapılacak.
 | --- | --- | --- |
 | Transaction.OccurredAt | İşlemin gerçekten gerçekleştiği an; zorunlu, sonlu, UTC. Geçmiş olabilir; gelecek olamaz | required DateTimeOffset ve timestamptz eşlemesi var; default/gelecek tarih guard'ı yok |
 | Customer/Account/Transaction.CreatedAt | Bu sistemde kayıt oluşturma zamanı; backend üretir, istemciden alınmaz. Güncellemede ve tekrar importta korunur | Entity oluşturulurken UtcNow varsayılanı var; public init ile değiştirilebilir, backend kontrolü henüz garanti değil |
-| Transaction.CategorizedAt | Backend'in kategoriyi atadığı/güncellediği an; null olabilir, doluysa sonlu UTC | Nullable DateTimeOffset ve timestamptz eşlemesi var. CategoryId/source/confidence ile birlikte kurallar aşağıdaki VAL-04 bölümünde tanımlandı; henüz uygulanmadı |
+| Transaction.CategorizedAt | Backend'in kategoriyi atadığı/güncellediği an; null olabilir, doluysa sonlu UTC | Nullable DateTimeOffset ve timestamptz eşlemesi var; C# ve DB'de kategori alanlarıyla birlikte doğrulanır |
 | DailyMarketPrice.PriceDate | Kaynağın fiyatı ait saydığı takvim günü; DateOnly. Saat veya offset içermez | date eşlemesi var; default, en büyük tarih ve gelecek gün kontrolü yok |
 
 ### UTC, varsayılan değer ve gelecek tarih
@@ -318,14 +322,13 @@ LLM yeni kategori yaratamaz, backend mevcut Code'u doğrulayıp ID'ye eşler.
 Mevcut nullable FK, source enum CHECK ve confidence aralık CHECK ayrı ayrı
 koruma sağlar; alanların birlikte tutarlılığını sağlamaz. Entity'deki public
 setter'lar da geçersiz kombinasyon kurulmasına izin verir. VAL-07'de ortak
-yazma doğrulaması ve DB kombinasyon CHECK'i eklenecek; SQL'in NULL davranışı
+yazma doğrulaması ve DB kombinasyon CHECK'i eklendi; SQL'in NULL davranışı
 nedeniyle CHECK'in UNKNOWN sonucuyla geçersiz satır kabul etmemesine dikkat
 edilecek. Mevcut kayıtlar taranıp uyuşmazlık varsa sessizce tarih/source
 uydurulmadan raporlanacak. Uygulama ayrı incremental migration ile ilerleyecek.
 
-Bu adım kaynak kod incelemesi ve karar belgesidir; yukarıdaki örnekler henüz
-çalıştırılmış testler değildir. CategoryConfidence/tarih/atama akışı testleri
-VAL-07 ve CAT adımlarında yapılacak. Yeni AI kodu veya tablo eklenmedi.
+Bu bölümdeki örnekler tasarım kabul kriterleridir; CategoryConfidence, tarih ve
+atama akışı VAL-07 testlerinde çalıştırıldı. Yeni AI kodu veya tablo eklenmedi.
 
 ## VAL-05 — İlk dataset'in harcama kapsamı
 
@@ -404,16 +407,30 @@ ayrı adımda kararlaştırılır.
 | Mart işlemi ekimde import edilmiş | Mart harcamasına dahil; CreatedAt nedeniyle ekime taşınmaz |
 | Seed senaryosuna transfer veya refund eklenmesi | İlk kapsamın ihlali; senaryo incelemesi/fixture kontrolünde reddedilir, harcama toplamına sokulmaz |
 
-Bu adım karar belgesidir; seed veya analytics kodu yazılmadı, bu kabul örnekleri
-henüz test olarak çalıştırılmadı. İlgili uygulama işleri SYN/BAL/ANA adımlarındadır.
+Bu bölümdeki seed/analytics örnekleri ilgili SYN/BAL/ANA işlerinin kabul
+senaryolarıdır; VAL-07 doğrulama testleri ayrı olarak çalıştırılmıştır.
 
 ## Sonraki adımlara bırakılanlar
 
-- VAL-02 politikası yukarıda tanımlandı; kodda uygulanması VAL-07'de.
-- VAL-03 politikası yukarıda tanımlandı; kodda uygulanması VAL-07'de.
-- VAL-04 politikası yukarıda tanımlandı; kod/DB korumaları VAL-07, LLM eşik seçimi CAT-05'te.
+- VAL-02 politikası yukarıda tanımlandı ve C# SaveChanges/DB sınırında uygulanıp test edildi.
+- VAL-03 politikası yukarıda tanımlandı ve C# SaveChanges/DB sınırında uygulanıp test edildi.
+- VAL-04 politikası yukarıda tanımlandı ve C# setter/SaveChanges/DB CHECK sınırında uygulanıp test edildi; LLM eşiği CAT-05'te.
 - VAL-05 kapsamı yukarıda tanımlandı; seed/yazma/analytics uygulaması SYN/BAL/ANA adımlarında.
-- VAL-06: negatif bakiye politikası.
-- VAL-07: bu belgede eksik görünen kontrollerin uygulanması ve geçersiz girdi testleri.
+- VAL-06: kredili hesap yok; negatif bakiye ve yetersiz bakiye reddi kararı.
+- VAL-07: entity, SaveChanges ve DB doğrulama sınırları uygulandı; geçersiz örnek testleri geçti.
 
-VAL-01–VAL-05'in tamamlanması bu kontrollerin hepsinin kodda uygulanmış olduğu anlamına gelmez.
+VAL-01–VAL-07 doğrulamaları, atomik bakiye yazma/concurrency ve dış API sözleşmesinin
+tamamlandığı anlamına gelmez; bunlar ilgili BAL/API görevlerinde ele alınacaktır.
+
+## VAL-06/VAL-07 uygulama doğrulaması
+
+- Kredili hesap simülasyonu yoktur. `Account.Balance < 0` C# doğrulaması ve
+  `CK_Accounts_Balance_NonNegative` DB CHECK'i ile reddedilir. Debit'in mevcut
+  bakiyeyi aşmasını atomik şekilde reddeden işlem yazma yolu henüz BAL-01/02'dir.
+- `InputRules` para precision, metin, UTC tarih ve kategori kombinasyonlarını
+  düzeltme yapmadan reddeder. `EntityValidation` altı entity için ortak sınırı
+  uygular. `BankingDbContext.SaveChanges/SaveChangesAsync` bu kontrolü yazma
+  öncesinde çalıştırır.
+- `EnforceInputValidation` migration'ı aktif DB'ye uygulanmıştır. C# unit ve
+  PostgreSQL integration testleri toplam 12/12 geçti; deneme kayıtları rollback
+  edildi. Testler `.env` değişkenleri yüklenerek çalıştırılmalıdır.

@@ -43,8 +43,14 @@ public sealed class BankingDbContext : DbContext
                     // Normal writes use one server reference, never a caller-provided creation time.
                     createdAt.CurrentValue = referenceUtc;
                 }
-                else
-                    InputRules.Require(!createdAt.IsModified, "CreatedAt", "Kayıt zamanı sonradan değiştirilemez.");
+                else if (createdAt.IsModified)
+                {
+                    // A failed write may leave EF's flag set; an unchanged restored value is safe.
+                    InputRules.Require(
+                        Equals(createdAt.CurrentValue, createdAt.OriginalValue),
+                        "CreatedAt", "Kayıt zamanı sonradan değiştirilemez.");
+                    createdAt.IsModified = false;
+                }
             }
 
             if (entry.Entity is Transaction transaction && transaction.CategorizedAt is { } at)

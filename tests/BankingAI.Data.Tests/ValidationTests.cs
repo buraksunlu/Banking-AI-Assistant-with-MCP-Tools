@@ -99,7 +99,8 @@ public class ValidationTests
         foreach (var date in new[] { DateOnly.MinValue, DateOnly.MaxValue, new DateOnly(2026, 10, 10) })
             Assert.Throws<ArgumentException>(() => EntityValidation.Validate(new DailyMarketPrice { MarketAssetId = 1, Price = 1m, PriceDate = date }, Reference));
         // 22:00 UTC is already the following calendar day in Istanbul.
-        EntityValidation.Validate(new DailyMarketPrice { MarketAssetId = 1, Price = 1m, PriceDate = new(2026, 10, 10) }, Reference.Date.AddHours(22));
+        var lateUtcReference = new DateTimeOffset(2026, 10, 9, 22, 0, 0, TimeSpan.Zero);
+        EntityValidation.Validate(new DailyMarketPrice { MarketAssetId = 1, Price = 1m, PriceDate = new(2026, 10, 10) }, lateUtcReference);
         var tx = Transaction(); tx.CategorizedAt = Reference.AddDays(-1); tx.CategoryId = 1; tx.CategorizationSource = CategorizationSource.Rule;
         Assert.Throws<ArgumentException>(() => EntityValidation.Validate(tx, Reference));
     }
