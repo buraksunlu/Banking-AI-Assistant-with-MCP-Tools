@@ -65,3 +65,30 @@ hesabın sahipleri/para birimleri doğrulandı; tüm bakiyeler 0, hareket sayıl
 PostgreSQL testinde tekrar, bakiye/tarih koruma, sahiplik ve numara çelişkileri,
 unique numara, olmayan müşteri FK'si ve geçersiz currency kontrol edildi.
 Test değişiklikleri transaction rollback ile geri alındı.
+
+## BAL-01 / BAL-02 atomik transaction yazımı
+
+`TransactionSeedWriter.AddAsync` seed için tek transaction yazma sınırıdır.
+`BankingDbContext` üzerinde önceden bekleyen değişiklik varsa çağrı reddedilir;
+EF `SaveChanges` bu değişiklikleri de kaydedebileceği için writer temiz bir context ister.
+Mevcut DB transaction'ı olan context de kabul edilmez; writer kendi transaction'ının
+rollback sorumluluğunu taşır.
+
+Akış:
+
+1. Transaction alanları doğrulanır ve sabit Transaction ID'nin daha önce yazılıp
+   yazılmadığı kontrol edilir. Duplicate ID ikinci balance etkisini alamaz.
+2. Transaction aynı DB transaction'ı içinde insert edilir.
+3. Account için `UPDATE ... SET Balance = Balance + delta` biçiminde atomik SQL
+   çalışır. Debit'te delta negatiftir; Credit'te pozitiftir. WHERE koşulu yeni
+   bakiyenin 0..9999999999999999.99 aralığında olmasını gerektirir.
+4. Hesap/para birimi eşleşmiyorsa, bakiye yetersizse veya üst sınır aşılırsa hata
+   verilir ve transaction insert'i rollback edilir. Commit yalnızca iki yazma da
+   başarılı olunca yapılır.
+
+PostgreSQL aynı hesabın eşzamanlı UPDATE işlemlerini satır kilidiyle sıraya alır;
+her UPDATE güncel satır bakiyesine delta ekler. Uygulamada önceden okuma ve tüm
+bakiye değerini üzerine yazma yapılmadığı için klasik lost update oluşmaz.
+Bu davranışın eşzamanlı iki işlem ve kasıtlı insert hatasıyla kabul testleri
+BAL-03/04'te doğrulanacaktır. Writer başarısızlıkta EF change tracker'ı temizler;
+çağıran aynı context ile kayda devam etmeden önce entity'leri yeniden yüklemelidir.

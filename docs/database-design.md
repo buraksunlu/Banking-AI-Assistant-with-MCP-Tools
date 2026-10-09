@@ -129,7 +129,10 @@ Bir müşterinin belirli para birimindeki hesabını temsil eder.
 | CreatedAt | `DateTimeOffset` | `timestamptz` | Required, UTC |
 
 Gerçek IBAN üretilmez. İşlem bulunan hesabın currency'si değiştirilemez.
-Negatif bakiye ve yetersiz bakiye politikası henüz kesinleşmemiştir.
+Kredili hesap yoktur; negatif/yetersiz bakiye reddedilir. `TransactionSeedWriter`
+transaction insert'i ile bakiye delta'sını aynı DB transaction'ında uygular.
+Delta DB üzerinde atomik yazılır; bakiye önceden okunup uygulamadan üzerine yazılmaz.
+BAL-03/04 eşzamanlılık ve rollback kabul kontrollerini tamamlar.
 
 ## TransactionCategories
 

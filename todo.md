@@ -57,7 +57,7 @@ canlı PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna 
 | Uygulanmış migration | 8 |
 | Veri | 4 Customer (demo + 3 synthetic); 5 Account (bakiyeler 0); 11 Category; 0 Transaction |
 | Market tabloları | MarketAssets mevcut ve üç seed kaydı var; DailyMarketPrices henüz boş |
-| Bakiye güncelleme akışı | Henüz yok; SQL ile transaction eklemek bakiyeyi otomatik değiştirmez |
+| Bakiye güncelleme akışı | `TransactionSeedWriter` transaction insert'i ve atomik bakiye farkını tek DB transaction'ında yazar; eşzamanlılık/rollback kabul testleri BAL-03/04'te |
 | Kalıcı otomatik test projesi | tests/BankingAI.Data.Tests; C# ve rollback edilen PostgreSQL kontrolleri |
 | API / SwiftUI / AI / MCP | Henüz yok |
 
@@ -125,8 +125,8 @@ Migration geçmişi:
 
 ## 7. Synthetic hareket ve bakiye tutarlılığı
 
-- [ ] BAL-01 — Seed için en küçük atomik yazma yolunu tasarla. İşlem insert'i ile Account.Balance artışı/azalışı aynı DB transaction'ında olsun; bu aşamada API veya application service katmanı kurma.
-- [ ] BAL-02 — Atomik bakiye değişimini uygula. Eski bakiyeyi okuyup üzerine yazmak yerine DB'de fark ekleme veya uygun eşzamanlılık kontrolü kullan; başarısızlıkta tamamı rollback olsun.
+- [x] BAL-01 — Seed için `TransactionSeedWriter` tasarlandı ve eklendi. Tek bir DB transaction'ında önce transaction insert edilir, sonra Account.Balance delta ile güncellenir; commit ikisi de başarılı olunca yapılır. API/application service katmanı eklenmedi.
+- [x] BAL-02 — Bakiye `ExecuteUpdate` ile DB içinde `Balance + delta` olarak değiştirilir; eski değer uygulamada okunup yazılmaz. WHERE koşulu negatif ve numeric(18,2) üst sınırını engeller; Debit yetersiz bakiyede reddedilir. Insert/güncelleme hatasında rollback yapılır; aynı Transaction ID tekrar bakiye delta'sı uygulamaz. Eşzamanlılık ve hata sonrası DB kabul testleri BAL-03/04'te.
 - [ ] BAL-03 — İki eşzamanlı işlemle lost update testi yap. Son bakiye başlangıç + Credit − Debit ile aynı olmalı.
 - [ ] BAL-04 — Kasıtlı insert hatası üret. Transaction reddedildiğinde bakiye değişmemeli; ters yöndeki başarısızlık da yarım kayıt bırakmamalı.
 - [ ] SYN-06 — Aylık maaş ve açılış fonlaması Credit hareketlerini ekle. Tarihler, tutarlar ve hesap para birimleri açık olsun. VAL-05'e göre bunlar harcamadan düşülmez; kategori alanları null kalır ve açılış fonlamasına karşı başka hesapta Debit transfer üretilmez.
@@ -327,6 +327,6 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Önerilen sonraki küçük iş: BAL-01 ile transaction ekleme ve bakiye değişiminin atomik yazma yolunu tasarlamak. SYN-01–05 tamamlandı; beş hesap sıfır bakiye ile hazır, henüz transaction seed'i yok.
+Önerilen sonraki küçük iş: BAL-03 ile eşzamanlı Debit/Credit yazımlarında lost update olmadığını doğrulamak. SYN-01–05 ve BAL-01/02 tamamlandı; henüz transaction seed verisi yok.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

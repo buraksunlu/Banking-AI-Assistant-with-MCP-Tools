@@ -425,8 +425,10 @@ tamamlandığı anlamına gelmez; bunlar ilgili BAL/API görevlerinde ele alına
 ## VAL-06/VAL-07 uygulama doğrulaması
 
 - Kredili hesap simülasyonu yoktur. `Account.Balance < 0` C# doğrulaması ve
-  `CK_Accounts_Balance_NonNegative` DB CHECK'i ile reddedilir. Debit'in mevcut
-  bakiyeyi aşmasını atomik şekilde reddeden işlem yazma yolu henüz BAL-01/02'dir.
+  `CK_Accounts_Balance_NonNegative` DB CHECK'i ile reddedilir. Seed yazma yolu
+  `TransactionSeedWriter` işlemi ve bakiye farkını aynı transaction'a alır;
+  bakiye DB'de atomik artırılıp/azaltılır, yetersiz Debit reddedilir. Eşzamanlılık
+  ve hata rollback kabul testleri BAL-03/04 kapsamındadır.
 - `InputRules` para precision, metin, UTC tarih ve kategori kombinasyonlarını
   düzeltme yapmadan reddeder. `EntityValidation` altı entity için ortak sınırı
   uygular. `BankingDbContext.SaveChanges/SaveChangesAsync` bu kontrolü yazma

@@ -1332,9 +1332,10 @@ NEXT
 
 KNOWN ISSUES
 - Synthetic banking seed ve historical import henüz yok; kategori ve market asset seed'leri hazır.
-- Transaction eklenmesi Account.Balance'ı otomatik güncellemez; atomik yazma akışı yok.
+- `TransactionSeedWriter` seed işlem insert'i ile Account.Balance delta'sını aynı
+  DB transaction'ında yazar. BAL-03/04 concurrency/rollback kabul kontrolleri bekliyor.
 - Customer FirstName/LastName geçişi SplitCustomerName migration'ıyla uygulandı.
-- Atomik bakiye yazma/concurrency ve dış API giriş sözleşmesi sonraki adımlarda.
+- Dış API giriş sözleşmesi API adımlarında; atomik seed yazma yolu BAL-01/02'de eklendi.
 - README güncel console/database durumuna getirildi; database-design içindeki kalan uyarlamalar todo.md'de takip ediliyor.
 - Controller/API/DTO/service, SwiftUI, AI ve MCP henüz oluşturulmadı.
 
