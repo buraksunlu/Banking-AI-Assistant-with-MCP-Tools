@@ -1230,15 +1230,15 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 - Transaction para birimi hesabıyla eşleşir. Mevcut birleşik FK
   (AccountId, CurrencyCode) → Accounts(Id, CurrencyCode) bunu DB'de korur.
 - Amount pozitif decimal, Direction smallint enum: Debit=1, Credit=2.
-  Debit tek başına alışveriş olduğunu kanıtlamaz; ilk dataset kapsamı VAL-05 ile sınırlıdır.
-- VAL-05: ilk synthetic dataset'te yalnızca tamamlanmış mal/hizmet, abonelik
-  ve fatura ödemeleri Debit; maaş/açılış fonlaması Credit olur. Transfer, nakit,
-  yatırım, kredi/borç hareketleri, komisyon/faiz, refund/iptal ve bekleyen
-  hareketler üretilmez. Harcama OccurredAt döneminde tek para birimindeki
-  brüt Debit toplamıdır; Credit çıkarılmaz, kategorisiz Debit kaybolmaz.
-  Bu varsayım gerçek banka verisine genellenmez. Refund/net harcama ayrı model
-  kararı gerektirir; TransactionKind kendiliğinden eklenmez. Ayrıntılar
-  docs/input-validation.md içinde; seed/analytics kodu henüz uygulanmadı.
+  Debit tek başına alışveriş olduğunu kanıtlamaz; ekonomik tür Kind alanındadır.
+- VAL-05 (KIND-05 ile güncellendi, 10 Ekim 2026): Kind = Purchase/Sale/Transfer/
+  Salary/OpeningFunding. Harcama OccurredAt döneminde tek para birimindeki
+  Kind = Purchase toplamıdır; bütün Debit'leri toplamak transferleri yanlışlıkla
+  harcama sayar. Credit çıkarılmaz, kategorisiz Purchase kaybolmaz. Transfer ve
+  iç dükkân ödemeleri PairId'li iki bacakla yazılır; Sale yalnız Business hesaba.
+  Nakit, döviz/farklı para birimli transfer, yatırım, kredi/borç, komisyon/faiz,
+  refund/iptal ve bekleyen hareketler üretilmez. Refund/net harcama ayrı model
+  kararı gerektirir. Ayrıntılar docs/input-validation.md içinde; analytics ANA adımlarında.
 - Balance ve Amount numeric(18,2). Fazla basamaklı girdiyi sessiz yuvarlamama
   politikası yazma yolunda doğrulanmalıdır; numeric sütun tek başına bunu sağlamaz.
 - VAL-02: Amount/Balance iki ondalıkla kayıpsız temsil edilebilmeli. 12.3400
@@ -1352,7 +1352,8 @@ IN PROGRESS
 
 NEXT
 - ANA-01 (PeriodResolver) ve SYN-14 (Ada/Deniz/Ege farklı demo karakterleri) tamamlandı.
-- KIND-01–04 tamamlandı (Kind/PairId, iki bacaklı yazıcı, AccountType, Kahve Durağı + 9 çift). KIND-05: VAL-05 harcama tanımı = Kind Purchase; ardından ANA-02.
+- KIND-01–05 tamamlandı (Kind/PairId, iki bacaklı yazıcı, AccountType, Kahve Durağı + 9 çift, VAL-05 = Kind Purchase).
+- ANA-02: harcama özeti (yalnız Kind Purchase, Personal hesaplar, tek para birimi).
 - Ardından ANA-02 harcama özeti; harcama yalnızca Purchase türünü sayar.
 
 KNOWN ISSUES

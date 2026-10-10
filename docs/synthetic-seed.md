@@ -25,6 +25,8 @@ Merchant isimleri de sabit recurring ve tek seferlik listeler olarak tanımlıd�
 
 VAL-05 gereği bu profiller yalnızca tamamlanmış mal/hizmet, abonelik ve fatura Debit hareketleri için kullanılacaktır. Maaş/açılış fonlaması Credit olarak ayrı adımda ele alınır. Transfer, refund/iptal, nakit, yatırım ve bekleyen hareket üretilmez; bu adımda `TransactionKind` eklenmemiştir.
 
+> Güncel not (KIND-05, 10 Ekim 2026): Sonradan `Kind`/`PairId` eklendi ve KIND-04b ile transfer ile iç dükkân alışverişi üretildi. Profillerin harcama kalıpları değişmedi; güncel harcama tanımı `Kind = Purchase`tır (docs/input-validation.md, VAL-05).
+
 ## SYN-03 Customer seed'i
 
 `seed customers` komutu üç sabit GUID kullanır. İsimler ve merchant kalıpları demo amaçlıdır; telefon, TCKN, adres veya gerçek kişi bilgisi üretilmez. `CustomerNumber` PostgreSQL sequence tarafından oluşturulur, seed tarafından elle verilmez.

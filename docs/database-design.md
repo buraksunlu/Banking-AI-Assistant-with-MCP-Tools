@@ -193,13 +193,12 @@ Bir hesabın para girişini veya çıkışını ve kategorilendirme bilgisini tu
 | CreatedAt | `DateTimeOffset` | `timestamptz` | Required, kayıt zamanı UTC |
 
 `Amount` negatif yapılarak yön belirtilmez. Debit tek başına alışveriş kanıtı
-değildir. VAL-05 kararına göre ilk synthetic dataset'te Debit yalnızca
-tamamlanmış mal/hizmet, abonelik ve fatura ödemeleridir; Credit maaş/açılış
-fonlamasıdır. Transfer, nakit, yatırım, iade/iptal ve bekleyen hareketler
-kapsam dışındadır. Harcama tek para biriminde brüt Debit toplamıdır; Credit
-düşülmez. Kapsamın tamamı ve örnekler [girdi kuralları](input-validation.md)
-belgesindedir. Refund/net harcama ayrı model kararı gerektirir; yeni işlem
-türü alanı eklenmedi. Mevcut DB Direction'dan ekonomik işlem türünü doğrulayamaz.
+değildir: Direction paranın yönünü, `Kind` ekonomik türünü taşır. Güncel VAL-05
+(KIND-05) kararına göre harcama tek para biriminde `Kind = Purchase` toplamıdır;
+transfer Debit'leri harcama değildir. Transfer ve iç dükkân ödemeleri aynı `PairId`'yi
+taşıyan iki bacakla yazılır; satış geliri (`Sale`) yalnız Business hesaba girer.
+Nakit, döviz, yatırım, iade/iptal ve bekleyen hareketler kapsam dışındadır. Kapsamın
+tamamı ve örnekler [girdi kuralları](input-validation.md) belgesindedir.
 
 Transaction foreign key'i `(AccountId, CurrencyCode)` üzerinden
 `Accounts(Id, CurrencyCode)` alternatif anahtarına bağlanır. Böylece USD işlem

@@ -330,92 +330,92 @@ uydurulmadan raporlanacak. Uygulama ayrı incremental migration ile ilerleyecek.
 Bu bölümdeki örnekler tasarım kabul kriterleridir; CategoryConfidence, tarih ve
 atama akışı VAL-07 testlerinde çalıştırıldı. Yeni AI kodu veya tablo eklenmedi.
 
-## VAL-05 — İlk dataset'in harcama kapsamı
+## VAL-05 — Dataset'in harcama kapsamı (KIND-05 ile güncellendi, 10 Ekim 2026)
 
-İlk bankacılık dataset'i kontrollü synthetic veridir. Bu bölüm işlem üretim
-ve analiz kapsamını belirler; TransactionKind alanı/enum'u veya yeni tablo
-eklemez. Mevcut Direction yalnızca para yönüdür, işlemin ekonomik türü değildir.
+İlk sürüm (9 Ekim) transfer üretmiyor ve harcamayı Debit toplamı sayıyordu; o zaman
+Direction'dan başka ayırt edici alan yoktu. KIND-01–04 ile `Transactions.Kind`,
+`PairId` ve `Accounts.AccountType` eklendi. Bu bölüm güncel kuraldır: **yön (Direction)
+paranın nereye gittiğini, tür (Kind) neden gittiğini söyler; harcama türe göre ölçülür.**
 
-### Dahil edilen ve dışarıda bırakılan hareketler
+### Hareketler ve harcamaya etkisi
 
-| Hareket | İlk dataset | Direction | Harcama toplamına etkisi |
-| --- | --- | --- | --- |
-| Yeme-içme, market, giyim, ulaşım, eğlence, seyahat, yakıt, sağlık alışverişleri | Dahil; tamamlanmış mal/hizmet ödemeleri | Debit | Amount eklenir |
-| Abonelik ve faturalar | Dahil; tamamlanmış ödemeler | Debit | Amount eklenir |
-| OTHER ile sınıflandırılmış mal/hizmet ödemesi | Dahil; OTHER transfer torbası değildir | Debit | Amount eklenir |
-| Kategorisi henüz belirlenmemiş mal/hizmet ödemesi | Dahil; üretici bunun harcama olduğunu biliyor, kategori alanları null | Debit | Genel toplama eklenir; dağılımda kategorisiz grupta gösterilir |
-| Maaş | Dahil; bağımsız synthetic para girişi | Credit | Harcamadan düşülmez |
-| Açılış fonlaması | Dahil; başlangıç bakiyesi 0 olan hesaba synthetic fon girişi | Credit | Harcamadan düşülmez; başka hesapta karşı Debit üretilmez |
-| Kendi hesapları arası transfer, EFT/havale, kişiye para gönderme/alma | Hariç | Üretilmez | Alışveriş olarak sayılmamalı |
-| Nakit çekme/yatırma | Hariç | Üretilmez | Nakit çekmek harcamanın gerçekleştiğini kanıtlamaz |
-| Döviz/altın alım-satımı ve yatırım hesabına aktarım | Hariç | Üretilmez | Tarihsel varsayımsal karşılaştırma, gerçek yatırım işlemi değildir |
-| İade, kısmi iade, iptal/ters kayıt, chargeback | Hariç | Üretilmez | Net harcama henüz desteklenmez |
-| Kredi kullanımı/ödemesi, kredi kartı borcu ödemesi, faiz ve banka komisyonları | Hariç | Üretilmez | İlk veri setinde mal/hizmet harcamalarıyla karıştırılmaz |
-| Bekleyen provizyon, başarısız veya planlanmış işlem | Hariç | Üretilmez | Mevcut modelde durum alanı yok; yalnızca tamamlanmış hareket üretilir |
+| Hareket | Dataset | Direction / Kind | PairId | Harcama toplamına etkisi |
+| --- | --- | --- | --- | --- |
+| Yeme-içme, market, giyim, ulaşım, eğlence, seyahat, yakıt, sağlık; abonelik ve fatura | Dahil; tamamlanmış ödeme | Debit / Purchase | Banka dışı merchant'ta null | Amount eklenir |
+| Kahve Durağı gibi iç dükkândan alışveriş (alıcı tarafı) | Dahil (KIND-04b) | Debit / Purchase | Dolu | Amount eklenir; banka dışı alışverişten farkı yoktur |
+| OTHER ile sınıflandırılmış veya kategorisi henüz belirlenmemiş Purchase | Dahil | Debit / Purchase | — | Genel toplama eklenir; kategorisiz olan dağılımda ayrı grupta gösterilir |
+| Dükkânın satış geliri (satıcı tarafı) | Dahil; yalnız Business hesaba | Credit / Sale | Dolu | Harcama değildir; ayrı "satış geliri" analizi |
+| Müşteriler arası veya kendi hesapları arası transfer | Dahil (KIND-04b); aynı para birimi | Debit veya Credit / Transfer | Dolu | **Harcamaya eklenmez**; gönderen tarafı Debit olsa da alışveriş değildir |
+| Maaş | Dahil | Credit / Salary | null | Harcamadan düşülmez |
+| Açılış fonlaması | Dahil | Credit / OpeningFunding | null | Harcamadan düşülmez; karşı Debit yoktur |
+| Nakit çekme/yatırma | Hariç | Üretilmez | — | Nakit çekmek harcamanın gerçekleştiğini kanıtlamaz |
+| Döviz/altın alım-satımı, farklı para birimli transfer, yatırım hesabına aktarım | Hariç | Üretilmez | — | Tarihsel karşılaştırma gerçek yatırım işlemi değildir |
+| İade, kısmi iade, iptal/ters kayıt, chargeback | Hariç | Üretilmez | — | Net harcama henüz desteklenmez |
+| Kredi kullanımı/ödemesi, kart borcu ödemesi, faiz ve banka komisyonları | Hariç | Üretilmez | — | Mal/hizmet harcamasıyla karıştırılmaz |
+| Bekleyen provizyon, başarısız veya planlanmış işlem | Hariç | Üretilmez | — | Durum alanı yok; yalnız tamamlanmış hareket yazılır |
 
-Açılış fonlaması demo için dış kaynaklı bir başlangıç girişidir; bu tercih
-gerçek dünyadaki bütün Credit hareketlerinin gelir olduğu anlamına gelmez.
+Açılış fonlaması demo için dış kaynaklı bir başlangıç girişidir; gerçek dünyadaki
+bütün Credit hareketlerinin gelir olduğu anlamına gelmez. İç dükkân ödemesinin anında
+ve komisyonsuz satıcı hesabına geçmesi bir demo basitleştirmesidir.
 
 ### Analiz sözleşmesi
 
-- Bu kontrollü dataset'te harcama = müşteri/hesap + OccurredAt dönemi + tek
-  para birimi kapsamındaki Debit Amount toplamıdır. Kategori filtresi varsa
-  yalnızca seçilen kategori dahil edilir. Dönem CreatedAt'a göre seçilmez.
-- Bu toplam brüt mal/hizmet harcamasıdır; Credit toplamı çıkarılarak net harcama
-  üretilmez. Örneğin 1000 TRY maaş ve 100 TRY alışverişte harcama 100 TRY,
-  başlangıç bakiyesi 0 ise bakiye 900 TRY olur. Bakiye ile harcama farklıdır.
-- Maaş/açılış fonlaması kategori alanları null kalacak; harcama kategorilendirme
-  akışı bu Credit kayıtlarını atlayacak. Kategorisiz Debit, harcama analizinden
-  düşürülmeyecek. Merchant bulunmaması da kaydı genel harcama toplamından çıkarmaz.
-- TRY, USD, EUR ve GBP birbirine dönüştürülmeden toplanmaz. Farklı para
-  birimlerindeki hesaplara ayrı synthetic fonlama yapılabilir; karşılıklı
-  transfer/döviz alım-satım hareketi üretilmez.
-- Yatırım karşılaştırması aynı harcama tanımının TRY alt kümesini kullanır.
-  Maaş veya açılış fonlaması “harcasaydın” karşılaştırmasına dahil edilmez.
+- **Harcama = `Kind = Purchase`** kayıtlarının, müşteri/hesap + OccurredAt dönemi + tek
+  para birimi kapsamındaki Amount toplamıdır. Kategori filtresi varsa yalnız seçilen
+  kategori dahil edilir. Dönem CreatedAt'a göre seçilmez.
+- **Bütün Debit'leri toplamak yanlıştır.** Örnek: Ada'nın 1–10 Ekim 2026 harcaması
+  735 TRY'dir; Debit toplamı 1.500 TRY transfer nedeniyle 2.235 TRY çıkar.
+- Toplam brüt mal/hizmet harcamasıdır; Credit çıkarılarak net harcama üretilmez.
+  1000 TRY maaş ve 100 TRY alışverişte harcama 100 TRY'dir; bakiye ile harcama farklıdır.
+- Kategorisiz Purchase harcamadan düşürülmez; merchant bulunmaması da kaydı genel
+  toplamdan çıkarmaz. Kategori yalnız Purchase'ta bulunur (DB `CK_Transactions_Kind_Category`).
+- Kişisel harcama analizleri varsayılan olarak Personal hesapları kapsar. Business
+  hesabın satış geliri ayrı sorudur ("dükkânıma ne kadar girdi?" = Sale toplamı).
+- Transfer analizleri karşı tarafı PairId üzerinden karşı bacağın hesabından bulur;
+  isim veritabanına kopyalanmaz ve maskeli gösterilir.
+- TRY, USD, EUR ve GBP birbirine dönüştürülmeden toplanmaz.
+- Yatırım karşılaştırması aynı harcama tanımının (Purchase) TRY alt kümesini kullanır.
+  Maaş, açılış fonlaması, satış geliri veya transfer "harcasaydın" karşılaştırmasına girmez.
 
-### Bu kapsam nasıl korunacak?
+### Bu kapsam nasıl korunuyor?
 
-Seed senaryoları açıkça yukarıdaki izinli hareketlerden üretilecek. Her seed
-grubunun beklenen harcama ve bakiye toplamı bağımsız fixture ile doğrulanacak.
-Kategori ve merchant etiketi işlemin harcama olduğunu kanıtlamaz. RawDescription
-içinde “transfer” arayıp karar vermek veya LLM'ye tür tahmin ettirmek kapsam
-koruması olarak kullanılmayacak. Mevcut DB, Debit'in alışveriş mi transfer mi
-olduğunu anlayamaz; bu sınır veri üretim/yazma yoluna aittir.
+| Koruma | Yer |
+| --- | --- |
+| Kind ↔ Direction ↔ PairId ↔ kategori uyumu | `InputRules.Kind`, `EntityValidation` ve 5 DB CHECK (KIND-02) |
+| Bir çiftte en fazla bir Debit ve bir Credit | `UNIQUE (PairId, Direction)` |
+| Çiftin iki bacağı birlikte, aynı tutar/para birimi/zamanla yazılır | `PairedTransactionSeedWriter` (KIND-03) |
+| Yarım çift yazılamaz | Tek bacaklı yazıcı PairId'li kaydı reddeder |
+| Sale yalnız Business hesaba | İki bacaklı yazıcı (KIND-04a) ve `CK_Accounts_AccountType` |
+| Seed harcama/bakiye beklentileri | Bağımsız fixture testleri (`SyntheticDatasetIntegrityTests`) |
 
-Gerçek/belirsiz bankacılık verisi veya serbest işlem yazma yolu açılmadan önce
-bu kapsam yeniden ele alınmalı. Mevcut modelin ayıramadığı bir Debit transferi
-sessizce alışveriş sayılmamalı; desteklenmeyen kaynak/yazma senaryosu mevcut
-analize alınmamalıdır. Bu karar bir runtime tür tespit algoritması eklendiği
-anlamına gelmez. API-11 yalnızca kontrollü synthetic kapsamı koruyacak.
+İşlem türü yazma anında açıkça verilir. RawDescription içinde "transfer" aramak veya
+LLM'ye tür tahmin ettirmek kapsam koruması olarak kullanılmaz; LLM tür belirleyemez,
+yalnız backend'in döndürdüğü türü açıklar.
 
 ### İade ve net harcama için ayrı karar
 
-Şimdilik refund ve net harcama gereksinimi yoktur. İade daha sonra istenirse
-işlem türü, iadenin orijinal işleme bağlantısı, kısmi/çoklu iadeler, para birimi,
-iade dönemi/orijinal harcama dönemi ve çift sayımı önleme birlikte tasarlanacak.
-Bu karar alınmadan bütün Credit'leri iade saymak veya Amount'u negatif yapmak
-yasaktır. TransactionKind kendiliğinden eklenmez; model değişikliği kullanıcıyla
-ayrı adımda kararlaştırılır.
+Refund ve net harcama gereksinimi yoktur. İstenirse yeni bir Kind, orijinal işleme
+bağlantı, kısmi/çoklu iadeler, para birimi, iade dönemi ve çift sayımı önleme birlikte
+tasarlanır. Bu karar alınmadan Credit'leri iade saymak veya Amount'u negatif yapmak yasaktır.
 
-### Sonraki seed/analytics testleri için kabul örnekleri
+### Seed/analytics kabul örnekleri
 
 | Örnek | Beklenen sonuç |
 | --- | --- |
-| 1000 TRY açılış Credit + 100 TRY yemek Debit + 50 TRY abonelik Debit | Harcama 150 TRY, bakiye 850 TRY |
-| Yukarıdaki 50 TRY Debit kategorisiz | Genel harcama yine 150 TRY; kategorisiz grup 50 TRY |
+| 1000 TRY açılış + 100 TRY yemek Purchase + 50 TRY abonelik Purchase | Harcama 150 TRY, bakiye 850 TRY |
+| Yukarıdaki 50 TRY Purchase kategorisiz | Genel harcama yine 150 TRY; kategorisiz grup 50 TRY |
+| 100 TRY Purchase + 500 TRY gönderilen Transfer | Harcama 100 TRY; transfer ayrı raporlanır |
+| 120 TRY iç dükkân alışverişi | Alıcının harcaması 120 TRY; dükkânın satış geliri 120 TRY; ikisi birbirini götürmez |
 | 100 TRY Debit ve 10 USD Debit | Ayrı toplamlar; 110 diye birleşik harcama verilmez |
 | Mart işlemi ekimde import edilmiş | Mart harcamasına dahil; CreatedAt nedeniyle ekime taşınmaz |
-| Seed senaryosuna transfer veya refund eklenmesi | İlk kapsamın ihlali; senaryo incelemesi/fixture kontrolünde reddedilir, harcama toplamına sokulmaz |
-
-Bu bölümdeki seed/analytics örnekleri ilgili SYN/BAL/ANA işlerinin kabul
-senaryolarıdır; VAL-07 doğrulama testleri ayrı olarak çalıştırılmıştır.
+| Seed senaryosuna refund, nakit veya döviz transferi eklenmesi | Kapsam ihlali; harcama toplamına sokulmaz |
 
 ## Sonraki adımlara bırakılanlar
 
 - VAL-02 politikası yukarıda tanımlandı ve C# SaveChanges/DB sınırında uygulanıp test edildi.
 - VAL-03 politikası yukarıda tanımlandı ve C# SaveChanges/DB sınırında uygulanıp test edildi.
 - VAL-04 politikası yukarıda tanımlandı ve C# setter/SaveChanges/DB CHECK sınırında uygulanıp test edildi; LLM eşiği CAT-05'te.
-- VAL-05 kapsamı yukarıda tanımlandı; seed/yazma/analytics uygulaması SYN/BAL/ANA adımlarında.
+- VAL-05 kapsamı KIND-05 ile güncellendi (harcama = Kind Purchase); seed/yazma tarafı KIND-02–04 ile uygulandı, analytics ANA adımlarında.
 - VAL-06: kredili hesap yok; negatif bakiye ve yetersiz bakiye reddi kararı.
 - VAL-07: entity, SaveChanges ve DB doğrulama sınırları uygulandı; geçersiz örnek testleri geçti.
 
