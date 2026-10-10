@@ -1,0 +1,20 @@
+namespace BankingAI.Application.Tests;
+
+// Fixed identities of the seeded demo dataset (SyntheticCustomerSeeder / SyntheticAccountSeeder) and
+// the demo reference moment. One place, so a seed change is updated once instead of in every test file.
+internal static class DemoData
+{
+    // 10 Ekim 2026 15:00 Istanbul (UTC+3); all hand-computed expectations assume this "now".
+    public static readonly DateTimeOffset DemoNowUtc = new(2026, 10, 10, 12, 0, 0, TimeSpan.Zero);
+
+    // Customers (10000000-…)
+    public static readonly Guid Ada = Guid.Parse("10000000-0000-0000-0000-000000000001");
+    public static readonly Guid Deniz = Guid.Parse("10000000-0000-0000-0000-000000000002");
+    public static readonly Guid Ege = Guid.Parse("10000000-0000-0000-0000-000000000003");
+
+    // Accounts (20000000-…)
+    public static readonly Guid AdaTryAccount = Guid.Parse("20000000-0000-0000-0000-000000000001");
+    public static readonly Guid AdaUsdAccount = Guid.Parse("20000000-0000-0000-0000-000000000002");
+    public static readonly Guid DenizTryAccount = Guid.Parse("20000000-0000-0000-0000-000000000003");
+    public static readonly Guid DenizShopAccount = Guid.Parse("20000000-0000-0000-0000-000000000007"); // Business
+}

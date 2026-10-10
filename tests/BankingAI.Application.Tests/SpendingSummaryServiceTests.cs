@@ -2,6 +2,7 @@ using BankingAI.Application.Analytics;
 using BankingAI.Data;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
+using static BankingAI.Application.Tests.DemoData;
 
 namespace BankingAI.Application.Tests;
 
@@ -9,17 +10,6 @@ namespace BankingAI.Application.Tests;
 // acceptance fixtures (docs/synthetic-seed.md), never derived from the seeders.
 public sealed class SpendingSummaryServiceTests
 {
-    // 10 Ekim 2026 15:00 Istanbul — demo reference moment.
-    private static readonly DateTimeOffset DemoNowUtc = new(2026, 10, 10, 12, 0, 0, TimeSpan.Zero);
-
-    private static readonly Guid Ada = Guid.Parse("10000000-0000-0000-0000-000000000001");
-    private static readonly Guid Deniz = Guid.Parse("10000000-0000-0000-0000-000000000002");
-    private static readonly Guid Ege = Guid.Parse("10000000-0000-0000-0000-000000000003");
-    private static readonly Guid AdaTryAccount = Guid.Parse("20000000-0000-0000-0000-000000000001");
-    private static readonly Guid AdaUsdAccount = Guid.Parse("20000000-0000-0000-0000-000000000002");
-    private static readonly Guid DenizTryAccount = Guid.Parse("20000000-0000-0000-0000-000000000003");
-    private static readonly Guid DenizShopAccount = Guid.Parse("20000000-0000-0000-0000-000000000007");
-
     private static SpendingSummaryService Service(BankingDbContext db) =>
         new(db, new PeriodResolver(new FixedTimeProvider(DemoNowUtc)));
 

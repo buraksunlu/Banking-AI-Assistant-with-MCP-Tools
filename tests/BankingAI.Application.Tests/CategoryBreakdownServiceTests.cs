@@ -1,20 +1,13 @@
 using BankingAI.Application.Analytics;
 using BankingAI.Data;
 using Xunit;
+using static BankingAI.Application.Tests.DemoData;
 
 namespace BankingAI.Application.Tests;
 
 // Reads the seeded demo data. Expected values are hand-computed acceptance fixtures.
 public sealed class CategoryBreakdownServiceTests
 {
-    private static readonly DateTimeOffset DemoNowUtc = new(2026, 10, 10, 12, 0, 0, TimeSpan.Zero);
-
-    private static readonly Guid Ada = Guid.Parse("10000000-0000-0000-0000-000000000001");
-    private static readonly Guid Deniz = Guid.Parse("10000000-0000-0000-0000-000000000002");
-    private static readonly Guid Ege = Guid.Parse("10000000-0000-0000-0000-000000000003");
-    private static readonly Guid DenizTryAccount = Guid.Parse("20000000-0000-0000-0000-000000000003");
-    private static readonly Guid DenizShopAccount = Guid.Parse("20000000-0000-0000-0000-000000000007");
-
     private static PeriodResolver Periods() => new(new FixedTimeProvider(DemoNowUtc));
 
     private static async Task<CategoryBreakdown> GetAsync(SpendingQuery query)

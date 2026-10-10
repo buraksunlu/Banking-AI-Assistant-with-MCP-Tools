@@ -1,14 +1,12 @@
 using BankingAI.Application.Analytics;
 using Xunit;
+using static BankingAI.Application.Tests.DemoData;
 
 namespace BankingAI.Application.Tests;
 
 public sealed class PeriodResolverTests
 {
     private const string Istanbul = "Europe/Istanbul";
-
-    // 10 Ekim 2026 15:00 Istanbul (UTC+3) — demo referans günü.
-    private static readonly DateTimeOffset DemoNowUtc = new(2026, 10, 10, 12, 0, 0, TimeSpan.Zero);
 
     private static PeriodResolver ResolverAt(DateTimeOffset utcNow) => new(new FixedTimeProvider(utcNow));
 
