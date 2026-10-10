@@ -1350,8 +1350,9 @@ IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- ANA-01: ortak dönem sözleşmesi ve ayarlanabilir demo saati (TimeProvider).
-- Bilinen demo veri boşlukları: Ekim 2026'da işlem yok; 2026'da TRANSPORTATION yok.
+- ANA-01 tamamlandı (PeriodResolver, 17/17 test).
+- Demo veri boşluklarını kapatan küçük seed: Ekim 2026'da işlem yok; 2026'da TRANSPORTATION yok.
+- Ardından ANA-02 harcama özeti.
 
 KNOWN ISSUES
 - Synthetic seed kapsamları parça parça hazırdır: categories, market-assets, customers, accounts ve seçili transaction komutları. Transaction seed grupları sabit ID, atomik bakiye yazımı ve PostgreSQL advisory lock kullanır. Tek komutluk `seed synthetic` ve historical market import henüz yoktur.

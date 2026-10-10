@@ -205,7 +205,7 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 
 ## 12. Deterministik analytics — bir sorgu, bir adım
 
-- [ ] ANA-01 — Ortak dönem sözleşmesini oluştur. Tek referans zamanı, Türkiye takvimi ve [başlangıç, bitiş) UTC sınırları; bu ay/son üç ay/geçen yıl anlamlarını netleştir.
+- [x] ANA-01 — `BankingAI.Application` class library'si ve `PeriodResolver` eklendi. `TimeProvider` tek referans zamanıdır (demo saati sabitlenebilir); "bugün" müşterinin saat diliminden belirlenir. Anlamlar: ThisMonth = ay başı–bugün, LastMonth = önceki tam ay, Last3Months/Last6Months = bugünden geriye kayan pencere, Custom = dahil iki tarih, gelecek yok, en fazla 24 ay. Sonuç `[StartUtc, EndUtc)` (offset 0) + yerel StartDate/EndDate. Adlandırılmış dönemle tarih gönderilmesi, bilinmeyen saat dilimi ve tanımsız enum reddedilir. `tests/BankingAI.Application.Tests` 17/17, mevcut suite 22/22 geçti. Bilinen sınır: gece yarısı DST geçişi olan bölgeler desteklenmez (Europe/Istanbul etkilenmez). Demo saati config bağlantısı API adımında yapılacak.
 - [ ] ANA-02 — VAL-05 kapsamındaki tamamlanmış synthetic mal/hizmet Debit hareketlerinin brüt harcama özetini hesapla. OccurredAt dönemi ve müşteri/hesap/tek para birimi filtresi kullan; kategorisiz Debit'i kaybetme. Maaş/açılış Credit'ini düşme, farklı para birimlerini birleştirme; bu varsayımı gerçek transfer/refund verisine genelleme.
 - [ ] ANA-03 — Kategori dağılımını hesapla. Null kategori ayrı grup olsun; toplam dağılım harcama özetiyle tutarlı olsun.
 - [ ] ANA-04 — Merchant dağılımını hesapla. NormalizedMerchant üzerinden grupla; bilinmeyen merchant'ı kaybetme.
@@ -343,7 +343,7 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 ## Şu anki sonraki adım
 
 SYN-01–13 banking seed adımları tamamlandı ve banking foundation kabul edildi (DOC-09).
-Sıradaki iş ANA-01: ortak dönem sözleşmesi + ayarlanabilir demo saati. Market kolu
+ANA-01 (PeriodResolver) tamamlandı. Sıradaki iş demo veri boşluklarını kapatmak, ardından ANA-02. Market kolu
 (SRC-02 altın kaynağı) paralel bekliyor. Bilinen demo veri boşlukları: Ekim 2026'da
 işlem yok, 2026'da TRANSPORTATION yok; ANA-01 sonrasında küçük seed adımıyla kapatılacak.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
