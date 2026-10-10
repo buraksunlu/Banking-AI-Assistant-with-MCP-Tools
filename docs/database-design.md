@@ -318,6 +318,11 @@ Harcama sıfırsa yüzde null olur; ara birimler erken yuvarlanmaz.
 USD ve EUR birimleri döviz adedi, altın birimi gram; sonuç TRY'dir.
 Makas bu iki fiyatla kapsanır; ek ücret/vergi/enflasyon kapsamı ayrıca netleşir.
 
+Kullanıcıya “geçmiş alım / bugünkü satış” denir; bu ifadeler müşteri yönündedir.
+Bu senaryoda geçmiş sağlayıcı satış ve güncel sağlayıcı alış yeterlidir.
+Geçmiş sağlayıcı alış verisi zorunlu değildir; eksik değer uydurulmaz.
+Geçmiş değerleme tarihi desteği istenirse o günün alış fiyatı ayrıca gerekir.
+
 ### Mevcut tablo ve bekleyen değişiklik
 
 Yukarıdaki DailyMarketPrices tablosu mevcut şemayı gösterir: yalnızca `Price`

@@ -1292,6 +1292,10 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 - 10 Ekim 2026 kullanıcı kararı: seçilen kategori/dönemdeki TRY Debit toplamı,
   dönem başlangıcında tek seferde yatırılmış varsayılır. Her harcama tarihinde
   ayrı alım yapılmaz. Harcama toplamı backend tarafından hesaplanır.
+- Kullanıcıya anlatım müşteri yönündedir: geçmiş alım fiyatı ve bugünkü satış
+  fiyatı. Kaynak alan adları bu anlatımla karıştırılmaz. Bugün değerlemesi için
+  geçmiş sağlayıcı satış + güncel sağlayıcı alış yeterlidir; geçmiş alış
+  arşivi yalnızca geçmiş değerleme tarihi desteği istenirse gerekir.
 - Müşteri başlangıçta alırken sağlayıcının SATIŞ fiyatı, değerleme tarihinde
   satarken sağlayıcının ALIŞ fiyatı kullanılır. USDTRY, EURTRY ve gram altın/TRY
   aynı kurala tabidir; sağlayıcının isimlendirme yönü ayrıca doğrulanır.

@@ -145,7 +145,7 @@ Migration geçmişi:
 - [x] SRC-00 — 10 Ekim 2026 kararı belgelendi: toplam TRY harcama dönem başlangıcında tek seferde yatırılmış kabul edilir. Başlangıçta sağlayıcının satış, değerlemede alış fiyatı kullanılır. Yalnızca belgeler güncellendi; model/import/hesaplama henüz uygulanmadı.
 
 - [ ] SRC-01 — USDTRY ve EURTRY ücretsiz kaynak adaylarını incele. Resmî kaynak, erişim koşulları, API anahtarı ihtiyacı ve iki yıllık günlük kapsamı örnek yanıtla göster.
-- [ ] SRC-02 — Gram altın kaynağını ayrı doğrula. Geçmiş ve güncel gram/TL alış–satış, gram/ons, saflık, sağlayıcı yönü, fiyat tanımı ve iki yıllık erişim kanıtlanmadan kaynağı kesinleştirme.
+- [ ] SRC-02 — Gram altın kaynağını ayrı doğrula. Müşterinin geçmiş alımı için sağlayıcı satış geçmişini, bugün satışı için güncel sağlayıcı alış fiyatını doğrula. Gram/ons, saflık, TRY yönü, fiyat tanımı ve iki yıllık satış geçmişi kanıtlanmadan kaynağı kesinleştirme.
 - [ ] SRC-03 — Fiyat sözleşmesini yaz. Varlık başına tutarlı kaynak ve alış/satış çifti; başlangıç satış, değerleme alış; kaynak takvim günü; eksik veri gösterimi; varsa birim dönüşüm formülü açık olsun.
 - [ ] SRC-04 — Kullanıcıya kaynak seçimini ve kısıtlarını açıkla. Ücretli servis kullanma; erişim engeli varsa kapsam tamamlandı deme ve fake fiyatla kapatma.
 - [ ] SRC-05 — Küçük ham veri örneğini saklayıp parser'ı dene. Ondalık ayırıcı, tarih formatı, null değerler, tekrarlar ve bozuk satırlar doğru ele alınsın; secret saklama.
@@ -153,7 +153,7 @@ Migration geçmişi:
 ## 9. Import'u birer varlıkla geliştir
 
 Kaynak doğrulamasından sonra ve import'tan önce:
-- [ ] MP-06 — Mevcut tek Price yerine alış/satışı saklama tasarımını kullanıcıya açıkla; alan isimleri, precision, null ve geçerli fiyat çifti kurallarını belirle.
+- [ ] MP-06 — Mevcut tek Price yerine alış/satışı saklama tasarımını kullanıcıya açıkla; alan isimleri, precision, null ve geçerli fiyat kurallarını belirle. Geçmiş kayıtta yalnız sağlayıcı satış varsa alış uydurma; bugün satışı senaryosunda geçmiş alış zorunlu değildir. Değerleme fiyatının gerçek gününü koru.
 - [ ] MP-07 — Onaylanan entity/configuration/validation değişikliğini uygula; yeni incremental migration üret, SQL'i incele ve DB'ye uygula. Mevcut geçmişi koru.
 - [ ] MP-08 — Alış/satış yönünü, geçersiz fiyat çiftlerini ve DB okuma/yazımını doğrula; ortalama fiyatı iki tarafa kopyalama.
 

@@ -128,3 +128,62 @@ Ortalama USD/ons değerini TRY/grama çevirmek alış/satış çiftini üretmez.
 Geçmiş ve güncel gram/TL alış–satış kaynağı doğrulanmadan altın import'u
 uygulanmayacak; ortalamadan makas türetilmeyecek. Mevcut tek Price şeması
 MP-06–08 adımlarında ayrıca tasarlanıp değiştirilecek.
+
+## Adım 2 — alış/satış kaynak incelemesi
+
+### Döviz sonucu
+
+TCMB resmî döviz sayfası bu serileri gösterge niteliğinde tanımlar:
+https://www.tcmb.gov.tr/wps/wcm/connect/TR/TCMB%2BTR/Main%2BMenu/Istatistikler/Doviz%2BKurlari
+
+İndirilen XML'deki ForexSelling başlangıç alımı, ForexBuying değerleme satışı
+için kullanılabilir; Banknote alanlarıyla karıştırılmaz. Bu bir referans
+simülasyonudur, müşterinin bankasının işlem makası değildir. Bir yıllık
+248 günlük çift elde mevcut; iki yıllık döviz kapsamı henüz doğrulanmadı.
+
+### Altın adayları
+
+| Aday | Belgelenen imkân | Sonuç |
+| --- | --- | --- |
+| Gold-api.com | Geçmiş XAU ortalaması | Eldeki veri alış/satış gereksinimini karşılamıyor |
+| Hesaplı Altın | Gram/TL geçmiş satış, güncel alış/satış; ücretsiz anahtar | En yakın aday; gerçek istek HTTP 403, kapsam doğrulanmadı |
+| Altın Grafiği | Güncel alış/satış; geçmiş sunulmadığı belirtiliyor | Bir yıllık başlangıç verisi için yeterli değil |
+| Gramvey | Belgede en uzun tarih seçimi son ay; repo arşivlenmiş | Bir yıllık erişim doğrulanmadı |
+
+Kaynak belgeleri:
+- https://hesaplialtin.com/altin-fiyati-api/gecmis
+- https://hesaplialtin.com/altin-fiyati-api
+- https://hesaplialtin.com/nasil-hesapliyoruz
+- https://altingrafigi.com/ucretsiz-altin-fiyatlari-api
+- https://github.com/ahmetilhn/altin-fiyatlari-api
+
+Hesaplı Altın geçmiş endpoint'i:
+`/api/v1/public-history?kod=GRAM_ALTIN_TRY&aralik=1y`.
+Belgeye göre seri [Unix milisaniye, satış] çiftlerinden oluşur; uzun
+aralıklar İstanbul günü kapanışıdır, en fazla 400 nokta döner. `tumu`
+seçeneği iki yıllık eksiksiz günlük kapsamın kanıtı değildir.
+Güncel `/api/v1/public-prices` içindeki `alis` bozdurma, `satis` alım
+fiyatıdır. Kaynak özel sağlayıcıdır; piyasa fiyatlarından hesapladığı
+bilgi amaçlı değerleri sunar. Gram ürününün saflığı ayrıca teyit edilmeli.
+
+Belgelerde 13 Ekim'e kadar anahtarsız denemeye izin verildiği yazmasına
+rağmen bu ortamda geçmiş isteği 403 döndü. Nedeninin anahtar mı erişim
+katmanı mı olduğu kanıtlanmadı; erişim engeli aşılmaya çalışılmadı.
+Gold-api.com anahtarı bu başka sağlayıcıya gönderilmedi.
+Ücretsiz anahtar sayfası: https://hesaplialtin.com/altin-fiyati-api/anahtar
+Anahtar edinmek/başvuru göndermek bu incelemede yapılmadı.
+Anahtar başına 60 istek/dakika ve 5 saniyeden sık sorgulamama koşulu
+belgelenmiş. Kaynak bağlantısı şartı geçmiş ve ana API belgelerinde
+farklı ifade ediliyor; kesin kullanım sözleşmesi açıklığa kavuşturulmalı.
+
+### Kapsam ayrımı
+
+Kullanıcının “geçmişte al, bugün sat” örneği için geçmiş SATIŞ ve güncel
+ALIŞ yeterlidir. Her eski günün alış fiyatı bu tek senaryoda zorunlu değildir.
+Ancak geçmiş bir günde değerleme veya geriye dönük aynı sonucu üretme
+için o günün ALIŞ fiyatı da gerekir. Bu ayrım model tasarımında açıklanacak;
+eksik geçmiş alış fiyatı satıştan/ortalamadan uydurulmayacak.
+
+Araştırma sonucu altın kaynağı henüz kesinleşmedi. SRC-02 açık, model/migration/
+import değişmedi. Sonraki doğrulama gerçek yetkili yanıt, tarih kapsamı ve
+ürün saflığıdır. Başarılı erişim olmadan tablo değişikliğine geçilmez.
