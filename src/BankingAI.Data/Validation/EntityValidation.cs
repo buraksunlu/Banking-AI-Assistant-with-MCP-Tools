@@ -24,6 +24,7 @@ public static class EntityValidation
                 InputRules.Text(a.AccountName, 100, nameof(a.AccountName));
                 InputRules.Text(a.AccountNumber, 50, nameof(a.AccountNumber));
                 Currency(a.CurrencyCode);
+                InputRules.Require(Enum.IsDefined(a.AccountType), nameof(a.AccountType), "Personal veya Business olmalı.");
                 InputRules.Money(a.Balance, nameof(a.Balance), positive: false);
                 InputRules.Timestamp(a.CreatedAt, referenceUtc, nameof(a.CreatedAt));
                 break;

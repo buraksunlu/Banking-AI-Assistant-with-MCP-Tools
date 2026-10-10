@@ -68,6 +68,8 @@ public class PostgreSqlValidationTests
         await Check(string.Format(c, "\"CreatedAt\" = 'infinity'"), "CK_Customers_CreatedAt_Finite");
         await Check(string.Format(c, "\"CreatedAt\" = '0001-01-01T00:00:00Z'"), "CK_Customers_CreatedAt_Finite");
         await Check(string.Format(a, "\"Balance\" = -0.01"), "CK_Accounts_Balance_NonNegative");
+        await Check(string.Format(a, "\"AccountType\" = 0"), "CK_Accounts_AccountType");
+        await Check(string.Format(a, "\"AccountType\" = 3"), "CK_Accounts_AccountType");
         await Check(string.Format(a, "\"CreatedAt\" = '-infinity'"), "CK_Accounts_CreatedAt_Finite");
         await Check(string.Format(t, "\"NormalizedMerchant\" = E'\\t'"), "CK_Transactions_NormalizedMerchant_NotBlank");
         await Check(string.Format(t, "\"OccurredAt\" = 'infinity'"), "CK_Transactions_Timestamps");

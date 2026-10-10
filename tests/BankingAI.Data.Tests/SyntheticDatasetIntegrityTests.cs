@@ -170,6 +170,21 @@ public sealed class SyntheticDatasetIntegrityTests
         Assert.False(await db.Transactions.AnyAsync(t => t.PairId != null));
     }
 
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Existing_seed_accounts_are_backfilled_as_personal()
+    {
+        var personalNumbers = ExpectedAccounts.Select(a => a.AccountNumber).ToArray();
+        await using var db = new BankingDbContext();
+        var types = await db.Accounts.AsNoTracking()
+            .Where(a => personalNumbers.Contains(a.AccountNumber))
+            .Select(a => a.AccountType)
+            .ToListAsync();
+
+        Assert.Equal(personalNumbers.Length, types.Count);
+        Assert.All(types, type => Assert.Equal(AccountType.Personal, type));
+    }
+
     private sealed record ExpectedAccount(
         string AccountNumber,
         decimal Credits,

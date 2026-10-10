@@ -1,3 +1,5 @@
+using BankingAI.Data.Enums;
+
 namespace BankingAI.Data.Entities;
 
 public sealed class Account
@@ -21,6 +23,8 @@ public sealed class Account
     public required string AccountName { get; set; }
     public required string AccountNumber { get; init; }
     public required string CurrencyCode { get; init; }
+    // Most accounts are personal; the dummy shop account sets Business explicitly.
+    public AccountType AccountType { get; init; } = AccountType.Personal;
     public decimal Balance { get; private set; } = 0m;
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
 }

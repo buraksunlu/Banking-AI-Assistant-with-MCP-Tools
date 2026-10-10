@@ -167,6 +167,20 @@ public class ValidationTests
     }
 
     [Fact]
+    public void Account_type_defaults_to_personal_and_must_be_defined()
+    {
+        Account Account(AccountType? type = null) => type is { } value
+            ? new() { CustomerId = Guid.NewGuid(), AccountName = "Shop", AccountNumber = "DUMMY-T", CurrencyCode = "TRY", CreatedAt = Reference, AccountType = value }
+            : new() { CustomerId = Guid.NewGuid(), AccountName = "Personal", AccountNumber = "DUMMY-P", CurrencyCode = "TRY", CreatedAt = Reference };
+
+        Assert.Equal(AccountType.Personal, Account().AccountType);
+        EntityValidation.Validate(Account(), Reference);
+        EntityValidation.Validate(Account(AccountType.Business), Reference);
+        foreach (var invalid in new[] { (AccountType)0, (AccountType)3 })
+            Assert.Throws<ArgumentException>(() => EntityValidation.Validate(Account(invalid), Reference));
+    }
+
+    [Fact]
     public void Only_purchases_can_be_categorized()
     {
         var transfer = new Transaction

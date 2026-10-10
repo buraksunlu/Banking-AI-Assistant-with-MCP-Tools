@@ -27,7 +27,7 @@ harcama tarih kapsamına daraltıldı; gerçek fiyat verisi ve tarih örtüşmes
 çalışmalarında doğrulanacak.
 Historical market import henüz yoktur.
 
-Aktif veritabanında dokuz migration uygulanmıştır:
+Aktif veritabanında on migration uygulanmıştır:
 
 1. `CreateCustomers`
 2. `AddCustomerPreferences`
@@ -38,6 +38,7 @@ Aktif veritabanında dokuz migration uygulanmıştır:
 7. `AddDailyMarketPrices`
 8. `EnforceInputValidation`
 9. `AddTransactionKind`
+10. `AddAccountType`
 
 Migration yaklaşımı incremental'dır: her schema değişikliği yeni bir migration
 olarak eklenir. Uygulanmış migration'lar silinmez veya geriye dönük değiştirilmez;
@@ -142,6 +143,7 @@ Bir müşterinin belirli para birimindeki hesabını temsil eder.
 | AccountName | `string` | `varchar(100)` | Required, boş olamaz |
 | AccountNumber | `string` | `varchar(50)` | Required, unique dummy identifier |
 | CurrencyCode | `string` | `char(3)` | Required, TRY/USD/EUR/GBP |
+| AccountType | `AccountType` | `smallint` | Required; Personal=1, Business=2 (dummy dükkân); DB varsayılanı yok |
 | Balance | `decimal` | `numeric(18,2)` | Required, yeni hesapta 0 |
 | CreatedAt | `DateTimeOffset` | `timestamptz` | Required, UTC |
 

@@ -40,6 +40,17 @@ public static class PairedTransactionSeedWriter
             if (await db.Transactions.AsNoTracking().AnyAsync(t => t.PairId == pairId, cancellationToken))
                 throw new InvalidOperationException($"PairId {pairId} zaten mevcut; bakiyeler ikinci kez değiştirilmedi.");
 
+            // Sales income belongs to a shop. A missing account is reported by the balance update below.
+            if (credit.Kind == TransactionKind.Sale)
+            {
+                var creditAccountType = await db.Accounts.AsNoTracking()
+                    .Where(a => a.Id == credit.AccountId)
+                    .Select(a => (AccountType?)a.AccountType)
+                    .SingleOrDefaultAsync(cancellationToken);
+                if (creditAccountType is { } type && type != AccountType.Business)
+                    throw new InvalidOperationException("Satış geliri (Sale) yalnızca Business hesaba yazılabilir.");
+            }
+
             // Lock ordering: balances are always updated in ascending account id order, whatever the
             // direction. Opposite transfers (a→b, b→a) then wait on the same first row instead of
             // each holding one row and waiting for the other (deadlock, PostgreSQL 40P01).

@@ -39,6 +39,9 @@ namespace BankingAI.Data.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<short>("AccountType")
+                        .HasColumnType("smallint");
+
                     b.Property<decimal>("Balance")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(18, 2)
@@ -67,6 +70,8 @@ namespace BankingAI.Data.Migrations
                             t.HasCheckConstraint("CK_Accounts_AccountName_NotBlank", "\"AccountName\" ~ '[^[:space:]]'");
 
                             t.HasCheckConstraint("CK_Accounts_AccountNumber_NotBlank", "\"AccountNumber\" ~ '[^[:space:]]'");
+
+                            t.HasCheckConstraint("CK_Accounts_AccountType", "\"AccountType\" IN (1, 2)");
 
                             t.HasCheckConstraint("CK_Accounts_Balance_NonNegative", "\"Balance\" >= 0");
 

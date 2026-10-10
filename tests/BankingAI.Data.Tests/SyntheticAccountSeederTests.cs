@@ -78,8 +78,8 @@ public sealed class SyntheticAccountSeederTests
             await transaction.CreateSavepointAsync("invalid");
             var id = Guid.NewGuid();
             var error = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlInterpolatedAsync($"""
-                INSERT INTO "Accounts" ("Id", "CustomerId", "AccountName", "AccountNumber", "CurrencyCode", "Balance", "CreatedAt")
-                VALUES ({id}, {owner}, 'Seed validation', {number}, {currency}, 0, CURRENT_TIMESTAMP)
+                INSERT INTO "Accounts" ("Id", "CustomerId", "AccountName", "AccountNumber", "CurrencyCode", "AccountType", "Balance", "CreatedAt")
+                VALUES ({id}, {owner}, 'Seed validation', {number}, {currency}, 1, 0, CURRENT_TIMESTAMP)
                 """));
             Assert.Equal(sqlState, error.SqlState);
             await transaction.RollbackToSavepointAsync("invalid");

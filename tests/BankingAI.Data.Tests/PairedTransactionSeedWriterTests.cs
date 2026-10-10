@@ -38,7 +38,7 @@ public sealed class PairedTransactionSeedWriterTests
     [Trait("Category", "PostgreSQL")]
     public async Task Purchase_and_sale_pair_keeps_category_on_buyer_only()
     {
-        var (buyer, shop) = await CreateTestAccountsAsync();
+        var (buyer, shop) = await CreateTestAccountsAsync(AccountType.Business);
         try
         {
             await FundAsync(buyer, 100m);
@@ -60,6 +60,30 @@ public sealed class PairedTransactionSeedWriterTests
             Assert.Equal(85m, await BalanceAsync(shop));
         }
         finally { await DeleteTestAccountsAsync(buyer, shop); }
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Sale_into_personal_account_is_rejected_without_side_effects()
+    {
+        var (buyer, personal) = await CreateTestAccountsAsync();
+        try
+        {
+            await FundAsync(buyer, 100m);
+            var (purchase, sale) = Pair(buyer, personal, 50m, TransactionKind.Purchase, TransactionKind.Sale);
+
+            await using (var db = new BankingDbContext())
+            {
+                var error = await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => PairedTransactionSeedWriter.AddAsync(db, purchase, sale));
+                Assert.Contains("Business", error.Message);
+            }
+
+            Assert.Equal(100m, await BalanceAsync(buyer));
+            Assert.Equal(0m, await BalanceAsync(personal));
+            Assert.Empty(await LegsAsync(purchase.PairId!.Value));
+        }
+        finally { await DeleteTestAccountsAsync(buyer, personal); }
     }
 
     [Fact]
@@ -242,7 +266,7 @@ public sealed class PairedTransactionSeedWriterTests
             });
     }
 
-    private static async Task<(Guid A, Guid B)> CreateTestAccountsAsync()
+    private static async Task<(Guid A, Guid B)> CreateTestAccountsAsync(AccountType secondType = AccountType.Personal)
     {
         Assert.False(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BANKINGAI_CONNECTION_STRING")),
             "PostgreSQL testleri için önce .env ortam değişkenlerini yükleyin.");
@@ -250,10 +274,11 @@ public sealed class PairedTransactionSeedWriterTests
         // Two different customers: the default case is a transfer between people.
         var customers = await db.Customers.AsNoTracking().OrderBy(c => c.Id).Select(c => c.Id).Take(2).ToListAsync();
         Assert.Equal(2, customers.Count);
-        var accounts = customers.Select(customerId => new Account
+        var accounts = customers.Select((customerId, index) => new Account
         {
             CustomerId = customerId, AccountName = "KIND-03 test", CurrencyCode = "TRY",
-            AccountNumber = $"DUMMY-PAIRTEST-{Guid.NewGuid():N}"
+            AccountNumber = $"DUMMY-PAIRTEST-{Guid.NewGuid():N}",
+            AccountType = index == 1 ? secondType : AccountType.Personal
         }).ToArray();
         db.Accounts.AddRange(accounts);
         await db.SaveChangesAsync();
