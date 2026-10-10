@@ -174,3 +174,35 @@ bulması için bağımsız kontrol sağlar.
 merchant'ı ve kategorisi de DB'den kontrol edildi. Tüm hareketler
 `TransactionSeedWriter` üzerinden eklendiğinden bakiye etkisi de aynı DB
 transaction'ında yazıldı. Güncel hesap bakiyeleri todo.md'de yer alır.
+
+## SYN-10 kategorisiz ve OTHER ayrımı
+
+`seed transactions categorization-boundaries` Ada'nın TRY hesabına iki sabit
+Debit ekler:
+
+| ID sonu | Tutar | RawDescription | NormalizedMerchant | Kategori metadata'sı |
+| --- | ---: | --- | --- | --- |
+| `401` | 420 TRY | `POS 9055 KADIKOY HARCAMA` | `null` | CategoryId, source, confidence ve CategorizedAt `null` |
+| `402` | 780 TRY | `POS 3182 HOBI MALZEME DUKKANI` | Hobi Dükkânı | CategoryId `11` (`OTHER`), source `Rule`, confidence `null`, CategorizedAt dolu |
+
+`OTHER`, kategori değerlendirmesinden sonra diğer gruplara uymayan işlemdir.
+İlk satır ise henüz kategorize edilmemiştir. Merchant normalizasyonu kategori
+durumundan bağımsızdır: ilk işlemde merchant yoktur, fakat ham açıklama saklıdır.
+Komut kategori ID 11'in `OTHER` koduna karşılık geldiğini doğrular.
+
+## SYN-11 transaction seed eşzamanlılığı
+
+Transaction seed grupları sabit ID'lerle mevcut kayıtları kontrol eder. Aynı
+ID'de aynı içerik varsa atlanır; farklı içerik varsa sessizce değiştirilmez ve
+hata verilir. Her yeni kayıt `TransactionSeedWriter` içinde kendi DB transaction'ı
+ile eklenir; balance delta başarısız olursa işlem insert'i de rollback olur.
+
+`SyntheticTransactionSeeder` existence check ve yazma akışının tamamı boyunca
+sabit PostgreSQL session-level advisory lock tutar. Böylece iki ayrı süreç aynı
+scope'u eşzamanlı başlatsa bile ikinci süreç kayıt kontrolünü ilk süreç bittikten
+sonra yapar. 10 Ekim 2026'da aynı komut iki ayrı süreçte birlikte çalıştırıldı:
+biri 2 kayıt ekledi, diğeri 0 ekledi; DB'de iki satır vardı ve 1.200 TRY bakiye
+delta'sı yalnızca bir kez uygulandı. Bu değişiklik yeni tablo veya migration
+gerektirmez. Farklı uygulama kodunun doğrudan `TransactionSeedWriter` çağrıları
+bu seed lock'una dahil değildir; bu kilit özellikle synthetic seed komutlarını
+sıralar.

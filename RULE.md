@@ -1306,7 +1306,7 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   kullanıcıyla netleşir; açıkça istenen varlık korunur. Eksik veride kazanan uydurulmaz.
 
 ==================================================
-29. MEVCUT PROJE DURUMU — 8 EKİM 2026
+29. MEVCUT PROJE DURUMU — 10 EKİM 2026
 ==================================================
 
 COMPLETED
@@ -1319,18 +1319,18 @@ COMPLETED
   AddMarketAssets, AddDailyMarketPrices, EnforceInputValidation.
 - DailyMarketPrice → MarketAsset RESTRICT ilişkisi ve varlık/gün unique index'i uygulandı; MarketAssets'te üç seed kaydı, DailyMarketPrices'ta henüz fiyat kaydı yok.
 - PK/FK/unique/check/index eşlemeleri ve hesap/işlem currency eşleşmesi.
-- Bir demo Customer, 11 TransactionCategory ve 3 MarketAsset seed kaydı; SYN-03–05 ile üç dummy Customer ve beş Account; SYN-06–09 ile 32 Transaction (14 Credit, 18 Debit) vardır. DailyMarketPrices'ta fiyat kaydı yoktur.
+- Bir demo Customer, 11 TransactionCategory ve 3 MarketAsset seed kaydı; SYN-03–05 ile üç dummy Customer ve beş Account; SYN-06–10 ile 34 Transaction (14 Credit, 20 Debit) vardır. DailyMarketPrices'ta fiyat kaydı yoktur.
 - todo.md oluşturuldu; tamamlanan ve bekleyen küçük adımlar ayrıldı.
 
 IN PROGRESS
 - Database foundation; kullanıcı review'üyle küçük adımlar halinde devam ediyor.
 
 NEXT
-- Kullanıcının seçtiği adım. Todo'daki sıradaki küçük iş SYN-10: kategorisiz ve
-  merchant'ı olmayan Debit örnekleri; `OTHER` ve null kategori ayrımı.
+- Kullanıcının seçtiği adım. Todo'daki sıradaki küçük iş SYN-12: hesap bakiyelerini
+  işlem toplamlarından bağımsız fixture ile doğrulamak.
 
 KNOWN ISSUES
-- Synthetic seed kapsamları parça parça hazırdır: categories, market-assets, customers, accounts ve seçili transaction komutları. Tek komutluk `seed synthetic` ve historical market import henüz yoktur.
+- Synthetic seed kapsamları parça parça hazırdır: categories, market-assets, customers, accounts ve seçili transaction komutları. Transaction seed grupları sabit ID, atomik bakiye yazımı ve PostgreSQL advisory lock kullanır. Tek komutluk `seed synthetic` ve historical market import henüz yoktur.
 - `TransactionSeedWriter` seed işlem insert'i ile Account.Balance delta'sını aynı
   DB transaction'ında yazar. BAL-03/04 concurrency/rollback PostgreSQL kontrolleri geçti.
 - Customer FirstName/LastName geçişi SplitCustomerName migration'ıyla uygulandı.

@@ -7,10 +7,12 @@ namespace BankingAI.Data.Seeding;
 public static class SyntheticTransactionSeeder
 {
     private const short SubscriptionCategoryId = 6;
+    private const long SeedAdvisoryLockId = 871945310246L;
     public const int CreditCount = 14;
     public const int SubscriptionCount = 6;
     public const int CategoryExampleCount = 6;
     public const int GroceryGrowthCount = 6;
+    public const int CategorizationBoundaryCount = 2;
 
     public static Task<int> SeedCreditsAsync(BankingDbContext db, CancellationToken cancellationToken = default)
     {
@@ -81,12 +83,60 @@ public static class SyntheticTransactionSeeder
         return SeedAsync(db, definitions, cancellationToken);
     }
 
+    public static Task<int> SeedCategorizationBoundariesAsync(BankingDbContext db, CancellationToken cancellationToken = default)
+    {
+        var adaTry = Guid.Parse("20000000-0000-0000-0000-000000000001");
+        var definitions = new List<Transaction>
+        {
+            Create(401, adaTry, 420m, TransactionDirection.Debit, "TRY",
+                "POS 9055 KADIKOY HARCAMA", null, null, null,
+                new DateTimeOffset(2025, 6, 20, 13, 0, 0, TimeSpan.Zero)),
+            Purchase(402, adaTry, 780m, "POS 3182 HOBI MALZEME DUKKANI", "Hobi Dükkânı", 11,
+                new DateTimeOffset(2025, 6, 22, 10, 0, 0, TimeSpan.Zero))
+        };
+
+        return SeedAsync(db, definitions, cancellationToken);
+    }
+
     private static async Task<int> SeedAsync(
         BankingDbContext db,
         IReadOnlyCollection<Transaction> definitions,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(db);
+        if (db.Database.CurrentTransaction is not null)
+            throw new InvalidOperationException("Synthetic transaction seed mevcut bir DB transaction'ı içinde çalıştırılamaz.");
+
+        // A session-level PostgreSQL advisory lock covers both the existence check and
+        // the writes. Holding the connection open keeps the lock while each writer uses
+        // its own transaction on this same connection.
+        await db.Database.OpenConnectionAsync(cancellationToken);
+        var lockAcquired = false;
+        try
+        {
+            await ExecuteAdvisoryLockCommandAsync(db, "pg_advisory_lock", cancellationToken);
+            lockAcquired = true;
+            return await SeedWhileLockedAsync(db, definitions, cancellationToken);
+        }
+        finally
+        {
+            try
+            {
+                if (lockAcquired)
+                    await ExecuteAdvisoryLockCommandAsync(db, "pg_advisory_unlock", CancellationToken.None);
+            }
+            finally
+            {
+                await db.Database.CloseConnectionAsync();
+            }
+        }
+    }
+
+    private static async Task<int> SeedWhileLockedAsync(
+        BankingDbContext db,
+        IReadOnlyCollection<Transaction> definitions,
+        CancellationToken cancellationToken)
+    {
         var ids = definitions.Select(t => t.Id).ToArray();
         if (ids.Distinct().Count() != ids.Length)
             throw new InvalidOperationException("Synthetic transaction seed içinde tekrarlanan Id var.");
@@ -140,6 +190,20 @@ public static class SyntheticTransactionSeeder
         return additions.Count;
     }
 
+    private static async Task ExecuteAdvisoryLockCommandAsync(
+        BankingDbContext db,
+        string functionName,
+        CancellationToken cancellationToken)
+    {
+        await using var command = db.Database.GetDbConnection().CreateCommand();
+        command.CommandText = $"SELECT {functionName}(@lock_id)";
+        var parameter = command.CreateParameter();
+        parameter.ParameterName = "lock_id";
+        parameter.Value = SeedAdvisoryLockId;
+        command.Parameters.Add(parameter);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private static Transaction OpeningCredit(int ordinal, Guid accountId, decimal amount, string currency, string description) =>
         Create(ordinal, accountId, amount, TransactionDirection.Credit, currency, description, null, null, null,
             new DateTimeOffset(2025, 4, 1, 8, 0, 0, TimeSpan.Zero));
@@ -173,6 +237,7 @@ public static class SyntheticTransactionSeeder
         6 => "SUBSCRIPTION",
         8 => "FUEL",
         9 => "BILLS",
+        11 => "OTHER",
         _ => throw new InvalidOperationException($"Synthetic seed için beklenmeyen kategori Id {id}.")
     };
 

@@ -67,6 +67,7 @@ dotnet run --project src/BankingAI.Data -- seed transactions credits
 dotnet run --project src/BankingAI.Data -- seed transactions subscriptions
 dotnet run --project src/BankingAI.Data -- seed transactions category-examples
 dotnet run --project src/BankingAI.Data -- seed transactions grocery-growth
+dotnet run --project src/BankingAI.Data -- seed transactions categorization-boundaries
 ```
 
 `migrate`, projede bulunan ve veritabanına henüz uygulanmamış EF Core
@@ -100,6 +101,10 @@ GROCERY toplamını ekler. Her kapsam sabit transaction ID kullanır; aynı kay�
 tekrar yazılmaz ve bakiye ikinci kez değiştirilmez. Credit işlemleri kategorisizdir;
 açılış fonlamalarına karşı başka hesapta Debit oluşturulmaz. RawDescription ham
 banka açıklamasını, NormalizedMerchant sadeleştirilmiş merchant adını taşır.
+`categorization-boundaries`, henüz kategorize edilmemiş/merchant'ı bulunmayan
+işlem ile `OTHER` kategorisine atanmış işlemi ayrı örnekler. Transaction seed
+grupları DB advisory lock ile sıraya alınır; aynı scope'un paralel çalıştırılması
+aynı kaydı ve bakiye delta'sını iki kez yazmaz.
 `migrate` seed çalıştırmaz. Diğer `seed` ve `import` komutları da uygulama
 açılışında otomatik çalışmayacak; her biri kullanıcı komutuyla başlayacak.
 

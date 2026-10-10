@@ -1,6 +1,6 @@
 # Database Foundation — Güncel Tasarım
 
-Son güncelleme: 8 Ekim 2026.
+Son güncelleme: 10 Ekim 2026.
 
 Bu dosya hedef veri modelini ve gerçek mevcut durumu ayrı anlatır. Hedefte altı
 domain tablosu vardır: `Customers`, `Accounts`, `TransactionCategories`,
@@ -20,8 +20,9 @@ Aktif veritabanı `bankingai_foundation`dır. Şu altı domain tablosu uygulanm�
 
 `MarketAssets` tablosunda üç başlangıç seed kaydı vardır; `DailyMarketPrices`
 henüz boştur. 11 kategori, demo dahil dört Customer ve beş dummy Account vardır.
-Transactions tablosunda 14 kategorisiz Credit ve 18 Debit bulunur: altı abonelik,
-altı tekil kategori örneği ve Ağustos/Eylül GROCERY dönemleri için altı hareket.
+Transactions tablosunda 14 kategorisiz Credit ve 20 Debit bulunur: altı abonelik,
+altı tekil kategori örneği, Ağustos/Eylül GROCERY dönemleri için altı hareket ve
+iki kategori sınır örneği.
 Historical market import henüz yoktur.
 
 Aktif veritabanında sekiz migration uygulanmıştır:
@@ -65,6 +66,8 @@ dotnet run --project src/BankingAI.Data -- import market-prices --asset USDTRY -
 `seed customers` SYN-03 ile, `seed accounts` SYN-04/05 ile uygulanmıştır.
 `seed transactions credits` SYN-06, `subscriptions` SYN-07,
 `category-examples` SYN-08 ve `grocery-growth` SYN-09 ile uygulanmıştır.
+`categorization-boundaries` SYN-10 ile uygulanmıştır; seed scope'ları SYN-11'de
+PostgreSQL advisory lock ile eşzamanlı aynı-scope yarışına karşı korunur.
 SYN-09'un sabit beklenen toplamları 2025-08 GROCERY=24.000 TRY ve
 2025-09 GROCERY=31.000 TRY'dir. Tarihler, tutarlar, tekrar davranışı ve bakiye doğrulaması
 [synthetic seed belgesinde](synthetic-seed.md) bulunur.
@@ -79,17 +82,21 @@ eklenmez.
 Seed işlemleri sabit kimlik ve kontrollü transaction sınırı kullanır. Kategori
 seed'i aynı komut tekrar çalıştırıldığında kayıt çoğaltmaz. Aynı kimlikte farklı
 içerik veya aynı benzersiz kodda çelişkili içerik bulunursa sessizce
-güncelleme/atlama yerine açıklayıcı hata verir. Kategori seed'inde eşzamanlı
-komutlar transaction-scoped PostgreSQL advisory lock ile sıraya alınır; diğer
-seed scope'ları kendi adımlarında aynı davranışı sağlamalıdır.
+güncelleme/atlama yerine açıklayıcı hata verir. Kategori seed'i kendi transaction-
+scoped PostgreSQL advisory lock'unu kullanır. Synthetic transaction seed'leri
+existence check ile yazma aralığını session-level PostgreSQL advisory lock ile
+sıralar; kilit DB bağlantısı açık tutulduğu sürece geçerlidir.
 
 Import da seed'den bağımsız çalışır; dış kaynağın `Source`, tarih aralığı ve
 varlık parametreleri açıkça belirtilir. Günlük fiyatlarda `(MarketAssetId,
 PriceDate)` unique kuralı tekrarları korur. Import scheduler'ı veya uygulama
 başlangıcında otomatik çalışma bu aşamanın dışındadır.
 
-Bu bölüm bir komut tasarımıdır. Bu turda `Program.cs` değiştirilmediği için
-gerçekte kullanılabilen komutlar hâlâ yalnızca `migrate` ve `show`dur.
+Şu anda çalışan console komutları `migrate`, `show`, `seed categories`,
+`seed market-assets`, `seed customers`, `seed accounts` ve
+`seed transactions` altındaki `credits`, `subscriptions`, `category-examples`,
+`grocery-growth`, `categorization-boundaries` kapsamlarıdır. Genel
+`seed synthetic` ve market-price `import` komutları henüz uygulanmamıştır.
 
 ## İlişkiler
 
