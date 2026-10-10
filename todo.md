@@ -222,7 +222,7 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 ## 12. Deterministik analytics — bir sorgu, bir adım
 
 - [x] ANA-01 — `BankingAI.Application` class library'si ve `PeriodResolver` eklendi. `TimeProvider` tek referans zamanıdır (demo saati sabitlenebilir); "bugün" müşterinin saat diliminden belirlenir. Anlamlar: ThisMonth = ay başı–bugün, LastMonth = önceki tam ay, Last3Months/Last6Months = bugünden geriye kayan pencere, Custom = dahil iki tarih, gelecek yok, en fazla 24 ay. Sonuç `[StartUtc, EndUtc)` (offset 0) + yerel StartDate/EndDate. Adlandırılmış dönemle tarih gönderilmesi, bilinmeyen saat dilimi ve tanımsız enum reddedilir. `tests/BankingAI.Application.Tests` 17/17, mevcut suite 22/22 geçti. Bilinen sınır: gece yarısı DST geçişi olan bölgeler desteklenmez (Europe/Istanbul etkilenmez). Demo saati config bağlantısı API adımında yapılacak.
-- [ ] ANA-02 — Güncel VAL-05'e göre brüt harcama özetini hesapla: yalnız `Kind = Purchase`, Personal hesaplar, OccurredAt dönemi (PeriodResolver) ve müşteri/hesap/tek para birimi filtresi. Kategorisiz Purchase'ı kaybetme; transfer, Sale, maaş ve açılış kayıtlarını sayma; farklı para birimlerini birleştirme.
+- [x] ANA-02 — `SpendingSummaryService` (Application → Data proje referansı; Data'nın Exe/kütüphane ayrımı API-01'e bırakıldı). Yalnız Kind Purchase, varsayılan Personal hesaplar, müşterinin TimeZone'u ile PeriodResolver, para birimi başına satır, kategorisiz tutar ayrı. Başka müşterinin hesabı/olmayan müşteri `KeyNotFoundException` (varlık sızdırmaz), Business hesap `ArgumentException`, boş dönemde boş liste. Çalışan SQL yakalandı: saat dilimi sorgusu + alt sorgulu tek GROUP BY, parametreli. 11 PostgreSQL testi (Ada bu ay 735 ≠ Debit 2.235; USD testi rollback). Application 28/28, Data 38/38. Sözleşme docs/analytics.md.
 - [ ] ANA-03 — Kategori dağılımını hesapla. Null kategori ayrı grup olsun; toplam dağılım harcama özetiyle tutarlı olsun.
 - [ ] ANA-04 — Merchant dağılımını hesapla. NormalizedMerchant üzerinden grupla; bilinmeyen merchant'ı kaybetme.
 - [ ] ANA-05 — Transaction aramasını ekle. Hesap/tarih/kategori/merchant filtreleri ve sayfalama; boş veya belirsiz arama davranışı açık olsun.
@@ -359,7 +359,7 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 ## Şu anki sonraki adım
 
 SYN-01–13 banking seed adımları tamamlandı ve banking foundation kabul edildi (DOC-09).
-ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01–04 tamamlandı. KIND-05 ile harcama tanımı güncellendi. Sıradaki iş ANA-02: harcama özeti. Market kolu
+ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01–04 tamamlandı. ANA-02 (harcama özeti) tamamlandı. Sıradaki iş ANA-03: kategori dağılımı. Market kolu
 (SRC-02 altın kaynağı) paralel bekliyor.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

@@ -151,9 +151,4 @@ public sealed class PeriodResolverTests
 
         Assert.Throws<ArgumentException>(() => resolver.Resolve((PeriodKind)99, Istanbul));
     }
-
-    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => utcNow;
-    }
 }
