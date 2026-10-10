@@ -18,13 +18,15 @@ filtreleme, yetki ve dönem çözümü backend'de yapılır (RULE.md §2, VAL-05
   `KeyNotFoundException` (API'de 404; varlık sızdırılmaz). Geçersiz girdi
   `ArgumentException` (API'de 400).
 
-## Ortak kapsam (`PurchaseScope`, ANA-03 refactor'ü)
+## Ortak kapsam (`CustomerScope` ve `PurchaseScope`)
 
-Bütün harcama servisleri aynı girdiyi (`SpendingQuery(CustomerId, Period, From?, To?,
-AccountId?)`) ve aynı kapsamı kullanır: müşteri ve saat dilimi, hesap sahipliği ve
-Personal kontrolü, dönem çözümü ve `Kind = Purchase` temel sorgusu. Kapsam `internal`
-bir sınıfta tek yerde durur; yetki kuralı bir serviste düzeltilip diğerinde unutulamaz.
-Sorgu çalıştırılmadan döner, her servis kendi tek toplamasını ekler.
+`CustomerScope` (internal, ANA-05) müşteri ve saat dilimi, hesap sahipliği (başka müşterinin
+hesabı = bulunamadı) ve dönem çözümünün tek yeridir; yetki kuralı bir serviste düzeltilip
+diğerinde unutulamaz. `personalOnly` ile Business hesapları dışarıda bırakabilir.
+
+`PurchaseScope` (internal) harcama servislerinin kapsamıdır: `CustomerScope(personalOnly: true)`
+üstüne `Kind = Purchase`. Girdi `SpendingQuery(CustomerId, Period, From?, To?, AccountId?)`.
+Sorgular çalıştırılmadan döner, her servis kendi tek toplamasını ekler.
 
 ## ANA-02 — Harcama özeti (`SpendingSummaryService`)
 
@@ -120,3 +122,50 @@ zamanlar** Purchase merchant'larına karşı çözülür:
 | Ada, "Aile Marketi" (Deniz'in) | NotFound |
 | Ada, bu ay, dağılım | Starbucks 375 (%51,02); Kahve Durağı 215 (%29,25); Sınıflandırılmamış 145 (%19,73) |
 | Ege, son 6 ay, dağılım | Şehir Ulaşım 5.600; Şehirlerarası Otobüs 1.200; Kahve Durağı 270 |
+
+## ANA-05 — Transaction araması (`TransactionSearchService`)
+
+Ekstre gibi davranır: **bütün türler** (maaş, transfer, satış, alışveriş) ve varsayılan olarak
+müşterinin **bütün hesapları** (Business dükkân hesabı dahil; `CustomerScope(personalOnly: false)`).
+Kullanıcı kararları: dönem zorunlu (tarihsiz arama yok), sayfa varsayılan 20 / en fazla 50,
+maskeleme "Deniz M***", serbest metin araması yok.
+
+Girdi `TransactionSearchQuery`: müşteri, dönem, isteğe bağlı hesap, `Kind`, `Direction`,
+`CategoryCode`, `OnlyUnclassified`, `Merchant`, `Limit` (1–50), `Offset` (0–10.000).
+Bütün girdi kontrolleri DB'den önce yapılır.
+
+| Kural | Davranış |
+| --- | --- |
+| Bilinmeyen kategori kodu (`"YEMEK"`) | `ArgumentException`; "böyle kategori yok" ≠ "bu kategoride işlem yok" |
+| `CategoryCode` + `OnlyUnclassified` veya kategori filtresi + Purchase dışı `Kind` | Çelişki, `ArgumentException` |
+| Merchant | ANA-04 `MerchantMatcher`; Ambiguous/NotFound'da satır dönmez, `MerchantMatch` döner |
+| Sıra | `OccurredAt` azalan, eşitlikte `Id` azalan; sayfalar kararlı |
+| Sonuç | `TotalCount` (COUNT sorgusu) ve `HasMore` |
+
+Çıktı entity değil `TransactionItem` DTO'sudur: hesap adı, UTC zaman ve müşterinin saat dilimine
+göre `LocalDate`, tür, yön, tutar, para birimi, merchant, kategori (Purchase'ta kategorisiz ise
+"Sınıflandırılmamış"; Purchase değilse null), ham açıklama ve karşı taraf.
+
+Karşı taraf PairId ile diğer bacaktan bulunur: başka müşteri → maskeli ad ("Deniz M***");
+Business hesap → dükkân hesap adı; kendi hesabı → hesap adı ve `CounterpartyIsOwnAccount = true`;
+çiftsiz kayıt → null. Tam ad servis dışına çıkmaz (test ile korunur).
+
+`RawDescription` banka POS metnidir ve LLM'e gidecektir; içindeki talimat benzeri metin veridir,
+komut değildir. Koruma MCP/prompt katmanında yapılacak (SEC-03).
+
+SQL: saat dilimi, COUNT ve tek sayfa sorgusu (3 komut; merchant filtresinde +1 merchant listesi).
+Hesap, kategori, karşı bacak, karşı hesap ve karşı müşteri aynı sorguda join'lenir; N+1 yoktur.
+**EF tuzağı:** korelasyonlu alt sorgu LEFT JOIN'e çevrilirken C# null semantiği korunur
+(`null == null` true) ve dış satırdaki `t.PairId != null` kontrolü düşürülür. Bu yüzden kontrol
+join'lenen satıra (`o.PairId != null`) konur; aksi halde çiftsiz her satır diğer çiftsiz
+satırlarla çoğalır (ilk uygulamada testler bunu yakaladı).
+
+| İstek | Sonuç |
+| --- | --- |
+| Ada, bu ay | 8 kayıt: 145 Sınıflandırılmamış; 300 gelen (Ege Y***); Starbucks 165; Kahve Durağı 95 (karşı taraf dükkân hesabı); Starbucks 210; maaş 45.000; 1.500 giden (Deniz M***); Kahve Durağı 120 |
+| Ada, bu ay, limit 3 / offset 6 | 3 kayıt + HasMore; 2 kayıt, HasMore yok |
+| Ada, Transfer + Debit | 1.500, Deniz M*** |
+| Ada, yalnız sınıflandırılmamış | `POS 6604 ONLINE ODEME 4471` |
+| Ada, FOOD | 165, 95, 210, 120 |
+| Deniz, dükkân hesabı, bu ay | Sale: Ada K***, Ege Y***, Ada K*** |
+| Deniz, geçen ay, Transfer + Debit | 2.000 kendi dükkânına (own), 750 Ege Y*** |

@@ -135,19 +135,22 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
 - `PeriodResolver` + `TimeProvider`: sembolik dönem (`PeriodKind`) müşterinin `TimeZone`'una göre
   `[StartUtc, EndUtc)` aralığına çevrilir. Testler ve demo "şimdi"yi
   `2026-10-10T12:00:00Z` olarak sabitler (`FixedTimeProvider`); demo verisi bu tarihe göredir.
-- `PurchaseScope` (internal) tüm harcama servislerinin ortak kapsamıdır: müşteri/saat dilimi,
-  hesap sahipliği (başka müşterinin hesabı = `KeyNotFoundException`, varlık sızdırılmaz), yalnız
-  Personal hesap, `Kind == Purchase`. Çalıştırılmamış `IQueryable` döner; her servis tek bir
-  `GROUP BY` ekler. Yetki kuralını servislerde kopyalama, buraya koy.
-- Servisler: `SpendingSummaryService`, `CategoryBreakdownService`, `MerchantSpendingService`.
+- `CustomerScope` (internal) müşteri/saat dilimi, hesap sahipliği (başka müşterinin hesabı =
+  `KeyNotFoundException`, varlık sızdırılmaz) ve dönem çözümünün tek yeridir. `PurchaseScope` onun
+  üstüne yalnız Personal hesap + `Kind == Purchase` ekler. Çalıştırılmamış `IQueryable` dönerler;
+  her servis tek bir `GROUP BY`/sayfa sorgusu ekler. Yetki kuralını servislerde kopyalama.
+- Servisler: `SpendingSummaryService`, `CategoryBreakdownService`, `MerchantSpendingService`,
+  `TransactionSearchService` (ekstre: tüm türler ve tüm hesaplar, DTO, PairId ile maskeli karşı taraf).
   Sonuçlar para birimi başına satırdır; harcama yoksa boş liste döner (uydurma "0" satırı yok);
   yüzde backend'de 2 ondalık `AwayFromZero` ile hesaplanır ve 100'e zorlanmaz.
 - `MerchantMatcher`: modelden gelen merchant metni güvenilmezdir. Kültürden bağımsız Türkçe
   sadeleştirme (sabit tablo; tr-TR'de `"I".ToLower()` = `"ı"`), tam → tek adaylı kısmi (≥3 harf) →
   Ambiguous → NotFound; yazım hatası düzeltilmez; adaylar yalnız müşterinin kendi merchant'ları.
   SQL'e ham metin değil eşleşen kanonik ad parametre olarak gider.
-- EF tuzağı: constructor'la kurulan record'a projeksiyondan **sonra** `OrderBy` çevrilemez;
-  `GroupBy(...).OrderBy(g => g.Key).Select(...)` kullan.
+- EF tuzakları: (1) constructor'la kurulan record'a projeksiyondan **sonra** `OrderBy` çevrilemez;
+  `GroupBy(...).OrderBy(g => g.Key).Select(...)` kullan. (2) Nullable kolonda korelasyonlu join'de
+  EF C# null semantiğini korur (`null == null` true) ve dış satırdaki null kontrolünü düşürebilir;
+  kontrolü join'lenen satıra koy (`o.PairId != null && o.PairId == t.PairId`).
 
 ### Testler
 
@@ -165,6 +168,6 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
 Banking foundation kabul edildi; market data (USDTRY/EURTRY/gram altın import, opportunity-cost)
 ayrı ve engellemeyen bir koldur, altın kaynağı (SRC-02) dış yanıt bekliyor. Tamamlananlar:
 ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/AccountType, çift
-yazıcı, dükkân ve transfer seed'i), ANA-02–04 (özet, kategori, merchant). Sıradaki: ANA-05
-transaction araması (plan sunuldu; kararlar bekleniyor), ardından ANA-06/07, API, AI, MCP.
+yazıcı, dükkân ve transfer seed'i), ANA-02–05 (özet, kategori, merchant, arama). Sıradaki:
+ANA-06 en yüksek işlemler, ardından ANA-07 dönem karşılaştırması, API, AI, MCP.
 Güncel ayrıntı her zaman `todo.md`'dedir.

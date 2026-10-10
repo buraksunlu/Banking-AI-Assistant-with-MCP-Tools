@@ -1353,7 +1353,7 @@ IN PROGRESS
 NEXT
 - ANA-01 (PeriodResolver) ve SYN-14 (Ada/Deniz/Ege farklı demo karakterleri) tamamlandı.
 - KIND-01–05 tamamlandı (Kind/PairId, iki bacaklı yazıcı, AccountType, Kahve Durağı + 9 çift, VAL-05 = Kind Purchase).
-- ANA-02/03/04 tamamlandı (özet, kategori, merchant + MerchantMatcher; ortak PurchaseScope; docs/analytics.md). Sıradaki: ANA-05 transaction araması.
+- ANA-02–05 tamamlandı (özet, kategori, merchant + MerchantMatcher, transaction araması; ortak CustomerScope/PurchaseScope; docs/analytics.md). Sıradaki: ANA-06 en yüksek işlemler.
 - Ardından ANA-02 harcama özeti; harcama yalnızca Purchase türünü sayar.
 
 KNOWN ISSUES
