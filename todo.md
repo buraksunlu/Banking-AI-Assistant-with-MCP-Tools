@@ -57,8 +57,8 @@ canlı PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna 
 | Domain tabloları | Customers, Accounts, TransactionCategories, Transactions, MarketAssets, DailyMarketPrices |
 | EF yardımcı tablosu | __EFMigrationsHistory |
 | Uygulanmış migration | 10 |
-| Veri | 4 Customer; 6 Account; 11 Category; 98 Transaction (35 Credit, 63 Debit) |
-| Hesap bakiyeleri | Ada TRY 579015.18; Ada USD 500; Deniz TRY 524150; Ege EUR 1000; Ege TRY 273200; boş TRY 0 |
+| Veri | 4 Customer; 7 Account (1 Business); 11 Category; 116 Transaction (44 Credit, 72 Debit; 9 çift) |
+| Hesap bakiyeleri | Ada TRY 577490.18; Ada USD 500; Deniz TRY 522900; Kahve Durağı 2595; Ege EUR 1000; Ege TRY 273380; boş TRY 0 |
 | Market tabloları | MarketAssets mevcut ve üç seed kaydı var; DailyMarketPrices henüz boş |
 | Bakiye güncelleme akışı | `TransactionSeedWriter` insert ve atomik bakiye delta'sını aynı DB transaction'ında yazar; BAL-03/04 PostgreSQL kabul testleri geçti |
 | Kalıcı otomatik test projesi | tests/BankingAI.Data.Tests; C# ve rollback edilen PostgreSQL kontrolleri |
@@ -156,7 +156,7 @@ LLM/MCP para gönderemez; yazma yalnızca uygulama/API ve seed üzerindendir.
 - [x] KIND-02 — `TransactionKind` enum, `Transaction.Kind`/`PairId`, `InputRules.Kind` + `EntityValidation`, `SetCategorization` yalnız Purchase, tek bacaklı yazıcıda PairId reddi. `AddTransactionKind` migration'ı nullable ekleme → doldurma → belirsiz kayıtta RAISE → NOT NULL sırasıyla elle düzenlendi; 5 CHECK + UNIQUE (PairId, Direction) eklendi, `CK_Transactions_Credit_Uncategorized` kaldırıldı. Kullanıcı onayıyla uygulandı: 63 Purchase, 33 Salary, 2 OpeningFunding, PairId hepsi null. Bütün seed scope'ları tekrar 0 ekledi. Data 27/27, Application 17/17.
 - [x] KIND-03 — `PairedTransactionSeedWriter` eklendi (Seeding/; API adımında ortak yere taşınıp adından Seed kalkacak). DB'den önce çift tutarlılığı: Debit+Credit, aynı PairId/tutar/para birimi/OccurredAt, farklı hesap ve Id, yalnız Transfer→Transfer veya Purchase→Sale. Tek DB transaction'ında bakiyeler hesap ID sırasıyla (deadlock önleme), sonra iki kayıt. Bakiye mantığı `TransactionSeedWriter.ApplyBalanceDeltaAsync` olarak paylaşıldı. Aynı PairId tekrar gelirse hata (kullanıcı kararı; API-12'de düzeltilecek). 7 PostgreSQL testi; sıralama geçici kaldırılınca deadlock testi 40P01 ile kırmızı oldu, geri konunca yeşil. Data 34/34, Application 17/17. Demo DB'ye kalıcı veri yazılmadı.
 - [x] KIND-04a — Kullanıcı kararıyla `Account.AccountType` (Personal=1, Business=2; C# varsayılanı Personal, `init`) eklendi; `EntityValidation` + `CK_Accounts_AccountType`. `AddAccountType` migration'ı nullable ekleme → mevcut 6 hesap Personal → NOT NULL sırasıyla elle düzenlendi ve onayla uygulandı (DB varsayılanı yok; ham SQL insert türü açıkça vermeli). `PairedTransactionSeedWriter`: Sale yalnız Business hesaba yazılır. Test fixture'ındaki ham Account INSERT'ine AccountType eklendi. Data 37/37, Application 17/17; seed tekrarları 0 ekledi.
-- [ ] KIND-04b — Deniz'e ait "Kahve Durağı – Kadıköy" Business hesabı (`DUMMY-DENIZ-SHOP-001`) ve `seed transactions pairs`: 5 Purchase→Sale (Eyl 15/22, Eki 2/4/7) ve 4 Transfer (Deniz→Ege 750, Deniz→dükkân 2.000, Ada→Deniz 1.500, Ege→Ada 300). Açıklamalarda isim yok; TRY toplamı korunur. Gerçek marka sahipliği uydurulmaz; anında ve komisyonsuz takas basitleştirmesi belgelenir.
+- [x] KIND-04b — Uygulandı: `seed accounts` 1 ekledi (7 hesap), `seed transactions pairs` 18 kayıt ekledi (ID 701–718, PairId 40000000-…-1…9); tekrarlar 0. Seed akışı çiftleri iki bacaklı yazıcıya yönlendirir, DB'de yarım çift bulursa hata verir (bu dal otomatik testle denenmedi; demo verisini bozmadan yarım çift üretmek için ayrı test DB gerekir, DB-01). Hesap seed'i AccountType çelişkisini de reddeder. Bağımsız fixture: Ada 577.490,18; Deniz 522.900; Ege 273.380; dükkân 2.595; TRY toplamı 1.376.365,18 korunur; harcama = Kind Purchase (Ekim: tüm Purchase 12.925, tüm Debit 14.725). Data 38/38. Plan: Deniz'e ait "Kahve Durağı – Kadıköy" Business hesabı (`DUMMY-DENIZ-SHOP-001`) ve `seed transactions pairs`: 5 Purchase→Sale (Eyl 15/22, Eki 2/4/7) ve 4 Transfer (Deniz→Ege 750, Deniz→dükkân 2.000, Ada→Deniz 1.500, Ege→Ada 300). Açıklamalarda isim yok; TRY toplamı korunur. Gerçek marka sahipliği uydurulmaz; anında ve komisyonsuz takas basitleştirmesi belgelenir.
 - [ ] KIND-05 — VAL-05 ve docs/input-validation.md güncellemesi: harcama yalnızca Purchase türüdür.
 
 ## 8. Gerçek historical market kaynağını seç
@@ -359,7 +359,7 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 ## Şu anki sonraki adım
 
 SYN-01–13 banking seed adımları tamamlandı ve banking foundation kabul edildi (DOC-09).
-ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01/02/03/04a tamamlandı. Sıradaki iş KIND-04b: dükkân hesabı ve seed ile örnek transfer/dükkân satışı; ardından KIND-05 ve ANA-02. Market kolu
+ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01–04 tamamlandı. Sıradaki iş KIND-05 (VAL-05 harcama tanımının belge güncellemesi), ardından ANA-02. Market kolu
 (SRC-02 altın kaynağı) paralel bekliyor.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

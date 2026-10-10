@@ -44,6 +44,7 @@ Account seed açıklayıcı hata verir; kendiliğinden müşteri oluşturmaz.
 | `20000000-0000-0000-0000-000000000004` | Ege Yolcu | `DUMMY-EGE-EUR-001` | EUR | Seyahat profili |
 | `20000000-0000-0000-0000-000000000005` | Ada Kahve | `DUMMY-ADA-EMPTY-001` | TRY | Gelecek transaction seed'lerinde de boş bırakılacak hesap |
 | `20000000-0000-0000-0000-000000000006` | Ege Yolcu | `DUMMY-EGE-TRY-001` | TRY | SYN-14 ile eklendi; Türkiye içi ulaşım/seyahat harcamaları |
+| `20000000-0000-0000-0000-000000000007` | Deniz Market | `DUMMY-DENIZ-SHOP-001` | TRY | KIND-04b; **Business**, kurgusal "Kahve Durağı – Kadıköy" dükkânı |
 
 Customer ID'leri SYN-03'teki `10000000-...0001/0002/0003` değerleridir.
 Numaralar gerçek IBAN değildir. Yeni hesapların tamamı `Balance = 0` ile açılır;
@@ -324,3 +325,37 @@ Bakiye güncelleme mantığı iki yazıcıda `TransactionSeedWriter.ApplyBalance
 ile paylaşılır. Aynı PairId tekrar gelirse şimdilik hata verilir; API-12'de ilk sonucu
 döndürecek şekilde düzeltilecek. Testler kendi geçici hesaplarını açıp siler; demo
 verisine kalıcı kayıt yazılmadı.
+
+## KIND-04b transfer ve dükkân çiftleri
+
+`seed accounts` Deniz'e ait Business hesabı `DUMMY-DENIZ-SHOP-001` ("Kahve Durağı –
+Kadıköy") ekler. Kurgusal bir dükkândır; gerçek marka sahipliği iddiası yoktur.
+`seed transactions pairs` iki bacaklı yazıcıyla 9 çift (18 kayıt, ID 701–718,
+PairId `40000000-…-000000000001…9`) yazar:
+
+| # | Tarih (UTC) | Tür | Gönderen → Alan | Tutar |
+| --- | --- | --- | --- | ---: |
+| 1 | 15 Eyl | Alışveriş | Ada → Kahve Durağı | 110 |
+| 2 | 22 Eyl | Alışveriş | Ege → Kahve Durağı | 130 |
+| 3 | 28 Eyl | Transfer | Deniz → Ege | 750 |
+| 4 | 30 Eyl | Transfer | Deniz → kendi dükkânı | 2.000 |
+| 5 | 2 Eki | Alışveriş | Ada → Kahve Durağı | 120 |
+| 6 | 3 Eki | Transfer | Ada → Deniz | 1.500 |
+| 7 | 4 Eki | Alışveriş | Ege → Kahve Durağı | 140 |
+| 8 | 7 Eki | Alışveriş | Ada → Kahve Durağı | 95 |
+| 9 | 8 Eki | Transfer | Ege → Ada | 300 |
+
+Alıcı bacağı Purchase/FOOD/"Kahve Durağı", dükkân bacağı kategorisiz Sale'dir.
+Transfer açıklamaları yalnız "Para gönderimi" ve "Gelen para transferi"dir; karşı taraf
+PairId ile bulunur ve okuma tarafında maskelenir. Anında ve komisyonsuz takas bir demo
+basitleştirmesidir.
+
+Seed çiftleri bütün olarak yazar; DB'de bir çiftin yalnız bir bacağı varsa hata verir.
+Bu dal otomatik testle denenmedi, çünkü demo verisini bozmadan yarım çift üretmek ayrı
+bir test veritabanı gerektirir (DB-01).
+
+Bağımsız fixture: Ada TRY 577.490,18; Deniz TRY 522.900; Ege TRY 273.380; dükkân 2.595.
+TRY hesaplarının toplamı KIND-04b öncesiyle aynıdır (1.376.365,18). Ekim'de harcama
+(Kind Purchase) 12.925 TRY'dir; bütün Debit'leri toplamak transferler yüzünden 14.725 TRY
+gibi yanlış bir sonuç verir. Dükkân satışları Eylül 2 adet/240 TRY, Ekim 3 adet/355 TRY.
+İlk çalıştırma 1 hesap ve 18 kayıt, tekrar 0 ekledi; Data suite 38/38.

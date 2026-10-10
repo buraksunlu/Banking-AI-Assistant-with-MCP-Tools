@@ -1,4 +1,5 @@
 using BankingAI.Data.Entities;
+using BankingAI.Data.Enums;
 using BankingAI.Data.Validation;
 using Microsoft.EntityFrameworkCore;
 
@@ -7,7 +8,7 @@ namespace BankingAI.Data.Seeding;
 public static class SyntheticAccountSeeder
 {
     private const long SeedLockKey = 2026100906;
-    public const int AccountCount = 6;
+    public const int AccountCount = 7;
 
     public static async Task<int> SeedAsync(BankingDbContext db, CancellationToken cancellationToken = default)
     {
@@ -22,7 +23,9 @@ public static class SyntheticAccountSeeder
             new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000003"), CustomerId = denizId, AccountName = "Deniz aile TRY", AccountNumber = "DUMMY-DENIZ-TRY-001", CurrencyCode = "TRY" },
             new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000004"), CustomerId = egeId, AccountName = "Ege seyahat EUR", AccountNumber = "DUMMY-EGE-EUR-001", CurrencyCode = "EUR" },
             new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000005"), CustomerId = adaId, AccountName = "Ada boş TRY", AccountNumber = "DUMMY-ADA-EMPTY-001", CurrencyCode = "TRY" },
-            new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000006"), CustomerId = egeId, AccountName = "Ege günlük TRY", AccountNumber = "DUMMY-EGE-TRY-001", CurrencyCode = "TRY" }
+            new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000006"), CustomerId = egeId, AccountName = "Ege günlük TRY", AccountNumber = "DUMMY-EGE-TRY-001", CurrencyCode = "TRY" },
+            // Fictional shop owned by Deniz; receives Purchase→Sale income (KIND-04b).
+            new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000007"), CustomerId = denizId, AccountName = "Kahve Durağı – Kadıköy", AccountNumber = "DUMMY-DENIZ-SHOP-001", CurrencyCode = "TRY", AccountType = AccountType.Business }
         ];
 
         var referenceUtc = DateTimeOffset.UtcNow;
@@ -62,8 +65,9 @@ public static class SyntheticAccountSeeder
             if (sameId is not null)
             {
                 if (sameId.CustomerId != definition.CustomerId || sameId.AccountNumber != definition.AccountNumber ||
-                    sameId.CurrencyCode != definition.CurrencyCode || sameId.AccountName != definition.AccountName)
-                    throw new InvalidOperationException($"Account Id {definition.Id} mevcut fakat seed sahiplik/numara/para birimi/ad bilgileriyle çelişiyor.");
+                    sameId.CurrencyCode != definition.CurrencyCode || sameId.AccountName != definition.AccountName ||
+                    sameId.AccountType != definition.AccountType)
+                    throw new InvalidOperationException($"Account Id {definition.Id} mevcut fakat seed sahiplik/numara/para birimi/ad/tür bilgileriyle çelişiyor.");
                 // Existing balances and timestamps belong to persisted history; never reset them.
                 continue;
             }

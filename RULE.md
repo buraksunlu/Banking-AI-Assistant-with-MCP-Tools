@@ -1343,7 +1343,7 @@ COMPLETED
 - Transactions.Kind (Purchase/Sale/Transfer/Salary/OpeningFunding) ve nullable PairId; kurallar C# + DB CHECK ile korunur (KIND-01/02).
 - DailyMarketPrice → MarketAsset RESTRICT ilişkisi ve varlık/gün unique index'i uygulandı; MarketAssets'te üç seed kaydı, DailyMarketPrices'ta henüz fiyat kaydı yok.
 - PK/FK/unique/check/index eşlemeleri ve hesap/işlem currency eşleşmesi.
-- Bir demo Customer, 11 TransactionCategory ve 3 MarketAsset seed kaydı; SYN-03–05 ve SYN-14 ile üç dummy Customer ve altı Account; SYN-06–14 ile 98 Transaction (35 Credit, 63 Debit) vardır. DailyMarketPrices'ta fiyat kaydı yoktur.
+- Bir demo Customer, 11 TransactionCategory ve 3 MarketAsset seed kaydı; SYN-03–05, SYN-14 ve KIND-04b ile üç dummy Customer ve yedi Account (biri Business dükkân); SYN-06–14 ve KIND-04b ile 116 Transaction (44 Credit, 72 Debit; 4 transfer + 5 dükkân alışverişi çifti) vardır. DailyMarketPrices'ta fiyat kaydı yoktur.
 - todo.md oluşturuldu; tamamlanan ve bekleyen küçük adımlar ayrıldı.
 
 IN PROGRESS
@@ -1352,7 +1352,7 @@ IN PROGRESS
 
 NEXT
 - ANA-01 (PeriodResolver) ve SYN-14 (Ada/Deniz/Ege farklı demo karakterleri) tamamlandı.
-- KIND-01/02/03/04a tamamlandı (Account.AccountType Personal/Business; Sale yalnız Business). KIND-04b: dükkân hesabı + örnek transfer/satış seed'i.
+- KIND-01–04 tamamlandı (Kind/PairId, iki bacaklı yazıcı, AccountType, Kahve Durağı + 9 çift). KIND-05: VAL-05 harcama tanımı = Kind Purchase; ardından ANA-02.
 - Ardından ANA-02 harcama özeti; harcama yalnızca Purchase türünü sayar.
 
 KNOWN ISSUES

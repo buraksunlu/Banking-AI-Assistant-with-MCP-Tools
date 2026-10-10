@@ -70,6 +70,7 @@ dotnet run --project src/BankingAI.Data -- seed transactions grocery-growth
 dotnet run --project src/BankingAI.Data -- seed transactions categorization-boundaries
 dotnet run --project src/BankingAI.Data -- seed transactions recent-spending
 dotnet run --project src/BankingAI.Data -- seed transactions demo-coverage
+dotnet run --project src/BankingAI.Data -- seed transactions pairs
 ```
 
 `migrate`, projede bulunan ve veritabanına henüz uygulanmamış EF Core
@@ -91,7 +92,7 @@ dotnet run --project src/BankingAI.Data -- import market-prices --asset USDTRY -
 `seed categories` yalnızca bu komut açıkça çalıştırıldığında kategori ekler.
 `seed market-assets` USDTRY, EURTRY ve GRAM_GOLD_TRY kayıtlarını açıkça ekler.
 `seed customers` üç dummy müşteri ekler; mevcut demo müşteriyi korur.
-`seed accounts`, bu müşteriler mevcutsa altı sabit dummy hesap ekler; yeni bakiyeler
+`seed accounts`, bu müşteriler mevcutsa yedi sabit dummy hesap ekler (biri Deniz'in Business dükkân hesabı); yeni bakiyeler
 sıfırdır. Aynı müşterinin TRY/USD hesapları, diğer müşteri hesapları ve boş hesap
 örneği vardır. Tekrar çalıştırmak hesapları çoğaltmaz ve mevcut bakiyeyi sıfırlamaz.
 Hesap listesi ve doğrulamalar [synthetic seed belgesinde](docs/synthetic-seed.md) açıklanır.
@@ -114,6 +115,8 @@ için son altı ay harcama verisi sağlar, ilerleyen tarihlerde kendiliğinden g
 `demo-coverage` (önce `seed accounts` ile Ege TRY hesabı gerekir) üç müşteriye farklı
 karakter verir: Ada'ya Ekim kahve harcamaları ve belirsiz/bilinmeyen bir işlem, Deniz'e
 Ekim market/fatura, Ege'ye Nisan–Ekim maaş, ulaşım ve seyahat. 9 Credit, 19 Debit.
+`pairs`, iki bacaklı yazıcıyla 5 "Kahve Durağı" alışverişini (Purchase→Sale) ve 4 transferi
+(müşteriler arası ve Deniz'in kendi dükkânına) ekler: 18 kayıt. Açıklamalarda isim yoktur.
 `migrate` seed çalıştırmaz. Diğer `seed` ve `import` komutları da uygulama
 açılışında otomatik çalışmayacak; her biri kullanıcı komutuyla başlayacak.
 

@@ -15,6 +15,7 @@ public static class SyntheticTransactionSeeder
     public const int CategorizationBoundaryCount = 2;
     public const int RecentSpendingCount = 36;
     public const int DemoCoverageCount = 28;
+    public const int PairsCount = 18;
 
     public static Task<int> SeedCreditsAsync(BankingDbContext db, CancellationToken cancellationToken = default)
     {
@@ -168,6 +169,47 @@ public static class SyntheticTransactionSeeder
         return SeedAsync(db, definitions, cancellationToken);
     }
 
+    public static Task<int> SeedPairsAsync(BankingDbContext db, CancellationToken cancellationToken = default)
+    {
+        var adaTry = Guid.Parse("20000000-0000-0000-0000-000000000001");
+        var denizTry = Guid.Parse("20000000-0000-0000-0000-000000000003");
+        var egeTry = Guid.Parse("20000000-0000-0000-0000-000000000006");
+        var shop = Guid.Parse("20000000-0000-0000-0000-000000000007");
+        var definitions = new List<Transaction>();
+
+        // Buyer side is a categorized purchase; shop side is uncategorized sales income.
+        void ShopPurchase(int pair, Guid buyer, decimal amount, DateTimeOffset occurredAt)
+        {
+            definitions.Add(Create(699 + pair * 2, buyer, amount, TransactionDirection.Debit, TransactionKind.Purchase, "TRY",
+                "POS 7001 KAHVE DURAGI KADIKOY", "Kahve Durağı", 1, CategorizationSource.Rule, occurredAt, PairId(pair)));
+            definitions.Add(Create(700 + pair * 2, shop, amount, TransactionDirection.Credit, TransactionKind.Sale, "TRY",
+                "Kahve Durağı satış geliri", null, null, null, occurredAt, PairId(pair)));
+        }
+
+        // Descriptions carry no names; the counterparty is resolved through PairId and masked on read.
+        void Transfer(int pair, Guid from, Guid to, decimal amount, DateTimeOffset occurredAt)
+        {
+            definitions.Add(Create(699 + pair * 2, from, amount, TransactionDirection.Debit, TransactionKind.Transfer, "TRY",
+                "Para gönderimi", null, null, null, occurredAt, PairId(pair)));
+            definitions.Add(Create(700 + pair * 2, to, amount, TransactionDirection.Credit, TransactionKind.Transfer, "TRY",
+                "Gelen para transferi", null, null, null, occurredAt, PairId(pair)));
+        }
+
+        ShopPurchase(1, adaTry, 110m, new(2026, 9, 15, 9, 0, 0, TimeSpan.Zero));
+        ShopPurchase(2, egeTry, 130m, new(2026, 9, 22, 9, 0, 0, TimeSpan.Zero));
+        Transfer(3, denizTry, egeTry, 750m, new(2026, 9, 28, 10, 0, 0, TimeSpan.Zero));
+        Transfer(4, denizTry, shop, 2000m, new(2026, 9, 30, 10, 0, 0, TimeSpan.Zero)); // own accounts
+        ShopPurchase(5, adaTry, 120m, new(2026, 10, 2, 9, 0, 0, TimeSpan.Zero));
+        Transfer(6, adaTry, denizTry, 1500m, new(2026, 10, 3, 10, 0, 0, TimeSpan.Zero));
+        ShopPurchase(7, egeTry, 140m, new(2026, 10, 4, 9, 0, 0, TimeSpan.Zero));
+        ShopPurchase(8, adaTry, 95m, new(2026, 10, 7, 9, 0, 0, TimeSpan.Zero));
+        Transfer(9, egeTry, adaTry, 300m, new(2026, 10, 8, 10, 0, 0, TimeSpan.Zero));
+
+        return SeedAsync(db, definitions, cancellationToken);
+    }
+
+    private static Guid PairId(int pair) => Guid.Parse($"40000000-0000-0000-0000-{pair:D12}");
+
     private static async Task<int> SeedAsync(
         BankingDbContext db,
         IReadOnlyCollection<Transaction> definitions,
@@ -254,8 +296,25 @@ public static class SyntheticTransactionSeeder
             additions.Add(definition);
         }
 
+        // A pair is written whole or not at all; a half-present pair means the data was altered.
+        foreach (var pair in definitions.Where(t => t.PairId is not null).GroupBy(t => t.PairId!.Value))
+        {
+            var legs = pair.ToArray();
+            if (legs.Length != 2)
+                throw new InvalidOperationException($"PairId {pair.Key} seed tanımında tam iki bacak içermeli.");
+            if (legs.Count(additions.Contains) == 1)
+                throw new InvalidOperationException($"PairId {pair.Key} için DB'de yalnızca bir bacak mevcut; seed eksik bacağı sessizce tamamlamaz.");
+        }
+
         foreach (var transaction in additions)
-            await TransactionSeedWriter.AddAsync(db, transaction, cancellationToken);
+        {
+            if (transaction.PairId is null)
+                await TransactionSeedWriter.AddAsync(db, transaction, cancellationToken);
+            else if (transaction.Direction == TransactionDirection.Debit)
+                await PairedTransactionSeedWriter.AddAsync(db, transaction,
+                    additions.Single(t => t.PairId == transaction.PairId && t.Direction == TransactionDirection.Credit),
+                    cancellationToken);
+        }
 
         return additions.Count;
     }
@@ -323,7 +382,8 @@ public static class SyntheticTransactionSeeder
         string? merchant,
         short? categoryId,
         CategorizationSource? source,
-        DateTimeOffset occurredAt)
+        DateTimeOffset occurredAt,
+        Guid? pairId = null)
     {
         var id = Guid.Parse($"30000000-0000-0000-0000-{ordinal:D12}");
         return new Transaction
@@ -333,6 +393,7 @@ public static class SyntheticTransactionSeeder
             Amount = amount,
             Direction = direction,
             Kind = kind,
+            PairId = pairId,
             CurrencyCode = currency,
             RawDescription = description,
             NormalizedMerchant = merchant,

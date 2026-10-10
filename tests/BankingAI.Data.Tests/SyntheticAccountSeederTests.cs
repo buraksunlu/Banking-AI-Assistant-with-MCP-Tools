@@ -1,4 +1,5 @@
 using BankingAI.Data;
+using BankingAI.Data.Enums;
 using BankingAI.Data.Seeding;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
@@ -26,15 +27,16 @@ public sealed class SyntheticAccountSeederTests
             (Number: "DUMMY-DENIZ-TRY-001", Customer: denizId, Currency: "TRY"),
             (Number: "DUMMY-EGE-EUR-001", Customer: egeId, Currency: "EUR"),
             (Number: "DUMMY-EGE-TRY-001", Customer: egeId, Currency: "TRY"),
+            (Number: "DUMMY-DENIZ-SHOP-001", Customer: denizId, Currency: "TRY"),
             (Number: "DUMMY-ADA-EMPTY-001", Customer: adaId, Currency: "TRY")
         };
         var numbers = expected.Select(a => a.Number).ToArray();
         var originalIds = await db.Accounts.Select(a => a.Id).ToListAsync();
         var added = await SyntheticAccountSeeder.SeedAsync(db);
         var accounts = await db.Accounts.AsNoTracking().Where(a => numbers.Contains(a.AccountNumber)).ToListAsync();
-        Assert.Equal(6, accounts.Count);
+        Assert.Equal(7, accounts.Count);
         Assert.Equal(accounts.Count(a => !originalIds.Contains(a.Id)), added);
-        Assert.Equal(6, accounts.Select(a => a.AccountNumber).Distinct().Count());
+        Assert.Equal(7, accounts.Select(a => a.AccountNumber).Distinct().Count());
         foreach (var item in expected)
         {
             var account = Assert.Single(accounts, a => a.AccountNumber == item.Number);
@@ -44,6 +46,8 @@ public sealed class SyntheticAccountSeederTests
             Assert.True(await db.Customers.AnyAsync(c => c.Id == account.CustomerId));
             if (!originalIds.Contains(account.Id)) Assert.Equal(0m, account.Balance);
         }
+        Assert.Equal(AccountType.Business, Assert.Single(accounts, a => a.AccountNumber == "DUMMY-DENIZ-SHOP-001").AccountType);
+        Assert.All(accounts.Where(a => a.AccountNumber != "DUMMY-DENIZ-SHOP-001"), a => Assert.Equal(AccountType.Personal, a.AccountType));
         var empty = Assert.Single(accounts, a => a.AccountNumber == "DUMMY-ADA-EMPTY-001");
         Assert.Equal(0m, empty.Balance);
         Assert.False(await db.Transactions.AnyAsync(t => t.AccountId == empty.Id));

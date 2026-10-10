@@ -13,10 +13,11 @@ var isSeedGroceryGrowth = args.Length == 3 && args[0] == "seed" && args[1] == "t
 var isSeedCategorizationBoundaries = args.Length == 3 && args[0] == "seed" && args[1] == "transactions" && args[2] == "categorization-boundaries";
 var isSeedRecentSpending = args.Length == 3 && args[0] == "seed" && args[1] == "transactions" && args[2] == "recent-spending";
 var isSeedDemoCoverage = args.Length == 3 && args[0] == "seed" && args[1] == "transactions" && args[2] == "demo-coverage";
+var isSeedPairs = args.Length == 3 && args[0] == "seed" && args[1] == "transactions" && args[2] == "pairs";
 var isSingleCommand = args.Length == 1 && (args[0] == "migrate" || args[0] == "show");
-if (!isSingleCommand && !isSeedCategories && !isSeedMarketAssets && !isSeedCustomers && !isSeedAccounts && !isSeedCredits && !isSeedSubscriptions && !isSeedCategoryExamples && !isSeedGroceryGrowth && !isSeedCategorizationBoundaries && !isSeedRecentSpending && !isSeedDemoCoverage)
+if (!isSingleCommand && !isSeedCategories && !isSeedMarketAssets && !isSeedCustomers && !isSeedAccounts && !isSeedCredits && !isSeedSubscriptions && !isSeedCategoryExamples && !isSeedGroceryGrowth && !isSeedCategorizationBoundaries && !isSeedRecentSpending && !isSeedDemoCoverage && !isSeedPairs)
 {
-    Console.WriteLine("Usage: BankingAI.Data migrate | show | seed categories | seed market-assets | seed customers | seed accounts | seed transactions credits | seed transactions subscriptions | seed transactions category-examples | seed transactions grocery-growth | seed transactions categorization-boundaries | seed transactions recent-spending | seed transactions demo-coverage");
+    Console.WriteLine("Usage: BankingAI.Data migrate | show | seed categories | seed market-assets | seed customers | seed accounts | seed transactions credits | seed transactions subscriptions | seed transactions category-examples | seed transactions grocery-growth | seed transactions categorization-boundaries | seed transactions recent-spending | seed transactions demo-coverage | seed transactions pairs");
     return 1;
 }
 
@@ -87,6 +88,11 @@ else if (isSeedDemoCoverage)
 {
     var added = await SyntheticTransactionSeeder.SeedDemoCoverageAsync(db);
     Console.WriteLine($"Synthetic demo coverage seeded. Added: {added}; unchanged: {SyntheticTransactionSeeder.DemoCoverageCount - added}.");
+}
+else if (isSeedPairs)
+{
+    var added = await SyntheticTransactionSeeder.SeedPairsAsync(db);
+    Console.WriteLine($"Synthetic transfer and shop pairs seeded. Added rows: {added}; unchanged: {SyntheticTransactionSeeder.PairsCount - added}.");
 }
 else
 {
