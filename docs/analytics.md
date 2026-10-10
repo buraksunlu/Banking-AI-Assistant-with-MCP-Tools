@@ -64,7 +64,7 @@ her satırda `CategoryCode`, `DisplayName`, `Amount`, `TransactionCount`, `Perce
 - Kapsam ANA-02 ile aynıdır (`PurchaseScope`); kategori tutarları toplamı ve işlem
   sayısı her zaman harcama özetine eşittir (tutarlılık testi).
 - Kategorisiz Purchase ayrı grupta döner: `CategoryCode = null`, kullanıcı kararıyla
-  `DisplayName = "Sınıflandırılmamış"`. `OTHER` ("Diğer") ayrı bir kategoridir; birleştirilmez.
+  `DisplayName = "Sınıflandırılmamış"` (`AnalyticsLabels.Unclassified`). `OTHER` ("Diğer") ayrı bir kategoridir; birleştirilmez.
 - Sıra: tutar büyükten küçüğe; eşitlikte kod, Sınıflandırılmamış en sonda. "En çok
   harcanan kategori" listenin ilk elemanıdır. Sıfır tutarlı kategori listelenmez.
 - Yüzde backend'de `tutar / para birimi toplamı × 100` olarak hesaplanır ve 2 ondalığa
@@ -81,3 +81,42 @@ her satırda `CategoryCode`, `DisplayName`, `Amount`, `TransactionCount`, `Perce
 | Deniz, bu ay | GROCERY 9.500 (%83,70); BILLS 1.850 (%16,30); dükkân geliri yok |
 | Ege, son 6 ay | TRANSPORTATION 5.600 (13, %79,21); TRAVEL 1.200 (%16,97); FOOD 270 (2, %3,82) |
 | Ada, Haziran 2025 | OTHER 780 (%65,00) ve Sınıflandırılmamış 420 (%35,00) ayrı satırlar |
+
+## ANA-04 — Merchant harcamaları (`MerchantSpendingService`)
+
+İki işlem, aynı `PurchaseScope`:
+
+**A) `GetBreakdownAsync(SpendingQuery)`:** Para birimi başına `NormalizedMerchant`
+dağılımı. Kategori dağılımıyla aynı sunum kuralları (kesin tutar, gösterim yüzdesi,
+büyükten küçüğe). Merchant'ı olmayan Purchase'lar `Merchant = null`,
+`DisplayName = "Sınıflandırılmamış"` grubunda; toplamlar harcama özetine eşittir.
+
+**B) `GetSpendingAsync(SpendingQuery, merchant)`:** Tek merchant harcaması. `merchant`
+güvenilmeyen metindir (model argümanı). `MerchantMatcher` ile müşterinin **kendi tüm
+zamanlar** Purchase merchant'larına karşı çözülür:
+
+| Durum | Sonuç |
+| --- | --- |
+| Sadeleştirilmiş (Türkçe harf/aksan → düz, sabit tabloyla büyük harf, boşluk birleştirme) tam eşleşme | `Matched`, `IsPartialMatch = false` |
+| Tam eşleşme yok, metin (en az 3 harf) tam bir merchant adının içinde | `Matched`, `IsPartialMatch = true`; açıklama varsayımı söyler |
+| Birden fazla aday | `Ambiguous`, `Candidates` dolu, tutar yok |
+| Yok, yazım hatası veya 3 harften kısa kısmi metin | `NotFound`, tutar yok |
+| Boş/whitespace veya 150 karakterden uzun | `ArgumentException` (DB'ye gitmeden) |
+
+- Sadeleştirme makinenin kültüründen bağımsızdır (tr-TR'de `"I".ToLower()` = `"ı"` tuzağı).
+- Yazım hatası otomatik düzeltilmez; yanlış merchant'ın tutarını söylemek "bulunamadı"dan kötüdür.
+- Bilinen merchant'ın dönemde harcaması yoksa `Matched` + boş `Currencies` döner.
+- Başka müşterinin merchant'ı aday listesinde görünmez.
+- SQL: saat dilimi, müşterinin `DISTINCT NormalizedMerchant` listesi ve kanonik adla
+  filtrelenmiş tek `GROUP BY` (3 komut). Modelin ham metni SQL'e girmez; yalnız eşleşen
+  kanonik ad parametre olarak gider (yakalanan SQL'de `@canonical=Starbucks`).
+
+| İstek | Sonuç |
+| --- | --- |
+| Ada, son 3 ay, "starbucks" | Matched; TRY 930, 5 işlem (Kahve Durağı hariç) |
+| Ada, son 3 ay, "starbuck" | Matched, kısmi; 930 |
+| Ada, bu ay, "hobi dükkanı" | Matched; boş tutar listesi |
+| Ege, son 6 ay, "şehir" | Ambiguous: Şehir Ulaşım, Şehirlerarası Otobüs |
+| Ada, "Aile Marketi" (Deniz'in) | NotFound |
+| Ada, bu ay, dağılım | Starbucks 375 (%51,02); Kahve Durağı 215 (%29,25); Sınıflandırılmamış 145 (%19,73) |
+| Ege, son 6 ay, dağılım | Şehir Ulaşım 5.600; Şehirlerarası Otobüs 1.200; Kahve Durağı 270 |

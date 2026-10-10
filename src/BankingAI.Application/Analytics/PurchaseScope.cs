@@ -10,12 +10,17 @@ namespace BankingAI.Application.Analytics;
 public sealed record SpendingQuery(
     Guid CustomerId, PeriodKind Period, DateOnly? From = null, DateOnly? To = null, Guid? AccountId = null);
 
+// Purchases: the period's Purchase rows. AccountPurchases: the same accounts' Purchase rows of all
+// time, used to recognise names such as merchants the customer has ever used.
+internal sealed record ScopedPurchases(
+    ResolvedPeriod Period, IQueryable<Transaction> Purchases, IQueryable<Transaction> AccountPurchases);
+
 // One place for the rules every spending analysis must share: customer lookup, account
 // authorization, period resolution and the Purchase-only base query. Keeping them here means
 // an authorization fix can never land in one service and be forgotten in another.
 internal sealed class PurchaseScope(BankingDbContext db, PeriodResolver periodResolver)
 {
-    public async Task<(ResolvedPeriod Period, IQueryable<Transaction> Purchases)> ResolveAsync(
+    public async Task<ScopedPurchases> ResolveAsync(
         SpendingQuery query, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(query);
@@ -51,12 +56,12 @@ internal sealed class PurchaseScope(BankingDbContext db, PeriodResolver periodRe
             .Select(a => a.Id);
 
         // Spending is Kind = Purchase (VAL-05): transfers, sales, salaries and opening funds are excluded.
-        // The query is returned unexecuted so each service composes its own single aggregation.
-        var purchases = db.Transactions.AsNoTracking()
-            .Where(t => t.Kind == TransactionKind.Purchase
-                && t.OccurredAt >= period.StartUtc && t.OccurredAt < period.EndUtc
-                && accounts.Contains(t.AccountId));
+        // Queries are returned unexecuted so each service composes its own single aggregation.
+        var accountPurchases = db.Transactions.AsNoTracking()
+            .Where(t => t.Kind == TransactionKind.Purchase && accounts.Contains(t.AccountId));
+        var purchases = accountPurchases
+            .Where(t => t.OccurredAt >= period.StartUtc && t.OccurredAt < period.EndUtc);
 
-        return (period, purchases);
+        return new ScopedPurchases(period, purchases, accountPurchases);
     }
 }

@@ -15,13 +15,11 @@ public sealed record CategoryBreakdown(ResolvedPeriod Period, IReadOnlyList<Curr
 
 public sealed class CategoryBreakdownService(BankingDbContext db, PeriodResolver periodResolver)
 {
-    public const string UnclassifiedDisplayName = "Sınıflandırılmamış";
-
     private readonly PurchaseScope _scope = new(db, periodResolver);
 
     public async Task<CategoryBreakdown> GetAsync(SpendingQuery query, CancellationToken cancellationToken = default)
     {
-        var (period, purchases) = await _scope.ResolveAsync(query, cancellationToken);
+        var (period, purchases, _) = await _scope.ResolveAsync(query, cancellationToken);
 
         // One aggregation query. LEFT JOIN keeps unclassified purchases, whose category columns are NULL.
         var rows = await (
@@ -42,7 +40,7 @@ public sealed class CategoryBreakdownService(BankingDbContext db, PeriodResolver
                 var total = g.Sum(r => r.Amount);
                 var categories = g
                     .Select(r => new CategorySpending(
-                        r.Code, r.Name ?? UnclassifiedDisplayName, r.Amount, r.Count,
+                        r.Code, r.Name ?? AnalyticsLabels.Unclassified, r.Amount, r.Count,
                         Math.Round(r.Amount / total * 100m, 2, MidpointRounding.AwayFromZero)))
                     // Largest first; ties are ordered by code with the unclassified group last.
                     .OrderByDescending(c => c.Amount)

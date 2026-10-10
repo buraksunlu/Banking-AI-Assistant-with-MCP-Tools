@@ -16,7 +16,7 @@ public sealed class SpendingSummaryService(BankingDbContext db, PeriodResolver p
 
     public async Task<SpendingSummary> GetAsync(SpendingQuery query, CancellationToken cancellationToken = default)
     {
-        var (period, purchases) = await _scope.ResolveAsync(query, cancellationToken);
+        var (period, purchases, _) = await _scope.ResolveAsync(query, cancellationToken);
 
         // Aggregation runs in PostgreSQL as a single GROUP BY; rows are never loaded into memory.
         var currencies = await purchases
