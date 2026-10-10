@@ -1,7 +1,7 @@
 # PROJECT MASTER PROMPT
 # AI-Powered Transaction Intelligence Platform
 
-Son kural güncellemesi: 9 Ekim 2026.
+Son kural güncellemesi: 10 Ekim 2026.
 
 Bu dosya proje kararlarının esas kaynağıdır. Kullanıcının son açık talimatı,
 eski doküman veya taslakla çeliştiğinde önceliklidir. todo.md projenin tek iş
@@ -1289,17 +1289,28 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 - Fiyat uydurma, random boşluk doldurma ve farklı serileri sessiz karıştırma yok.
   Import duplicate-safe/idempotent/retry edilebilir; gerçek import Source'u doldurur.
   Revizyonlar ve eksik günler raporlanır. Önce manuel import; scheduler daha sonra.
-- Yatırım karşılaştırması: ilgili TRY Debit harcamalarında HER HARCAMA TARİHİNDE
-  varsayımsal varlık alımı esas alınır. Birimler Amount / o günün fiyatı ile
-  hesaplanır; toplam birim değerleme tarihine kadar son mevcut fiyatla çarpılır.
-- Exact gün fiyatı yoksa PriceDate <= işlem günü koşuluyla en yakın önceki fiyat
-  kullanılır; gelecek fiyat geriye uygulanmaz. Hiç önceki fiyat yoksa eksiklik belirtilir.
-- İşlem UTC zamanından piyasa tarihi Türkiye saat dilimiyle çıkarılır.
-  Günlük referans değer işlem anında erişilebilir alım fiyatı gibi sunulmaz.
+- 10 Ekim 2026 kullanıcı kararı: seçilen kategori/dönemdeki TRY Debit toplamı,
+  dönem başlangıcında tek seferde yatırılmış varsayılır. Her harcama tarihinde
+  ayrı alım yapılmaz. Harcama toplamı backend tarafından hesaplanır.
+- Müşteri başlangıçta alırken sağlayıcının SATIŞ fiyatı, değerleme tarihinde
+  satarken sağlayıcının ALIŞ fiyatı kullanılır. USDTRY, EURTRY ve gram altın/TRY
+  aynı kurala tabidir; sağlayıcının isimlendirme yönü ayrıca doğrulanır.
+- Birim = totalSpent / başlangıç satış fiyatı; currentValue = birim × değerleme
+  alış fiyatı; difference = currentValue - totalSpent. Bu, toplam paranın baştan
+  mevcut olduğunu varsayan tarihsel senaryodur; gerçek nakit akışı getirisi değildir.
+- Exact gün fiyatı yoksa başlangıç ve değerleme için ayrı ayrı PriceDate <=
+  hedef gün koşuluyla en yakın önceki uygun fiyat kullanılır; gelecek fiyat
+  geriye uygulanmaz. Önceki fiyat yoksa sonuç eksik veri olarak bildirilir.
+- Dönem ve değerleme piyasa günleri Türkiye takvimine göre belirlenir.
+  Kullanılan gerçek fiyat tarihleri gösterilir; günlük veri anlık fiyat diye sunulmaz.
+- Mevcut DailyMarketPrice tek Price alanlıdır; alış/satış model değişikliği henüz
+  yapılmadı. Kaynak doğrulamasından sonra alanlar ve incremental migration ayrı
+  adımda incelenecek. Ortalama XAU verisinden alış/satış makası uydurulmaz.
 - Backend totalSpent, birimler, currentValue, difference, percentageDifference,
   yöntem, kaynak ve kullanılan fiyat tarihlerini üretir. LLM yalnızca açıklar.
   Ara birimler erken yuvarlanmaz; harcama sıfırsa yüzde fark null olur.
-- Stale fiyat sınırı ve ücret/vergi/makas/enflasyon kapsamı hesaplama öncesi netleşir.
+- Alış/satış makası iki farklı fiyatla hesaba katılır. Stale fiyat sınırı ve
+  ek ücret/vergi/enflasyon kapsamı hesaplama öncesi netleşir.
 - Altın zorunlu varsayılan değildir. Aynı kapsamda USD/EUR/altın tarihsel olarak
   karşılaştırılabilir; en yüksek geçmiş değer gelecek kazanç garantisi değildir.
 - Karşılaştırma her sorguya eklenmez. Tetiklenecek sorgular/sunum daha sonra

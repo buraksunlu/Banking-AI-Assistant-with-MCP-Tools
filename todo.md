@@ -142,13 +142,21 @@ Migration geçmişi:
 
 ## 8. Gerçek historical market kaynağını seç
 
+- [x] SRC-00 — 10 Ekim 2026 kararı belgelendi: toplam TRY harcama dönem başlangıcında tek seferde yatırılmış kabul edilir. Başlangıçta sağlayıcının satış, değerlemede alış fiyatı kullanılır. Yalnızca belgeler güncellendi; model/import/hesaplama henüz uygulanmadı.
+
 - [ ] SRC-01 — USDTRY ve EURTRY ücretsiz kaynak adaylarını incele. Resmî kaynak, erişim koşulları, API anahtarı ihtiyacı ve iki yıllık günlük kapsamı örnek yanıtla göster.
-- [ ] SRC-02 — Gram altın kaynağını ayrı doğrula. Gram/ons, saflık, TRY yönü, fiyat tanımı ve iki yıllık erişim kanıtlanmadan kaynağı kesinleştirme.
-- [ ] SRC-03 — Fiyat sözleşmesini yaz. Varlık başına tek seri; alış/satış/referans tercihi; kaynak takvim günü; eksik veri gösterimi; varsa birim dönüşüm formülü açık olsun.
+- [ ] SRC-02 — Gram altın kaynağını ayrı doğrula. Geçmiş ve güncel gram/TL alış–satış, gram/ons, saflık, sağlayıcı yönü, fiyat tanımı ve iki yıllık erişim kanıtlanmadan kaynağı kesinleştirme.
+- [ ] SRC-03 — Fiyat sözleşmesini yaz. Varlık başına tutarlı kaynak ve alış/satış çifti; başlangıç satış, değerleme alış; kaynak takvim günü; eksik veri gösterimi; varsa birim dönüşüm formülü açık olsun.
 - [ ] SRC-04 — Kullanıcıya kaynak seçimini ve kısıtlarını açıkla. Ücretli servis kullanma; erişim engeli varsa kapsam tamamlandı deme ve fake fiyatla kapatma.
 - [ ] SRC-05 — Küçük ham veri örneğini saklayıp parser'ı dene. Ondalık ayırıcı, tarih formatı, null değerler, tekrarlar ve bozuk satırlar doğru ele alınsın; secret saklama.
 
 ## 9. Import'u birer varlıkla geliştir
+
+Kaynak doğrulamasından sonra ve import'tan önce:
+- [ ] MP-06 — Mevcut tek Price yerine alış/satışı saklama tasarımını kullanıcıya açıkla; alan isimleri, precision, null ve geçerli fiyat çifti kurallarını belirle.
+- [ ] MP-07 — Onaylanan entity/configuration/validation değişikliğini uygula; yeni incremental migration üret, SQL'i incele ve DB'ye uygula. Mevcut geçmişi koru.
+- [ ] MP-08 — Alış/satış yönünü, geçersiz fiyat çiftlerini ve DB okuma/yazımını doğrula; ortalama fiyatı iki tarafa kopyalama.
+
 
 - [ ] IMP-01 — Import girişini oluştur. Varlık ve başlangıç/bitiş tarihleri açık parametreler olsun; ilk aşama manuel komutla çalışsın.
 - [ ] IMP-02 — USDTRY için kısa tarih aralığı import et. Kaynak fiyat/tarih/birim ile DB satırlarını örnek bazında karşılaştır.
@@ -157,7 +165,7 @@ Migration geçmişi:
 - [ ] IMP-05 — Idempotent yazımı uygula. Asset+gün unique kuralıyla aynı veri tekrarında duplicate oluşturma; revize fiyatları tanımlı politikayla işle ve raporla.
 - [ ] IMP-06 — Kesinti/retry davranışını ekle. Sınırlı retry ve timeout kullan; tamamlanan parçalar tekrar çalıştırılınca bozulmasın, hatalar gizlenmesin.
 - [ ] IMP-07 — Import raporu üret. Eklenen/değişen/değişmeyen/reddedilen satırlar, tarih kapsamı, kaynak ve veri boşlukları gösterilsin. Source alanı gerçek importlarda dolu olsun.
-- [ ] IMP-08 — Üç varlık için en az iki yıllık veriyi yükle. Gerçek son yayımlanan güne kadar kapsamı doğrula; ilk transaction öncesi fallback için gerekiyorsa ek geçmiş getir.
+- [ ] IMP-08 — Üç varlık için en az iki yıllık veriyi yükle. Gerçek son yayımlanan güne kadar kapsamı doğrula; desteklenen dönem başlangıcı öncesi fallback için gerekiyorsa ek geçmiş getir.
 - [ ] IMP-09 — Takvim boşluklarını ayır. Hafta sonu/tatil doğal boşluğu ile beklenmeyen kaynak kesintisini raporla; her gün için uydurma satır üretme.
 - [ ] IMP-10 — Önceki fiyat seçimini doğrula. Exact gün, hafta sonu, resmi tatil, ilk fiyat öncesi tarih, gelecek gözlem ve eski fiyat senaryolarını test et; stale eşiğini kararlaştır.
 
@@ -204,14 +212,14 @@ Migration geçmişi:
 
 ## 13. Opportunity-cost hesabı
 
-- [ ] OC-01 — Hesap sözleşmesini sabitle. TRY Debit, seçilen kategori/dönem, her harcama tarihinde varsayımsal alım ve değerleme tarihi kullan; ücret/vergi/makas/enflasyon kapsamını yaz.
-- [ ] OC-02 — USDTRY için tek işlem hesabı yaz. Amount / alış tarihinin referans fiyatı; ara birimi erken yuvarlama.
-- [ ] OC-03 — Birden çok işlemi topla. Toplam birim × değerleme tarihine kadar son fiyat; fark ve yüzde farkını üret.
+- [ ] OC-01 — Hesap sözleşmesini sabitle. TRY Debit, seçilen kategori/dönem, toplam harcamayla dönem başlangıcında tek alım ve değerleme tarihinde satış kullan; sağlayıcı satış/alış yönünü ve ek ücret/vergi/enflasyon kapsamını yaz.
+- [ ] OC-02 — USDTRY için dönem başlangıcında tek alım hesabı yaz. totalSpent / başlangıç sağlayıcı satış fiyatı; ara birimi erken yuvarlama.
+- [ ] OC-03 — Dönemdeki uygun harcamaları topla; tek alımdaki birim × değerleme sağlayıcı alış fiyatı ile fark/yüzde üret. İşlem tarihlerinde ayrı alım yapma.
 - [ ] OC-04 — Aynı motoru EURTRY ve GRAM_GOLD_TRY ile doğrula. Asset birimi ve quote currency eşleşmeli; varlığa özel kopya hesap motorları yazma.
-- [ ] OC-05 — Fiyatları toplu getir. İşlem başına ayrı sorgu üretme; eksik/çok eski fiyatları açık sonuç durumuyla bildir.
+- [ ] OC-05 — Fiyatları toplu getir. Varlıkların başlangıç satış ve değerleme alış fiyatlarını birlikte çöz; eksik/çok eski fiyatları açık sonuç durumuyla bildir.
 - [ ] OC-06 — Karşılaştırma çıktısını oluştur. Harcama toplamı, birim, değer, fark, fiyat tarihleri, kaynak, yöntem ve kapsam dönsün; sonuç DB'ye kaydedilmesin.
 - [ ] OC-07 — Çoklu varlık sıralamasını ekle. Aynı harcama kümesi, tarih ve kapsam kullan; eksik veride kesin kazanan gösterme.
-- [ ] OC-08 — Bağımsız örneklerle test et. Tatil fallback'i, eksik ilk fiyat, sıfır harcama, negatif getiri ve gram/ons hataları kapsansın.
+- [ ] OC-08 — Bağımsız örneklerle test et. Sağlayıcı alış/satış yönünün ters çevrilmesi, makas, tek alım varsayımı, tatil fallback'i, eksik ilk fiyat, sıfır harcama, negatif getiri ve gram/ons hataları kapsansın.
 - [ ] OC-09 — API'ye bağla. Tarihsel varsayımı anlat; gelecek getiri garantisi veya yatırım emri üretme.
 - [ ] OC-10 — Hangi sorgularda önerileceğini kullanıcıyla belirle. Her harcama sorusuna otomatik ekleme; açıkça istenen varlığı sessizce değiştirme.
 

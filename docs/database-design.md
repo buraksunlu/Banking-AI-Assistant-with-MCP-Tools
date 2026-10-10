@@ -295,30 +295,62 @@ boşlukları normaldir. Bu kontroller kalıcı otomatik test projesi değildir.
 - Transaction ve Account balance güncellemesi ileride aynı DB transaction'ında yapılır.
 - Index'ler gerçek query pattern'lerine göre eklenir; gereksiz index oluşturulmaz.
 
-## Historical price fallback
+## Karşılaştırma kararı — 10 Ekim 2026
 
-Exact fiyat yoksa aynı asset için işlem tarihinden önceki en yakın fiyat kullanılır:
+Seçilen kategori ve dönemdeki TRY Debit toplamı, dönem başlangıcında tek seferde
+yatırılmış kabul edilir. Her harcama tarihinde ayrı alım yaklaşımı kaldırılmıştır.
+Örneğin son bir yıllık giyim toplamı 200.000 TRY ise, bu tutarın bir yıl önce
+mevcut olduğu varsayılır; gerçek harcama nakit akışının getirisi hesaplanmaz.
+
+| İşlem | Sağlayıcı tarafındaki fiyat |
+| --- | --- |
+| Müşteri dönem başlangıcında varlık alır | Satış |
+| Müşteri değerleme tarihinde varlığı satar | Alış |
+
+```text
+birim = totalSpent / başlangıç satış fiyatı
+currentValue = birim × değerleme alış fiyatı
+difference = currentValue - totalSpent
+percentageDifference = difference / totalSpent × 100
+```
+
+Harcama sıfırsa yüzde null olur; ara birimler erken yuvarlanmaz.
+USD ve EUR birimleri döviz adedi, altın birimi gram; sonuç TRY'dir.
+Makas bu iki fiyatla kapsanır; ek ücret/vergi/enflasyon kapsamı ayrıca netleşir.
+
+### Mevcut tablo ve bekleyen değişiklik
+
+Yukarıdaki DailyMarketPrices tablosu mevcut şemayı gösterir: yalnızca `Price`
+vardır. Ayrı alış/satış alanları henüz uygulanmadı. Kaynaklar doğrulandıktan
+sonra alan isimleri, doğrulamalar ve geçiş ayrı adımda tasarlanacak; yeni
+migration kullanılacak, uygulanmış migration'lar silinmeyecek.
+Ortalama XAU fiyatı iki taraflı gram/TL kotasyonu yerine kullanılamaz;
+makas uydurulmaz. Bu belge değişikliği kod/DB değişikliği değildir.
+
+### Historical price fallback
+
+Başlangıç satış fiyatı ve değerleme alış fiyatı için ayrı ayrı, aynı varlığın
+hedef gün veya öncesindeki en yakın uygun fiyatı seçilir:
 
 ```sql
 WHERE "MarketAssetId" = @assetId
-  AND "PriceDate" <= @transactionDate
+  AND "PriceDate" <= @targetDate
 ORDER BY "PriceDate" DESC
 LIMIT 1
 ```
 
-İlk fiyat işlemden sonraysa geriye uygulanmaz. Önceki fiyat yoksa sonuç eksik
-veri olarak raporlanır; rastgele fiyat üretilmez.
+Hedef günler Türkiye takvimine göre belirlenir. Gelecek fiyat geriye uygulanmaz.
+Önceki fiyat yoksa sonuç eksik veri olur. Çok eski fiyat sınırı ayrıca belirlenecek;
+hafta sonu/tatil için yeni fiyat satırı üretilmez. Gerçek kullanılan tarihler gösterilir.
 
-## Opportunity-cost kullanımı
+### Opportunity-cost kullanımı
 
-Uygun sorgularda backend ilgili TRY Debit işlemlerini ve kategoriyi bulur, her
-harcama tarihinde seçilen asset fiyatını seçer, `Amount / Price` ile birimleri
-hesaplar ve değerleme tarihindeki fiyatla çarpar. Harcama toplamı, birimler,
-değer, fark, yüzde, kaynak ve kullanılan fiyat tarihleri döner.
-
-Bu hesap runtime yapılır; InvestmentSimulations tablosu yoktur. Karşılaştırma
-her sorguda çalıştırılmaz; hangi sorgularda önerileceği ayrıca netleştirilecektir.
-LLM yalnızca backend sonucunu açıklar.
+Backend harcama toplamını ve hesabı üretir; LLM yalnızca sonucu açıklar.
+Çıktı toplamı, birimi, değeri, farkı/yüzdeyi, dönem başlangıcını, değerleme
+ tarihini, kullanılan alış/satış fiyatlarını ve kaynak tarihlerini içerir.
+Günlük veri anlık veya müşteriye garanti edilen işlem fiyatı olarak sunulmaz.
+Hesap runtime yapılır; InvestmentSimulations tablosu yoktur. Karşılaştırma her
+sorguda çalışmaz; tetiklenecek sorgular ayrıca netleştirilecektir.
 
 ## Uygulama sırası
 

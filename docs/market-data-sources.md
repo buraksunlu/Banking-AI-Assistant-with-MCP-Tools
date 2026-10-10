@@ -41,8 +41,8 @@ Gerçek yanıtların ilgili alanları:
 
 İki yıllık aralığın farklı noktaları erişilebilir; aradaki bütün yayın günlerinin
 eksiksiz olduğu henüz doğrulanmadı. SRC-01 bu nedenle açık kalır.
-ForexBuying ve ForexSelling farklı serilerdir; import öncesi tek fiyat tanımı
-SRC-03'te seçilecek. Bunlar gerçek müşteri işlem fiyatı olarak sunulmayacak.
+10 Ekim kararı: başlangıç alımında ForexSelling, değerleme satışında
+ForexBuying kullanılacak; bu yön sağlayıcı tanımıyla doğrulanacak. Bunlar gerçek müşteri işlem fiyatı olarak sunulmayacak.
 Unit kontrol edilmeli; kodu yanlış varlığa yazma veya eksik fiyatı sıfır yapma yok.
 
 ## Altın: Gold-api.com adayı
@@ -118,3 +118,13 @@ Konum: `data/raw/market/2025-10-10_2026-10-09/`.
 Bu işlem uygulamaya import komutu eklemez ve DB'ye kayıt yazmaz. Gram/TL dönüşümü,
 kaynak tanımı ve eksik gün politikası henüz tamamlanmadı. İki yıllık döviz kapsamı
 ve SRC/IMP görevleri tamamlandı olarak işaretlenmedi.
+
+## Güncel kararın kaynak seçimine etkisi — 10 Ekim 2026
+
+Toplam harcama dönem başlangıcında tek seferde yatırılmış varsayılacak.
+Başlangıçta sağlayıcı satış, değerlemede sağlayıcı alış fiyatı gerekir.
+Yukarıdaki ortalama XAU indirmesi araştırma verisidir; bu iki fiyatı sağlamaz.
+Ortalama USD/ons değerini TRY/grama çevirmek alış/satış çiftini üretmez.
+Geçmiş ve güncel gram/TL alış–satış kaynağı doğrulanmadan altın import'u
+uygulanmayacak; ortalamadan makas türetilmeyecek. Mevcut tek Price şeması
+MP-06–08 adımlarında ayrıca tasarlanıp değiştirilecek.
