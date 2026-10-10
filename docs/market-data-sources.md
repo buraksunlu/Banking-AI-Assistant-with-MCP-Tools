@@ -98,3 +98,23 @@ okumaz. Sonraki adım kaynak birimini, fiyat tanımını ve eksik günleri doğr
 Ardından parser/import ayrı küçük adımlarla hazırlanır.
 
 Bu inceleme DB'yi, seed'i, migration'ları veya uygulama komutlarını değiştirmedi.
+
+## Yerel ham veri indirmesi — 10 Ekim 2026
+
+Kullanıcının onayıyla 2025-10-10 dahil, 2026-10-10 hariç aralık indirildi.
+Konum: `data/raw/market/2025-10-10_2026-10-09/`.
+
+- `gold-xau.json`: sağlayıcının değiştirilmeden saklanan 365 günlük XAU yanıtı.
+- `tcmb/`: 248 günün ham XML yanıtı; her birinde USD ve EUR alış/satış alanları var.
+- `download-report.json`: istek aralığı, altın istek URL'si (anahtarsız), gün bazlı
+  TCMB durumları ve ayrıştırılan kur alanları.
+- 261 hafta içi gün istendi; 13 gün HTTP 404 döndü. Bu günler otomatik tatil
+  sayılmadı. Hafta sonları TCMB'den istenmedi; eksik güne fiyat üretilmedi.
+- Altın günlerinin benzersizliği, fiyatların pozitif/sonlu oluşu ve TCMB
+  USD/EUR Unit=1 değerleri kontrol edildi. Bu kontroller ekonomik doğruluğu kanıtlamaz.
+- Ham indirmeler `.gitignore` ile yerelde tutulur; kaynak verisinin tamamı
+  yeniden dağıtılmıyor. Anahtar dosyalara veya rapora eklenmedi.
+
+Bu işlem uygulamaya import komutu eklemez ve DB'ye kayıt yazmaz. Gram/TL dönüşümü,
+kaynak tanımı ve eksik gün politikası henüz tamamlanmadı. İki yıllık döviz kapsamı
+ve SRC/IMP görevleri tamamlandı olarak işaretlenmedi.

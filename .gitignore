@@ -2,3 +2,6 @@
 **/obj/
 .env
 .DS_Store
+
+# Downloaded market source responses (local only)
+/data/raw/market/
