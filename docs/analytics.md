@@ -155,6 +155,8 @@ komut değildir. Koruma MCP/prompt katmanında yapılacak (SEC-03).
 
 SQL: saat dilimi, COUNT ve tek sayfa sorgusu (3 komut; merchant filtresinde +1 merchant listesi).
 Hesap, kategori, karşı bacak, karşı hesap ve karşı müşteri aynı sorguda join'lenir; N+1 yoktur.
+Bu okuma ve maskeleme ANA-06'dan itibaren ortak `TransactionItemReader` (internal) içindedir;
+sıralama (`NewestFirst`/`LargestFirst`) join'lerden sonra son sorguda uygulanır.
 **EF tuzağı:** korelasyonlu alt sorgu LEFT JOIN'e çevrilirken C# null semantiği korunur
 (`null == null` true) ve dış satırdaki `t.PairId != null` kontrolü düşürülür. Bu yüzden kontrol
 join'lenen satıra (`o.PairId != null`) konur; aksi halde çiftsiz her satır diğer çiftsiz
@@ -169,3 +171,32 @@ satırlarla çoğalır (ilk uygulamada testler bunu yakaladı).
 | Ada, FOOD | 165, 95, 210, 120 |
 | Deniz, dükkân hesabı, bu ay | Sale: Ada K***, Ege Y***, Ada K*** |
 | Deniz, geçen ay, Transfer + Debit | 2.000 kendi dükkânına (own), 750 Ege Y*** |
+
+## ANA-06 — En yüksek işlemler (`HighestTransactionsService`)
+
+Girdi `HighestTransactionsQuery(CustomerId, Period, From?, To?, AccountId?, Limit = 5,
+IncludeAllTransactions = false)`. Çıktı para birimi başına sıralı `TransactionItem` listesi.
+
+Kullanıcı kararları:
+
+- **Varsayılan: harcama.** `PurchaseScope`, yani şahsi hesaplar ve `Kind = Purchase`. Ada'nın
+  1.500 TL transferi ve 45.000 TL maaşı "en yüksek harcamalar" listesine girmez.
+- **"Hepsi" istenirse** (`IncludeAllTransactions = true`): bütün türler ve müşterinin bütün
+  hesapları (dükkân dahil), arama servisiyle aynı ekstre kapsamı (`CustomerScope(personalOnly: false)`).
+- **Limit** varsayılan 5; istenen sayı döner, en fazla 100. 0 veya 101+ `ArgumentException`.
+- **Eşit tutarlarda en yeni önce**, sonra `Id`.
+- **Para birimi başına ayrı liste**; 10 USD ile 210 TRY karşılaştırılmaz.
+
+SQL: saat dilimi, `DISTINCT CurrencyCode` ve para birimi başına bir sıralı sorgu
+(`ORDER BY Amount DESC, OccurredAt DESC, Id DESC LIMIT n`). Pencere fonksiyonu yerine bu tercih
+edildi; sorgu sayısı satıra değil para birimi whitelist'ine (en fazla 4) bağlıdır.
+
+| İstek | Sonuç |
+| --- | --- |
+| Ada, bu ay | 210, 165, 145 (Sınıflandırılmamış), 120, 95; transfer ve maaş yok |
+| Ada, son 3 ay | Netflix 229,99 × 3 (12 Eyl, 12 Ağu, 12 Tem), Starbucks 210, 185 |
+| Deniz, son 6 ay, 3 | 31.000, 24.000, 18.000 |
+| Ege, son 6 ay, 3 | 1.200 (14 Ağu), 700 (3 Eki), 700 (25 Eyl) |
+| Ada, bu ay, hepsi | Maaş 45.000; giden 1.500 (Deniz M***); gelen 300; 210; 165 |
+| Deniz, bu ay, hepsi, 10 | 55.000; 9.500; 1.850; 1.500; dükkân satışları 140, 120, 95 |
+| Ada + geçici 10 USD, 2 | TRY: 210, 165; USD: 10 |

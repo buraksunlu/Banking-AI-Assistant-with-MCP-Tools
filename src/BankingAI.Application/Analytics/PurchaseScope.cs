@@ -13,7 +13,11 @@ public sealed record SpendingQuery(
 // Purchases: the period's Purchase rows. AccountPurchases: the same accounts' Purchase rows of all
 // time, used to recognise names such as merchants the customer has ever used.
 internal sealed record ScopedPurchases(
-    ResolvedPeriod Period, IQueryable<Transaction> Purchases, IQueryable<Transaction> AccountPurchases);
+    ResolvedPeriod Period, IQueryable<Transaction> Purchases, IQueryable<Transaction> AccountPurchases)
+{
+    // Not positional, so existing three-part deconstruction stays valid.
+    public required string TimeZone { get; init; }
+}
 
 // Spending analyses share CustomerScope's rules plus two of their own: personal accounts only
 // and Kind = Purchase (VAL-05).
@@ -24,7 +28,7 @@ internal sealed class PurchaseScope(BankingDbContext db, PeriodResolver periodRe
     public async Task<ScopedPurchases> ResolveAsync(SpendingQuery query, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(query);
-        var (period, _, accounts) = await _customer.ResolveAsync(
+        var (period, timeZone, accounts) = await _customer.ResolveAsync(
             query.CustomerId, query.Period, query.From, query.To, query.AccountId, personalOnly: true, cancellationToken);
 
         // Transfers, sales, salaries and opening funds are excluded. Queries are returned
@@ -34,6 +38,6 @@ internal sealed class PurchaseScope(BankingDbContext db, PeriodResolver periodRe
         var purchases = accountPurchases
             .Where(t => t.OccurredAt >= period.StartUtc && t.OccurredAt < period.EndUtc);
 
-        return new ScopedPurchases(period, purchases, accountPurchases);
+        return new ScopedPurchases(period, purchases, accountPurchases) { TimeZone = timeZone };
     }
 }

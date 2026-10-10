@@ -140,7 +140,10 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
   üstüne yalnız Personal hesap + `Kind == Purchase` ekler. Çalıştırılmamış `IQueryable` dönerler;
   her servis tek bir `GROUP BY`/sayfa sorgusu ekler. Yetki kuralını servislerde kopyalama.
 - Servisler: `SpendingSummaryService`, `CategoryBreakdownService`, `MerchantSpendingService`,
-  `TransactionSearchService` (ekstre: tüm türler ve tüm hesaplar, DTO, PairId ile maskeli karşı taraf).
+  `TransactionSearchService` (ekstre: tüm türler ve tüm hesaplar), `HighestTransactionsService`
+  (varsayılan harcama; istenirse tüm işlemler; limit ≤ 100). İşlem listesi döndüren servisler
+  `TransactionItemReader` (internal) ile aynı DTO'yu üretir: join'ler, maskeli karşı taraf
+  (PairId), `LocalDate`, join'lerden sonra uygulanan sıralama. Join/maskeleme kodunu kopyalama.
   Sonuçlar para birimi başına satırdır; harcama yoksa boş liste döner (uydurma "0" satırı yok);
   yüzde backend'de 2 ondalık `AwayFromZero` ile hesaplanır ve 100'e zorlanmaz.
 - `MerchantMatcher`: modelden gelen merchant metni güvenilmezdir. Kültürden bağımsız Türkçe
@@ -168,6 +171,6 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
 Banking foundation kabul edildi; market data (USDTRY/EURTRY/gram altın import, opportunity-cost)
 ayrı ve engellemeyen bir koldur, altın kaynağı (SRC-02) dış yanıt bekliyor. Tamamlananlar:
 ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/AccountType, çift
-yazıcı, dükkân ve transfer seed'i), ANA-02–05 (özet, kategori, merchant, arama). Sıradaki:
-ANA-06 en yüksek işlemler, ardından ANA-07 dönem karşılaştırması, API, AI, MCP.
+yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, arama, en yüksek
+işlemler). Sıradaki: ANA-07 dönem karşılaştırması, ardından ANA-08/09, API, AI, MCP.
 Güncel ayrıntı her zaman `todo.md`'dedir.
