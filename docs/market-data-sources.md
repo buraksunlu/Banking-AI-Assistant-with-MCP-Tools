@@ -187,3 +187,34 @@ eksik geçmiş alış fiyatı satıştan/ortalamadan uydurulmayacak.
 Araştırma sonucu altın kaynağı henüz kesinleşmedi. SRC-02 açık, model/migration/
 import değişmedi. Sonraki doğrulama gerçek yetkili yanıt, tarih kapsamı ve
 ürün saflığıdır. Başarılı erişim olmadan tablo değişikliğine geçilmez.
+
+### Yeni anahtarla erişim denemesi
+
+HESAPLI_ALTIN_API_KEY yerel ortamdan okunarak X-API-Key başlığında yalnızca
+hesaplialtin.com adresine gönderildi. Geçmiş `public-history` ve güncel
+`public-prices` isteklerinin ikisi de HTTP 403 döndü. Hata yanıtındaki
+`detail`, site sahibinin tarayıcı imzasına göre erişimi engellediğini bildiriyor.
+Bu sonuç anahtarın geçersiz olduğunu kanıtlamaz; kimlik doğrulamasının
+başarıyla tamamlandığı da doğrulanamadı. Engeli aşmak için istemci taklidi
+yapılmadı. Fiyat alınamadı, DB değişmedi; SRC-02 açık kalır.
+Sonraki adım sağlayıcının izin verdiği istemci/erişim yönteminin netleşmesidir.
+
+### Alternatif erişim kontrolü — 10 Ekim 2026
+
+- TLcevir: https://tlcevir.com/api-dokumantasyon anahtarsız, kişisel/ticari
+  olmayan kullanım için ücretsiz erişim belgeliyor.
+  `https://tlcevir.com/api/history/XAU_GRAM?days=365` gerçek isteği başarılı;
+  buy/sell alanları var fakat yalnızca 96 satır (2026-07-07–2026-10-10) döndü.
+  `/api/rates` isteği de başarılı. Bir yıllık başlangıç fiyatını sağlamıyor.
+  Ticari kullanım, saflık ve gün tanımı ayrıca doğrulanmalı.
+- Standard Bullion: https://standardbullion.com/gold-price-api ücretsiz,
+  kaynak atıflı USD/troy ons verisi belgeliyor.
+  `/api/v1/market/history?metal=XAU&range=1y` isteği başarılı; 324 kayıt,
+  2025-10-10–2026-10-09. Geçmişte yalnız price alanı var, ayrı ask yok.
+  Canlı bid/ask belgelense de geçmiş price'ın satış olduğu doğrulanmadı;
+  bu yüzden gram/TL geçmiş satışın yerine kullanılmayacak.
+
+Erişilebilir alternatif bulundu, fakat bir yıllık gram/TL satış + güncel
+alış gereksinimini tam karşılayan alternatif doğrulanamadı. Hesaplı Altın
+destek yanıtı beklenirken altın SRC-02 açık tutulur. Döviz çalışmaları
+altın beklenmeden ayrı kapsamda ilerleyebilir. Bu kontrolde DB/kod değişmedi.
