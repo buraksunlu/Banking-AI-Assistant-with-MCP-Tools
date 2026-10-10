@@ -23,7 +23,7 @@ public sealed class SpendingSummaryServiceTests
     private static SpendingSummaryService Service(BankingDbContext db) =>
         new(db, new PeriodResolver(new FixedTimeProvider(DemoNowUtc)));
 
-    private static async Task<SpendingSummary> GetAsync(SpendingSummaryRequest request)
+    private static async Task<SpendingSummary> GetAsync(SpendingQuery request)
     {
         Assert.False(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BANKINGAI_CONNECTION_STRING")),
             "PostgreSQL testi için önce .env ortam değişkenlerini yükleyin.");
