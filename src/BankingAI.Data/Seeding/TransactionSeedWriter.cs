@@ -34,10 +34,6 @@ public static class TransactionSeedWriter
         if (transaction.Direction is not (TransactionDirection.Debit or TransactionDirection.Credit))
             throw new ArgumentOutOfRangeException(nameof(transaction), "Direction Debit veya Credit olmalı.");
 
-        var delta = transaction.Direction == TransactionDirection.Credit
-            ? transaction.Amount
-            : -transaction.Amount;
-
         await using var dbTransaction = await db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
@@ -48,41 +44,7 @@ public static class TransactionSeedWriter
             db.Transactions.Add(transaction);
             await db.SaveChangesAsync(cancellationToken);
 
-            // PostgreSQL evaluates this arithmetic against the locked current row. Concurrent
-            // writes therefore add their deltas instead of overwriting a previously read balance.
-            var updated = await db.Accounts
-                .Where(a => a.Id == transaction.AccountId && a.CurrencyCode == transaction.CurrencyCode)
-                .Where(a => a.Balance + delta >= 0m && a.Balance + delta <= MaximumBalance)
-                .ExecuteUpdateAsync(setters => setters
-                    .SetProperty(a => a.Balance, a => a.Balance + delta), cancellationToken);
-
-            if (updated != 1)
-            {
-                var accountExists = await db.Accounts.AsNoTracking()
-                    .AnyAsync(a => a.Id == transaction.AccountId && a.CurrencyCode == transaction.CurrencyCode, cancellationToken);
-                if (!accountExists)
-                    throw new InvalidOperationException("Hesap bulunamadı veya işlem para birimi hesapla eşleşmiyor.");
-
-                throw new InvalidOperationException(transaction.Direction == TransactionDirection.Debit
-                    ? "Yetersiz bakiye nedeniyle Debit işlemi reddedildi."
-                    : "Credit işlemi hesap bakiye sınırını aşar.");
-            }
-
-            // ExecuteUpdate bypasses EF's change tracker. Refresh a previously loaded Account
-            // so this context does not keep exposing its old balance.
-            var trackedAccount = db.ChangeTracker.Entries<Account>()
-                .SingleOrDefault(entry => entry.Entity.Id == transaction.AccountId);
-            if (trackedAccount is not null)
-            {
-                var currentBalance = await db.Accounts.AsNoTracking()
-                    .Where(a => a.Id == transaction.AccountId)
-                    .Select(a => a.Balance)
-                    .SingleAsync(cancellationToken);
-                var balance = trackedAccount.Property(a => a.Balance);
-                balance.CurrentValue = currentBalance;
-                balance.OriginalValue = currentBalance;
-                balance.IsModified = false;
-            }
+            await ApplyBalanceDeltaAsync(db, transaction, cancellationToken);
 
             await dbTransaction.CommitAsync(cancellationToken);
         }
@@ -92,6 +54,51 @@ public static class TransactionSeedWriter
             await dbTransaction.RollbackAsync(CancellationToken.None);
             db.ChangeTracker.Clear();
             throw;
+        }
+    }
+
+    // Shared by the single- and two-leg writers. PostgreSQL evaluates the arithmetic against the
+    // locked current row, so concurrent writes add their deltas instead of overwriting a read balance.
+    internal static async Task ApplyBalanceDeltaAsync(
+        BankingDbContext db,
+        Transaction transaction,
+        CancellationToken cancellationToken)
+    {
+        var delta = transaction.Direction == TransactionDirection.Credit
+            ? transaction.Amount
+            : -transaction.Amount;
+        var updated = await db.Accounts
+            .Where(a => a.Id == transaction.AccountId && a.CurrencyCode == transaction.CurrencyCode)
+            .Where(a => a.Balance + delta >= 0m && a.Balance + delta <= MaximumBalance)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(a => a.Balance, a => a.Balance + delta), cancellationToken);
+
+        if (updated != 1)
+        {
+            var accountExists = await db.Accounts.AsNoTracking()
+                .AnyAsync(a => a.Id == transaction.AccountId && a.CurrencyCode == transaction.CurrencyCode, cancellationToken);
+            if (!accountExists)
+                throw new InvalidOperationException("Hesap bulunamadı veya işlem para birimi hesapla eşleşmiyor.");
+
+            throw new InvalidOperationException(transaction.Direction == TransactionDirection.Debit
+                ? "Yetersiz bakiye nedeniyle Debit işlemi reddedildi."
+                : "Credit işlemi hesap bakiye sınırını aşar.");
+        }
+
+        // ExecuteUpdate bypasses EF's change tracker. Refresh a previously loaded Account
+        // so this context does not keep exposing its old balance.
+        var trackedAccount = db.ChangeTracker.Entries<Account>()
+            .SingleOrDefault(entry => entry.Entity.Id == transaction.AccountId);
+        if (trackedAccount is not null)
+        {
+            var currentBalance = await db.Accounts.AsNoTracking()
+                .Where(a => a.Id == transaction.AccountId)
+                .Select(a => a.Balance)
+                .SingleAsync(cancellationToken);
+            var balance = trackedAccount.Property(a => a.Balance);
+            balance.CurrentValue = currentBalance;
+            balance.OriginalValue = currentBalance;
+            balance.IsModified = false;
         }
     }
 }

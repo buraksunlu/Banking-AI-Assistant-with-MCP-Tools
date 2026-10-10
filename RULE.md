@@ -1352,7 +1352,7 @@ IN PROGRESS
 
 NEXT
 - ANA-01 (PeriodResolver) ve SYN-14 (Ada/Deniz/Ege farklı demo karakterleri) tamamlandı.
-- KIND-01/02 tamamlandı. KIND-03: iki bacaklı atomik yazıcı (deadlock önleme: hesap ID sırası).
+- KIND-01/02/03 tamamlandı (iki bacaklı yazıcı, hesap ID sırasıyla kilit). KIND-04: işletme hesabı + örnek transfer/satış seed'i.
 - Ardından ANA-02 harcama özeti; harcama yalnızca Purchase türünü sayar.
 
 KNOWN ISSUES

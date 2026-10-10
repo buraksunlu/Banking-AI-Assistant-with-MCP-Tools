@@ -301,3 +301,26 @@ Bağımsız fixture (`SyntheticDatasetIntegrityTests`): 1–10 Ekim Istanbul pen
 (140.000 TRY) ve 12.570 TRY harcama (Ada 520, Deniz 11.350, Ege 700). 10 Nisan–10 Ekim
 UTC penceresinde 43 Debit, 136.759,88 TRY. Hesap bakiyeleri: Ada TRY 579.015,18;
 Deniz TRY 524.150; Ege TRY 273.200. İlk çalıştırma 28, tekrar 0 kayıt ekledi; Data suite 23/23.
+
+## KIND-03 iki bacaklı atomik yazıcı
+
+`PairedTransactionSeedWriter.AddAsync(db, debit, credit)` transferin veya iç dükkân
+alışverişinin iki bacağını ve iki bakiyeyi tek DB transaction'ında yazar. Tek bacaklı
+`TransactionSeedWriter` PairId taşıyan işlemi reddeder; çiftlerin tek yazma yolu budur.
+
+DB'ye dokunmadan önce: ilk bacak Debit, ikinci Credit; ikisi aynı boş olmayan PairId,
+tutar, para birimi ve OccurredAt'ı taşır; hesaplar ve Transaction Id'leri farklıdır;
+tür çifti yalnız Transfer→Transfer veya Purchase→Sale olabilir. Her bacak ayrıca
+`EntityValidation`'dan geçer.
+
+Akış: BEGIN → aynı PairId varsa hata → iki bakiye `Balance ± tutar` ile, **her zaman
+küçük hesap ID'si önce** güncellenir → iki kayıt eklenir → COMMIT. Herhangi bir hata
+hepsini geri alır. Sabit kilit sırası olmadan a→b ve b→a transferleri satırları ters
+sırada kilitleyip PostgreSQL deadlock hatası (40P01) alır; bu, test sırasında kural
+geçici kaldırılarak gözlendi. Eşzamanlı aynı PairId denemelerini ayrıca
+`UNIQUE (PairId, Direction)` durdurur.
+
+Bakiye güncelleme mantığı iki yazıcıda `TransactionSeedWriter.ApplyBalanceDeltaAsync`
+ile paylaşılır. Aynı PairId tekrar gelirse şimdilik hata verilir; API-12'de ilk sonucu
+döndürecek şekilde düzeltilecek. Testler kendi geçici hesaplarını açıp siler; demo
+verisine kalıcı kayıt yazılmadı.

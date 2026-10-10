@@ -153,7 +153,7 @@ LLM/MCP para gönderemez; yazma yalnızca uygulama/API ve seed üzerindendir.
 
 - [x] KIND-01 — Kullanıcı onayıyla karar verildi: `Kind` = Purchase/Sale/Transfer/Salary/OpeningFunding (1–5); iki bacak ortak nullable `PairId` kolonuyla bağlanır (ayrı tablo yok); kendi hesapları arası transfer serbest (aynı para birimi); karşı taraf adı maskeli. Mevcut 98 kaydın doldurma kuralı ve DB/C# koruma ayrımı docs/input-validation.md içinde. Kod/DB değişmedi.
 - [x] KIND-02 — `TransactionKind` enum, `Transaction.Kind`/`PairId`, `InputRules.Kind` + `EntityValidation`, `SetCategorization` yalnız Purchase, tek bacaklı yazıcıda PairId reddi. `AddTransactionKind` migration'ı nullable ekleme → doldurma → belirsiz kayıtta RAISE → NOT NULL sırasıyla elle düzenlendi; 5 CHECK + UNIQUE (PairId, Direction) eklendi, `CK_Transactions_Credit_Uncategorized` kaldırıldı. Kullanıcı onayıyla uygulandı: 63 Purchase, 33 Salary, 2 OpeningFunding, PairId hepsi null. Bütün seed scope'ları tekrar 0 ekledi. Data 27/27, Application 17/17.
-- [ ] KIND-03 — İki bacaklı atomik yazma: Debit + Credit + iki bakiye tek DB transaction'ında; yarım transfer, yetersiz bakiye ve eşzamanlılık testleri.
+- [x] KIND-03 — `PairedTransactionSeedWriter` eklendi (Seeding/; API adımında ortak yere taşınıp adından Seed kalkacak). DB'den önce çift tutarlılığı: Debit+Credit, aynı PairId/tutar/para birimi/OccurredAt, farklı hesap ve Id, yalnız Transfer→Transfer veya Purchase→Sale. Tek DB transaction'ında bakiyeler hesap ID sırasıyla (deadlock önleme), sonra iki kayıt. Bakiye mantığı `TransactionSeedWriter.ApplyBalanceDeltaAsync` olarak paylaşıldı. Aynı PairId tekrar gelirse hata (kullanıcı kararı; API-12'de düzeltilecek). 7 PostgreSQL testi; sıralama geçici kaldırılınca deadlock testi 40P01 ile kırmızı oldu, geri konunca yeşil. Data 34/34, Application 17/17. Demo DB'ye kalıcı veri yazılmadı.
 - [ ] KIND-04 — Kurgusal işletme hesabı (ör. "Kahve Durağı – Kadıköy") ve seed ile örnek transfer/dükkân satışı. Gerçek marka sahipliği uydurulmaz; anında ve komisyonsuz takas basitleştirmesi belgelenir.
 - [ ] KIND-05 — VAL-05 ve docs/input-validation.md güncellemesi: harcama yalnızca Purchase türüdür.
 
@@ -212,7 +212,7 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 - [ ] API-09 — GET /api/accounts/{id}/transactions ekle. Tarih filtresi, pagination, deterministik sıralama ve boş sonuç davranışını test et.
 - [ ] API-10 — GET /api/transactions/{id} ekle. DTO döndür ve hesabın müşteri kapsamını koru.
 - [ ] API-11 — Synthetic transaction POST akışını ekle. Foundation'da doğrulanan atomik bakiye/insert yaklaşımını kullan; bunu AI write tool'u yapma.
-- [ ] API-12 — Tekrar gönderilen POST davranışını belirle. Idempotency gerekiyorsa küçük ayrı tasarım yap; ağ tekrarlarında aynı işlemin iki kez oluşmasını sessizce kabul etme.
+- [ ] API-12 — Tekrar gönderilen POST davranışını belirle. Idempotency gerekiyorsa küçük ayrı tasarım yap; ağ tekrarlarında aynı işlemin iki kez oluşmasını sessizce kabul etme. KIND-03 notu: iki bacaklı yazıcı aynı PairId'de şimdilik hata veriyor; kullanıcı kararıyla burada düzeltilecek (aynı içerikli tekrar → ilk sonucu döndür, farklı içerik → 409).
 - [ ] API-13 — Ortak hata cevabını oluştur. Validation, bozuk JSON, 404, 409 ve beklenmeyen hata ayrımını yap; stack trace/bağlantı bilgisi sızdırma.
 - [ ] API-14 — HTTP integration testlerini yaz. Başarı, null body, invalid input, unique yarış, hata ve veri kalıcılığı senaryoları kapsansın.
 - [ ] API-15 — Yerel API kullanım örneklerini ve OpenAPI sözleşmesini hazırla. DTO'lar, status kodları ve hata örneklerini README/docs içinde göster.
@@ -357,7 +357,7 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 ## Şu anki sonraki adım
 
 SYN-01–13 banking seed adımları tamamlandı ve banking foundation kabul edildi (DOC-09).
-ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01/02 tamamlandı. Sıradaki iş KIND-03: iki bacaklı atomik yazıcı; ardından ANA-02. Market kolu
+ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01/02/03 tamamlandı. Sıradaki iş KIND-04: kurgusal işletme hesabı ve seed ile örnek transfer/dükkân satışı; ardından KIND-05 ve ANA-02. Market kolu
 (SRC-02 altın kaynağı) paralel bekliyor.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.
