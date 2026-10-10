@@ -25,6 +25,10 @@ public static class TransactionSeedWriter
         if (db.ChangeTracker.HasChanges())
             throw new InvalidOperationException("TransactionSeedWriter çağrısından önce DbContext'teki değişiklikleri kaydedin veya temizleyin.");
 
+        // Writing one leg of a pair here would leave half a transfer/sale; KIND-03 adds the two-leg writer.
+        if (transaction.PairId is not null)
+            throw new InvalidOperationException("PairId taşıyan işlem tek bacaklı yazıcıyla yazılamaz; iki bacaklı yazıcı kullanılmalı.");
+
         var referenceUtc = DateTimeOffset.UtcNow;
         EntityValidation.Validate(transaction, referenceUtc);
         if (transaction.Direction is not (TransactionDirection.Debit or TransactionDirection.Credit))

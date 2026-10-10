@@ -12,7 +12,7 @@ public class ValidationTests
     public static Transaction Transaction() => new()
     {
         AccountId = Guid.NewGuid(), Amount = 12.34m, Direction = TransactionDirection.Debit,
-        CurrencyCode = "TRY", RawDescription = "Synthetic purchase",
+        Kind = TransactionKind.Purchase, CurrencyCode = "TRY", RawDescription = "Synthetic purchase",
         OccurredAt = Reference.AddMonths(-6), CreatedAt = Reference
     };
 
@@ -30,7 +30,7 @@ public class ValidationTests
         Assert.Throws<ArgumentException>(() => new Transaction
         {
             AccountId = Guid.NewGuid(), Amount = 12.345m, Direction = TransactionDirection.Debit,
-            CurrencyCode = "TRY", RawDescription = "Test", OccurredAt = Reference
+            Kind = TransactionKind.Purchase, CurrencyCode = "TRY", RawDescription = "Test", OccurredAt = Reference
         });
     }
 
@@ -123,6 +123,61 @@ public class ValidationTests
             Assert.Throws<ArgumentException>(() => InputRules.Categorization(1, CategorizationSource.Llm, score, Reference));
         foreach (var score in new[] { 0m, 1m, 0.85000m }) InputRules.Categorization(1, CategorizationSource.Llm, score, Reference);
         Assert.Throws<ArgumentException>(() => InputRules.Categorization(0, CategorizationSource.Rule, null, Reference));
+    }
+
+    [Fact]
+    public void Kind_rules_combine_direction_pair_and_category()
+    {
+        var kinds = new[] { TransactionKind.Purchase, TransactionKind.Sale, TransactionKind.Transfer,
+            TransactionKind.Salary, TransactionKind.OpeningFunding, (TransactionKind)0, (TransactionKind)6 };
+        foreach (var kind in kinds)
+        foreach (var direction in new[] { TransactionDirection.Debit, TransactionDirection.Credit })
+        foreach (Guid? pairId in new Guid?[] { null, Guid.NewGuid() })
+        foreach (var categorized in new[] { false, true })
+        {
+            var tx = new Transaction
+            {
+                AccountId = Guid.NewGuid(), Amount = 10m, Direction = direction, Kind = kind, PairId = pairId,
+                CurrencyCode = "TRY", RawDescription = "Kind rule", OccurredAt = Reference.AddDays(-1), CreatedAt = Reference,
+                CategoryId = categorized ? (short)1 : null,
+                CategorizationSource = categorized ? CategorizationSource.Rule : null,
+                CategorizedAt = categorized ? Reference : null
+            };
+            // Independent statement of the KIND-01 table; not derived from production code.
+            var valid = kind switch
+            {
+                TransactionKind.Purchase => direction == TransactionDirection.Debit,
+                TransactionKind.Sale => direction == TransactionDirection.Credit && pairId is not null && !categorized,
+                TransactionKind.Transfer => pairId is not null && !categorized,
+                TransactionKind.Salary or TransactionKind.OpeningFunding =>
+                    direction == TransactionDirection.Credit && pairId is null && !categorized,
+                _ => false
+            };
+            if (valid) EntityValidation.Validate(tx, Reference);
+            else Assert.Throws<ArgumentException>(() => EntityValidation.Validate(tx, Reference));
+        }
+
+        var emptyPair = Transaction();
+        Assert.Throws<ArgumentException>(() => EntityValidation.Validate(new Transaction
+        {
+            AccountId = emptyPair.AccountId, Amount = 10m, Direction = TransactionDirection.Debit,
+            Kind = TransactionKind.Transfer, PairId = Guid.Empty, CurrencyCode = "TRY",
+            RawDescription = "Empty pair", OccurredAt = Reference.AddDays(-1), CreatedAt = Reference
+        }, Reference));
+    }
+
+    [Fact]
+    public void Only_purchases_can_be_categorized()
+    {
+        var transfer = new Transaction
+        {
+            AccountId = Guid.NewGuid(), Amount = 10m, Direction = TransactionDirection.Debit,
+            Kind = TransactionKind.Transfer, PairId = Guid.NewGuid(), CurrencyCode = "TRY",
+            RawDescription = "Para gönderimi", OccurredAt = Reference.AddDays(-1)
+        };
+
+        Assert.Throws<ArgumentException>(() => transfer.SetCategorization(1, CategorizationSource.Rule));
+        Assert.Null(transfer.CategoryId);
     }
 
     [Fact]

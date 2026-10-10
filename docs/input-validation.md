@@ -449,3 +449,31 @@ hesaplayıp Account.Balance ile karşılaştırır.
 bakiye değişmedi. Ardından 100 TRY bakiyeden 100.01 TRY Debit denendi; insert
 önce başarılı olmasına rağmen bakiye güncellemesi reddedildi, transaction geri
 alındı ve bakiye 100 TRY kaldı. Teste özel hesap ve hareketler sonunda silindi.
+
+## KIND-01 — İşlem türü ve çift kayıt kararı (10 Ekim 2026)
+
+Kullanıcı kararıyla Transactions iki alan kazanır. Direction paranın yönüdür;
+`Kind` hareketin o hesap açısından ekonomik anlamıdır.
+
+| Kind | Değer | Direction | Kategori | PairId | Harcamaya dahil |
+| --- | ---: | --- | --- | --- | --- |
+| Purchase | 1 | Debit | Alabilir | Banka dışı alışverişte null; iç dükkân alışverişinde dolu | Evet, yalnız bu tür |
+| Sale | 2 | Credit | Null | Zorunlu | Hayır |
+| Transfer | 3 | Debit veya Credit | Null | Zorunlu | Hayır |
+| Salary | 4 | Credit | Null | Null | Hayır |
+| OpeningFunding | 5 | Credit | Null | Null | Hayır |
+
+- `PairId` nullable uuid'dir; ayrı Transfers tablosu açılmaz. Aynı çifte en fazla bir
+  Debit ve bir Credit girebilir: `UNIQUE (PairId, Direction)`.
+- Çiftin iki bacağı aynı tutar ve para birimini taşır, farklı hesaplara yazılır ve tek
+  DB transaction'ında oluşur. DB bu "iki bacak birlikte var" kuralını tek başına
+  zorlayamaz; iki bacaklı yazıcı (KIND-03) ve entegrasyon testleri korur.
+- Kendi hesapları arası transfere izin verilir; para birimi aynı olmalıdır. Döviz
+  dönüşümlü transfer, iade/iptal ve komisyon kapsam dışıdır.
+- Karşı taraf adı veritabanına kopyalanmaz; sorgu anında karşı hesaptan okunur ve
+  maskeli gösterilir (örnek: `Deniz M***`). LLM'e tam müşteri adı verilmez.
+- Mevcut kayıtların türü migration'da doldurulur: Debit → Purchase; açıklaması
+  "açılış fonlaması" olan Credit → OpeningFunding; "maaş ödemesi" olan Credit → Salary.
+  Eşleşmeyen kayıt kalırsa migration hata verip durur; tahmini tür atanmaz.
+- LLM/MCP transfer veya ödeme yazamaz; yazma yalnız uygulama/API ve seed üzerindendir.
+- VAL-05 harcama tanımı KIND-05'te güncellenecek: harcama = `Kind = Purchase` toplamı.

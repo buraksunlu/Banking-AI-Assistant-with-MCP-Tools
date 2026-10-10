@@ -90,7 +90,7 @@ public static class SyntheticTransactionSeeder
         var adaTry = Guid.Parse("20000000-0000-0000-0000-000000000001");
         var definitions = new List<Transaction>
         {
-            Create(401, adaTry, 420m, TransactionDirection.Debit, "TRY",
+            Create(401, adaTry, 420m, TransactionDirection.Debit, TransactionKind.Purchase, "TRY",
                 "POS 9055 KADIKOY HARCAMA", null, null, null,
                 new DateTimeOffset(2025, 6, 20, 13, 0, 0, TimeSpan.Zero)),
             Purchase(402, adaTry, 780m, "POS 3182 HOBI MALZEME DUKKANI", "Hobi Dükkânı", 11,
@@ -135,7 +135,7 @@ public static class SyntheticTransactionSeeder
             SalaryCredit(601, adaTry, 45000m, "Ada maaş ödemesi 2026-10", 10, 2026),
             Purchase(602, adaTry, 210m, "POS 4412 STARBUCKS KADIKOY", "Starbucks", 1, new(2026, 10, 6, 9, 0, 0, TimeSpan.Zero)),
             Purchase(603, adaTry, 165m, "POS 4412 STARBUCKS KADIKOY", "Starbucks", 1, new(2026, 10, 8, 8, 30, 0, TimeSpan.Zero)),
-            Create(604, adaTry, 145m, TransactionDirection.Debit, "TRY", "POS 6604 ONLINE ODEME 4471", null, null, null,
+            Create(604, adaTry, 145m, TransactionDirection.Debit, TransactionKind.Purchase, "TRY", "POS 6604 ONLINE ODEME 4471", null, null, null,
                 new DateTimeOffset(2026, 10, 9, 10, 0, 0, TimeSpan.Zero)),
 
             // Deniz: aile market ve fatura harcamaları.
@@ -275,15 +275,15 @@ public static class SyntheticTransactionSeeder
     }
 
     private static Transaction OpeningCredit(int ordinal, Guid accountId, decimal amount, string currency, string description) =>
-        Create(ordinal, accountId, amount, TransactionDirection.Credit, currency, description, null, null, null,
+        Create(ordinal, accountId, amount, TransactionDirection.Credit, TransactionKind.OpeningFunding, currency, description, null, null, null,
             new DateTimeOffset(2025, 4, 1, 8, 0, 0, TimeSpan.Zero));
 
     private static Transaction SalaryCredit(int ordinal, Guid accountId, decimal amount, string description, int month, int year = 2025) =>
-        Create(ordinal, accountId, amount, TransactionDirection.Credit, "TRY", description, null, null, null,
+        Create(ordinal, accountId, amount, TransactionDirection.Credit, TransactionKind.Salary, "TRY", description, null, null, null,
             new DateTimeOffset(year, month, 5, 6, 0, 0, TimeSpan.Zero));
 
     private static Transaction SubscriptionDebit(int ordinal, Guid accountId, decimal amount, string merchant, int month, int day, int year = 2025) =>
-        Create(ordinal, accountId, amount, TransactionDirection.Debit, "TRY", $"{merchant} aylık abonelik ödemesi",
+        Create(ordinal, accountId, amount, TransactionDirection.Debit, TransactionKind.Purchase, "TRY", $"{merchant} aylık abonelik ödemesi",
             merchant, SubscriptionCategoryId, CategorizationSource.Rule,
             new DateTimeOffset(year, month, day, 7, 0, 0, TimeSpan.Zero));
 
@@ -295,7 +295,7 @@ public static class SyntheticTransactionSeeder
         string normalizedMerchant,
         short categoryId,
         DateTimeOffset occurredAt) =>
-        Create(ordinal, accountId, amount, TransactionDirection.Debit, "TRY", rawDescription,
+        Create(ordinal, accountId, amount, TransactionDirection.Debit, TransactionKind.Purchase, "TRY", rawDescription,
             normalizedMerchant, categoryId, CategorizationSource.Rule, occurredAt);
 
     private static string CategoryCode(short id) => id switch
@@ -317,6 +317,7 @@ public static class SyntheticTransactionSeeder
         Guid accountId,
         decimal amount,
         TransactionDirection direction,
+        TransactionKind kind,
         string currency,
         string description,
         string? merchant,
@@ -331,6 +332,7 @@ public static class SyntheticTransactionSeeder
             AccountId = accountId,
             Amount = amount,
             Direction = direction,
+            Kind = kind,
             CurrencyCode = currency,
             RawDescription = description,
             NormalizedMerchant = merchant,
@@ -345,6 +347,8 @@ public static class SyntheticTransactionSeeder
         stored.AccountId == expected.AccountId &&
         stored.Amount == expected.Amount &&
         stored.Direction == expected.Direction &&
+        stored.Kind == expected.Kind &&
+        stored.PairId == expected.PairId &&
         stored.CurrencyCode == expected.CurrencyCode &&
         stored.RawDescription == expected.RawDescription &&
         stored.NormalizedMerchant == expected.NormalizedMerchant &&

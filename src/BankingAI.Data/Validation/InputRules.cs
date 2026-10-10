@@ -45,6 +45,27 @@ public static class InputRules
         Require(value <= referenceUtc, field, "Gelecekte olamaz.");
     }
 
+    // KIND-01 table: which direction, pair and category each economic kind may carry.
+    public static void Kind(Enums.TransactionKind kind, Enums.TransactionDirection direction, Guid? pairId, short? categoryId)
+    {
+        Require(Enum.IsDefined(kind), "Kind", "Tanımlı işlem türü olmalı.");
+        Require(pairId != Guid.Empty, "PairId", "Boş GUID kullanılamaz.");
+        Require(kind switch
+        {
+            Enums.TransactionKind.Purchase => direction == Enums.TransactionDirection.Debit,
+            Enums.TransactionKind.Transfer => true,
+            _ => direction == Enums.TransactionDirection.Credit
+        }, "Kind", "İşlem türü bu yönle kullanılamaz.");
+        Require(kind switch
+        {
+            Enums.TransactionKind.Sale or Enums.TransactionKind.Transfer => pairId is not null,
+            Enums.TransactionKind.Salary or Enums.TransactionKind.OpeningFunding => pairId is null,
+            _ => true
+        }, "PairId", "Transfer/Sale çift kimliği ister; Salary/OpeningFunding çift taşımaz.");
+        Require(kind == Enums.TransactionKind.Purchase || categoryId is null,
+            "CategoryId", "Yalnızca Purchase harcama kategorisi taşır.");
+    }
+
     public static void Categorization(short? categoryId, Enums.CategorizationSource? source,
         decimal? confidence, DateTimeOffset? categorizedAt)
     {

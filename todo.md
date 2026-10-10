@@ -150,7 +150,7 @@ Amaç: harcama, satış geliri, transfer ve maaşı ayırmak; demoda bir müşte
 dükkândan alışverişi diğer müşterinin işletme hesabına anında Credit olarak girsin.
 LLM/MCP para gönderemez; yazma yalnızca uygulama/API ve seed üzerindendir.
 
-- [ ] KIND-01 — `TransactionKind` (ör. Purchase, MerchantSale, Transfer, Salary, OpeningFunding) ve iki bacağı bağlayan ortak kimlik tasarımını açıkla; mevcut 98 kaydın türünü nasıl dolduracağımızı göster.
+- [x] KIND-01 — Kullanıcı onayıyla karar verildi: `Kind` = Purchase/Sale/Transfer/Salary/OpeningFunding (1–5); iki bacak ortak nullable `PairId` kolonuyla bağlanır (ayrı tablo yok); kendi hesapları arası transfer serbest (aynı para birimi); karşı taraf adı maskeli. Mevcut 98 kaydın doldurma kuralı ve DB/C# koruma ayrımı docs/input-validation.md içinde. Kod/DB değişmedi.
 - [ ] KIND-02 — Onaylanan alanlar için entity/configuration/validation ve incremental migration; mevcut kayıtlar veri dönüşümüyle doldurulsun.
 - [ ] KIND-03 — İki bacaklı atomik yazma: Debit + Credit + iki bakiye tek DB transaction'ında; yarım transfer, yetersiz bakiye ve eşzamanlılık testleri.
 - [ ] KIND-04 — Kurgusal işletme hesabı (ör. "Kahve Durağı – Kadıköy") ve seed ile örnek transfer/dükkân satışı. Gerçek marka sahipliği uydurulmaz; anında ve komisyonsuz takas basitleştirmesi belgelenir.

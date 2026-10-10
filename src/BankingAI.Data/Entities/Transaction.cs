@@ -36,6 +36,9 @@ public sealed class Transaction
     }
 
     public required TransactionDirection Direction { get; init; }
+    public required TransactionKind Kind { get; init; }
+    // Transfer ve iç dükkân alışverişinin iki bacağı aynı PairId'yi taşır.
+    public Guid? PairId { get; init; }
     public required string CurrencyCode { get; init; }
     public required string RawDescription { get; init; }
     public string? NormalizedMerchant { get; set; }
@@ -48,7 +51,7 @@ public sealed class Transaction
     public void SetCategorization(short categoryId, CategorizationSource source, decimal? confidence = null)
     {
         var now = DateTimeOffset.UtcNow;
-        InputRules.Require(Direction == TransactionDirection.Debit, nameof(Direction), "Yalnızca Debit kategorize edilir.");
+        InputRules.Require(Kind == TransactionKind.Purchase, nameof(Kind), "Yalnızca Purchase kategorize edilir.");
         InputRules.Require(CategorizationSource != Enums.CategorizationSource.Manual || source == Enums.CategorizationSource.Manual,
             nameof(CategorizationSource), "Manuel kategori otomatik yöntemle ezilemez.");
         InputRules.Categorization(categoryId, source, confidence, now);

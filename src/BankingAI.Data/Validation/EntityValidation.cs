@@ -40,8 +40,7 @@ public static class EntityValidation
                 InputRules.Timestamp(t.CreatedAt, referenceUtc, nameof(t.CreatedAt));
                 InputRules.Require(t.OccurredAt <= t.CreatedAt, nameof(t.OccurredAt), "Kayıt zamanından ileri olamaz.");
                 InputRules.Categorization(t.CategoryId, t.CategorizationSource, t.CategoryConfidence, t.CategorizedAt);
-                InputRules.Require(t.Direction != TransactionDirection.Credit || t.CategoryId is null,
-                    nameof(t.CategoryId), "İlk dataset'te Credit harcama kategorisi taşımaz.");
+                InputRules.Kind(t.Kind, t.Direction, t.PairId, t.CategoryId);
                 if (t.CategorizedAt is { } categorizedAt)
                 {
                     InputRules.Timestamp(categorizedAt, referenceUtc, nameof(t.CategorizedAt));

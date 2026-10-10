@@ -39,7 +39,7 @@ public class PostgreSqlValidationTests
         var purchase = new Transaction
         {
             AccountId = account.Id, Amount = 12.3400m, Direction = TransactionDirection.Debit,
-            CurrencyCode = "TRY", RawDescription = "Validation", OccurredAt = DateTimeOffset.UtcNow.AddYears(-10)
+            Kind = TransactionKind.Purchase, CurrencyCode = "TRY", RawDescription = "Validation", OccurredAt = DateTimeOffset.UtcNow.AddYears(-10)
         };
         db.Add(purchase);
         db.SaveChanges(); // Both sync and async overrides must work.
@@ -74,7 +74,29 @@ public class PostgreSqlValidationTests
         await Check(string.Format(t, "\"OccurredAt\" = '0001-01-01T00:00:00Z'"), "CK_Transactions_Timestamps");
         await Check(string.Format(t, "\"CreatedAt\" = 'infinity'"), "CK_Transactions_Timestamps");
         await Check(string.Format(t, $"\"CategoryId\" = {category.Id}, \"CategorizationSource\" = 1, \"CategorizedAt\" = \"CreatedAt\" - interval '1 second'"), "CK_Transactions_Timestamps");
-        await Check(string.Format(t, $"\"Direction\" = 2, \"CategoryId\" = {category.Id}, \"CategorizationSource\" = 1, \"CategorizedAt\" = \"CreatedAt\""), "CK_Transactions_Credit_Uncategorized");
+        // KIND-01: each statement below violates exactly one Kind constraint.
+        await Check(string.Format(t, "\"Kind\" = 0"), "CK_Transactions_Kind");
+        await Check(string.Format(t, "\"Kind\" = 6"), "CK_Transactions_Kind");
+        await Check(string.Format(t, "\"Kind\" = 2, \"PairId\" = gen_random_uuid()"), "CK_Transactions_Kind_Direction");
+        await Check(string.Format(t, "\"Kind\" = 3, \"PairId\" = NULL"), "CK_Transactions_Kind_Pair");
+        await Check(string.Format(t, "\"Direction\" = 2, \"Kind\" = 4, \"PairId\" = gen_random_uuid()"), "CK_Transactions_Kind_Pair");
+        await Check(string.Format(t, "\"Kind\" = 3, \"PairId\" = '00000000-0000-0000-0000-000000000000'"), "CK_Transactions_PairId_NotEmpty");
+        await Check(string.Format(t, $"\"Kind\" = 3, \"PairId\" = gen_random_uuid(), \"CategoryId\" = {category.Id}, \"CategorizationSource\" = 1, \"CategorizedAt\" = \"CreatedAt\""), "CK_Transactions_Kind_Category");
+        await Check(string.Format(t, $"\"Direction\" = 2, \"Kind\" = 4, \"CategoryId\" = {category.Id}, \"CategorizationSource\" = 1, \"CategorizedAt\" = \"CreatedAt\""), "CK_Transactions_Kind_Category");
+
+        // A pair accepts one Debit and one Credit leg; a second leg in the same direction is rejected.
+        await scope.CreateSavepointAsync("pair_legs");
+        var pairId = Guid.NewGuid();
+        await db.Database.ExecuteSqlRawAsync(string.Format(t, $"\"Kind\" = 3, \"PairId\" = '{pairId}'"));
+        var insertLeg = $$"""
+            INSERT INTO "Transactions" ("Id", "AccountId", "Amount", "Direction", "Kind", "PairId", "CurrencyCode", "RawDescription", "OccurredAt", "CreatedAt")
+            VALUES (gen_random_uuid(), '{{account.Id}}', 12.34, {0}, 3, '{{pairId}}', 'TRY', 'Pair leg', now() - interval '1 day', now())
+            """;
+        await db.Database.ExecuteSqlRawAsync(string.Format(insertLeg, 2));
+        var duplicateLeg = await Assert.ThrowsAsync<PostgresException>(() => db.Database.ExecuteSqlRawAsync(string.Format(insertLeg, 1)));
+        Assert.Equal("23505", duplicateLeg.SqlState);
+        Assert.Equal("IX_Transactions_PairId_Direction", duplicateLeg.ConstraintName);
+        await scope.RollbackToSavepointAsync("pair_legs");
         await Check(string.Format(p, "\"Source\" = E'\\n'"), "CK_DailyMarketPrices_Source_NotBlank");
         foreach (var invalidDate in new[] { "0001-01-01", "9999-12-31", "infinity", "-infinity" })
             await Check(string.Format(p, $"\"PriceDate\" = '{invalidDate}'"), "CK_DailyMarketPrices_PriceDate_Finite");

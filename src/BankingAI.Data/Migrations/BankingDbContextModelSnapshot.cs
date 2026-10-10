@@ -269,12 +269,18 @@ namespace BankingAI.Data.Migrations
                     b.Property<short>("Direction")
                         .HasColumnType("smallint");
 
+                    b.Property<short>("Kind")
+                        .HasColumnType("smallint");
+
                     b.Property<string>("NormalizedMerchant")
                         .HasMaxLength(150)
                         .HasColumnType("character varying(150)");
 
                     b.Property<DateTimeOffset>("OccurredAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("PairId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("RawDescription")
                         .IsRequired()
@@ -291,6 +297,9 @@ namespace BankingAI.Data.Migrations
 
                     b.HasIndex("CategoryId", "OccurredAt");
 
+                    b.HasIndex("PairId", "Direction")
+                        .IsUnique();
+
                     b.ToTable("Transactions", null, t =>
                         {
                             t.HasCheckConstraint("CK_Transactions_Amount_Positive", "\"Amount\" > 0 AND \"Amount\" <> 'NaN'::numeric");
@@ -301,15 +310,23 @@ namespace BankingAI.Data.Migrations
 
                             t.HasCheckConstraint("CK_Transactions_CategoryConfidence", "\"CategoryConfidence\" IS NULL OR (\"CategoryConfidence\" >= 0 AND \"CategoryConfidence\" <= 1)");
 
-                            t.HasCheckConstraint("CK_Transactions_Credit_Uncategorized", "\"Direction\" <> 2 OR \"CategoryId\" IS NULL");
-
                             t.HasCheckConstraint("CK_Transactions_CurrencyCode", "\"CurrencyCode\" IN ('TRY', 'USD', 'EUR', 'GBP')");
 
                             t.HasCheckConstraint("CK_Transactions_Direction", "\"Direction\" IN (1, 2)");
 
                             t.HasCheckConstraint("CK_Transactions_Id_NotEmpty", "\"Id\" <> '00000000-0000-0000-0000-000000000000'::uuid");
 
+                            t.HasCheckConstraint("CK_Transactions_Kind", "\"Kind\" IN (1, 2, 3, 4, 5)");
+
+                            t.HasCheckConstraint("CK_Transactions_Kind_Category", "\"Kind\" = 1 OR \"CategoryId\" IS NULL");
+
+                            t.HasCheckConstraint("CK_Transactions_Kind_Direction", "(\"Kind\" <> 1 OR \"Direction\" = 1) AND (\"Kind\" NOT IN (2, 4, 5) OR \"Direction\" = 2)");
+
+                            t.HasCheckConstraint("CK_Transactions_Kind_Pair", "(\"Kind\" NOT IN (2, 3) OR \"PairId\" IS NOT NULL) AND (\"Kind\" NOT IN (4, 5) OR \"PairId\" IS NULL)");
+
                             t.HasCheckConstraint("CK_Transactions_NormalizedMerchant_NotBlank", "\"NormalizedMerchant\" IS NULL OR \"NormalizedMerchant\" ~ '[^[:space:]]'");
+
+                            t.HasCheckConstraint("CK_Transactions_PairId_NotEmpty", "\"PairId\" IS NULL OR \"PairId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
 
                             t.HasCheckConstraint("CK_Transactions_RawDescription_NotBlank", "\"RawDescription\" ~ '[^[:space:]]'");
 

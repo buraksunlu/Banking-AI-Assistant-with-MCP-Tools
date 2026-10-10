@@ -152,6 +152,24 @@ public sealed class SyntheticDatasetIntegrityTests
         }, monthly);
     }
 
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Existing_rows_are_backfilled_with_kind_and_have_no_pairs()
+    {
+        await using var db = new BankingDbContext();
+        var kinds = await db.Transactions.AsNoTracking()
+            .GroupBy(t => new { t.Kind, t.Direction })
+            .Select(g => new { g.Key.Kind, g.Key.Direction, Count = g.Count() })
+            .ToListAsync();
+
+        // 63 purchases, 33 salaries (2025: 12, 2026 recent: 12, SYN-14: 9), 2 opening fundings.
+        Assert.Equal(3, kinds.Count);
+        Assert.Equal(63, kinds.Single(k => k.Kind == TransactionKind.Purchase && k.Direction == TransactionDirection.Debit).Count);
+        Assert.Equal(33, kinds.Single(k => k.Kind == TransactionKind.Salary && k.Direction == TransactionDirection.Credit).Count);
+        Assert.Equal(2, kinds.Single(k => k.Kind == TransactionKind.OpeningFunding && k.Direction == TransactionDirection.Credit).Count);
+        Assert.False(await db.Transactions.AnyAsync(t => t.PairId != null));
+    }
+
     private sealed record ExpectedAccount(
         string AccountNumber,
         decimal Credits,

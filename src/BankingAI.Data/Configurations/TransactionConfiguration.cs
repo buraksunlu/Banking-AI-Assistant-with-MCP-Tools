@@ -25,7 +25,15 @@ public sealed class TransactionConfiguration : IEntityTypeConfiguration<Transact
                  AND (("CategorizationSource" IN (1, 3) AND "CategoryConfidence" IS NULL)
                       OR ("CategorizationSource" = 2 AND "CategoryConfidence" IS NOT NULL AND "CategoryConfidence" BETWEEN 0 AND 1)))
                 """);
-            table.HasCheckConstraint("CK_Transactions_Credit_Uncategorized", "\"Direction\" <> 2 OR \"CategoryId\" IS NULL");
+            // KIND-01 rules are written as implications so each one rejects a single kind of mistake.
+            table.HasCheckConstraint("CK_Transactions_Kind", "\"Kind\" IN (1, 2, 3, 4, 5)");
+            table.HasCheckConstraint("CK_Transactions_Kind_Direction",
+                "(\"Kind\" <> 1 OR \"Direction\" = 1) AND (\"Kind\" NOT IN (2, 4, 5) OR \"Direction\" = 2)");
+            table.HasCheckConstraint("CK_Transactions_Kind_Pair",
+                "(\"Kind\" NOT IN (2, 3) OR \"PairId\" IS NOT NULL) AND (\"Kind\" NOT IN (4, 5) OR \"PairId\" IS NULL)");
+            table.HasCheckConstraint("CK_Transactions_Kind_Category", "\"Kind\" = 1 OR \"CategoryId\" IS NULL");
+            table.HasCheckConstraint("CK_Transactions_PairId_NotEmpty",
+                "\"PairId\" IS NULL OR \"PairId\" <> '00000000-0000-0000-0000-000000000000'::uuid");
             table.HasCheckConstraint("CK_Transactions_Timestamps", """
                 "CreatedAt" > '0001-01-01T00:00:00Z'::timestamptz AND "CreatedAt" < '9999-12-31T23:59:59.999999Z'::timestamptz
                 AND "OccurredAt" > '0001-01-01T00:00:00Z'::timestamptz AND "OccurredAt" <= "CreatedAt"
@@ -37,6 +45,7 @@ public sealed class TransactionConfiguration : IEntityTypeConfiguration<Transact
         builder.Property(t => t.Id).ValueGeneratedNever();
         builder.Property(t => t.Amount).HasPrecision(18, 2).IsRequired();
         builder.Property(t => t.Direction).HasConversion<short>().IsRequired();
+        builder.Property(t => t.Kind).HasConversion<short>().IsRequired();
         builder.Property(t => t.CurrencyCode).HasColumnType("char(3)").IsRequired();
         builder.Property(t => t.RawDescription).HasMaxLength(500).IsRequired();
         builder.Property(t => t.NormalizedMerchant).HasMaxLength(150);
@@ -57,5 +66,7 @@ public sealed class TransactionConfiguration : IEntityTypeConfiguration<Transact
         builder.HasIndex(t => new { t.AccountId, t.OccurredAt });
         builder.HasIndex(t => new { t.CategoryId, t.OccurredAt });
         builder.HasIndex(t => t.NormalizedMerchant);
+        // One Debit and one Credit leg per pair; NULL pairs are distinct in PostgreSQL.
+        builder.HasIndex(t => new { t.PairId, t.Direction }).IsUnique();
     }
 }

@@ -112,6 +112,38 @@ public sealed class AtomicTransactionSeedWriterTests
         }
     }
 
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Single_leg_writer_rejects_paired_transaction_without_side_effects()
+    {
+        EnsurePostgreSqlConfigured();
+        var accountId = await CreateTestAccountAsync();
+        try
+        {
+            await WriteAsync(accountId, 100m, TransactionDirection.Credit);
+            var halfTransfer = new Transaction
+            {
+                AccountId = accountId, Amount = 40m, Direction = TransactionDirection.Debit,
+                Kind = TransactionKind.Transfer, PairId = Guid.NewGuid(), CurrencyCode = "TRY",
+                RawDescription = "Half transfer", OccurredAt = DateTimeOffset.UtcNow.AddSeconds(-1)
+            };
+
+            await using (var db = new BankingDbContext())
+            {
+                var error = await Assert.ThrowsAsync<InvalidOperationException>(
+                    () => TransactionSeedWriter.AddAsync(db, halfTransfer));
+                Assert.Contains("iki bacaklı", error.Message);
+            }
+
+            Assert.Equal(100m, await GetBalanceAsync(accountId));
+            Assert.False(await TransactionExistsAsync(halfTransfer.Id));
+        }
+        finally
+        {
+            await DeleteTestAccountAsync(accountId);
+        }
+    }
+
     private static void EnsurePostgreSqlConfigured() =>
         Assert.False(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BANKINGAI_CONNECTION_STRING")),
             "PostgreSQL testleri için önce .env ortam değişkenlerini yükleyin.");
@@ -147,6 +179,8 @@ public sealed class AtomicTransactionSeedWriterTests
             AccountId = accountId,
             Amount = amount,
             Direction = direction,
+            // Unpaired kinds only: the single-leg writer must not create half of a transfer.
+            Kind = direction == TransactionDirection.Credit ? TransactionKind.OpeningFunding : TransactionKind.Purchase,
             CurrencyCode = "TRY",
             RawDescription = "BAL integration test",
             OccurredAt = now.AddSeconds(-1)
