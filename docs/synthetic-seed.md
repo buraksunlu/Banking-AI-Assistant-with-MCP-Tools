@@ -43,6 +43,7 @@ Account seed açıklayıcı hata verir; kendiliğinden müşteri oluşturmaz.
 | `20000000-0000-0000-0000-000000000003` | Deniz Market | `DUMMY-DENIZ-TRY-001` | TRY | Başka müşteri sahipliği |
 | `20000000-0000-0000-0000-000000000004` | Ege Yolcu | `DUMMY-EGE-EUR-001` | EUR | Seyahat profili |
 | `20000000-0000-0000-0000-000000000005` | Ada Kahve | `DUMMY-ADA-EMPTY-001` | TRY | Gelecek transaction seed'lerinde de boş bırakılacak hesap |
+| `20000000-0000-0000-0000-000000000006` | Ege Yolcu | `DUMMY-EGE-TRY-001` | TRY | SYN-14 ile eklendi; Türkiye içi ulaşım/seyahat harcamaları |
 
 Customer ID'leri SYN-03'teki `10000000-...0001/0002/0003` değerleridir.
 Numaralar gerçek IBAN değildir. Yeni hesapların tamamı `Balance = 0` ile açılır;
@@ -270,3 +271,33 @@ Bu, sabit 10 Ekim 2026 demosunun kapsamıdır. Gelecekte gerçek saate göre “
 altı ay” aralığı ilerler; sabit dataset kendiliğinden yeni işlem üretmez. Ekim
 2025–Mart 2026 için işlem yoktur. `DailyMarketPrices` hâlâ boştur; fiyatlı
 karşılaştırmaların tarih kapsamı bu adımda doğrulanmış sayılmaz.
+
+## SYN-14 müşteri bazlı demo kapsamı
+
+Kullanıcı kararı (10 Ekim 2026): demo tek müşteriye bağlanmaz; her müşteri farklı
+bir harcama karakteri taşır. Müşteriler arası transfer ve dükkân satışı bu adımda yoktur;
+`TransactionKind` tasarımıyla KIND adımlarında eklenecektir.
+
+Önce `seed accounts` Ege'nin `DUMMY-EGE-TRY-001` hesabını ekler. Ardından
+`seed transactions demo-coverage` sabit ID 601–628 ile 28 işlem yazar (9 Credit, 19 Debit).
+Liste sırayla yazıldığından Ege'nin maaşları harcamalardan önce gelir; boş yeni hesapta
+yetersiz bakiye oluşmaz.
+
+| Müşteri | Karakter | Eklenenler |
+| --- | --- | --- |
+| Ada | Kahve/abonelik | 5 Eki maaş 45.000; 6 Eki Starbucks 210; 8 Eki Starbucks 165; 9 Eki `POS 6604 ONLINE ODEME 4471` 145 TRY (merchant ve kategori null) |
+| Deniz | Aile/market | 4 Eki Aile Marketi 9.500; 5 Eki maaş 55.000; 7 Eki elektrik faturası 1.850 |
+| Ege | Ulaşım/seyahat | Nisan–Ekim her ayın 5'i 40.000 maaş; ayın 11/25'inde İstanbulkart; 14 Ağu otobüs bileti 1.200 (TRAVEL); 3 Eki ulaşım 700 |
+
+Ege'nin aylık ulaşım toplamları: Nisan 600, Mayıs 650, Haziran 700, Temmuz 650,
+Ağustos 900, Eylül 1.400, Ekim 700. Ağustos seyahat nedeniyle 2.100 olduğundan Eylül
+bir azalış örneğidir; Deniz'in Ağustos→Eylül market artışı (+7.000) artış örneğidir.
+
+Belirsiz açıklamalı işlem bilerek bilinmeyen bırakılır: `CategoryId`, source, confidence,
+CategorizedAt ve NormalizedMerchant null'dır. İleride kural ve LLM çözemezse de null kalır;
+otomatik `OTHER` atanmaz (VAL-04).
+
+Bağımsız fixture (`SyntheticDatasetIntegrityTests`): 1–10 Ekim Istanbul penceresinde üç maaş
+(140.000 TRY) ve 12.570 TRY harcama (Ada 520, Deniz 11.350, Ege 700). 10 Nisan–10 Ekim
+UTC penceresinde 43 Debit, 136.759,88 TRY. Hesap bakiyeleri: Ada TRY 579.015,18;
+Deniz TRY 524.150; Ege TRY 273.200. İlk çalıştırma 28, tekrar 0 kayıt ekledi; Data suite 23/23.

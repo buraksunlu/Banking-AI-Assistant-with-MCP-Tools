@@ -7,7 +7,7 @@ namespace BankingAI.Data.Seeding;
 public static class SyntheticAccountSeeder
 {
     private const long SeedLockKey = 2026100906;
-    public const int AccountCount = 5;
+    public const int AccountCount = 6;
 
     public static async Task<int> SeedAsync(BankingDbContext db, CancellationToken cancellationToken = default)
     {
@@ -21,7 +21,8 @@ public static class SyntheticAccountSeeder
             new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000002"), CustomerId = adaId, AccountName = "Ada USD", AccountNumber = "DUMMY-ADA-USD-001", CurrencyCode = "USD" },
             new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000003"), CustomerId = denizId, AccountName = "Deniz aile TRY", AccountNumber = "DUMMY-DENIZ-TRY-001", CurrencyCode = "TRY" },
             new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000004"), CustomerId = egeId, AccountName = "Ege seyahat EUR", AccountNumber = "DUMMY-EGE-EUR-001", CurrencyCode = "EUR" },
-            new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000005"), CustomerId = adaId, AccountName = "Ada boş TRY", AccountNumber = "DUMMY-ADA-EMPTY-001", CurrencyCode = "TRY" }
+            new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000005"), CustomerId = adaId, AccountName = "Ada boş TRY", AccountNumber = "DUMMY-ADA-EMPTY-001", CurrencyCode = "TRY" },
+            new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000006"), CustomerId = egeId, AccountName = "Ege günlük TRY", AccountNumber = "DUMMY-EGE-TRY-001", CurrencyCode = "TRY" }
         ];
 
         var referenceUtc = DateTimeOffset.UtcNow;

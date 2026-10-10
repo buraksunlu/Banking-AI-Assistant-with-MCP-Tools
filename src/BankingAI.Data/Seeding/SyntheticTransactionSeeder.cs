@@ -14,6 +14,7 @@ public static class SyntheticTransactionSeeder
     public const int GroceryGrowthCount = 6;
     public const int CategorizationBoundaryCount = 2;
     public const int RecentSpendingCount = 36;
+    public const int DemoCoverageCount = 28;
 
     public static Task<int> SeedCreditsAsync(BankingDbContext db, CancellationToken cancellationToken = default)
     {
@@ -119,6 +120,50 @@ public static class SyntheticTransactionSeeder
             definitions.Add(Purchase(ordinal + 5, denizTry, groceryAmounts[month - 4], $"POS AILE MARKETI 2026-{month:D2}", "Aile Marketi", 2,
                 new DateTimeOffset(2026, month, 24, 11, 0, 0, TimeSpan.Zero)));
         }
+
+        return SeedAsync(db, definitions, cancellationToken);
+    }
+
+    public static Task<int> SeedDemoCoverageAsync(BankingDbContext db, CancellationToken cancellationToken = default)
+    {
+        var adaTry = Guid.Parse("20000000-0000-0000-0000-000000000001");
+        var denizTry = Guid.Parse("20000000-0000-0000-0000-000000000003");
+        var egeTry = Guid.Parse("20000000-0000-0000-0000-000000000006");
+        var definitions = new List<Transaction>
+        {
+            // Ada: sık ve küçük kahve harcamaları + belirsiz açıklamalı bilinmeyen işlem.
+            SalaryCredit(601, adaTry, 45000m, "Ada maaş ödemesi 2026-10", 10, 2026),
+            Purchase(602, adaTry, 210m, "POS 4412 STARBUCKS KADIKOY", "Starbucks", 1, new(2026, 10, 6, 9, 0, 0, TimeSpan.Zero)),
+            Purchase(603, adaTry, 165m, "POS 4412 STARBUCKS KADIKOY", "Starbucks", 1, new(2026, 10, 8, 8, 30, 0, TimeSpan.Zero)),
+            Create(604, adaTry, 145m, TransactionDirection.Debit, "TRY", "POS 6604 ONLINE ODEME 4471", null, null, null,
+                new DateTimeOffset(2026, 10, 9, 10, 0, 0, TimeSpan.Zero)),
+
+            // Deniz: aile market ve fatura harcamaları.
+            Purchase(605, denizTry, 9500m, "POS AILE MARKETI 2026-10", "Aile Marketi", 2, new(2026, 10, 4, 11, 0, 0, TimeSpan.Zero)),
+            SalaryCredit(606, denizTry, 55000m, "Deniz maaş ödemesi 2026-10", 10, 2026),
+            Purchase(607, denizTry, 1850m, "ELEKTRIK FATURA TAHSILATI", "Elektrik Faturası", 9, new(2026, 10, 7, 8, 0, 0, TimeSpan.Zero))
+        };
+
+        // Ege's new TRY account starts at zero; salaries are listed first so debits never
+        // hit insufficient balance, because definitions are written in list order.
+        for (var month = 4; month <= 10; month++)
+            definitions.Add(SalaryCredit(604 + month, egeTry, 40000m, $"Ege maaş ödemesi 2026-{month:D2}", month, 2026));
+
+        var transportAmounts = new[] { (300m, 300m), (300m, 350m), (350m, 350m), (300m, 350m), (450m, 450m), (700m, 700m) };
+        for (var month = 4; month <= 9; month++)
+        {
+            var (first, second) = transportAmounts[month - 4];
+            var ordinal = 615 + (month - 4) * 2;
+            definitions.Add(Purchase(ordinal, egeTry, first, "ISTANBULKART ULASIM ODEME", "Şehir Ulaşım", 4,
+                new DateTimeOffset(2026, month, 11, 7, 30, 0, TimeSpan.Zero)));
+            definitions.Add(Purchase(ordinal + 1, egeTry, second, "ISTANBULKART ULASIM ODEME", "Şehir Ulaşım", 4,
+                new DateTimeOffset(2026, month, 25, 7, 30, 0, TimeSpan.Zero)));
+        }
+
+        definitions.Add(Purchase(627, egeTry, 1200m, "ONLINE OTOBUS BILETI ISTANBUL-ANKARA", "Şehirlerarası Otobüs", 7,
+            new DateTimeOffset(2026, 8, 14, 15, 0, 0, TimeSpan.Zero)));
+        definitions.Add(Purchase(628, egeTry, 700m, "ISTANBULKART ULASIM ODEME", "Şehir Ulaşım", 4,
+            new DateTimeOffset(2026, 10, 3, 7, 30, 0, TimeSpan.Zero)));
 
         return SeedAsync(db, definitions, cancellationToken);
     }
@@ -260,6 +305,7 @@ public static class SyntheticTransactionSeeder
         3 => "CLOTHING",
         4 => "TRANSPORTATION",
         6 => "SUBSCRIPTION",
+        7 => "TRAVEL",
         8 => "FUEL",
         9 => "BILLS",
         11 => "OTHER",

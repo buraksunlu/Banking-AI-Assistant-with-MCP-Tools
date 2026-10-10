@@ -69,6 +69,7 @@ dotnet run --project src/BankingAI.Data -- seed transactions category-examples
 dotnet run --project src/BankingAI.Data -- seed transactions grocery-growth
 dotnet run --project src/BankingAI.Data -- seed transactions categorization-boundaries
 dotnet run --project src/BankingAI.Data -- seed transactions recent-spending
+dotnet run --project src/BankingAI.Data -- seed transactions demo-coverage
 ```
 
 `migrate`, projede bulunan ve veritabanına henüz uygulanmamış EF Core
@@ -90,7 +91,7 @@ dotnet run --project src/BankingAI.Data -- import market-prices --asset USDTRY -
 `seed categories` yalnızca bu komut açıkça çalıştırıldığında kategori ekler.
 `seed market-assets` USDTRY, EURTRY ve GRAM_GOLD_TRY kayıtlarını açıkça ekler.
 `seed customers` üç dummy müşteri ekler; mevcut demo müşteriyi korur.
-`seed accounts`, bu müşteriler mevcutsa beş sabit dummy hesap ekler; yeni bakiyeler
+`seed accounts`, bu müşteriler mevcutsa altı sabit dummy hesap ekler; yeni bakiyeler
 sıfırdır. Aynı müşterinin TRY/USD hesapları, diğer müşteri hesapları ve boş hesap
 örneği vardır. Tekrar çalıştırmak hesapları çoğaltmaz ve mevcut bakiyeyi sıfırlamaz.
 Hesap listesi ve doğrulamalar [synthetic seed belgesinde](docs/synthetic-seed.md) açıklanır.
@@ -110,6 +111,9 @@ aynı kaydı ve bakiye delta'sını iki kez yazmaz.
 Starbucks/Netflix/Spotify/market harcamalarını ekler: 12 Credit ve 24 Debit.
 2025 kayıtlarını korur. Tarihler sabittir; bu kapsam 10 Ekim 2026 demo tarihi
 için son altı ay harcama verisi sağlar, ilerleyen tarihlerde kendiliğinden güncellenmez.
+`demo-coverage` (önce `seed accounts` ile Ege TRY hesabı gerekir) üç müşteriye farklı
+karakter verir: Ada'ya Ekim kahve harcamaları ve belirsiz/bilinmeyen bir işlem, Deniz'e
+Ekim market/fatura, Ege'ye Nisan–Ekim maaş, ulaşım ve seyahat. 9 Credit, 19 Debit.
 `migrate` seed çalıştırmaz. Diğer `seed` ve `import` komutları da uygulama
 açılışında otomatik çalışmayacak; her biri kullanıcı komutuyla başlayacak.
 

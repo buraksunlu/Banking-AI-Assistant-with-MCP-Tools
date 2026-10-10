@@ -1342,7 +1342,7 @@ COMPLETED
   AddMarketAssets, AddDailyMarketPrices, EnforceInputValidation.
 - DailyMarketPrice → MarketAsset RESTRICT ilişkisi ve varlık/gün unique index'i uygulandı; MarketAssets'te üç seed kaydı, DailyMarketPrices'ta henüz fiyat kaydı yok.
 - PK/FK/unique/check/index eşlemeleri ve hesap/işlem currency eşleşmesi.
-- Bir demo Customer, 11 TransactionCategory ve 3 MarketAsset seed kaydı; SYN-03–05 ile üç dummy Customer ve beş Account; SYN-06–13 ile 70 Transaction (26 Credit, 44 Debit) vardır. DailyMarketPrices'ta fiyat kaydı yoktur.
+- Bir demo Customer, 11 TransactionCategory ve 3 MarketAsset seed kaydı; SYN-03–05 ve SYN-14 ile üç dummy Customer ve altı Account; SYN-06–14 ile 98 Transaction (35 Credit, 63 Debit) vardır. DailyMarketPrices'ta fiyat kaydı yoktur.
 - todo.md oluşturuldu; tamamlanan ve bekleyen küçük adımlar ayrıldı.
 
 IN PROGRESS
@@ -1350,9 +1350,9 @@ IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- ANA-01 tamamlandı (PeriodResolver, 17/17 test).
-- Demo veri boşluklarını kapatan küçük seed: Ekim 2026'da işlem yok; 2026'da TRANSPORTATION yok.
-- Ardından ANA-02 harcama özeti.
+- ANA-01 (PeriodResolver) ve SYN-14 (Ada/Deniz/Ege farklı demo karakterleri) tamamlandı.
+- KIND-01: TransactionKind + müşteriler arası transfer ve dummy dükkân tasarımı (todo.md 7b).
+- Ardından ANA-02 harcama özeti; harcama yalnızca Purchase türünü sayar.
 
 KNOWN ISSUES
 - Synthetic seed kapsamları parça parça hazırdır: categories, market-assets, customers, accounts ve seçili transaction komutları. Transaction seed grupları sabit ID, atomik bakiye yazımı ve PostgreSQL advisory lock kullanır. Tek komutluk `seed synthetic` ve historical market import henüz yoktur.

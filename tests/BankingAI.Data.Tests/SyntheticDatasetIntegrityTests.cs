@@ -12,10 +12,11 @@ public sealed class SyntheticDatasetIntegrityTests
     // from SyntheticTransactionSeeder, which could repeat the same incorrect data.
     private static readonly ExpectedAccount[] ExpectedAccounts =
     [
-        new("DUMMY-ADA-TRY-001", 540000m, 5464.82m, 534535.18m),
+        new("DUMMY-ADA-TRY-001", 585000m, 5984.82m, 579015.18m),
         new("DUMMY-ADA-USD-001", 500m, 0m, 500m),
-        new("DUMMY-DENIZ-TRY-001", 660000m, 179500m, 480500m),
+        new("DUMMY-DENIZ-TRY-001", 715000m, 190850m, 524150m),
         new("DUMMY-EGE-EUR-001", 1000m, 0m, 1000m),
+        new("DUMMY-EGE-TRY-001", 280000m, 6800m, 273200m),
         new("DUMMY-ADA-EMPTY-001", 0m, 0m, 0m)
     ];
 
@@ -69,14 +70,16 @@ public sealed class SyntheticDatasetIntegrityTests
         var end = new DateTimeOffset(2026, 10, 11, 0, 0, 0, TimeSpan.Zero);
         var adaId = Guid.Parse("20000000-0000-0000-0000-000000000001");
         var denizId = Guid.Parse("20000000-0000-0000-0000-000000000003");
+        var egeTryId = Guid.Parse("20000000-0000-0000-0000-000000000006");
         var expectedMonths = new[]
         {
-            (Month: 4, Ada: 514.98m, Deniz: 12000m),
-            (Month: 5, Ada: 514.98m, Deniz: 14000m),
-            (Month: 6, Ada: 514.98m, Deniz: 16000m),
-            (Month: 7, Ada: 514.98m, Deniz: 18000m),
-            (Month: 8, Ada: 514.98m, Deniz: 24000m),
-            (Month: 9, Ada: 514.98m, Deniz: 31000m)
+            (Month: 4, Count: 6, Ada: 514.98m, Deniz: 12000m, Ege: 600m),
+            (Month: 5, Count: 6, Ada: 514.98m, Deniz: 14000m, Ege: 650m),
+            (Month: 6, Count: 6, Ada: 514.98m, Deniz: 16000m, Ege: 700m),
+            (Month: 7, Count: 6, Ada: 514.98m, Deniz: 18000m, Ege: 650m),
+            (Month: 8, Count: 7, Ada: 514.98m, Deniz: 24000m, Ege: 2100m),
+            (Month: 9, Count: 6, Ada: 514.98m, Deniz: 31000m, Ege: 1400m),
+            (Month: 10, Count: 6, Ada: 520m, Deniz: 11350m, Ege: 700m)
         };
 
         await using var db = new BankingDbContext();
@@ -85,21 +88,68 @@ public sealed class SyntheticDatasetIntegrityTests
             .Select(t => new { t.AccountId, t.Amount, t.OccurredAt, t.NormalizedMerchant })
             .ToListAsync();
 
-        Assert.Equal(24, spending.Count);
-        Assert.Equal(118089.88m, spending.Sum(t => t.Amount));
+        Assert.Equal(43, spending.Count);
+        Assert.Equal(136759.88m, spending.Sum(t => t.Amount));
         foreach (var expected in expectedMonths)
         {
             var month = spending.Where(t => t.OccurredAt.Month == expected.Month).ToArray();
-            Assert.Equal(4, month.Length);
+            Assert.Equal(expected.Count, month.Length);
             Assert.Equal(expected.Ada, month.Where(t => t.AccountId == adaId).Sum(t => t.Amount));
             Assert.Equal(expected.Deniz, month.Where(t => t.AccountId == denizId).Sum(t => t.Amount));
+            Assert.Equal(expected.Ege, month.Where(t => t.AccountId == egeTryId).Sum(t => t.Amount));
         }
-        foreach (var merchant in new[] { "Starbucks", "Netflix", "Spotify", "Aile Marketi" })
-            Assert.Equal(6, spending.Count(t => t.NormalizedMerchant == merchant));
+        foreach (var (merchant, count) in new[]
+                 {
+                     ("Starbucks", 8), ("Netflix", 6), ("Spotify", 6), ("Aile Marketi", 7),
+                     ("Şehir Ulaşım", 13), ("Elektrik Faturası", 1), ("Şehirlerarası Otobüs", 1)
+                 })
+            Assert.Equal(count, spending.Count(t => t.NormalizedMerchant == merchant));
 
         var yearStart = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
         var yearEnd = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
         Assert.Equal(34, await db.Transactions.CountAsync(t => t.OccurredAt >= yearStart && t.OccurredAt < yearEnd));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task October_2026_demo_data_separates_salary_unknown_and_transport_patterns()
+    {
+        // 1–10 Ekim 2026 Istanbul günleri; demo "bu ay" penceresi.
+        var octoberStart = new DateTimeOffset(2026, 9, 30, 21, 0, 0, TimeSpan.Zero);
+        var octoberEnd = new DateTimeOffset(2026, 10, 10, 21, 0, 0, TimeSpan.Zero);
+        var egeTryId = Guid.Parse("20000000-0000-0000-0000-000000000006");
+
+        await using var db = new BankingDbContext();
+        var october = await db.Transactions.AsNoTracking()
+            .Where(t => t.OccurredAt >= octoberStart && t.OccurredAt < octoberEnd)
+            .ToListAsync();
+
+        // Each customer receives one salary; Credits must stay outside spending totals.
+        var credits = october.Where(t => t.Direction == TransactionDirection.Credit).ToArray();
+        Assert.Equal(3, credits.Length);
+        Assert.Equal(140000m, credits.Sum(t => t.Amount));
+        Assert.All(credits, t => Assert.Null(t.CategoryId));
+        Assert.Equal(12570m, october.Where(t => t.Direction == TransactionDirection.Debit).Sum(t => t.Amount));
+
+        // An ambiguous description stays unknown: no merchant, no category, not OTHER.
+        var unknown = Assert.Single(october, t => t.Direction == TransactionDirection.Debit && t.CategoryId is null);
+        Assert.Equal("POS 6604 ONLINE ODEME 4471", unknown.RawDescription);
+        Assert.Null(unknown.NormalizedMerchant);
+        Assert.Null(unknown.CategorizationSource);
+        Assert.Null(unknown.CategoryConfidence);
+        Assert.Null(unknown.CategorizedAt);
+
+        // Ege TRY transport series used by the six-month comparison question.
+        var transport = await db.Transactions.AsNoTracking()
+            .Where(t => t.AccountId == egeTryId && t.CategoryId == 4)
+            .Select(t => new { t.OccurredAt, t.Amount })
+            .ToListAsync();
+        var monthly = transport.GroupBy(t => t.OccurredAt.Month)
+            .ToDictionary(g => g.Key, g => g.Sum(t => t.Amount));
+        Assert.Equal(new Dictionary<int, decimal>
+        {
+            [4] = 600m, [5] = 650m, [6] = 700m, [7] = 650m, [8] = 900m, [9] = 1400m, [10] = 700m
+        }, monthly);
     }
 
     private sealed record ExpectedAccount(
