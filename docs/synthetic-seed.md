@@ -206,3 +206,67 @@ delta'sı yalnızca bir kez uygulandı. Bu değişiklik yeni tablo veya migratio
 gerektirmez. Farklı uygulama kodunun doğrudan `TransactionSeedWriter` çağrıları
 bu seed lock'una dahil değildir; bu kilit özellikle synthetic seed komutlarını
 sıralar.
+
+## SYN-12 bağımsız dataset/bakiye fixture'ı
+
+`tests/BankingAI.Data.Tests/SyntheticDatasetIntegrityTests.cs` beş sabit dummy
+hesabı DB'den okur. Beklenen Credit/Debit toplamları test dosyasında açık sabitler
+olarak tutulur; `SyntheticTransactionSeeder` üzerinden hesaplanmaz. Test hem
+Credit/Debit fixture değerlerini hem de `Balance = Credit − Debit` eşitliğini
+kontrol eder:
+
+| Hesap | Beklenen Credit | Beklenen Debit | Beklenen bakiye |
+| --- | ---: | ---: | ---: |
+| `DUMMY-ADA-TRY-001` | 540.000 TRY | 5.464,82 TRY | 534.535,18 TRY |
+| `DUMMY-ADA-USD-001` | 500 USD | 0 USD | 500 USD |
+| `DUMMY-DENIZ-TRY-001` | 660.000 TRY | 179.500 TRY | 480.500 TRY |
+| `DUMMY-EGE-EUR-001` | 1.000 EUR | 0 EUR | 1.000 EUR |
+| `DUMMY-ADA-EMPTY-001` | 0 TRY | 0 TRY | 0 TRY |
+
+Bu test seeded `bankingai_foundation` PostgreSQL verisini okur; seed komutları
+önceden çalıştırılmamışsa hesaplar veya beklenen tutarlar uyuşmadığı için başarısız olur.
+Beklenen tablo artık 2025 ve 2026 hareketlerinin tamamını içerir. Ada'ya yeni
+270.000 TRY maaş ve 3.089,88 TRY harcama; Deniz'e 330.000 TRY maaş ve 115.000 TRY
+market harcaması eklendi. Eski Debit toplamları sırasıyla 2.374,94 ve 64.500 TRY idi.
+
+## SYN-13 harcama tarih kapsamı
+
+Kullanıcı, altın/USD/EUR fiyatlarını sonraki adıma bıraktı ve SYN-13'ün mevcut
+kapsamını banking harcama verisi olarak onayladı. Gerçek market fiyatı ekleme ve
+banking/market dönem örtüşmesi ilerideki SRC/IMP çalışmalarına aittir.
+
+`seed transactions recent-spending` 36 sabit ID'li işlem ekler. Nisan–Eylül 2026
+aylarının her birinde:
+
+- Ayın 5'inde Ada TRY hesabına 45.000 TRY, Deniz TRY hesabına 55.000 TRY maaş Credit'i.
+- Ada için ayın 12'sinde Netflix 229,99 TRY, 18'inde Spotify 99,99 TRY ve 20'sinde
+  Starbucks 185 TRY Debit'i. Ay başına toplam 514,98 TRY harcama.
+- Deniz için ayın 24'ünde `Aile Marketi` GROCERY Debit'i:
+
+| Ay (2026) | Market harcaması | Ada harcaması |
+| --- | ---: | ---: |
+| Nisan | 12.000 TRY | 514,98 TRY |
+| Mayıs | 14.000 TRY | 514,98 TRY |
+| Haziran | 16.000 TRY | 514,98 TRY |
+| Temmuz | 18.000 TRY | 514,98 TRY |
+| Ağustos | 24.000 TRY | 514,98 TRY |
+| Eylül | 31.000 TRY | 514,98 TRY |
+
+Maaşlar kategorisiz Credit; harcamalar Rule kaynaklı FOOD/SUBSCRIPTION/GROCERY
+kategorilerindedir. RawDescription ham POS/ödeme açıklamasını, NormalizedMerchant
+sade adı taşır. Tutarlar gerçek fiyat iddiası olmayan dummy değerlerdir.
+
+2025 seed tarihleri ve `SyntheticSeedSettings.ReferenceUtc` değiştirilmedi.
+Yeni scope da sabit 2026 tarihlerine sahiptir; tekrar çalıştırma mevcut kaydı ve
+bakiyeyi değiştirmez. İlk çalıştırma 36, tekrar 0 kayıt ekledi.
+
+`SyntheticDatasetIntegrityTests` içinde 10 Nisan–10 Ekim 2026 demo penceresi
+UTC olarak `[2026-04-10, 2026-10-11)` aralığıyla doğrulanır: 24 Debit, altı ayın
+her birinde 4 harcama, her merchant'ta 6 ödeme ve toplam 118.089,88 TRY.
+Beklenen aylık tutarlar seed kodundan alınmaz. 2025'teki 34 kayıt ayrıca sayılır;
+dataset'in tümü 70 kayıttır. Test suite'i 22/22 geçti.
+
+Bu, sabit 10 Ekim 2026 demosunun kapsamıdır. Gelecekte gerçek saate göre “son
+altı ay” aralığı ilerler; sabit dataset kendiliğinden yeni işlem üretmez. Ekim
+2025–Mart 2026 için işlem yoktur. `DailyMarketPrices` hâlâ boştur; fiyatlı
+karşılaştırmaların tarih kapsamı bu adımda doğrulanmış sayılmaz.

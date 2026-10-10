@@ -13,6 +13,7 @@ public static class SyntheticTransactionSeeder
     public const int CategoryExampleCount = 6;
     public const int GroceryGrowthCount = 6;
     public const int CategorizationBoundaryCount = 2;
+    public const int RecentSpendingCount = 36;
 
     public static Task<int> SeedCreditsAsync(BankingDbContext db, CancellationToken cancellationToken = default)
     {
@@ -94,6 +95,30 @@ public static class SyntheticTransactionSeeder
             Purchase(402, adaTry, 780m, "POS 3182 HOBI MALZEME DUKKANI", "Hobi Dükkânı", 11,
                 new DateTimeOffset(2025, 6, 22, 10, 0, 0, TimeSpan.Zero))
         };
+
+        return SeedAsync(db, definitions, cancellationToken);
+    }
+
+    public static Task<int> SeedRecentSpendingAsync(BankingDbContext db, CancellationToken cancellationToken = default)
+    {
+        var adaTry = Guid.Parse("20000000-0000-0000-0000-000000000001");
+        var denizTry = Guid.Parse("20000000-0000-0000-0000-000000000003");
+        var groceryAmounts = new[] { 12000m, 14000m, 16000m, 18000m, 24000m, 31000m };
+        var definitions = new List<Transaction>();
+
+        // Fixed 2026 dates keep this fixture reproducible when the command is rerun.
+        for (var month = 4; month <= 9; month++)
+        {
+            var ordinal = 501 + (month - 4) * 6;
+            definitions.Add(SalaryCredit(ordinal, adaTry, 45000m, $"Ada maaş ödemesi 2026-{month:D2}", month, 2026));
+            definitions.Add(SalaryCredit(ordinal + 1, denizTry, 55000m, $"Deniz maaş ödemesi 2026-{month:D2}", month, 2026));
+            definitions.Add(SubscriptionDebit(ordinal + 2, adaTry, 229.99m, "Netflix", month, 12, 2026));
+            definitions.Add(SubscriptionDebit(ordinal + 3, adaTry, 99.99m, "Spotify", month, 18, 2026));
+            definitions.Add(Purchase(ordinal + 4, adaTry, 185m, $"POS STARBUCKS KADIKOY 2026-{month:D2}", "Starbucks", 1,
+                new DateTimeOffset(2026, month, 20, 9, 0, 0, TimeSpan.Zero)));
+            definitions.Add(Purchase(ordinal + 5, denizTry, groceryAmounts[month - 4], $"POS AILE MARKETI 2026-{month:D2}", "Aile Marketi", 2,
+                new DateTimeOffset(2026, month, 24, 11, 0, 0, TimeSpan.Zero)));
+        }
 
         return SeedAsync(db, definitions, cancellationToken);
     }
@@ -208,14 +233,14 @@ public static class SyntheticTransactionSeeder
         Create(ordinal, accountId, amount, TransactionDirection.Credit, currency, description, null, null, null,
             new DateTimeOffset(2025, 4, 1, 8, 0, 0, TimeSpan.Zero));
 
-    private static Transaction SalaryCredit(int ordinal, Guid accountId, decimal amount, string description, int month) =>
+    private static Transaction SalaryCredit(int ordinal, Guid accountId, decimal amount, string description, int month, int year = 2025) =>
         Create(ordinal, accountId, amount, TransactionDirection.Credit, "TRY", description, null, null, null,
-            new DateTimeOffset(2025, month, 5, 6, 0, 0, TimeSpan.Zero));
+            new DateTimeOffset(year, month, 5, 6, 0, 0, TimeSpan.Zero));
 
-    private static Transaction SubscriptionDebit(int ordinal, Guid accountId, decimal amount, string merchant, int month, int day) =>
+    private static Transaction SubscriptionDebit(int ordinal, Guid accountId, decimal amount, string merchant, int month, int day, int year = 2025) =>
         Create(ordinal, accountId, amount, TransactionDirection.Debit, "TRY", $"{merchant} aylık abonelik ödemesi",
             merchant, SubscriptionCategoryId, CategorizationSource.Rule,
-            new DateTimeOffset(2025, month, day, 7, 0, 0, TimeSpan.Zero));
+            new DateTimeOffset(year, month, day, 7, 0, 0, TimeSpan.Zero));
 
     private static Transaction Purchase(
         int ordinal,

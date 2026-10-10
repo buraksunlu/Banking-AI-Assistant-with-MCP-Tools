@@ -68,6 +68,7 @@ dotnet run --project src/BankingAI.Data -- seed transactions subscriptions
 dotnet run --project src/BankingAI.Data -- seed transactions category-examples
 dotnet run --project src/BankingAI.Data -- seed transactions grocery-growth
 dotnet run --project src/BankingAI.Data -- seed transactions categorization-boundaries
+dotnet run --project src/BankingAI.Data -- seed transactions recent-spending
 ```
 
 `migrate`, projede bulunan ve veritabanına henüz uygulanmamış EF Core
@@ -105,6 +106,10 @@ banka açıklamasını, NormalizedMerchant sadeleştirilmiş merchant adını ta
 işlem ile `OTHER` kategorisine atanmış işlemi ayrı örnekler. Transaction seed
 grupları DB advisory lock ile sıraya alınır; aynı scope'un paralel çalıştırılması
 aynı kaydı ve bakiye delta'sını iki kez yazmaz.
+`recent-spending`, Nisan–Eylül 2026 için Ada/Deniz maaşlarını ve
+Starbucks/Netflix/Spotify/market harcamalarını ekler: 12 Credit ve 24 Debit.
+2025 kayıtlarını korur. Tarihler sabittir; bu kapsam 10 Ekim 2026 demo tarihi
+için son altı ay harcama verisi sağlar, ilerleyen tarihlerde kendiliğinden güncellenmez.
 `migrate` seed çalıştırmaz. Diğer `seed` ve `import` komutları da uygulama
 açılışında otomatik çalışmayacak; her biri kullanıcı komutuyla başlayacak.
 

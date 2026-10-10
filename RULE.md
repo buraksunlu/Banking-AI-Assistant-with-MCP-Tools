@@ -1319,15 +1319,16 @@ COMPLETED
   AddMarketAssets, AddDailyMarketPrices, EnforceInputValidation.
 - DailyMarketPrice → MarketAsset RESTRICT ilişkisi ve varlık/gün unique index'i uygulandı; MarketAssets'te üç seed kaydı, DailyMarketPrices'ta henüz fiyat kaydı yok.
 - PK/FK/unique/check/index eşlemeleri ve hesap/işlem currency eşleşmesi.
-- Bir demo Customer, 11 TransactionCategory ve 3 MarketAsset seed kaydı; SYN-03–05 ile üç dummy Customer ve beş Account; SYN-06–10 ile 34 Transaction (14 Credit, 20 Debit) vardır. DailyMarketPrices'ta fiyat kaydı yoktur.
+- Bir demo Customer, 11 TransactionCategory ve 3 MarketAsset seed kaydı; SYN-03–05 ile üç dummy Customer ve beş Account; SYN-06–13 ile 70 Transaction (26 Credit, 44 Debit) vardır. DailyMarketPrices'ta fiyat kaydı yoktur.
 - todo.md oluşturuldu; tamamlanan ve bekleyen küçük adımlar ayrıldı.
 
 IN PROGRESS
 - Database foundation; kullanıcı review'üyle küçük adımlar halinde devam ediyor.
 
 NEXT
-- Kullanıcının seçtiği adım. Todo'daki sıradaki küçük iş SYN-12: hesap bakiyelerini
-  işlem toplamlarından bağımsız fixture ile doğrulamak.
+- Kullanıcının seçtiği adım. SYN-13, kullanıcı onayıyla Nisan–Eylül 2026 dummy
+  harcama verisiyle tamamlandı. Altın/USD/EUR fiyatları ve banking/market tarih
+  örtüşmesi daha sonraki SRC/IMP çalışmalarına bırakıldı. Bu karar API geliştirmesini başlatmaz.
 
 KNOWN ISSUES
 - Synthetic seed kapsamları parça parça hazırdır: categories, market-assets, customers, accounts ve seçili transaction komutları. Transaction seed grupları sabit ID, atomik bakiye yazımı ve PostgreSQL advisory lock kullanır. Tek komutluk `seed synthetic` ve historical market import henüz yoktur.

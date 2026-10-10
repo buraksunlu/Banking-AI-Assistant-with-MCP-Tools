@@ -20,9 +20,11 @@ Aktif veritabanı `bankingai_foundation`dır. Şu altı domain tablosu uygulanm�
 
 `MarketAssets` tablosunda üç başlangıç seed kaydı vardır; `DailyMarketPrices`
 henüz boştur. 11 kategori, demo dahil dört Customer ve beş dummy Account vardır.
-Transactions tablosunda 14 kategorisiz Credit ve 20 Debit bulunur: altı abonelik,
-altı tekil kategori örneği, Ağustos/Eylül GROCERY dönemleri için altı hareket ve
-iki kategori sınır örneği.
+Transactions tablosunda 26 kategorisiz Credit ve 44 Debit bulunur. 2025 dataset'i
+34 kayıtla korunur; Nisan–Eylül 2026 için `recent-spending` kapsamında 36 kayıt
+(12 maaş Credit'i, 24 harcama Debit'i) eklendi. SYN-13 kullanıcı kararıyla banking
+harcama tarih kapsamına daraltıldı; gerçek fiyat verisi ve tarih örtüşmesi SRC/IMP
+çalışmalarında doğrulanacak.
 Historical market import henüz yoktur.
 
 Aktif veritabanında sekiz migration uygulanmıştır:
@@ -95,7 +97,7 @@ başlangıcında otomatik çalışma bu aşamanın dışındadır.
 Şu anda çalışan console komutları `migrate`, `show`, `seed categories`,
 `seed market-assets`, `seed customers`, `seed accounts` ve
 `seed transactions` altındaki `credits`, `subscriptions`, `category-examples`,
-`grocery-growth`, `categorization-boundaries` kapsamlarıdır. Genel
+`grocery-growth`, `categorization-boundaries`, `recent-spending` kapsamlarıdır. Genel
 `seed synthetic` ve market-price `import` komutları henüz uygulanmamıştır.
 
 ## İlişkiler

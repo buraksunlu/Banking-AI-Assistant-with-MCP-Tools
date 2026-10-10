@@ -55,8 +55,8 @@ canlı PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna 
 | Domain tabloları | Customers, Accounts, TransactionCategories, Transactions, MarketAssets, DailyMarketPrices |
 | EF yardımcı tablosu | __EFMigrationsHistory |
 | Uygulanmış migration | 8 |
-| Veri | 4 Customer; 5 Account; 11 Category; 34 Transaction (14 Credit, 20 Debit) |
-| Hesap bakiyeleri | Ada TRY 267625.06; Ada USD 500; Deniz TRY 265500; Ege EUR 1000; boş TRY 0 |
+| Veri | 4 Customer; 5 Account; 11 Category; 70 Transaction (26 Credit, 44 Debit) |
+| Hesap bakiyeleri | Ada TRY 534535.18; Ada USD 500; Deniz TRY 480500; Ege EUR 1000; boş TRY 0 |
 | Market tabloları | MarketAssets mevcut ve üç seed kaydı var; DailyMarketPrices henüz boş |
 | Bakiye güncelleme akışı | `TransactionSeedWriter` insert ve atomik bakiye delta'sını aynı DB transaction'ında yazar; BAL-03/04 PostgreSQL kabul testleri geçti |
 | Kalıcı otomatik test projesi | tests/BankingAI.Data.Tests; C# ve rollback edilen PostgreSQL kontrolleri |
@@ -137,8 +137,8 @@ Migration geçmişi:
 - [x] SYN-09 — `seed transactions grocery-growth` ile Deniz'in TRY hesabında GROCERY/Aile Marketi harcaması Ağustos 2025'te 24.000 TRY, Eylül 2025'te 31.000 TRY olacak şekilde üçer sabit hareket eklendi. Beklenen toplamlar tarihten bağımsız sabit; 1 Ekim 2025 referansına göre iki ay tamamlanmış. İlk çalıştırma 6, tekrar 0 kayıt ekledi; DB toplamları doğrulandı.
 - [x] SYN-10 — `seed transactions categorization-boundaries` iki TRY Debit ekler: 420 TRY işlemde `CategoryId`, source, confidence, CategorizedAt ve NormalizedMerchant null; 780 TRY işlemde kategori ID 11 (`OTHER`), Rule kaynağı ve `Hobi Dükkânı` merchant'ı var. Ham açıklamalar iki kayıtta da korunur. PostgreSQL satırları ve null/OTHER ayrımı doğrulandı.
 - [x] SYN-11 — Bütün `SyntheticTransactionSeeder` transaction grupları sabit ID, var olan içerik çelişki kontrolü ve `TransactionSeedWriter` atomik insert+bakiye delta'sı kullanır. Seed existence check ile yazma arasını PostgreSQL session advisory lock ile korur. Aynı komut iki ayrı süreçte eşzamanlı çalıştırıldı: biri 2 ekledi, diğeri 0; DB'de iki satır ve Ada TRY bakiyesinde tek 1.200 TRY azalış görüldü. Transaction tablosu/migration değişmedi.
-- [ ] SYN-12 — Dataset toplamlarını bağımsız fixture ile doğrula. Her hesabın bakiyesi bütün Credit toplamı eksi Debit toplamına eşit olsun; yanlış sonucu aynı generator ile tekrar hesaplayıp test etme.
-- [ ] SYN-13 — Tarih kapsamını kontrol et. Son altı ay ve 2025 gibi demo sorguları için anlamlı veri bulunmalı; market tarih kapsamıyla örtüşmeli.
+- [x] SYN-12 — `SyntheticDatasetIntegrityTests` her seed hesabının transaction toplamlarını bağımsız, sabit Credit/Debit fixture'larıyla ve `Balance = Credit − Debit` eşitliğiyle doğrular. 2026 seed sonrası Ada TRY: 540.000 − 5.464,82 = 534.535,18; Deniz TRY: 660.000 − 179.500 = 480.500; USD/EUR/boş hesaplar da ayrı doğrulanır. Beklenen rakamlar seeder'dan üretilmez; test suite'i 22/22 geçti.
+- [x] SYN-13 — Kullanıcı kararıyla bu madde harcama tarih kapsamına daraltıldı; market fiyatları ve banking/market örtüşmesi SRC/IMP adımlarına ertelendi. `seed transactions recent-spending` Nisan–Eylül 2026 için 12 maaş Credit'i ve Starbucks/Netflix/Spotify/market için 24 Debit ekledi. 10 Nisan–10 Ekim 2026 demo penceresinde altı ayın her birinde harcama var; bağımsız beklenen toplam 118.089,88 TRY. Eski 2025 verisi 34 satırla korundu. İlk seed 36, tekrar 0 ekledi; sabit tarihler gelecekte kendiliğinden kaymaz.
 
 ## 8. Gerçek historical market kaynağını seç
 
@@ -329,6 +329,6 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Önerilen sonraki küçük iş: SYN-12 ile hesap bakiyelerini işlem toplamlarından bağımsız fixture kullanarak doğrulamak. SYN-01–11 ve BAL-01–04 tamamlandı; dataset henüz tam değil.
+SYN-01–13 banking seed adımları tamamlandı. Kullanıcı market fiyatlarını daha sonra ekleyecek; SRC/IMP ve market tarih örtüşmesi henüz yapılmadı. Sonraki küçük iş kullanıcı tarafından seçilir.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

@@ -11,10 +11,11 @@ var isSeedSubscriptions = args.Length == 3 && args[0] == "seed" && args[1] == "t
 var isSeedCategoryExamples = args.Length == 3 && args[0] == "seed" && args[1] == "transactions" && args[2] == "category-examples";
 var isSeedGroceryGrowth = args.Length == 3 && args[0] == "seed" && args[1] == "transactions" && args[2] == "grocery-growth";
 var isSeedCategorizationBoundaries = args.Length == 3 && args[0] == "seed" && args[1] == "transactions" && args[2] == "categorization-boundaries";
+var isSeedRecentSpending = args.Length == 3 && args[0] == "seed" && args[1] == "transactions" && args[2] == "recent-spending";
 var isSingleCommand = args.Length == 1 && (args[0] == "migrate" || args[0] == "show");
-if (!isSingleCommand && !isSeedCategories && !isSeedMarketAssets && !isSeedCustomers && !isSeedAccounts && !isSeedCredits && !isSeedSubscriptions && !isSeedCategoryExamples && !isSeedGroceryGrowth && !isSeedCategorizationBoundaries)
+if (!isSingleCommand && !isSeedCategories && !isSeedMarketAssets && !isSeedCustomers && !isSeedAccounts && !isSeedCredits && !isSeedSubscriptions && !isSeedCategoryExamples && !isSeedGroceryGrowth && !isSeedCategorizationBoundaries && !isSeedRecentSpending)
 {
-    Console.WriteLine("Usage: BankingAI.Data migrate | show | seed categories | seed market-assets | seed customers | seed accounts | seed transactions credits | seed transactions subscriptions | seed transactions category-examples | seed transactions grocery-growth | seed transactions categorization-boundaries");
+    Console.WriteLine("Usage: BankingAI.Data migrate | show | seed categories | seed market-assets | seed customers | seed accounts | seed transactions credits | seed transactions subscriptions | seed transactions category-examples | seed transactions grocery-growth | seed transactions categorization-boundaries | seed transactions recent-spending");
     return 1;
 }
 
@@ -75,6 +76,11 @@ else if (isSeedCategorizationBoundaries)
 {
     var added = await SyntheticTransactionSeeder.SeedCategorizationBoundariesAsync(db);
     Console.WriteLine($"Synthetic categorization boundary transactions seeded. Added: {added}; unchanged: {SyntheticTransactionSeeder.CategorizationBoundaryCount - added}.");
+}
+else if (isSeedRecentSpending)
+{
+    var added = await SyntheticTransactionSeeder.SeedRecentSpendingAsync(db);
+    Console.WriteLine($"Synthetic recent spending seeded. Added: {added}; unchanged: {SyntheticTransactionSeeder.RecentSpendingCount - added}.");
 }
 else
 {
