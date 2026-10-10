@@ -14,7 +14,9 @@ RULE.md çalışma kurallarını tutar. En son açık kullanıcı kararı, eski 
 - `[x]` yapıldı, `[ ]` yapılacak demektir. Bir karar maddesi kod yazma yetkisi değildir.
 - Madde ancak belirtilen çıktı gerçekten elde edilince işaretlenir. Test sonucu ve
   bilinen sınır gerekiyorsa maddeye eklenir; yalnızca build geçmesi DB doğrulaması değildir.
-- Database foundation doğrulanmadan API, SwiftUI, AI veya MCP geliştirilmez.
+- Banking foundation 10 Ekim 2026'da kabul edildi (RULE.md §26). Market data
+  (SRC/IMP/MP-06–08) ayrı, engellemeyen koldur; yalnızca OC maddeleri onu bekler.
+- Deterministik analytics doğrulanmadan onu açıklayan AI/MCP tool'u yazılmaz.
 - Gelecekteki dosya adları öneridir; ihtiyaç oluşmadan boş klasör ve katman açılmaz.
 
 ## 0. Şimdiye kadar yapılanlar
@@ -82,6 +84,7 @@ Migration geçmişi:
 - [x] DOC-06 — Eski ayrı yol haritası dosyası kaldırıldı; todo.md projenin tek planı oldu. Kategori ve opportunity-cost kararları son kullanıcı kararıyla uyumlu tutuldu.
 - [x] DOC-07 — Incremental migration yaklaşımı seçildi. Mevcut migration geçmişi korunacak; her schema değişikliği yeni migration olarak eklenecek. Veritabanı resetlenmeyecek ve uygulanmış migration dosyaları geriye dönük değiştirilmeyecek.
 - [x] DOC-08 — Yerel Git takibi oluşturuldu. .env ve build çıktıları dışarıda doğrulandı; remote/push ayrı karar olarak bırakıldı.
+- [x] DOC-09 — 10 Ekim 2026 kullanıcı kararı: banking foundation kabul edildi; market data (bölüm 8–9) ayrı, engellemeyen kola alındı. Yalnızca opportunity-cost (bölüm 13, MCP-11, EVAL-04, FIN-08) market verisini bekler. RULE.md §26 güncellendi; kod/DB değişmedi.
 
 ## 2. MarketAsset — tek sınıf, sonra eşleme, sonra tablo
 
@@ -142,6 +145,8 @@ Migration geçmişi:
 
 ## 8. Gerçek historical market kaynağını seç
 
+> Paralel kol (DOC-09): bu bölüm ve bölüm 9 API/analytics/AI işlerini engellemez.
+
 - [x] SRC-00 — 10 Ekim 2026 kararı belgelendi: toplam TRY harcama dönem başlangıcında tek seferde yatırılmış kabul edilir. Başlangıçta sağlayıcının satış, değerlemede alış fiyatı kullanılır. Yalnızca belgeler güncellendi; model/import/hesaplama henüz uygulanmadı.
 
 - [ ] SRC-01 — USDTRY ve EURTRY ücretsiz kaynak adaylarını incele. Resmî kaynak, erişim koşulları, API anahtarı ihtiyacı ve iki yıllık günlük kapsamı örnek yanıtla göster.
@@ -178,7 +183,7 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 - [ ] DB-05 — Seed tekrarı, paralel seed, bakiye rollback/eşzamanlılığı ve import tekrarı testlerini çalıştır.
 - [ ] DB-06 — Uygulama yeniden açıldığında veri kalıcılığını kontrol et. Gerçek market kapsamı ve banking toplamlarını tekrar doğrula.
 - [ ] DB-07 — Yerel kurulum adımlarını tekrarlanabilir yap. Docker/PostgreSQL, migration, seed ve import komutlarını README'ye yaz; mevcut volume/veritabanını sahipliği belirsizken silme.
-- [ ] DB-08 — Foundation review yap. Altı tablo, banking dataset, üç varlıkta iki yıllık gerçek fiyat, test sonuçları ve bilinen sınırlar kullanıcıya gösterilsin. Bunlar tamamlanmadan API'ye geçme.
+- [ ] DB-08 — Foundation review yap. Altı tablo, banking dataset, üç varlıkta iki yıllık gerçek fiyat, test sonuçları ve bilinen sınırlar kullanıcıya gösterilsin. DOC-09'dan sonra yalnızca market kolunun ve OC maddelerinin ön koşuludur; API'yi engellemez.
 
 ## 11. Controller-based API temeli — foundation sonrasında
 
@@ -337,6 +342,9 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-SYN-01–13 banking seed adımları tamamlandı. Kullanıcı market fiyatlarını daha sonra ekleyecek; SRC/IMP ve market tarih örtüşmesi henüz yapılmadı. Sonraki küçük iş kullanıcı tarafından seçilir.
+SYN-01–13 banking seed adımları tamamlandı ve banking foundation kabul edildi (DOC-09).
+Sıradaki iş ANA-01: ortak dönem sözleşmesi + ayarlanabilir demo saati. Market kolu
+(SRC-02 altın kaynağı) paralel bekliyor. Bilinen demo veri boşlukları: Ekim 2026'da
+işlem yok, 2026'da TRANSPORTATION yok; ANA-01 sonrasında küçük seed adımıyla kapatılacak.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

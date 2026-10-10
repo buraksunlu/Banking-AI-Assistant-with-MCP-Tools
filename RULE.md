@@ -939,14 +939,22 @@ Mevcut state üzerinden devam et.
 ==================================================
 
 Mevcut projeyi baştan başlatma. Kullanıcının seçtiği todo maddesiyle devam et.
-Önce veri modeli, EF configuration, migration, PostgreSQL, lookup seed,
-synthetic banking veri, historical market import ve doğrulama tamamlanır.
 
-Altı tablo, ilişkiler, temel kısıtlar, tekrar çalıştırılabilir seed/import,
-bakiye tutarlılığı ve üç varlıkta en az iki yıllık gerçek fiyat kapsamı
-kanıtlanmadan controller, SwiftUI, FastAPI, LangChain, Qwen veya MCP geliştirme.
-Haftalık takvim bu kabul koşullarını atlama gerekçesi değildir.
-Gelecekteki mimari klasörlerini ihtiyaç oluşmadan oluşturma.
+10 Ekim 2026 kullanıcı kararı: foundation iki ayrı kola bölündü.
+
+1. Banking foundation — KABUL EDİLDİ (10 Ekim 2026).
+   Altı tablo, ilişkiler, temel kısıtlar, tekrar çalıştırılabilir banking seed'i
+   ve atomik bakiye tutarlılığı kanıtlandı (22/22 test). API, deterministik
+   analytics, AI/MCP ve SwiftUI işleri bu temel üzerinde ilerleyebilir.
+2. Market data — AYRI VE ENGELLEMEYEN KOL.
+   USDTRY/EURTRY/gram altın kaynağı, alış/satış modeli (MP-06–08) ve import
+   (SRC/IMP) paralel yürür. Opportunity-cost (OC) ve ona bağlı MCP/demo maddeleri
+   yalnızca bu kol tamamlanınca başlar. Gerçek fiyat kapsamı kanıtlanmadan
+   opportunity-cost özelliği tamamlandı sayılmaz; fiyat uydurulmaz.
+
+Banking verisine dayanan analytics, API, AI ve MCP market verisini beklemez.
+Katman sırası korunur: deterministik analytics doğrulanmadan onu açıklayan
+AI/MCP tool'u yazılmaz. Gelecekteki mimari klasörlerini ihtiyaç oluşmadan oluşturma.
 
 ==================================================
 27. GÜNCEL STACK VE MOBİL KARARLARI — 7 EKİM 2026
@@ -1338,12 +1346,12 @@ COMPLETED
 - todo.md oluşturuldu; tamamlanan ve bekleyen küçük adımlar ayrıldı.
 
 IN PROGRESS
-- Database foundation; kullanıcı review'üyle küçük adımlar halinde devam ediyor.
+- Banking foundation kabul edildi (§26). Deterministik analytics'e geçiliyor.
+- Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Kullanıcının seçtiği adım. SYN-13, kullanıcı onayıyla Nisan–Eylül 2026 dummy
-  harcama verisiyle tamamlandı. Altın/USD/EUR fiyatları ve banking/market tarih
-  örtüşmesi daha sonraki SRC/IMP çalışmalarına bırakıldı. Bu karar API geliştirmesini başlatmaz.
+- ANA-01: ortak dönem sözleşmesi ve ayarlanabilir demo saati (TimeProvider).
+- Bilinen demo veri boşlukları: Ekim 2026'da işlem yok; 2026'da TRANSPORTATION yok.
 
 KNOWN ISSUES
 - Synthetic seed kapsamları parça parça hazırdır: categories, market-assets, customers, accounts ve seçili transaction komutları. Transaction seed grupları sabit ID, atomik bakiye yazımı ve PostgreSQL advisory lock kullanır. Tek komutluk `seed synthetic` ve historical market import henüz yoktur.

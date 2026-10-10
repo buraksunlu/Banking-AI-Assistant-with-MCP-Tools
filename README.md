@@ -191,15 +191,13 @@ dönük değiştirilmez.
 
 ## Sonraki adım
 
-Database-first sırası devam edecek:
+Banking foundation 10 Ekim 2026'da kabul edildi. Market data ayrı ve
+engellemeyen bir kol olarak yürür; yalnızca opportunity-cost özelliği onu bekler.
 
-1. Girdi doğrulama kurallarını netleştirmek.
-2. Kalan veri modeli doğrulamalarını küçük adımlarla uygulamak.
-3. Kategori ve market asset seed'i.
-4. Kontrollü synthetic Customer, Account ve Transaction seed'i.
-5. Üç varlık için en az iki yıllık gerçek historical market data import'u.
-6. Database foundation testleri.
-7. Foundation kabulünden sonra controller-based API.
+1. Deterministik analytics: ortak dönem sözleşmesi ve demo saati (ANA-01), ardından harcama hesapları.
+2. Controller-based API.
+3. Local Qwen + FastAPI + LangChain, ardından read-only MCP tool'ları.
+4. Paralel: USDTRY/EURTRY/gram altın kaynağı ve historical import.
 
 Her adımda önce açıklama yapılır, sonra yalnızca seçilen küçük kapsam uygulanır
 ve kullanıcı review'ü için durulur. Ayrıntılı sıra [todo.md](todo.md) içinde,
