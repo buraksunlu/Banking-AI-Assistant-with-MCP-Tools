@@ -1337,9 +1337,10 @@ COMPLETED
 - Customer, Account, TransactionCategory, Transaction, MarketAsset ve DailyMarketPrice entity'leri; iki transaction enum'u.
 - Account, TransactionCategory, Transaction, MarketAsset ve DailyMarketPrice configuration'ları; Customer eşlemesi DbContext içinde.
 - bankingai_foundation üzerinde altı domain tablosu ve __EFMigrationsHistory.
-- Sekiz uygulanmış migration: CreateCustomers, AddCustomerPreferences,
+- Dokuz uygulanmış migration: CreateCustomers, AddCustomerPreferences,
   AddAccountsAndTransactionCategories, AddTransactions, SplitCustomerName,
-  AddMarketAssets, AddDailyMarketPrices, EnforceInputValidation.
+  AddMarketAssets, AddDailyMarketPrices, EnforceInputValidation, AddTransactionKind.
+- Transactions.Kind (Purchase/Sale/Transfer/Salary/OpeningFunding) ve nullable PairId; kurallar C# + DB CHECK ile korunur (KIND-01/02).
 - DailyMarketPrice → MarketAsset RESTRICT ilişkisi ve varlık/gün unique index'i uygulandı; MarketAssets'te üç seed kaydı, DailyMarketPrices'ta henüz fiyat kaydı yok.
 - PK/FK/unique/check/index eşlemeleri ve hesap/işlem currency eşleşmesi.
 - Bir demo Customer, 11 TransactionCategory ve 3 MarketAsset seed kaydı; SYN-03–05 ve SYN-14 ile üç dummy Customer ve altı Account; SYN-06–14 ile 98 Transaction (35 Credit, 63 Debit) vardır. DailyMarketPrices'ta fiyat kaydı yoktur.
@@ -1351,7 +1352,7 @@ IN PROGRESS
 
 NEXT
 - ANA-01 (PeriodResolver) ve SYN-14 (Ada/Deniz/Ege farklı demo karakterleri) tamamlandı.
-- KIND-01: TransactionKind + müşteriler arası transfer ve dummy dükkân tasarımı (todo.md 7b).
+- KIND-01/02 tamamlandı. KIND-03: iki bacaklı atomik yazıcı (deadlock önleme: hesap ID sırası).
 - Ardından ANA-02 harcama özeti; harcama yalnızca Purchase türünü sayar.
 
 KNOWN ISSUES

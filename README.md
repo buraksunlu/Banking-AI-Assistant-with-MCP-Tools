@@ -188,6 +188,7 @@ Aktif veritabanında sırasıyla şu migration'lar uygulanmıştır:
 6. `AddMarketAssets`
 7. `AddDailyMarketPrices`
 8. `EnforceInputValidation`
+9. `AddTransactionKind`
 
 Eski migration dosyaları tarihçedir; son modelde kullanılmayan eski sütunları
 göstermeleri normaldir. Uygulanmış migration dosyaları silinmez veya geriye

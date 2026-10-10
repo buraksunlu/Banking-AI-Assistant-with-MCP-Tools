@@ -27,7 +27,7 @@ harcama tarih kapsamına daraltıldı; gerçek fiyat verisi ve tarih örtüşmes
 çalışmalarında doğrulanacak.
 Historical market import henüz yoktur.
 
-Aktif veritabanında sekiz migration uygulanmıştır:
+Aktif veritabanında dokuz migration uygulanmıştır:
 
 1. `CreateCustomers`
 2. `AddCustomerPreferences`
@@ -37,6 +37,7 @@ Aktif veritabanında sekiz migration uygulanmıştır:
 6. `AddMarketAssets`
 7. `AddDailyMarketPrices`
 8. `EnforceInputValidation`
+9. `AddTransactionKind`
 
 Migration yaklaşımı incremental'dır: her schema değişikliği yeni bir migration
 olarak eklenir. Uygulanmış migration'lar silinmez veya geriye dönük değiştirilmez;
@@ -178,6 +179,8 @@ Bir hesabın para girişini veya çıkışını ve kategorilendirme bilgisini tu
 | CategoryId | `short?` | `smallint` | Nullable FK → `TransactionCategories.Id` |
 | Amount | `decimal` | `numeric(18,2)` | Required, `> 0` |
 | Direction | `TransactionDirection` | `smallint` | Required; Debit=1, Credit=2 |
+| Kind | `TransactionKind` | `smallint` | Required; Purchase=1, Sale=2, Transfer=3, Salary=4, OpeningFunding=5; yön/kategori/çift uyumu CHECK ile korunur |
+| PairId | `Guid?` | `uuid` | Nullable; Transfer/Sale'de zorunlu, Salary/OpeningFunding'de null; `UNIQUE (PairId, Direction)` |
 | CurrencyCode | `string` | `char(3)` | Required; hesabın currency'siyle aynı |
 | RawDescription | `string` | `varchar(500)` | Required, ham açıklama korunur |
 | NormalizedMerchant | `string?` | `varchar(150)` | Nullable |

@@ -56,7 +56,7 @@ canlı PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna 
 | Aktif DB | bankingai_foundation |
 | Domain tabloları | Customers, Accounts, TransactionCategories, Transactions, MarketAssets, DailyMarketPrices |
 | EF yardımcı tablosu | __EFMigrationsHistory |
-| Uygulanmış migration | 8 |
+| Uygulanmış migration | 9 |
 | Veri | 4 Customer; 6 Account; 11 Category; 98 Transaction (35 Credit, 63 Debit) |
 | Hesap bakiyeleri | Ada TRY 579015.18; Ada USD 500; Deniz TRY 524150; Ege EUR 1000; Ege TRY 273200; boş TRY 0 |
 | Market tabloları | MarketAssets mevcut ve üç seed kaydı var; DailyMarketPrices henüz boş |
@@ -73,6 +73,7 @@ Migration geçmişi:
 6. 20261008124728_AddMarketAssets
 7. 20261008132653_AddDailyMarketPrices
 8. 20261009104108_EnforceInputValidation
+9. 20261010183748_AddTransactionKind
 
 ## 1. Mevcut kararları ve belgeleri tutarlı hale getir
 
@@ -151,7 +152,7 @@ dükkândan alışverişi diğer müşterinin işletme hesabına anında Credit 
 LLM/MCP para gönderemez; yazma yalnızca uygulama/API ve seed üzerindendir.
 
 - [x] KIND-01 — Kullanıcı onayıyla karar verildi: `Kind` = Purchase/Sale/Transfer/Salary/OpeningFunding (1–5); iki bacak ortak nullable `PairId` kolonuyla bağlanır (ayrı tablo yok); kendi hesapları arası transfer serbest (aynı para birimi); karşı taraf adı maskeli. Mevcut 98 kaydın doldurma kuralı ve DB/C# koruma ayrımı docs/input-validation.md içinde. Kod/DB değişmedi.
-- [ ] KIND-02 — Onaylanan alanlar için entity/configuration/validation ve incremental migration; mevcut kayıtlar veri dönüşümüyle doldurulsun.
+- [x] KIND-02 — `TransactionKind` enum, `Transaction.Kind`/`PairId`, `InputRules.Kind` + `EntityValidation`, `SetCategorization` yalnız Purchase, tek bacaklı yazıcıda PairId reddi. `AddTransactionKind` migration'ı nullable ekleme → doldurma → belirsiz kayıtta RAISE → NOT NULL sırasıyla elle düzenlendi; 5 CHECK + UNIQUE (PairId, Direction) eklendi, `CK_Transactions_Credit_Uncategorized` kaldırıldı. Kullanıcı onayıyla uygulandı: 63 Purchase, 33 Salary, 2 OpeningFunding, PairId hepsi null. Bütün seed scope'ları tekrar 0 ekledi. Data 27/27, Application 17/17.
 - [ ] KIND-03 — İki bacaklı atomik yazma: Debit + Credit + iki bakiye tek DB transaction'ında; yarım transfer, yetersiz bakiye ve eşzamanlılık testleri.
 - [ ] KIND-04 — Kurgusal işletme hesabı (ör. "Kahve Durağı – Kadıköy") ve seed ile örnek transfer/dükkân satışı. Gerçek marka sahipliği uydurulmaz; anında ve komisyonsuz takas basitleştirmesi belgelenir.
 - [ ] KIND-05 — VAL-05 ve docs/input-validation.md güncellemesi: harcama yalnızca Purchase türüdür.
@@ -356,7 +357,7 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 ## Şu anki sonraki adım
 
 SYN-01–13 banking seed adımları tamamlandı ve banking foundation kabul edildi (DOC-09).
-ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. Sıradaki iş KIND-01: TransactionKind ve müşteriler arası transfer tasarımı; ardından ANA-02. Market kolu
+ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01/02 tamamlandı. Sıradaki iş KIND-03: iki bacaklı atomik yazıcı; ardından ANA-02. Market kolu
 (SRC-02 altın kaynağı) paralel bekliyor.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.
