@@ -227,7 +227,7 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 - [x] ANA-04 — `MerchantSpendingService`: (A) merchant dağılımı, (B) tek merchant harcaması. `MerchantMatcher` (saf C#): kültürden bağımsız Türkçe sadeleştirme, tam → tek adaylı kısmi (≥3 harf, `IsPartialMatch`) → `Ambiguous` (adaylar, tutar yok) → `NotFound`; yazım hatası düzeltilmez; adaylar yalnız müşterinin kendi tüm zamanlar merchant'ları; bilinen merchant'ta dönemsel harcama yoksa boş liste. Merchant'sız grup "Sınıflandırılmamış" (ortak `AnalyticsLabels`). Refactor: PurchaseScope `ScopedPurchases` (tüm zamanlar sorgusu dahil) döner. SQL yakalandı: 3 komut, ham metin SQL'e girmez (`@canonical`). 19 eşleştirme + 9 servis testi. Application 64/64, Data 38/38.
 - [x] ANA-05 — `TransactionSearchService` + refactor: ortak `CustomerScope` (müşteri/hesap yetkisi/dönem; `PurchaseScope` onun üstünde). Kullanıcı kararları: tüm türler ve tüm hesaplar (dükkân dahil), dönem zorunlu, limit 20/50, offset ≤10.000, maske "Deniz M***", serbest metin yok. Filtreler: hesap, Kind, Direction, kategori kodu (bilinmeyen → hata), yalnız sınıflandırılmamış, merchant (MerchantMatcher). DTO `TransactionItem`, `LocalDate`, karşı taraf PairId ile (kişi maskeli, dükkân/kendi hesabı adıyla). SQL: 3 komut, join'li tek sayfa sorgusu. İlk uygulamada EF'in dış satırdaki null kontrolünü düşürdüğü yakalandı ve düzeltildi (docs/analytics.md). 15 test. Application 79/79, Data 38/38.
 - [x] ANA-06 — `HighestTransactionsService`. Kullanıcı kararları: varsayılan şahsi hesaplarda harcama (Purchase); "hepsi" istenirse tüm türler + tüm hesaplar; limit varsayılan 5, istenen kadar, en fazla 100; eşitlikte en yeni önce; para birimi başına ayrı liste. Refactor: `TransactionItemReader` (join/maskeleme/LocalDate, sıralama seçenekli) arama ile ortak; PurchaseScope saat dilimini de döner. SQL: saat dilimi + DISTINCT para birimi + para birimi başına sıralı sorgu (3 komut). 13 test. Application 92/92, Data 38/38.
-- [ ] ANA-07 — Dönem karşılaştırmasını ekle. Tutar farkı, yüzde farkı ve kategori katkıları; önceki dönem sıfırsa yüzdeyi uydurma.
+- [x] ANA-07 — `SpendingComparisonService`. Kullanıcı kararları: "geçen aya göre" = son tam ay vs önceki ay (varsayılan), ayrıca MonthToDate (aynı günler) ve çakışmasız Custom; kategori katkıları mutlak farka göre; aylık seri takvim ayı + devam eden ay (IsPartial) + harcamasız ay 0, N 6/en fazla 24, kategori veya merchant filtresi. `PeriodResolver.ResolveComparison/ResolveMonthlyWindows` (10 saf test). Refactor: CustomerScope/PurchaseScope dönemsiz yetki yolu. Karşılaştırma tek CASE WHEN sorgusu; seri 3 kolonluk okuma + C# kovalama (Npgsql 10 DateTimeOffset TZ dönüşümünü çeviremiyor; PERF-02'de tekrar bak). 13 servis testi; özetle tutarlılık. Application 115/115, Data 38/38.
 - [ ] ANA-08 — Her hesabı bağımsız fixture ile test et. Boş veri, dönem sınırı, birden çok müşteri/para birimi ve kategorisiz kayıtlar kapsansın.
 - [ ] ANA-09 — Doğrulanan hesaplamaları controller endpointlerine tek tek bağla. Controller yalnızca HTTP sorumluluğunu taşısın.
 
@@ -331,7 +331,7 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 - [ ] OBS-02 — FastAPI ve MCP üzerinden trace bağlamını taşı; tek sorunun uçtan uca izini örnekle doğrula.
 - [ ] OBS-03 — Süre, hata, tool çağrı sayısı ve DB sorgu sayısı ölçümlerini ekle; finansal içerikleri gereksiz loglama.
 - [ ] PERF-01 — 100, 1.000 ve 10.000 işlemle deterministik test dataset'leri hazırla; gerçek market fiyatlarını fake veriye dönüştürme.
-- [ ] PERF-02 — Analytics SQL sorgularını ölç. N+1, gereksiz belleğe çekme, fazla sorgu ve yavaş sorguları bul.
+- [ ] PERF-02 — Analytics SQL sorgularını ölç. N+1, gereksiz belleğe çekme, fazla sorgu ve yavaş sorguları bul. Not (ANA-07): aylık seri satırları C#'ta aylara dağıtıyor; büyük veri setinde `AT TIME ZONE` ham SQL ile değiştirmeyi ölç.
 - [ ] PERF-03 — Gerçek query planlarına göre index'leri değerlendir. Ölçüm olmadan index çoğaltma; gereksiz örtüşen index'leri incele.
 - [ ] PERF-04 — API/MCP/LLM sürelerini ayrı raporla. DB iyileştirmesiyle model gecikmesini birbirine karıştırma.
 
@@ -359,7 +359,7 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 ## Şu anki sonraki adım
 
 SYN-01–13 banking seed adımları tamamlandı ve banking foundation kabul edildi (DOC-09).
-ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01–04 tamamlandı. ANA-02–06 (özet, kategori, merchant, arama, en yüksek işlemler) tamamlandı. Sıradaki iş ANA-07: dönem karşılaştırması. Market kolu
+ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01–04 tamamlandı. ANA-01–07 tamamlandı (dönem, özet, kategori, merchant, arama, en yüksek işlemler, karşılaştırma ve aylık seri). Sıradaki iş: ANA-08 durumu gözden geçirilip analytics kapanışı, ardından API-01 (Data projesinin kütüphane/CLI ayrımı ve ilk controller). Market kolu
 (SRC-02 altın kaynağı) paralel bekliyor.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

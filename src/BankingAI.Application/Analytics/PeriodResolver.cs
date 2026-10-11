@@ -5,9 +5,22 @@ namespace BankingAI.Application.Analytics;
 public sealed record ResolvedPeriod(
     PeriodKind Kind, DateTimeOffset StartUtc, DateTimeOffset EndUtc, DateOnly StartDate, DateOnly EndDate);
 
+public enum ComparisonKind
+{
+    PreviousFullMonth = 1, // last complete month vs the month before it (default for "geçen aya göre")
+    MonthToDate = 2,       // this month so far vs the same days of the previous month
+    Custom = 3             // two explicit, non-overlapping ranges
+}
+
+public sealed record ComparisonPeriods(ResolvedPeriod Current, ResolvedPeriod Previous);
+
+// One calendar month in the customer's time zone; IsPartial marks the running month (up to today).
+public sealed record MonthWindow(int Year, int Month, bool IsPartial, ResolvedPeriod Period);
+
 public sealed class PeriodResolver(TimeProvider timeProvider)
 {
     public const int MaximumCustomMonths = 24;
+    public const int MaximumTrendMonths = 24;
 
     public ResolvedPeriod Resolve(PeriodKind kind, string timeZoneId, DateOnly? from = null, DateOnly? to = null)
     {
@@ -17,8 +30,7 @@ public sealed class PeriodResolver(TimeProvider timeProvider)
             throw new ArgumentException("Başlangıç/bitiş tarihi yalnızca Custom dönemde verilebilir.", nameof(from));
 
         var timeZone = FindTimeZone(timeZoneId);
-        // "Bugün" sunucu saatinden değil, müşterinin saat diliminden belirlenir.
-        var today = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(timeProvider.GetUtcNow(), timeZone).DateTime);
+        var today = Today(timeZone);
         var monthStart = new DateOnly(today.Year, today.Month, 1);
 
         var (start, end) = kind switch
@@ -31,8 +43,82 @@ public sealed class PeriodResolver(TimeProvider timeProvider)
             _ => ValidateCustom(from, to, today)
         };
 
-        return new ResolvedPeriod(kind, StartOfDayUtc(start, timeZone), StartOfDayUtc(end.AddDays(1), timeZone), start, end);
+        return Build(kind, start, end, timeZone);
     }
+
+    public ComparisonPeriods ResolveComparison(ComparisonKind kind, string timeZoneId,
+        DateOnly? currentFrom = null, DateOnly? currentTo = null, DateOnly? previousFrom = null, DateOnly? previousTo = null)
+    {
+        if (!Enum.IsDefined(kind))
+            throw new ArgumentException("Bilinmeyen karşılaştırma türü.", nameof(kind));
+        var anyDate = currentFrom is not null || currentTo is not null || previousFrom is not null || previousTo is not null;
+        if (kind != ComparisonKind.Custom && anyDate)
+            throw new ArgumentException("Tarih aralıkları yalnızca Custom karşılaştırmada verilebilir.", nameof(currentFrom));
+
+        var timeZone = FindTimeZone(timeZoneId);
+        var today = Today(timeZone);
+        var monthStart = new DateOnly(today.Year, today.Month, 1);
+
+        switch (kind)
+        {
+            case ComparisonKind.PreviousFullMonth:
+            {
+                var lastMonth = monthStart.AddMonths(-1);
+                var monthBefore = monthStart.AddMonths(-2);
+                return new ComparisonPeriods(
+                    Build(PeriodKind.LastMonth, lastMonth, monthStart.AddDays(-1), timeZone),
+                    Build(PeriodKind.Custom, monthBefore, lastMonth.AddDays(-1), timeZone));
+            }
+            case ComparisonKind.MonthToDate:
+            {
+                // Same number of days in the previous month, clamped to its last day (31 Mar → 28 Feb).
+                var previousStart = monthStart.AddMonths(-1);
+                var previousEnd = previousStart.AddDays(Math.Min(today.Day, DateTime.DaysInMonth(previousStart.Year, previousStart.Month)) - 1);
+                return new ComparisonPeriods(
+                    Build(PeriodKind.ThisMonth, monthStart, today, timeZone),
+                    Build(PeriodKind.Custom, previousStart, previousEnd, timeZone));
+            }
+            default:
+            {
+                var (currentStart, currentEnd) = ValidateCustom(currentFrom, currentTo, today);
+                var (previousStart, previousEnd) = ValidateCustom(previousFrom, previousTo, today);
+                // Overlapping ranges would count the same purchase in both periods.
+                if (currentStart <= previousEnd && previousStart <= currentEnd)
+                    throw new ArgumentException("Karşılaştırılan dönemler çakışmamalı.", nameof(previousFrom));
+                return new ComparisonPeriods(
+                    Build(PeriodKind.Custom, currentStart, currentEnd, timeZone),
+                    Build(PeriodKind.Custom, previousStart, previousEnd, timeZone));
+            }
+        }
+    }
+
+    // The last N complete calendar months plus the running month (IsPartial), oldest first.
+    public IReadOnlyList<MonthWindow> ResolveMonthlyWindows(int fullMonths, string timeZoneId)
+    {
+        if (fullMonths is < 1 or > MaximumTrendMonths)
+            throw new ArgumentException($"Ay sayısı 1 ile {MaximumTrendMonths} arasında olmalı.", nameof(fullMonths));
+
+        var timeZone = FindTimeZone(timeZoneId);
+        var today = Today(timeZone);
+        var monthStart = new DateOnly(today.Year, today.Month, 1);
+
+        var windows = new List<MonthWindow>(fullMonths + 1);
+        for (var offset = fullMonths; offset >= 1; offset--)
+        {
+            var start = monthStart.AddMonths(-offset);
+            windows.Add(new MonthWindow(start.Year, start.Month, false,
+                Build(PeriodKind.Custom, start, start.AddMonths(1).AddDays(-1), timeZone)));
+        }
+        windows.Add(new MonthWindow(monthStart.Year, monthStart.Month, true, Build(PeriodKind.ThisMonth, monthStart, today, timeZone)));
+        return windows;
+    }
+
+    private DateOnly Today(TimeZoneInfo timeZone) =>
+        // "Bugün" sunucu saatinden değil, müşterinin saat diliminden belirlenir.
+        DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(timeProvider.GetUtcNow(), timeZone).DateTime);
+
+    private static ResolvedPeriod Build(PeriodKind kind, DateOnly start, DateOnly end, TimeZoneInfo timeZone) =>
+        new(kind, StartOfDayUtc(start, timeZone), StartOfDayUtc(end.AddDays(1), timeZone), start, end);
 
     private static (DateOnly Start, DateOnly End) ValidateCustom(DateOnly? from, DateOnly? to, DateOnly today)
     {

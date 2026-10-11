@@ -149,4 +149,103 @@ public sealed class PeriodResolverTests
 
         Assert.Throws<ArgumentException>(() => resolver.Resolve((PeriodKind)99, Istanbul));
     }
+
+    // --- ANA-07: comparison periods ---
+
+    private static (DateOnly, DateOnly, DateOnly, DateOnly) Dates(ComparisonPeriods p) =>
+        (p.Current.StartDate, p.Current.EndDate, p.Previous.StartDate, p.Previous.EndDate);
+
+    [Fact]
+    public void Previous_full_month_compares_the_last_two_complete_months()
+    {
+        var periods = ResolverAt(DemoNowUtc).ResolveComparison(ComparisonKind.PreviousFullMonth, Istanbul);
+
+        Assert.Equal((new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30), new DateOnly(2026, 8, 1), new DateOnly(2026, 8, 31)),
+            Dates(periods));
+        Assert.Equal(Utc(2026, 9, 30, 21), periods.Current.EndUtc);
+        Assert.Equal(periods.Previous.EndUtc, periods.Current.StartUtc); // adjacent, no gap or overlap
+    }
+
+    [Fact]
+    public void Previous_full_month_crosses_the_year_in_january()
+    {
+        var periods = ResolverAt(Utc(2027, 1, 15, 9)).ResolveComparison(ComparisonKind.PreviousFullMonth, Istanbul);
+
+        Assert.Equal((new DateOnly(2026, 12, 1), new DateOnly(2026, 12, 31), new DateOnly(2026, 11, 1), new DateOnly(2026, 11, 30)),
+            Dates(periods));
+    }
+
+    [Fact]
+    public void Month_to_date_compares_the_same_days_of_the_previous_month()
+    {
+        var periods = ResolverAt(DemoNowUtc).ResolveComparison(ComparisonKind.MonthToDate, Istanbul);
+
+        Assert.Equal((new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 10), new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 10)),
+            Dates(periods));
+    }
+
+    [Fact]
+    public void Month_to_date_clamps_to_a_shorter_previous_month()
+    {
+        var periods = ResolverAt(Utc(2026, 3, 31, 9)).ResolveComparison(ComparisonKind.MonthToDate, Istanbul);
+
+        Assert.Equal((new DateOnly(2026, 3, 1), new DateOnly(2026, 3, 31), new DateOnly(2026, 2, 1), new DateOnly(2026, 2, 28)),
+            Dates(periods));
+    }
+
+    [Fact]
+    public void Custom_comparison_uses_both_given_ranges()
+    {
+        var periods = ResolverAt(DemoNowUtc).ResolveComparison(ComparisonKind.Custom, Istanbul,
+            new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30), new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 31));
+
+        Assert.Equal((new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30), new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 31)),
+            Dates(periods));
+    }
+
+    [Fact]
+    public void Invalid_comparisons_are_rejected()
+    {
+        var resolver = ResolverAt(DemoNowUtc);
+
+        // Overlapping ranges would count one purchase in both periods.
+        Assert.Throws<ArgumentException>(() => resolver.ResolveComparison(ComparisonKind.Custom, Istanbul,
+            new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30), new DateOnly(2026, 9, 15), new DateOnly(2026, 10, 5)));
+        Assert.Throws<ArgumentException>(() => resolver.ResolveComparison(ComparisonKind.Custom, Istanbul,
+            new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 11), new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30)));
+        Assert.Throws<ArgumentException>(() => resolver.ResolveComparison(ComparisonKind.Custom, Istanbul,
+            new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30)));
+        Assert.Throws<ArgumentException>(() => resolver.ResolveComparison(ComparisonKind.PreviousFullMonth, Istanbul,
+            new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 30)));
+        Assert.Throws<ArgumentException>(() => resolver.ResolveComparison((ComparisonKind)9, Istanbul));
+    }
+
+    // --- ANA-07: monthly windows ---
+
+    [Fact]
+    public void Monthly_windows_are_calendar_months_plus_the_running_month()
+    {
+        var windows = ResolverAt(DemoNowUtc).ResolveMonthlyWindows(6, Istanbul);
+
+        Assert.Equal(new[] { (2026, 4, false), (2026, 5, false), (2026, 6, false), (2026, 7, false), (2026, 8, false), (2026, 9, false), (2026, 10, true) },
+            windows.Select(w => (w.Year, w.Month, w.IsPartial)).ToArray());
+        Assert.Equal((new DateOnly(2026, 4, 1), Utc(2026, 3, 31, 21)), (windows[0].Period.StartDate, windows[0].Period.StartUtc));
+        Assert.Equal((new DateOnly(2026, 10, 10), Utc(2026, 10, 10, 21)), (windows[^1].Period.EndDate, windows[^1].Period.EndUtc));
+        // Consecutive windows touch exactly: no gap, no overlap.
+        Assert.All(windows.Zip(windows.Skip(1)), pair => Assert.Equal(pair.First.Period.EndUtc, pair.Second.Period.StartUtc));
+    }
+
+    [Fact]
+    public void Monthly_windows_cross_the_year()
+    {
+        var windows = ResolverAt(Utc(2027, 1, 15, 9)).ResolveMonthlyWindows(3, Istanbul);
+
+        Assert.Equal(new[] { (2026, 10), (2026, 11), (2026, 12), (2027, 1) }, windows.Select(w => (w.Year, w.Month)).ToArray());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(25)]
+    public void Monthly_window_count_is_limited(int months) =>
+        Assert.Throws<ArgumentException>(() => ResolverAt(DemoNowUtc).ResolveMonthlyWindows(months, Istanbul));
 }

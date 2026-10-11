@@ -15,6 +15,16 @@ internal sealed class CustomerScope(BankingDbContext db, PeriodResolver periodRe
         Guid customerId, PeriodKind period, DateOnly? from, DateOnly? to, Guid? accountId,
         bool personalOnly, CancellationToken cancellationToken)
     {
+        var (timeZone, accounts) = await ResolveAccountsAsync(customerId, accountId, personalOnly, cancellationToken);
+        var resolved = periodResolver.Resolve(period, timeZone, from, to);
+        return new ScopedAccounts(resolved, timeZone, accounts);
+    }
+
+    // Authorization without a period, for services that resolve their own periods
+    // (comparisons, monthly windows). Same rules as ResolveAsync.
+    public async Task<(string TimeZone, IQueryable<Guid> AccountIds)> ResolveAccountsAsync(
+        Guid customerId, Guid? accountId, bool personalOnly, CancellationToken cancellationToken)
+    {
         if (customerId == Guid.Empty)
             throw new ArgumentException("Müşteri kimliği boş olamaz.", nameof(customerId));
 
@@ -38,14 +48,12 @@ internal sealed class CustomerScope(BankingDbContext db, PeriodResolver periodRe
                 throw new ArgumentException("Harcama analizi yalnızca şahsi hesaplar içindir.", nameof(accountId));
         }
 
-        var resolved = periodResolver.Resolve(period, timeZone, from, to);
-
         var accounts = db.Accounts.Where(a => a.CustomerId == customerId);
         if (personalOnly)
             accounts = accounts.Where(a => a.AccountType == AccountType.Personal);
         if (accountId is not null)
             accounts = accounts.Where(a => a.Id == accountId);
 
-        return new ScopedAccounts(resolved, timeZone, accounts.Select(a => a.Id));
+        return (timeZone, accounts.Select(a => a.Id));
     }
 }

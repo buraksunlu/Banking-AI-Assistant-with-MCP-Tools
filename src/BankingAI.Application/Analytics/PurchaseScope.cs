@@ -40,4 +40,15 @@ internal sealed class PurchaseScope(BankingDbContext db, PeriodResolver periodRe
 
         return new ScopedPurchases(period, purchases, accountPurchases) { TimeZone = timeZone };
     }
+
+    // Same personal-account and Purchase rules without a period: all-time purchases for services
+    // that filter by their own windows (comparisons, monthly trends).
+    public async Task<(string TimeZone, IQueryable<Transaction> AccountPurchases)> ResolveAccountPurchasesAsync(
+        Guid customerId, Guid? accountId, CancellationToken cancellationToken)
+    {
+        var (timeZone, accounts) = await _customer.ResolveAccountsAsync(customerId, accountId, personalOnly: true, cancellationToken);
+        var accountPurchases = db.Transactions.AsNoTracking()
+            .Where(t => t.Kind == TransactionKind.Purchase && accounts.Contains(t.AccountId));
+        return (timeZone, accountPurchases);
+    }
 }

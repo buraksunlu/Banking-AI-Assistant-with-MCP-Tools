@@ -141,7 +141,9 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
   her servis tek bir `GROUP BY`/sayfa sorgusu ekler. Yetki kuralını servislerde kopyalama.
 - Servisler: `SpendingSummaryService`, `CategoryBreakdownService`, `MerchantSpendingService`,
   `TransactionSearchService` (ekstre: tüm türler ve tüm hesaplar), `HighestTransactionsService`
-  (varsayılan harcama; istenirse tüm işlemler; limit ≤ 100). İşlem listesi döndüren servisler
+  (varsayılan harcama; istenirse tüm işlemler; limit ≤ 100), `SpendingComparisonService`
+  ("geçen aya göre" = son tam ay vs önceki ay; tek CASE WHEN sorgusu; aylık seri takvim ayı +
+  devam eden ay, boş ay 0). İşlem listesi döndüren servisler
   `TransactionItemReader` (internal) ile aynı DTO'yu üretir: join'ler, maskeli karşı taraf
   (PairId), `LocalDate`, join'lerden sonra uygulanan sıralama. Join/maskeleme kodunu kopyalama.
   Sonuçlar para birimi başına satırdır; harcama yoksa boş liste döner (uydurma "0" satırı yok);
@@ -153,13 +155,16 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
 - EF tuzakları: (1) constructor'la kurulan record'a projeksiyondan **sonra** `OrderBy` çevrilemez;
   `GroupBy(...).OrderBy(g => g.Key).Select(...)` kullan. (2) Nullable kolonda korelasyonlu join'de
   EF C# null semantiğini korur (`null == null` true) ve dış satırdaki null kontrolünü düşürebilir;
-  kontrolü join'lenen satıra koy (`o.PairId != null && o.PairId == t.PairId`).
+  kontrolü join'lenen satıra koy (`o.PairId != null && o.PairId == t.PairId`). (3) Npgsql 10
+  `DateTimeOffset` saat dilimi dönüşümünü (`ConvertTimeBySystemTimeZoneId`) SQL'e çeviremez; yerel ay
+  gruplaması için UTC pencere sınırlarını kullan.
 
 ### Testler
 
 - `BankingAI.Data.Tests`: PostgreSQL testleri `[Collection(PostgreSqlCollection.Name)]` ile sıralı
   çalışır; ya kendi transaction'ında rollback yapar ya da geçici `DUMMY-*TEST-*` hesap açıp siler.
-- `BankingAI.Application.Tests`: seed edilmiş demo DB'yi okur.
+- `BankingAI.Application.Tests`: seed edilmiş demo DB'yi okur. Demo müşteri/hesap GUID'leri ve
+  `DemoNowUtc` tek yerde, `DemoData.cs` içindedir (`using static ...DemoData;`); test dosyasına kopyalama.
 - Beklenen değerler **elle hesaplanmış fixture**'lardır; seeder'dan türetilmez
   (`SyntheticDatasetIntegrityTests`, `docs/synthetic-seed.md`). Seed eklemek bakiye/sayı fixture'larını değiştirir.
 - Yeni enum kolonunda EF migration'ı `NOT NULL DEFAULT 0` üretir: elle nullable ekle → backfill →
@@ -172,5 +177,6 @@ Banking foundation kabul edildi; market data (USDTRY/EURTRY/gram altın import, 
 ayrı ve engellemeyen bir koldur, altın kaynağı (SRC-02) dış yanıt bekliyor. Tamamlananlar:
 ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/AccountType, çift
 yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, arama, en yüksek
-işlemler). Sıradaki: ANA-07 dönem karşılaştırması, ardından ANA-08/09, API, AI, MCP.
+işlemler), ANA-07 (karşılaştırma ve aylık seri). Sıradaki: analytics kapanışı (ANA-08), ardından
+API-01 (Data'nın kütüphane/CLI ayrımı + ilk controller), AI, MCP.
 Güncel ayrıntı her zaman `todo.md`'dedir.

@@ -200,3 +200,57 @@ edildi; sorgu sayısı satıra değil para birimi whitelist'ine (en fazla 4) ba�
 | Ada, bu ay, hepsi | Maaş 45.000; giden 1.500 (Deniz M***); gelen 300; 210; 165 |
 | Deniz, bu ay, hepsi, 10 | 55.000; 9.500; 1.850; 1.500; dükkân satışları 140, 120, 95 |
 | Ada + geçici 10 USD, 2 | TRY: 210, 165; USD: 10 |
+
+## ANA-07 — Dönem karşılaştırması ve aylık seri (`SpendingComparisonService`)
+
+Kapsam harcama kapsamıdır (`PurchaseScope`: şahsi hesaplar, `Kind = Purchase`). Dönem çiftleri ve
+ay pencereleri `PeriodResolver.ResolveComparison` / `ResolveMonthlyWindows` ile saf C#'ta üretilir.
+
+### A) `CompareAsync(SpendingComparisonQuery)`
+
+Kullanıcı kararıyla "geçen aya göre" varsayılanı **son tam ay vs bir önceki ay**dır.
+
+| `ComparisonKind` | 10 Ekim 2026'da | Not |
+| --- | --- | --- |
+| `PreviousFullMonth` (varsayılan) | Eylül vs Ağustos | İki tamamlanmış ay |
+| `MonthToDate` | 1–10 Ekim vs 1–10 Eylül | Önceki ay kısaysa son güne sabitlenir (31 Mar → 1–28 Şub) |
+| `Custom` | Verilen iki aralık | Her biri ≤ 24 ay, gelecek yok, **çakışma yok** |
+
+"Bu ay şimdiye kadar vs geçen tam ay" (10 gün vs 30 gün) yanıltıcı olduğu için desteklenmez.
+
+Çıktı para birimi başına: iki toplam, işlem sayıları, `Change` (işaretli) ve `PercentageChange`
+(önceki 0 ise **null**; sıfırdan büyüme oranı uydurulmaz, 2 ondalık `AwayFromZero`). `Categories`
+her kategorinin iki dönem tutarını ve farkını taşır; **mutlak farka göre** büyükten küçüğe sıralıdır,
+böylece artışta da azalışta da en büyük etken ilk satırdadır. Sıfır farklı kategori de listelenir
+(iki dönemde de sıfır olan listelenmez). Sınıflandırılmamış grup en sonda.
+
+SQL: saat dilimi ve tek bir toplama sorgusu. Satırlar iki aralığın birleşimiyle filtrelenir, her
+dönem kendi `CASE WHEN` / `FILTER` koşuluyla toplanır. Dönemlerin çakışmaması bu yüzden zorunludur.
+
+| İstek | Sonuç |
+| --- | --- |
+| Deniz, varsayılan | 31.000 vs 24.000 → +7.000, +%29,17; GROCERY +7.000 |
+| Ada, varsayılan | 624,98 vs 514,98 → +110, +%21,36; FOOD +110, SUBSCRIPTION 0 |
+| Ege, varsayılan | 1.530 vs 2.100 → −570, −%27,14; TRAVEL −1.200 ilk sırada, TRANSPORTATION +500, FOOD +130 |
+| Deniz, MonthToDate | 11.350 vs 0 → yüzde null |
+| Ada, MonthToDate | 735 (1.500 transfer dahil değil) |
+
+### B) `GetMonthlyTrendAsync(SpendingTrendQuery)`
+
+Kullanıcı kararları: **takvim ayları** (müşterinin saat dilimi), son N tam ay + **devam eden ay**
+(`IsPartial = true`), **harcamasız ay 0** olarak listelenir, N varsayılan 6, en fazla 24. İsteğe
+bağlı kategori kodu **veya** merchant (`MerchantMatcher`; Ambiguous/NotFound'da seri boş döner).
+
+SQL: saat dilimi, (varsa) kategori ID veya merchant listesi ve **yalnız üç kolonun** (para birimi,
+zaman, tutar) filtrelenmiş okuması. Satırlar pencerelerin kesin UTC sınırlarıyla C#'ta aylara
+dağıtılır. Sebep: Npgsql 10, `DateTimeOffset` saat dilimi dönüşümünü
+(`TimeZoneInfo.ConvertTimeBySystemTimeZoneId`) SQL'e çeviremiyor (deneme ile doğrulandı); yerel ay
+LINQ ile SQL'de gruplanamıyor. Okunan satırlar tek müşteri, şahsi hesap, Purchase, filtre ve en
+fazla 25 ayla sınırlıdır. PERF-02'de ölçülecek; gerekirse `AT TIME ZONE` ile ham SQL'e geçilecek.
+
+| İstek | Sonuç |
+| --- | --- |
+| Ege, TRANSPORTATION | Nis 600, May 650, Haz 700, Tem 650, Ağu 900, Eyl 1.400, Eki 700 (devam eden) |
+| Ege, TRAVEL | Yalnız Ağustos 1.200; diğer aylar 0 |
+| Ada, "starbucks" | Nis–Eyl 185'er; Eki 375 (devam eden) |
+| Deniz, filtresiz | 12.000 … 31.000; Eki 11.350; tam aylar harcama özetiyle aynı |
