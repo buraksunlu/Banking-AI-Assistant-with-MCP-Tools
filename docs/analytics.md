@@ -297,3 +297,21 @@ Demo sonucu (10 Ekim 2026):
 | Ege | Şehir Ulaşım (ayda 2) | ~14 | Değil |
 
 Ada'nın aylık toplamı: TRY 329,98.
+
+## ANA-08 — Kenar durumları (`AnalyticsEdgeCaseTests`)
+
+Geçici kayıtlar testin kendi DB transaction'ında eklenir ve rollback edilir; demo verisi 116
+işlemde kalır.
+
+- **Hesapsız müşteri** (Demo Customer): yedi servis hata vermeden boş sonuç döner; aylık seride
+  aylar vardır ama para birimi serisi yoktur.
+- **İstanbul gece yarısı:** 31 Ağu 23:59:59 / 1 Eyl 00:00 (karşılaştırılan iki ayın birleştiği an) ve
+  30 Eyl 23:59:59 / 1 Eki 00:00. Özet, karşılaştırma (`CASE WHEN`), aylık seri (C# kovalama) ve
+  arama (`LocalDate`) aynı ayı seçer. Kayıtlar kategorisizdir; "Sınıflandırılmamış" grubu da doğrulanır.
+- **İkinci para birimi:** USD abonelik + tek seferlik alışveriş kategori, merchant, karşılaştırma,
+  seri ve düzenli ödemede ayrı satır/seri/toplam olarak çıkar; TRY değerleri değişmez.
+
+Testler mevcut davranışı kapsadığı için ilk çalıştırmada yeşildi. Koruma gücü kasıtlı hata
+yerleştirmeyle ölçüldü (sınırda `<` → `<=`, `>=` → `>`): ilk sürüm karşılaştırmadaki dönem
+sınırını yakalamıyordu, çünkü geçici kayıtlar yalnız Eylül/Ekim sınırındaydı; 31 Ağustos sınırı
+eklendikten sonra dört kasıtlı hatanın hepsi testleri kırmızıya çevirdi.

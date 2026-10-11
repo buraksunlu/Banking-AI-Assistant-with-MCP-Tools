@@ -174,6 +174,9 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
   `DemoNowUtc` tek yerde, `DemoData.cs` içindedir (`using static ...DemoData;`); test dosyasına kopyalama.
 - Beklenen değerler **elle hesaplanmış fixture**'lardır; seeder'dan türetilmez
   (`SyntheticDatasetIntegrityTests`, `docs/synthetic-seed.md`). Seed eklemek bakiye/sayı fixture'larını değiştirir.
+- Mevcut davranışı kapsayan yeni testler yeşil başlarsa, kodu geçici bozup (ör. sınırda `<` → `<=`)
+  kırmızıyı gör, sonra geri al. Geri alırken dosya zamanı eskirse MSBuild bozuk derlemeyi kullanır:
+  `touch` veya `dotnet build --no-incremental` ile doğrula.
 - Yeni enum kolonunda EF migration'ı `NOT NULL DEFAULT 0` üretir: elle nullable ekle → backfill →
   belirsiz kayıtta `RAISE EXCEPTION` → `NOT NULL` yap. DB varsayılanı olmadığı için testlerdeki ham
   `INSERT`'ler `Kind` ve `AccountType`'ı açıkça vermelidir.
@@ -184,6 +187,6 @@ Banking foundation kabul edildi; market data (USDTRY/EURTRY/gram altın import, 
 ayrı ve engellemeyen bir koldur, altın kaynağı (SRC-02) dış yanıt bekliyor. Tamamlananlar:
 ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/AccountType, çift
 yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, arama, en yüksek
-işlemler), ANA-07 (karşılaştırma ve aylık seri), REC-01–03 (düzenli ödemeler). Sıradaki: analytics
-kapanışı (ANA-08), ardından API-01 (Data'nın kütüphane/CLI ayrımı + ilk controller), AI, MCP.
+işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu testleri), REC-01–03 (düzenli
+ödemeler). Sıradaki: API-01 (Data'nın kütüphane/CLI ayrımı + ilk controller); ANA-09 ona bağlı; sonra AI, MCP.
 Güncel ayrıntı her zaman `todo.md`'dedir.
