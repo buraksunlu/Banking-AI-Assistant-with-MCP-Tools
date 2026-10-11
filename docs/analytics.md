@@ -254,3 +254,46 @@ fazla 25 ayla sınırlıdır. PERF-02'de ölçülecek; gerekirse `AT TIME ZONE` 
 | Ege, TRAVEL | Yalnız Ağustos 1.200; diğer aylar 0 |
 | Ada, "starbucks" | Nis–Eyl 185'er; Eki 375 (devam eden) |
 | Deniz, filtresiz | 12.000 … 31.000; Eki 11.350; tam aylar harcama özetiyle aynı |
+
+## REC-01–03 — Düzenli ödemeler (`RecurringPaymentService`, `RecurringPaymentDetector`)
+
+Veritabanında abonelik alanı veya RecurringPayments tablosu yoktur; düzenli ödeme geçmiş
+işlemlerden **deterministik kuralla** bulunur, LLM yalnız sonucu anlatır (RULE.md §8).
+
+Kapsam: son 6 ay (`Last6Months`), şahsi hesaplar, `Kind = Purchase`, merchant'ı olan işlemler.
+Gruplar **hesap + para birimi + merchant**. Kullanıcı kararıyla bir grup ancak hepsi sağlanırsa
+düzenlidir (`RecurringPaymentDetector`, saf C#):
+
+| # | Şart | Elediği örnek |
+| --- | --- | --- |
+| 1 | En az 3 ödeme | Tek seferlik / iki ödeme |
+| 2 + 4 | Ardışık her iki ödeme arası 26–35 gün (yerel takvim günü) | Ayda iki kez ulaşım; ekstra kahve; **atlanan ay** (~61 gün) |
+| 3 | Her tutar grubun ortanca tutarının ±%10'u içinde | Büyüyen market harcaması (12.000 → 31.000); 100 → 150 |
+| 5 | Son ödeme bugünden en fazla 35 gün önce | İptal edilmiş abonelik |
+
+Küçük zam (229,99 → 249,99) şart 3'ü geçer; sonuçta en düşük ve en yüksek tutar görünür.
+Bilinen sınır: hiç ekstra ziyareti olmayan, her ay aynı gün aynı tutarda bir kahve alışverişi
+abonelik gibi görünür (testte belgelendi); demo verisinde Ekim'deki ekstra Starbucks
+alışverişleri bu yüzden düzeni bozar.
+
+Çıktı: merchant, kategori (son ödemenin), hesap adı, para birimi ve `RecurringPattern`
+(ödeme sayısı, son/en düşük/en yüksek tutar, ilk/son tarih, en kısa/en uzun aralık,
+**tahmini** sonraki ödeme = son ödeme + 1 ay, ayın gözlenen en büyük gününe göre; ay sonu kısalırsa
+sabitlenir). Para birimi başına aylık toplam = son tutarların toplamı. Sıra: son tutar büyükten küçüğe.
+
+SQL: saat dilimi ve tek okuma sorgusu (hesap adı ve kategori join'li). Kural ödemeler arası gün
+farklarına baktığı için tek tek satırlar gerekir; okunan satırlar tek müşterinin 6 aylık,
+merchant'ı olan alışverişleridir.
+
+Demo sonucu (10 Ekim 2026):
+
+| Müşteri | Grup | Aralıklar (gün) | Sonuç |
+| --- | --- | --- | --- |
+| Ada | Netflix 229,99 × 6 | 30, 31, 30, 31, 31 | Düzenli; sonraki tahmin 12 Eki |
+| Ada | Spotify 99,99 × 6 | 30, 31, 30, 31, 31 | Düzenli; sonraki tahmin 18 Eki |
+| Ada | Starbucks 185 × 6 + 210 + 165 | 30, 31, 30, 31, 31, **16, 2** | Değil |
+| Ada | Kahve Durağı 110, 120, 95 | 17, 5 | Değil |
+| Deniz | Aile Marketi (12.000 → 31.000, + 4 Eki) | — | Değil |
+| Ege | Şehir Ulaşım (ayda 2) | ~14 | Değil |
+
+Ada'nın aylık toplamı: TRY 329,98.

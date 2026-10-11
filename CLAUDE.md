@@ -36,6 +36,12 @@ controller API, Python FastAPI + LangChain + Ollama (local Qwen), .NET MCP serve
 - Adım sonunda: yapısal değişiklik (önce/sonra ağaç) + dosya dosya kod açıklaması (snippet'li)
   + doğrulama + bilinen sınırlar. `todo.md` maddesini sonucu ve test sayısıyla `[x]` yap,
   `RULE.md` §29'u ve ilgili `docs/` dosyasını güncelle.
+- **Kod yorumları (kullanıcı kararı):** Kodun içinde yalnız İngilizce. Her public tip/metotta
+  `/// <summary>`, gövdede sadece "neden" yorumları; satır satır "ne yapıyor" yorumu **yazılmaz**.
+  Kullanıcı kod okumayı öğreniyor: değişen kodun satır satır Türkçe açıklaması (Türkçe yorumlu kod
+  blokları, DB'ye giden satırlar 🗄️ ile işaretli) adım sonunda `docs/walkthroughs/<konu>.md`
+  dosyasına yazılır ve sohbette verilir. Adım sonu review'ü ayrıca okuma sırası, ilk kez geçen
+  C# kavramları (Python karşılığıyla) ve 2–3 anlama sorusu içerir.
 - **Commit'i kullanıcı atar.** Adım sonunda yalnız `git add <dosyalar> && git commit -m "<kısa,
   küçük harfli İngilizce mesaj>"` öner; kullanıcı açıkça istemedikçe commit atma.
 - Uygulanmış migration'ları değiştirme/silme, DB'yi resetleme, demo kayıtlarını silme.
@@ -143,7 +149,8 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
   `TransactionSearchService` (ekstre: tüm türler ve tüm hesaplar), `HighestTransactionsService`
   (varsayılan harcama; istenirse tüm işlemler; limit ≤ 100), `SpendingComparisonService`
   ("geçen aya göre" = son tam ay vs önceki ay; tek CASE WHEN sorgusu; aylık seri takvim ayı +
-  devam eden ay, boş ay 0). İşlem listesi döndüren servisler
+  devam eden ay, boş ay 0), `RecurringPaymentService` + saf `RecurringPaymentDetector` (son 6 ay;
+  ≥3 ödeme, 26–35 gün aralık, ±%10 tutar, son ödeme ≤35 gün; tablo yok). İşlem listesi döndüren servisler
   `TransactionItemReader` (internal) ile aynı DTO'yu üretir: join'ler, maskeli karşı taraf
   (PairId), `LocalDate`, join'lerden sonra uygulanan sıralama. Join/maskeleme kodunu kopyalama.
   Sonuçlar para birimi başına satırdır; harcama yoksa boş liste döner (uydurma "0" satırı yok);
@@ -177,6 +184,6 @@ Banking foundation kabul edildi; market data (USDTRY/EURTRY/gram altın import, 
 ayrı ve engellemeyen bir koldur, altın kaynağı (SRC-02) dış yanıt bekliyor. Tamamlananlar:
 ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/AccountType, çift
 yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, arama, en yüksek
-işlemler), ANA-07 (karşılaştırma ve aylık seri). Sıradaki: analytics kapanışı (ANA-08), ardından
-API-01 (Data'nın kütüphane/CLI ayrımı + ilk controller), AI, MCP.
+işlemler), ANA-07 (karşılaştırma ve aylık seri), REC-01–03 (düzenli ödemeler). Sıradaki: analytics
+kapanışı (ANA-08), ardından API-01 (Data'nın kütüphane/CLI ayrımı + ilk controller), AI, MCP.
 Güncel ayrıntı her zaman `todo.md`'dedir.

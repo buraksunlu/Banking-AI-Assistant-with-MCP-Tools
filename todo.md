@@ -298,9 +298,9 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 
 ## 18. Recurring payment ve açıklama
 
-- [ ] REC-01 — Deterministik recurring kuralını tanımla. Aynı hesap/para birimi/merchant, benzer tutar ve yaklaşık aralık; ayların farklı gün sayılarını dikkate al.
-- [ ] REC-02 — Netflix/Spotify pattern'leriyle detector yaz. Sonuç Transactions'tan hesaplansın; RecurringPayments tablosu oluşturma.
-- [ ] REC-03 — Yanlış pozitif testleri ekle. Sık kahve alışverişi, tek seferlik ödeme, eksik ay ve fiyat değişimi senaryolarını dene.
+- [x] REC-01 — Kullanıcı kararlarıyla kural: son 6 ay, şahsi hesap Purchase, hesap+para birimi+merchant grubu; ≥3 ödeme, ardışık aralıklar 26–35 gün (ekstra ödeme ve atlanan ay da elenir), tutarlar ortancanın ±%10'u, son ödeme ≤35 gün. `RecurringPaymentDetector` (saf C#); tahmini sonraki ödeme (ay sonu sabitlemeli).
+- [x] REC-02 — `RecurringPaymentService`: tablo yok, Transactions'tan hesaplanır; Ada için Netflix + Spotify, aylık toplam 329,98; Deniz ve Ege için boş. SQL: saat dilimi + tek join'li okuma.
+- [x] REC-03 — 12 dedektör testi (sık kahve, tek/iki ödeme, eksik ay, küçük/büyük fiyat değişimi, ayda iki kez, iptal, aynı gün, ay sonu, sıra bağımsızlığı) + 5 servis testi. Bilinen sınır belgelendi: ekstrası olmayan aylık sabit kahve abonelik gibi görünür. Application 132/132, Data 38/38.
 - [ ] REC-04 — find_recurring_payments tool'unu ekle; backend sonucunu LLM yalnızca açıklasın.
 - [ ] REC-05 — SwiftUI recurring listesini ekle; tahminin gerekçesi ve son ödeme tarihi gösterilsin.
 - [ ] EXP-01 — Transaction açıklama akışını ekle. Verilen işlem bilgisi dışına çıkma; kesin olmayan merchant/amaç yorumunu kesin gerçek gibi sunma.
@@ -359,7 +359,7 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 ## Şu anki sonraki adım
 
 SYN-01–13 banking seed adımları tamamlandı ve banking foundation kabul edildi (DOC-09).
-ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01–04 tamamlandı. ANA-01–07 tamamlandı (dönem, özet, kategori, merchant, arama, en yüksek işlemler, karşılaştırma ve aylık seri). Sıradaki iş: ANA-08 durumu gözden geçirilip analytics kapanışı, ardından API-01 (Data projesinin kütüphane/CLI ayrımı ve ilk controller). Market kolu
+ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01–04 tamamlandı. ANA-01–07 ve REC-01–03 tamamlandı; demo sorularının deterministik backend'i hazır (soru 6'nın açıklaması LLM'e kalır). Sıradaki iş: ANA-08 kapanış kontrolü, ardından API-01 (Data projesinin kütüphane/CLI ayrımı ve ilk controller). Market kolu
 (SRC-02 altın kaynağı) paralel bekliyor.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.
