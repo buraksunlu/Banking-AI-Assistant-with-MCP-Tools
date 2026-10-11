@@ -38,11 +38,10 @@ controller API, Python FastAPI + LangChain + Ollama (local Qwen), .NET MCP serve
   `RULE.md` §29'u ve ilgili `docs/` dosyasını güncelle.
 - **Kod yorumları (kullanıcı kararı):** Kodun içinde yalnız İngilizce. Her public tip/metotta
   `/// <summary>`, gövdede sadece "neden" yorumları; satır satır "ne yapıyor" yorumu **yazılmaz**.
-- **Review açıklaması sohbette, sözdizimine kadar:** Kullanıcı C#'a hakim değil ve kod okumayı
-  öğreniyor. Değişen kod sohbette satır satır Türkçe açıklanır (Türkçe yorumlu kod blokları,
-  DB'ye giden satırlar 🗄️ ile işaretli); `;`, `{ }`, `=>`, `<T>`, `?`, `!`, `??`, `new(...)`,
-  `var`, `static`, `readonly` gibi her sembol ve anahtar kelime anlatılır. Jargon ilk geçtiği yerde
-  tek cümleyle tanımlanır; kısa cümleler, Python karşılığı. Ayrı walkthrough dosyası oluşturulmaz.
+- **Kod açıklaması (kullanıcı istediğinde, sohbette):** Kullanıcı C#'a hakim değil ve kod okumayı
+  öğreniyor. İstendiğinde o kısmın ne yaptığını ve ne ifade ettiğini akıcı, sade Türkçe ile anlat;
+  gereken sözdizimini (`?`, `=>`, `new(...)` gibi) kısaca geç. Python karşılığı, uzun tablolar ve
+  adım adım trace yok; uzatma, kafa karıştırma. Ayrı walkthrough dosyası oluşturulmaz.
 - **Commit'i kullanıcı atar.** Adım sonunda yalnız `git add <dosyalar> && git commit -m "<kısa,
   küçük harfli İngilizce mesaj>"` öner; kullanıcı açıkça istemedikçe commit atma.
 - Uygulanmış migration'ları değiştirme/silme, DB'yi resetleme, demo kayıtlarını silme.
