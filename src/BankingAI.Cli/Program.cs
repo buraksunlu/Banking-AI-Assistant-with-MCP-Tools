@@ -17,7 +17,7 @@ var isSeedPairs = args.Length == 3 && args[0] == "seed" && args[1] == "transacti
 var isSingleCommand = args.Length == 1 && (args[0] == "migrate" || args[0] == "show");
 if (!isSingleCommand && !isSeedCategories && !isSeedMarketAssets && !isSeedCustomers && !isSeedAccounts && !isSeedCredits && !isSeedSubscriptions && !isSeedCategoryExamples && !isSeedGroceryGrowth && !isSeedCategorizationBoundaries && !isSeedRecentSpending && !isSeedDemoCoverage && !isSeedPairs)
 {
-    Console.WriteLine("Usage: BankingAI.Data migrate | show | seed categories | seed market-assets | seed customers | seed accounts | seed transactions credits | seed transactions subscriptions | seed transactions category-examples | seed transactions grocery-growth | seed transactions categorization-boundaries | seed transactions recent-spending | seed transactions demo-coverage | seed transactions pairs");
+    Console.WriteLine("Usage: BankingAI.Cli migrate | show | seed categories | seed market-assets | seed customers | seed accounts | seed transactions credits | seed transactions subscriptions | seed transactions category-examples | seed transactions grocery-growth | seed transactions categorization-boundaries | seed transactions recent-spending | seed transactions demo-coverage | seed transactions pairs");
     return 1;
 }
 

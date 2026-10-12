@@ -59,11 +59,11 @@ komutu veya ileride API'nin başlaması kendiliğinden seed/import çalıştırm
 İlk manuel komut sözleşmesi şöyledir:
 
 ```text
-dotnet run --project src/BankingAI.Data -- migrate
-dotnet run --project src/BankingAI.Data -- seed categories
-dotnet run --project src/BankingAI.Data -- seed market-assets
-dotnet run --project src/BankingAI.Data -- seed synthetic
-dotnet run --project src/BankingAI.Data -- import market-prices --asset USDTRY --from 2024-01-01 --to 2024-01-31
+dotnet run --project src/BankingAI.Cli -- migrate
+dotnet run --project src/BankingAI.Cli -- seed categories
+dotnet run --project src/BankingAI.Cli -- seed market-assets
+dotnet run --project src/BankingAI.Cli -- seed synthetic
+dotnet run --project src/BankingAI.Cli -- import market-prices --asset USDTRY --from 2024-01-01 --to 2024-01-31
 ```
 
 `seed categories` SEED-02 ile, `seed market-assets` SEED-04 ile uygulanmıştır.

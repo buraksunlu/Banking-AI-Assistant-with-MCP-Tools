@@ -50,7 +50,7 @@ Bu tek kayıt tabloyu incelemek içindir; tam synthetic generator değildir.
    migration’a ait ürettiği model bilgisi.
 5. `src/BankingAI.Data/Migrations/BankingDbContextModelSnapshot.cs`: EF’nin
    sonraki model değişikliklerini karşılaştıracağı son şema modeli.
-6. `src/BankingAI.Data/Program.cs`: Sadece migrate ve show komutları var.
+6. `src/BankingAI.Data/Program.cs` (API-01a ile `src/BankingAI.Cli/Program.cs` oldu): O tarihte sadece migrate ve show komutları vardı.
    migrate mevcut migration’ları uygular; show ilk 10 müşteriyi UTC tarihleriyle
    okur. AsNoTracking, değişiklik yapılmayacak nesneleri takip etmez.
 7. `src/BankingAI.Data/BankingAI.Data.csproj`: .NET 10 console proje ayarları,
@@ -88,13 +88,13 @@ set -a
 source .env
 set +a
 
-dotnet run --project src/BankingAI.Data -- show
+dotnet run --project src/BankingAI.Cli -- show
 ```
 
 Migration zaten uygulandı. Tekrar uygulamak gerekirse:
 
 ```sh
-dotnet run --project src/BankingAI.Data -- migrate
+dotnet run --project src/BankingAI.Cli -- migrate
 ```
 
 Bu komut migration dosyası üretmez; projede bulunan uygulanmamış migration’ları

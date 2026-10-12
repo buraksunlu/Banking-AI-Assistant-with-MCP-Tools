@@ -56,22 +56,23 @@ set -a; source .env; set +a   # BANKINGAI_CONNECTION_STRING
 ```
 
 PostgreSQL Docker container'ı `bankingai-week1-postgres-1` (127.0.0.1:55432, DB/rol
-`bankingai_foundation`). Solution dosyası yok; test projeleri ayrı çalıştırılır:
+`bankingai_foundation`). Bütün projeler `BankingAI.slnx` içindedir:
 
 ```sh
+dotnet build BankingAI.slnx
+dotnet test BankingAI.slnx                                                      # bütün testler
 dotnet test tests/BankingAI.Data.Tests
-dotnet test tests/BankingAI.Application.Tests
 dotnet test tests/BankingAI.Data.Tests --filter "Category!=PostgreSQL"          # DB'siz testler
 dotnet test tests/BankingAI.Application.Tests --filter "FullyQualifiedName~MerchantMatcherTests"
 dotnet build tests/BankingAI.Data.Tests --no-incremental                        # uyarı sayısı kontrolü
 ```
 
-Console CLI (`src/BankingAI.Data`), seed sırası önemlidir:
+Console CLI (`src/BankingAI.Cli`), seed sırası önemlidir:
 
 ```sh
-dotnet run --project src/BankingAI.Data -- migrate
-dotnet run --project src/BankingAI.Data -- seed categories        # sonra: market-assets, customers, accounts
-dotnet run --project src/BankingAI.Data -- seed transactions credits
+dotnet run --project src/BankingAI.Cli -- migrate
+dotnet run --project src/BankingAI.Cli -- seed categories        # sonra: market-assets, customers, accounts
+dotnet run --project src/BankingAI.Cli -- seed transactions credits
 # diğer transaction scope'ları: subscriptions, category-examples, grocery-growth,
 # categorization-boundaries, recent-spending, demo-coverage, pairs
 ```
@@ -80,21 +81,23 @@ Migration:
 
 ```sh
 dotnet tool restore
-dotnet tool run dotnet-ef migrations add <Name> --project src/BankingAI.Data
-dotnet tool run dotnet-ef migrations script <PreviousMigration> <Name> --project src/BankingAI.Data
+dotnet tool run dotnet-ef migrations add <Name> --project src/BankingAI.Data --startup-project src/BankingAI.Cli
+dotnet tool run dotnet-ef migrations script <PreviousMigration> <Name> --project src/BankingAI.Data --startup-project src/BankingAI.Cli
 docker exec bankingai-week1-postgres-1 psql -U bankingai_foundation -d bankingai_foundation -c "<SQL>"
 ```
 
 ## Mimari
 
 ```text
-BankingAI.Application.Tests ─► BankingAI.Application ─► BankingAI.Data ─► PostgreSQL
+BankingAI.Cli ───────────────────────────────────────► BankingAI.Data ─► PostgreSQL
+BankingAI.Application.Tests ─► BankingAI.Application ─► BankingAI.Data
 BankingAI.Data.Tests ─────────────────────────────────► BankingAI.Data
 ```
 
-`BankingAI.Data` hem DbContext/entity/migration/seed kodunu hem de `Program.cs` CLI'ını taşıyan
-bir **Exe**. Kütüphane + ayrı CLI olarak bölünmesi bilinçli olarak API-01'e bırakıldı.
-`BankingDbContext` bağlantıyı `OnConfiguring` içinde ortam değişkeninden alır (DI yok).
+`BankingAI.Data` bir **kütüphanedir**: DbContext, entity, configuration, migration ve seed kodu.
+`BankingAI.Cli` yalnız `Program.cs`'i (migrate/show/seed komutları) taşıyan Exe'dir ve dotnet-ef'in
+startup projesidir (Microsoft.EntityFrameworkCore.Design burada). API-01a ile ayrıldı.
+`BankingDbContext` bağlantıyı `OnConfiguring` içinde ortam değişkeninden alır (DI henüz yok; API-01b).
 
 ### Doğrulama katmanları
 
@@ -175,8 +178,10 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
 - Beklenen değerler **elle hesaplanmış fixture**'lardır; seeder'dan türetilmez
   (`SyntheticDatasetIntegrityTests`, `docs/synthetic-seed.md`). Seed eklemek bakiye/sayı fixture'larını değiştirir.
 - Mevcut davranışı kapsayan yeni testler yeşil başlarsa, kodu geçici bozup (ör. sınırda `<` → `<=`)
-  kırmızıyı gör, sonra geri al. Geri alırken dosya zamanı eskirse MSBuild bozuk derlemeyi kullanır:
-  `touch` veya `dotnet build --no-incremental` ile doğrula.
+  kırmızıyı gör, sonra geri al. Değişikliği dosyanın kendisinde yap ve `git checkout -- <dosya>` ile
+  geri al; `cp`/`mv` ile yedek dosya kullanma (proje iCloud'lu Masaüstünde, " 2" adlı çakışma
+  kopyaları oluşuyor ve `.cs` kopyası derlemeyi bozar). Sonunda `dotnet build --no-incremental` ile
+  doğrula; eski dosya zamanı MSBuild'in bozuk derlemeyi kullanmasına yol açabilir.
 - Yeni enum kolonunda EF migration'ı `NOT NULL DEFAULT 0` üretir: elle nullable ekle → backfill →
   belirsiz kayıtta `RAISE EXCEPTION` → `NOT NULL` yap. DB varsayılanı olmadığı için testlerdeki ham
   `INSERT`'ler `Kind` ve `AccountType`'ı açıkça vermelidir.
@@ -188,5 +193,5 @@ ayrı ve engellemeyen bir koldur, altın kaynağı (SRC-02) dış yanıt bekliyo
 ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/AccountType, çift
 yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, arama, en yüksek
 işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu testleri), REC-01–03 (düzenli
-ödemeler). Sıradaki: API-01 (Data'nın kütüphane/CLI ayrımı + ilk controller); ANA-09 ona bağlı; sonra AI, MCP.
+ödemeler), API-01a (Data kütüphane + Cli + BankingAI.slnx). Sıradaki: API-01b (Api projesi, DI ile DbContext, health); ANA-09 ona bağlı; sonra AI, MCP.
 Güncel ayrıntı her zaman `todo.md`'dedir.

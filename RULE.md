@@ -1353,7 +1353,7 @@ IN PROGRESS
 NEXT
 - ANA-01 (PeriodResolver) ve SYN-14 (Ada/Deniz/Ege farklı demo karakterleri) tamamlandı.
 - KIND-01–05 tamamlandı (Kind/PairId, iki bacaklı yazıcı, AccountType, Kahve Durağı + 9 çift, VAL-05 = Kind Purchase).
-- ANA-01–08 ve REC-01–03 tamamlandı (analytics servisleri, düzenli ödeme tespiti, kenar durumu testleri; docs/analytics.md). ANA-09 API-01'e bağlı. Sıradaki: API-01.
+- ANA-01–08 ve REC-01–03 tamamlandı (analytics servisleri, düzenli ödeme tespiti, kenar durumu testleri; docs/analytics.md). ANA-09 API-01'e bağlı. API-01a tamamlandı (Data kütüphane, Cli, BankingAI.slnx). Sıradaki: API-01b.
 - Ardından ANA-02 harcama özeti; harcama yalnızca Purchase türünü sayar.
 
 KNOWN ISSUES

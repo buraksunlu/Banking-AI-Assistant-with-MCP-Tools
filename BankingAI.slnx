@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BankingAI.Application/BankingAI.Application.csproj" />
+    <Project Path="src/BankingAI.Cli/BankingAI.Cli.csproj" />
+    <Project Path="src/BankingAI.Data/BankingAI.Data.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BankingAI.Application.Tests/BankingAI.Application.Tests.csproj" />
+    <Project Path="tests/BankingAI.Data.Tests/BankingAI.Data.Tests.csproj" />
+  </Folder>
+</Solution>

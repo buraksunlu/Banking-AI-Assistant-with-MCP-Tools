@@ -2,13 +2,21 @@
 
 Bu proje tamamen synthetic banka verileriyle çalışan bir transaction intelligence
 sistemi olacak. Nihai hedef .NET 10, PostgreSQL, SwiftUI ve local Qwen tabanlı
-bir uygulamadır. Şu an yalnızca database foundation üzerinde çalışıyoruz.
+bir uygulamadır. Database foundation ve deterministik analytics tamamlandı; sırada HTTP API var.
 
 ## Mevcut durum
 
-Şu anda çalışan proje `src/BankingAI.Data` adlı küçük bir .NET 10 console
-projesidir. ASP.NET Core API, controller, service, SwiftUI, FastAPI, LangChain,
-Qwen ve MCP henüz oluşturulmadı.
+Bütün projeler `BankingAI.slnx` içindedir:
+
+| Proje | Görevi |
+| --- | --- |
+| `src/BankingAI.Data` | Kütüphane: DbContext, entity, configuration, migration, seed, doğrulama |
+| `src/BankingAI.Cli` | Komut satırı aracı: `migrate`, `show`, `seed ...`; dotnet-ef startup projesi |
+| `src/BankingAI.Application` | Deterministik analytics servisleri (docs/analytics.md) |
+| `tests/BankingAI.Data.Tests` | Doğrulama, seed, bakiye ve demo veri testleri |
+| `tests/BankingAI.Application.Tests` | Analytics testleri |
+
+ASP.NET Core API, SwiftUI, FastAPI, LangChain, Qwen ve MCP henüz oluşturulmadı.
 
 Aktif PostgreSQL veritabanı `bankingai_foundation`dır. Eski `bankingai`
 veritabanı temizlendi. Bu projede gerçek banka veya müşteri verisi kullanılmaz.
@@ -57,20 +65,20 @@ set +a
 Komutlar proje kökünde çalıştırılır:
 
 ```sh
-dotnet run --project src/BankingAI.Data -- migrate
-dotnet run --project src/BankingAI.Data -- show
-dotnet run --project src/BankingAI.Data -- seed categories
-dotnet run --project src/BankingAI.Data -- seed market-assets
-dotnet run --project src/BankingAI.Data -- seed customers
-dotnet run --project src/BankingAI.Data -- seed accounts
-dotnet run --project src/BankingAI.Data -- seed transactions credits
-dotnet run --project src/BankingAI.Data -- seed transactions subscriptions
-dotnet run --project src/BankingAI.Data -- seed transactions category-examples
-dotnet run --project src/BankingAI.Data -- seed transactions grocery-growth
-dotnet run --project src/BankingAI.Data -- seed transactions categorization-boundaries
-dotnet run --project src/BankingAI.Data -- seed transactions recent-spending
-dotnet run --project src/BankingAI.Data -- seed transactions demo-coverage
-dotnet run --project src/BankingAI.Data -- seed transactions pairs
+dotnet run --project src/BankingAI.Cli -- migrate
+dotnet run --project src/BankingAI.Cli -- show
+dotnet run --project src/BankingAI.Cli -- seed categories
+dotnet run --project src/BankingAI.Cli -- seed market-assets
+dotnet run --project src/BankingAI.Cli -- seed customers
+dotnet run --project src/BankingAI.Cli -- seed accounts
+dotnet run --project src/BankingAI.Cli -- seed transactions credits
+dotnet run --project src/BankingAI.Cli -- seed transactions subscriptions
+dotnet run --project src/BankingAI.Cli -- seed transactions category-examples
+dotnet run --project src/BankingAI.Cli -- seed transactions grocery-growth
+dotnet run --project src/BankingAI.Cli -- seed transactions categorization-boundaries
+dotnet run --project src/BankingAI.Cli -- seed transactions recent-spending
+dotnet run --project src/BankingAI.Cli -- seed transactions demo-coverage
+dotnet run --project src/BankingAI.Cli -- seed transactions pairs
 ```
 
 `migrate`, projede bulunan ve veritabanına henüz uygulanmamış EF Core
@@ -85,8 +93,8 @@ dataset'i tek seferde üreten `seed synthetic` ve market import henüz uygulanma
 şu anda çalıştırılmamalıdır:
 
 ```sh
-dotnet run --project src/BankingAI.Data -- seed synthetic
-dotnet run --project src/BankingAI.Data -- import market-prices --asset USDTRY --from 2024-01-01 --to 2024-01-31
+dotnet run --project src/BankingAI.Cli -- seed synthetic
+dotnet run --project src/BankingAI.Cli -- import market-prices --asset USDTRY --from 2024-01-01 --to 2024-01-31
 ```
 
 `seed categories` yalnızca bu komut açıkça çalıştırıldığında kategori ekler.
@@ -124,7 +132,7 @@ Yeni migration oluşturmak için `dotnet-ef` aracı kullanılacak:
 
 ```sh
 dotnet tool restore
-dotnet tool run dotnet-ef migrations add MigrationName --project src/BankingAI.Data
+dotnet tool run dotnet-ef migrations add MigrationName --project src/BankingAI.Data --startup-project src/BankingAI.Cli
 ```
 
 Migration oluşturmak ile migration'ı veritabanına uygulamak farklı işlemlerdir.
@@ -133,14 +141,18 @@ Migration oluşturmak ile migration'ı veritabanına uygulamak farklı işlemler
 ## Mevcut dosya düzeni
 
 ```text
-src/BankingAI.Data/
-├── Entities/              # Normal C# entity sınıfları
-├── Enums/                 # TransactionDirection ve CategorizationSource
-├── Configurations/        # EF Core Fluent API eşlemeleri ve DB kuralları
-├── Migrations/            # Uygulanmış şema değişikliklerinin geçmişi
-├── BankingDbContext.cs    # Entity'leri ve EF configuration'ları bağlar
-├── Program.cs             # migrate/show console giriş noktası
-└── BankingAI.Data.csproj  # .NET ve NuGet paket ayarları
+BankingAI.slnx                 # Bütün projeler: dotnet build / dotnet test BankingAI.slnx
+src/BankingAI.Data/            # Kütüphane
+├── Entities/                  # Normal C# entity sınıfları
+├── Enums/                     # TransactionDirection, TransactionKind, AccountType, CategorizationSource
+├── Configurations/            # EF Core Fluent API eşlemeleri ve DB kuralları
+├── Migrations/                # Uygulanmış şema değişikliklerinin geçmişi
+├── Seeding/                   # Seed'ler ve atomik işlem yazıcıları
+├── Validation/                # InputRules ve EntityValidation
+└── BankingDbContext.cs        # Entity'leri ve EF configuration'ları bağlar
+src/BankingAI.Cli/Program.cs   # migrate / show / seed komutları
+src/BankingAI.Application/     # Analytics servisleri
+tests/                         # xUnit test projeleri
 ```
 
 Kök dosyaları:

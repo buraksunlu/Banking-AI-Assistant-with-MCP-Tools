@@ -203,7 +203,8 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 
 ## 11. Controller-based API temeli — foundation sonrasında
 
-- [ ] API-01 — Küçük ASP.NET Core controller projesi oluştur. Veri projesinin console/persistence sorumluluklarını birlikte incele; yalnızca gerekli referans veya ayrıştırmayı yap.
+- [x] API-01a — Kullanıcı kararıyla ayrıştırma: `BankingAI.Data` kütüphane oldu; `Program.cs` git geçmişiyle yeni `BankingAI.Cli` (Exe) projesine taşındı; `Microsoft.EntityFrameworkCore.Design` CLI'a alındı (dotnet-ef startup projesi). `BankingAI.slnx` eklendi. Davranış değişmedi: 136 + 38 test tek `dotnet test BankingAI.slnx` ile geçti; EF "model değişikliği yok", 10 migration; CLI migrate/show ve 12 seed komutu `Added: 0`; demo veri 116. README/CLAUDE.md/docs komutları güncellendi.
+- [ ] API-01b — `BankingAI.Api` (controller-based) + `GET /api/health` (DB bağlantı kontrolü) + `BankingAI.Api.Tests` (HTTP integration). API-02 ile birlikte.
 - [ ] API-02 — DbContext bağlantısını DI üzerinden yapılandır. Scoped yaşam süresi kullan; singleton DbContext/shared List kullanma. Migration'ı her HTTP başlangıcında otomatik çalıştırma.
 - [ ] API-03 — İlk AccountDto ve CreateAccountRequest modellerini oluştur. Entity'yi doğrudan JSON'a verme; müşteri/hesap kapsamı ve kullanıcıdan alınmayacak alanları belirle.
 - [ ] API-04 — İlk hesap okuma servisini oluştur. AsNoTracking, async I/O ve CancellationToken kullan; servis interface'inin gerekçesini incele, repository ekleme.
@@ -359,7 +360,7 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 ## Şu anki sonraki adım
 
 SYN-01–13 banking seed adımları tamamlandı ve banking foundation kabul edildi (DOC-09).
-ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01–04 tamamlandı. ANA-01–08 ve REC-01–03 tamamlandı; demo sorularının deterministik backend'i hazır ve kenar durumları test edildi. ANA-09 API-01'e bağlı. Sıradaki iş: API-01 (Data projesinin kütüphane/CLI ayrımı ve ilk controller). Market kolu
+ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01–04 tamamlandı. ANA-01–08 ve REC-01–03 tamamlandı; demo sorularının deterministik backend'i hazır ve kenar durumları test edildi. ANA-09 API-01'e bağlı. API-01a (Data kütüphane + Cli ayrımı, solution) tamamlandı. Sıradaki iş: API-01b (API projesi, DI ile DbContext, health endpoint). Market kolu
 (SRC-02 altın kaynağı) paralel bekliyor.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.
