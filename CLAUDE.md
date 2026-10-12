@@ -81,6 +81,7 @@ dotnet run --project src/BankingAI.Cli -- seed categories        # sonra: market
 dotnet run --project src/BankingAI.Cli -- seed transactions credits
 # diğer transaction scope'ları: subscriptions, category-examples, grocery-growth,
 # categorization-boundaries, recent-spending, demo-coverage, pairs
+dotnet run --project src/BankingAI.Cli -- users set-password <username> [--customer <customer-id>]   # gizli sorar
 ```
 
 Migration:
@@ -125,6 +126,10 @@ configuration'lardaki DB CHECK/unique/FK kısıtları. Yeni kural eklerken dört
 - Transfer ve iç dükkân alışverişi aynı `PairId`'yi taşıyan iki bacaktır; `UNIQUE (PairId,
   Direction)`. `Sale` yalnız `AccountType.Business` hesaba yazılır. Karşı taraf adı DB'ye
   kopyalanmaz; okumada PairId ile bulunur ve maskelenir ("Deniz M***").
+- Müşteri kimliği istekte parametre olarak alınmaz; giriş token'ından gelir (docs/security.md). Şifreler
+  `CustomerCredentials`'ta yalnız `PasswordHasher` özeti olarak durur; demo kullanıcıları `ada`/`deniz`/`ege`,
+  şifreleri yalnız yerel `.env`'de (`BANKINGAI_DEMO_PASSWORD_*`). Şifre değerlerini asla yazdırma, repoya
+  veya teste koyma; testler kendi geçici test kullanıcısını üretip rollback eder.
 - Kategori yalnız Purchase'ta bulunur. `CategoryId == null` "Sınıflandırılmamış"tır ve `OTHER`
   ("Diğer") ile birleştirilmez. Kategori alanları (Id/Source/Confidence/CategorizedAt) birlikte değişir.
 - Tutar `numeric(18,2)`, sessiz yuvarlama yok; negatif bakiye yok. Zaman UTC `timestamptz`;
@@ -204,5 +209,5 @@ ayrı ve engellemeyen bir koldur, altın kaynağı (SRC-02) dış yanıt bekliyo
 ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/AccountType, çift
 yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, arama, en yüksek
 işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu testleri), REC-01–03 (düzenli
-ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health). Sıradaki: müşteri bağlamı (SEC-01) kararı, sonra API-03+ ve ANA-09; sonra AI, MCP.
+ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI). Sıradaki: SEC-01b (login + JWT + /api/me), sonra API-03+ ve ANA-09; sonra AI, MCP.
 Güncel ayrıntı her zaman `todo.md`'dedir.

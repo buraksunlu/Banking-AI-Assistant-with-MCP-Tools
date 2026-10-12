@@ -149,6 +149,42 @@ namespace BankingAI.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("BankingAI.Data.Entities.CustomerCredential", b =>
+                {
+                    b.Property<Guid>("CustomerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.HasKey("CustomerId");
+
+                    b.HasIndex("Username")
+                        .IsUnique();
+
+                    b.ToTable("CustomerCredentials", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_CustomerCredentials_PasswordHash_NotBlank", "\"PasswordHash\" ~ '[^[:space:]]'");
+
+                            t.HasCheckConstraint("CK_CustomerCredentials_Timestamps", "\"CreatedAt\" > '0001-01-01T00:00:00Z'::timestamptz AND \"CreatedAt\" < '9999-12-31T23:59:59.999999Z'::timestamptz\nAND \"UpdatedAt\" >= \"CreatedAt\" AND \"UpdatedAt\" < '9999-12-31T23:59:59.999999Z'::timestamptz");
+
+                            t.HasCheckConstraint("CK_CustomerCredentials_Username", "\"Username\" ~ '^[a-z0-9][a-z0-9._-]{2,49}$'");
+                        });
+                });
+
             modelBuilder.Entity("BankingAI.Data.Entities.DailyMarketPrice", b =>
                 {
                     b.Property<long>("Id")
@@ -374,6 +410,15 @@ namespace BankingAI.Data.Migrations
                     b.HasOne("BankingAI.Data.Entities.Customer", null)
                         .WithMany()
                         .HasForeignKey("CustomerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("BankingAI.Data.Entities.CustomerCredential", b =>
+                {
+                    b.HasOne("BankingAI.Data.Entities.Customer", null)
+                        .WithOne()
+                        .HasForeignKey("BankingAI.Data.Entities.CustomerCredential", "CustomerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

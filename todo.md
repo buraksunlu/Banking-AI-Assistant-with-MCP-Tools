@@ -56,7 +56,7 @@ canlı PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna 
 | Aktif DB | bankingai_foundation |
 | Domain tabloları | Customers, Accounts, TransactionCategories, Transactions, MarketAssets, DailyMarketPrices |
 | EF yardımcı tablosu | __EFMigrationsHistory |
-| Uygulanmış migration | 10 |
+| Uygulanmış migration | 11 |
 | Veri | 4 Customer; 7 Account (1 Business); 11 Category; 116 Transaction (44 Credit, 72 Debit; 9 çift) |
 | Hesap bakiyeleri | Ada TRY 577490.18; Ada USD 500; Deniz TRY 522900; Kahve Durağı 2595; Ege EUR 1000; Ege TRY 273380; boş TRY 0 |
 | Market tabloları | MarketAssets mevcut ve üç seed kaydı var; DailyMarketPrices henüz boş |
@@ -75,6 +75,7 @@ Migration geçmişi:
 8. 20261009104108_EnforceInputValidation
 9. 20261010183748_AddTransactionKind
 10. 20261010190233_AddAccountType
+11. 20261012071956_AddCustomerCredentials
 
 ## 1. Mevcut kararları ve belgeleri tutarlı hale getir
 
@@ -309,7 +310,8 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 
 ## 19. Güvenilirlik, erişim sınırları ve değerlendirme
 
-- [ ] SEC-01 — Basit demo kullanıcı bağlamı ve erişim sözleşmesini belirle. Müşteri kimliği model argümanından yetki sayılmasın; karmaşık production auth scope'u açma.
+- [x] SEC-01a — Kullanıcı kararlarıyla gerçek giriş: ayrı `CustomerCredentials` tablosu (onaylı migration `AddCustomerCredentials`), kullanıcı adı (CUST-n değil), ASP.NET `PasswordHasher` özeti, `UpdatedAt` sunucu saati, `CredentialStore` (çakışma = hata), CLI `users set-password` (gizli/iki kez/borudan). Demo kullanıcıları ada/deniz/ege; rastgele şifreler yalnız yerel `.env`'de, `.env.example`'da boş satırlar. 17 test + kasıtlı 2 güvenlik hatası yakalandı. docs/security.md.
+- [ ] SEC-01b — `POST /api/auth/login` (JWT, 60 dk, aynı 401, dakikada 5 deneme/IP → 429), `GET /api/me`, imza anahtarı env, iş endpoint'leri token ister. Hesap kilitleme sonraya (kullanıcı kararı).
 - [ ] SEC-02 — Hesap/müşteri izolasyonunu API, servis ve MCP boyunca test et. Başka hesaba ID vererek erişim mümkün olmamalı; UI'da gizlemek yeterli değil.
 - [ ] SEC-03 — Prompt injection örneklerini dene. Kullanıcı mesajı, RawDescription ve tool verisindeki talimatlar yetkiyi veya allowlist'i değiştiremesin.
 - [ ] SEC-04 — LLM'nin SQL veya banking write operasyonu yaptıramadığını doğrula. Bilinmeyen tool ve ayrıcalık iddiaları reddedilsin.
@@ -360,7 +362,7 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 ## Şu anki sonraki adım
 
 SYN-01–13 banking seed adımları tamamlandı ve banking foundation kabul edildi (DOC-09).
-ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01–04 tamamlandı. ANA-01–08 ve REC-01–03 tamamlandı; demo sorularının deterministik backend'i hazır ve kenar durumları test edildi. ANA-09 API-01'e bağlı. API-01a/01b ve API-02 tamamlandı (Data kütüphane + Cli, solution, BankingAI.Api + DI + health, API integration testleri). Sıradaki iş: API-03 ve sonrası; ilk gerçek endpoint'ten önce müşteri bağlamı (kimin adına istek?) kararı gerekiyor (SEC-01). Market kolu
+ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01–04 tamamlandı. ANA-01–08 ve REC-01–03 tamamlandı; demo sorularının deterministik backend'i hazır ve kenar durumları test edildi. ANA-09 API-01'e bağlı. API-01a/01b, API-02 ve SEC-01a tamamlandı (BankingAI.Api + DI + health; CustomerCredentials + CLI users set-password + demo kullanıcıları). Sıradaki iş: SEC-01b (login, JWT, /api/me), sonra API-03+ ve ANA-09. Market kolu
 (SRC-02 altın kaynağı) paralel bekliyor.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

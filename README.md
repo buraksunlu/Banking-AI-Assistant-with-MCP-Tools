@@ -86,6 +86,7 @@ dotnet run --project src/BankingAI.Cli -- seed transactions categorization-bound
 dotnet run --project src/BankingAI.Cli -- seed transactions recent-spending
 dotnet run --project src/BankingAI.Cli -- seed transactions demo-coverage
 dotnet run --project src/BankingAI.Cli -- seed transactions pairs
+dotnet run --project src/BankingAI.Cli -- users set-password <username> [--customer <customer-id>]
 ```
 
 `migrate`, projede bulunan ve veritabanına henüz uygulanmamış EF Core
@@ -212,6 +213,7 @@ Aktif veritabanında sırasıyla şu migration'lar uygulanmıştır:
 8. `EnforceInputValidation`
 9. `AddTransactionKind`
 10. `AddAccountType`
+11. `AddCustomerCredentials`
 
 Eski migration dosyaları tarihçedir; son modelde kullanılmayan eski sütunları
 göstermeleri normaldir. Uygulanmış migration dosyaları silinmez veya geriye

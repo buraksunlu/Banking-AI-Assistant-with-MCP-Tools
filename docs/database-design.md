@@ -27,7 +27,7 @@ harcama tarih kapsamına daraltıldı; gerçek fiyat verisi ve tarih örtüşmes
 çalışmalarında doğrulanacak.
 Historical market import henüz yoktur.
 
-Aktif veritabanında on migration uygulanmıştır:
+Aktif veritabanında on bir migration uygulanmıştır:
 
 1. `CreateCustomers`
 2. `AddCustomerPreferences`
@@ -39,6 +39,7 @@ Aktif veritabanında on migration uygulanmıştır:
 8. `EnforceInputValidation`
 9. `AddTransactionKind`
 10. `AddAccountType`
+11. `AddCustomerCredentials`
 
 Migration yaklaşımı incremental'dır: her schema değişikliği yeni bir migration
 olarak eklenir. Uygulanmış migration'lar silinmez veya geriye dönük değiştirilmez;
@@ -373,3 +374,16 @@ sorguda çalışmaz; tetiklenecek sorgular ayrıca netleştirilecektir.
 
 Her adım kullanıcı review'ünden sonra başlar; hedef listesi implementation izni
 anlamına gelmez.
+
+## CustomerCredentials (SEC-01a)
+
+Müşterinin giriş bilgisi; ayrıntılar [güvenlik belgesinde](security.md).
+
+| Alan | C# | PostgreSQL | Kural |
+| --- | --- | --- | --- |
+| CustomerId | `Guid` | `uuid` | PK ve FK → `Customers.Id` (RESTRICT); müşteri başına tek giriş |
+| Username | `string` | `varchar(50)` | Benzersiz; `^[a-z0-9][a-z0-9._-]{2,49}$` |
+| PasswordHash | `string` | `varchar(256)` | ASP.NET `PasswordHasher` özeti; şifrenin kendisi saklanmaz |
+| CreatedAt / UpdatedAt | `DateTimeOffset` | `timestamptz` | Sunucu saati; `UpdatedAt >= CreatedAt` |
+
+Migration: `AddCustomerCredentials` (11. migration).

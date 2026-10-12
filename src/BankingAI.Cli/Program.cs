@@ -1,5 +1,6 @@
 using BankingAI.Data;
 using BankingAI.Data.Seeding;
+using BankingAI.Data.Security;
 using Microsoft.EntityFrameworkCore;
 
 var isSeedCategories = args.Length == 2 && args[0] == "seed" && args[1] == "categories";
@@ -14,10 +15,19 @@ var isSeedCategorizationBoundaries = args.Length == 3 && args[0] == "seed" && ar
 var isSeedRecentSpending = args.Length == 3 && args[0] == "seed" && args[1] == "transactions" && args[2] == "recent-spending";
 var isSeedDemoCoverage = args.Length == 3 && args[0] == "seed" && args[1] == "transactions" && args[2] == "demo-coverage";
 var isSeedPairs = args.Length == 3 && args[0] == "seed" && args[1] == "transactions" && args[2] == "pairs";
+// users set-password <username> [--customer <customer-id>]
+var isSetPassword = args.Length is 3 or 5 && args[0] == "users" && args[1] == "set-password"
+    && (args.Length == 3 || args[3] == "--customer");
 var isSingleCommand = args.Length == 1 && (args[0] == "migrate" || args[0] == "show");
-if (!isSingleCommand && !isSeedCategories && !isSeedMarketAssets && !isSeedCustomers && !isSeedAccounts && !isSeedCredits && !isSeedSubscriptions && !isSeedCategoryExamples && !isSeedGroceryGrowth && !isSeedCategorizationBoundaries && !isSeedRecentSpending && !isSeedDemoCoverage && !isSeedPairs)
+if (!isSingleCommand && !isSeedCategories && !isSeedMarketAssets && !isSeedCustomers && !isSeedAccounts && !isSeedCredits && !isSeedSubscriptions && !isSeedCategoryExamples && !isSeedGroceryGrowth && !isSeedCategorizationBoundaries && !isSeedRecentSpending && !isSeedDemoCoverage && !isSeedPairs && !isSetPassword)
 {
-    Console.WriteLine("Usage: BankingAI.Cli migrate | show | seed categories | seed market-assets | seed customers | seed accounts | seed transactions credits | seed transactions subscriptions | seed transactions category-examples | seed transactions grocery-growth | seed transactions categorization-boundaries | seed transactions recent-spending | seed transactions demo-coverage | seed transactions pairs");
+    Console.WriteLine("Usage: BankingAI.Cli migrate | show | seed categories | seed market-assets | seed customers | seed accounts | seed transactions credits | seed transactions subscriptions | seed transactions category-examples | seed transactions grocery-growth | seed transactions categorization-boundaries | seed transactions recent-spending | seed transactions demo-coverage | seed transactions pairs | users set-password <username> [--customer <customer-id>]");
+    return 1;
+}
+
+if (isSetPassword && args.Length == 5 && !Guid.TryParse(args[4], out _))
+{
+    Console.WriteLine("--customer bir müşteri GUID'i olmalı.");
     return 1;
 }
 
@@ -28,6 +38,20 @@ if (args[0] == "migrate")
     // Apply only migrations already present in this project.
     await db.Database.MigrateAsync();
     Console.WriteLine("Database migrations applied.");
+}
+else if (isSetPassword)
+{
+    // The password is read twice and never echoed or printed.
+    var password = ReadPassword("Şifre: ");
+    if (password != ReadPassword("Şifre (tekrar): "))
+    {
+        Console.WriteLine("Şifreler eşleşmiyor; hiçbir şey değişmedi.");
+        return 1;
+    }
+
+    Guid? customerId = args.Length == 5 ? Guid.Parse(args[4]) : null;
+    var change = await CredentialStore.SetPasswordAsync(db, args[2], password, customerId);
+    Console.WriteLine($"Şifre ayarlandı: '{PasswordCredentials.NormalizeUsername(args[2])}' ({(change == CredentialChange.Created ? "yeni kullanıcı" : "güncellendi")}).");
 }
 else if (args[0] == "show")
 {
@@ -101,3 +125,29 @@ else
 }
 
 return 0;
+
+// From a terminal: hidden typing. From a pipe: one line per prompt (used by scripts).
+static string ReadPassword(string prompt)
+{
+    if (Console.IsInputRedirected)
+        return Console.ReadLine() ?? "";
+
+    Console.Write(prompt);
+    var password = new System.Text.StringBuilder();
+    while (true)
+    {
+        var key = Console.ReadKey(intercept: true);
+        if (key.Key == ConsoleKey.Enter)
+            break;
+        if (key.Key == ConsoleKey.Backspace)
+        {
+            if (password.Length > 0)
+                password.Length--;
+            continue;
+        }
+        if (!char.IsControl(key.KeyChar))
+            password.Append(key.KeyChar);
+    }
+    Console.WriteLine();
+    return password.ToString();
+}

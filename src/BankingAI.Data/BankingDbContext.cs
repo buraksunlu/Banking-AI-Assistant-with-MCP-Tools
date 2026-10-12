@@ -27,6 +27,7 @@ public sealed class BankingDbContext : DbContext
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<MarketAsset> MarketAssets => Set<MarketAsset>();
     public DbSet<DailyMarketPrice> DailyMarketPrices => Set<DailyMarketPrice>();
+    public DbSet<CustomerCredential> CustomerCredentials => Set<CustomerCredential>();
 
     public override int SaveChanges(bool acceptAllChangesOnSuccess)
     {
@@ -66,6 +67,10 @@ public sealed class BankingDbContext : DbContext
                     createdAt.IsModified = false;
                 }
             }
+
+            // UpdatedAt, like CreatedAt, is backend time: set on every insert and update, never by the caller.
+            if (entry.Metadata.FindProperty("UpdatedAt") is not null)
+                entry.Property("UpdatedAt").CurrentValue = referenceUtc;
 
             if (entry.Entity is Transaction transaction && transaction.CategorizedAt is { } at)
             {
@@ -109,6 +114,7 @@ public sealed class BankingDbContext : DbContext
         modelBuilder.ApplyConfiguration(new TransactionConfiguration());
         modelBuilder.ApplyConfiguration(new MarketAssetConfiguration());
         modelBuilder.ApplyConfiguration(new DailyMarketPriceConfiguration());
+        modelBuilder.ApplyConfiguration(new CustomerCredentialConfiguration());
         modelBuilder.HasSequence<long>("CustomerNumberSequence");
         var customer = modelBuilder.Entity<Customer>();
         customer.ToTable("Customers", table =>

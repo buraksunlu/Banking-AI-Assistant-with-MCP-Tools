@@ -1,5 +1,6 @@
 using BankingAI.Data.Entities;
 using BankingAI.Data.Enums;
+using BankingAI.Data.Security;
 
 namespace BankingAI.Data.Validation;
 
@@ -63,6 +64,14 @@ public static class EntityValidation
                 InputRules.Text(a.BaseUnit, 20, nameof(a.BaseUnit));
                 InputRules.Require(a.AssetType is "Currency" or "Commodity", nameof(a.AssetType), "Currency/Commodity olmalı.");
                 InputRules.Require(a.QuoteCurrency == "TRY", nameof(a.QuoteCurrency), "TRY olmalı.");
+                break;
+            case CustomerCredential c:
+                Id(c.CustomerId, nameof(c.CustomerId));
+                InputRules.Require(PasswordCredentials.IsValidUsername(c.Username), nameof(c.Username),
+                    "3–50 karakter; küçük harf, rakam, nokta, tire veya alt çizgi; harf ya da rakamla başlamalı.");
+                InputRules.Text(c.PasswordHash, 256, nameof(c.PasswordHash));
+                InputRules.Timestamp(c.CreatedAt, referenceUtc, nameof(c.CreatedAt));
+                InputRules.Timestamp(c.UpdatedAt, referenceUtc, nameof(c.UpdatedAt));
                 break;
             case DailyMarketPrice p:
                 Positive(p.MarketAssetId, nameof(p.MarketAssetId));
