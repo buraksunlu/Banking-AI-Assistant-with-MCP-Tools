@@ -1,0 +1,55 @@
+# API sözleşmesi
+
+Yerel adres `http://localhost:5248`; OpenAPI `/openapi/v1.json` (geliştirme). Giriş ve token kuralları
+`docs/security.md`'dedir. Bu belge API-15'te örnek istek/cevaplarla genişletilecek.
+
+## Genel JSON kuralları (API-03, 12 Ekim 2026, kullanıcı kararları)
+
+- **Enum'lar yazıyla taşınır:** `"accountType": "Personal"`, ileride `"kind": "Purchase"`. Girdi olarak da
+  yalnız ad kabul edilir; `2` gibi bir sayı 400'dür (sessiz dönüşüm yok). Gerekçe: insanlar ve LLM için
+  okunur; modelin `2`'nin ne olduğunu tahmin etmesi gerekmez.
+- **Para JSON sayısıdır:** `"balance": 577490.18`. `decimal` birebir yazılır (`2595.00` → `2595.00`).
+  Bütün hesaplar backend'de yapılır; istemciler tutarı yalnız gösterir. Swift'in varsayılan JSON okuyucusu
+  `Decimal`'i `double` üzerinden okuyabildiği için SwiftUI adımında tutar dikkatli çözülecek.
+- **Yazma isteklerinde tanınmayan alan 400'dür** (`[JsonUnmappedMemberHandling(Disallow)]`). Örneğin hesap
+  açarken `balance` göndermek sessizce yok sayılmaz, reddedilir. Okuma istekleri ve login bu kurala tabi değil.
+- Alan adları camelCase'dir (ASP.NET varsayılanı).
+
+## Hesap (API-03)
+
+`AccountDto` (Application/Accounts) — dışarı giden hesap:
+
+```json
+{
+  "id": "20000000-0000-0000-0000-000000000001",
+  "accountName": "Ada günlük TRY",
+  "accountNumber": "DUMMY-ADA-TRY-001",
+  "currencyCode": "TRY",
+  "accountType": "Personal",
+  "balance": 577490.18,
+  "createdAt": "2026-10-09T14:08:38.294505+00:00"
+}
+```
+
+- `customerId` yoktur: sahip her zaman token'daki müşteridir.
+- `id` vardır: istemci hesabı seçmek için kullanır; sahiplik her istekte backend'de kontrol edilir
+  (başka müşterinin hesabı 404).
+- `AccountDto.Projection` EF Core'un SQL'e çevirdiği eşlemedir; yalnız bu kolonlar okunur (`CustomerId`
+  okunmaz). Sıralama `Select`'ten önce uygulanmalıdır.
+
+`CreateAccountRequest` (Api) — `POST /api/accounts` gövdesi (endpoint API-07'de):
+
+```json
+{ "accountName": "Tatil birikimi", "currencyCode": "EUR" }
+```
+
+| Alan | Kural |
+|---|---|
+| `accountName` | zorunlu, 1–100 karakter, yalnız boşluk olamaz |
+| `currencyCode` | zorunlu, tam olarak `TRY`/`USD`/`EUR`/`GBP` (`try` düzeltilmez, 400) |
+
+Backend belirler: sahip (token), `id`, `createdAt`, `accountNumber` (biçimi API-07), `accountType`
+(her zaman `Personal`; `Business` yalnız demo dükkânı), `balance` (her zaman 0; para yalnız işlemle girer).
+
+Bilinen sınır: `[StringLength(100)]` UTF-16 birimi sayar, DB karakter sayar; emoji gibi iki birimlik
+karakterlerde API sınırı biraz daha sıkıdır.

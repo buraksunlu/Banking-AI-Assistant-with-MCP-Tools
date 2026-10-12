@@ -1353,7 +1353,7 @@ IN PROGRESS
 NEXT
 - ANA-01 (PeriodResolver) ve SYN-14 (Ada/Deniz/Ege farklı demo karakterleri) tamamlandı.
 - KIND-01–05 tamamlandı (Kind/PairId, iki bacaklı yazıcı, AccountType, Kahve Durağı + 9 çift, VAL-05 = Kind Purchase).
-- ANA-01–08 ve REC-01–03 tamamlandı (analytics servisleri, düzenli ödeme tespiti, kenar durumu testleri; docs/analytics.md). ANA-09 API-01'e bağlı. API-01a/01b ve API-02 tamamlandı (BankingAI.Api, DI ile scoped DbContext, GET /api/health, Api.Tests). SEC-01a tamamlandı (CustomerCredentials, PasswordHasher, CLI users set-password; docs/security.md). SEC-01b tamamlandı (POST /api/auth/login → HS256 JWT 60 dk, yanlış kullanıcı/şifre aynı 401, IP başına dakikada 5 deneme → 429, GET /api/me; bütün endpoint'ler varsayılan olarak token ister, yalnız health/login/OpenAPI açık; anahtar BANKINGAI_JWT_SIGNING_KEY). Sıradaki: API-03+ ve ANA-09.
+- ANA-01–08 ve REC-01–03 tamamlandı (analytics servisleri, düzenli ödeme tespiti, kenar durumu testleri; docs/analytics.md). ANA-09 API-01'e bağlı. API-01a/01b ve API-02 tamamlandı (BankingAI.Api, DI ile scoped DbContext, GET /api/health, Api.Tests). SEC-01a tamamlandı (CustomerCredentials, PasswordHasher, CLI users set-password; docs/security.md). SEC-01b tamamlandı (POST /api/auth/login → HS256 JWT 60 dk, yanlış kullanıcı/şifre aynı 401, IP başına dakikada 5 deneme → 429, GET /api/me; bütün endpoint'ler varsayılan olarak token ister, yalnız health/login/OpenAPI açık; anahtar BANKINGAI_JWT_SIGNING_KEY). API-03 tamamlandı (AccountDto + Projection, CreateAccountRequest; JSON'da enum yazıyla, para sayı, yazma isteğinde tanınmayan alan 400; docs/api.md). Sıradaki: API-04+ ve ANA-09.
 - Ardından ANA-02 harcama özeti; harcama yalnızca Purchase türünü sayar.
 
 KNOWN ISSUES

@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using BankingAI.Api.Controllers;
 using BankingAI.Api.Security;
@@ -10,7 +11,10 @@ const string ConnectionStringKey = "BANKINGAI_CONNECTION_STRING";
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+// Enums travel as names ("Business", later "Purchase"): readable for people and for the LLM, which would
+// otherwise have to guess what 2 means. Numbers are refused as input, so nothing is silently converted.
+builder.Services.AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false)));
 builder.Services.AddOpenApi();
 
 // One DbContext per HTTP request (scoped); never shared between requests. The connection string is

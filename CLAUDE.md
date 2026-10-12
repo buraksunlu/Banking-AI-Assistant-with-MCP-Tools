@@ -134,6 +134,10 @@ configuration'lardaki DB CHECK/unique/FK kısıtları. Yeni kural eklerken dört
   taşır (health, login, OpenAPI). Controller'larda müşteri yalnız `User.GetCustomerId()` ile token'ın `sub`
   claim'inden alınır. JWT HS256, 60 dk, anahtar `BANKINGAI_JWT_SIGNING_KEY` (≥ 32 bayt, yoksa API açılmaz);
   login IP başına dakikada 5 deneme.
+- API JSON kuralları (docs/api.md): enum'lar yazıyla (girdi olarak sayı reddedilir), para `decimal` JSON
+  sayısı, yazma isteklerinde tanınmayan alan 400 (`[JsonUnmappedMemberHandling(Disallow)]`). Entity JSON'a
+  verilmez: dışarı DTO (Application, EF'in çevirdiği `Projection` ifadesiyle; sıralama `Select`'ten önce),
+  içeri yalnız istemcinin seçebileceği alanları taşıyan request (Api). DTO'larda `CustomerId` bulunmaz.
 - Kategori yalnız Purchase'ta bulunur. `CategoryId == null` "Sınıflandırılmamış"tır ve `OTHER`
   ("Diğer") ile birleştirilmez. Kategori alanları (Id/Source/Confidence/CategorizedAt) birlikte değişir.
 - Tutar `numeric(18,2)`, sessiz yuvarlama yok; negatif bakiye yok. Zaman UTC `timestamptz`;
@@ -198,6 +202,8 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
 - `BankingAI.Api.Tests`: `TestApi.Create(...)` (WebApplicationFactory + ayar ezme), `TestTokens` (sahte/süresi
   geçmiş token), `TestUser` (commit edilen geçici "Test Api" müşterisi + `apitest.*` girişi, dispose'da silinir,
   10 dk'dan eski kalıntılar temizlenir).
+- Ada/Deniz'e geçici hesap açan Data testleri paralel çalışır: Application/Api testleri müşterinin **bütün**
+  hesaplarını listeleyip saymamalı (sabit hesap ID'leriyle seçmeli) ya da kilit kullanmalıdır.
 - Test projeleri `dotnet test BankingAI.slnx`'te **paralel** çalışır. Commit eden testler
   `tests/Shared/CommittedRowsLock.SharedAsync()`, tablo satır sayısı karşılaştıran testler `ExclusiveAsync()` alır
   (PostgreSQL advisory lock 2026101201; dosya iki test projesine `<Compile Include … Link>` ile bağlı).
@@ -221,5 +227,5 @@ ayrı ve engellemeyen bir koldur, altın kaynağı (SRC-02) dış yanıt bekliyo
 ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/AccountType, çift
 yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, arama, en yüksek
 işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu testleri), REC-01–03 (düzenli
-ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me). Sıradaki: API-03+ ve ANA-09; sonra AI, MCP.
+ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest). Sıradaki: API-04+ ve ANA-09; sonra AI, MCP.
 Güncel ayrıntı her zaman `todo.md`'dedir.

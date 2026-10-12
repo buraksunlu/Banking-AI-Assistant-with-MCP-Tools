@@ -18,6 +18,7 @@ internal static class DemoData
     // Accounts (20000000-…)
     public static readonly Guid AdaTryAccount = Guid.Parse("20000000-0000-0000-0000-000000000001");
     public static readonly Guid AdaUsdAccount = Guid.Parse("20000000-0000-0000-0000-000000000002");
+    public static readonly Guid AdaEmptyAccount = Guid.Parse("20000000-0000-0000-0000-000000000005");
     public static readonly Guid DenizTryAccount = Guid.Parse("20000000-0000-0000-0000-000000000003");
     public static readonly Guid DenizShopAccount = Guid.Parse("20000000-0000-0000-0000-000000000007"); // Business
 }
