@@ -179,6 +179,117 @@ public sealed class AccountsEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, status);
     }
 
+    // API-07. POST /api/accounts. Accounts are opened for a temporary test customer (TestUser), never for a
+    // demo customer, and are deleted with it.
+
+    private static async Task<HttpResponseMessage> PostAsync(HttpClient client, string json) =>
+        await client.PostAsync("/api/accounts", new StringContent(json, System.Text.Encoding.UTF8, "application/json"));
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Opening_an_account_requires_a_token()
+    {
+        await using var api = TestApi.Create();
+        using var client = api.CreateClient();
+
+        var response = await PostAsync(client, """{"accountName":"Tatil","currencyCode":"EUR"}""");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Opening_an_account_returns_201_with_its_location_and_the_new_account()
+    {
+        await using var user = await TestUser.CreateAsync();
+        await using var api = TestApi.Create();
+        using var client = api.CreateClient().WithToken(TestTokens.Create(user.CustomerId));
+
+        var response = await PostAsync(client, """{"accountName":"Tatil birikimi","currencyCode":"EUR"}""");
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        var account = JsonNode.Parse(body)!.AsObject();
+        Assert.Equal(("Tatil birikimi", "EUR", "Personal", "0.00"),
+            (account["accountName"]!.GetValue<string>(), account["currencyCode"]!.GetValue<string>(),
+             account["accountType"]!.GetValue<string>(), account["balance"]!.ToJsonString()));
+        Assert.Matches("^ACC-[1-9][0-9]*$", account["accountNumber"]!.GetValue<string>());
+        Assert.False(account.ContainsKey("customerId"));
+
+        // The Location header points at the new account, which reads back exactly as it was returned.
+        var id = account["id"]!.GetValue<Guid>();
+        Assert.Equal($"/api/accounts/{id}", response.Headers.Location!.AbsolutePath);
+        var read = await client.GetAsync(response.Headers.Location);
+        Assert.Equal(HttpStatusCode.OK, read.StatusCode);
+        Assert.Equal(body, await read.Content.ReadAsStringAsync());
+
+        // It also appears in the customer's list.
+        var list = Accounts(await client.GetStringAsync("/api/accounts"));
+        Assert.Equal([id], list.Select(a => a!["id"]!.GetValue<Guid>()));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Another_customer_cannot_see_a_new_account()
+    {
+        await using var user = await TestUser.CreateAsync();
+        await using var api = TestApi.Create();
+        using var owner = api.CreateClient().WithToken(TestTokens.Create(user.CustomerId));
+        var created = JsonNode.Parse(await (await PostAsync(owner, """{"accountName":"Gizli","currencyCode":"TRY"}""")).Content.ReadAsStringAsync())!;
+        using var ada = api.CreateClient().WithToken(TestTokens.Create(Ada));
+
+        var response = await ada.GetAsync($"/api/accounts/{created["id"]!.GetValue<Guid>()}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("""{"accountName":"","currencyCode":"TRY"}""")]
+    [InlineData("""{"accountName":"   ","currencyCode":"TRY"}""")]
+    [InlineData("""{"accountName":"Tatil","currencyCode":"try"}""")]
+    [InlineData("""{"accountName":"Tatil"}""")]
+    [InlineData("""{"accountName":"Tatil","currencyCode":"EUR","balance":1000}""")]
+    [InlineData("""{"accountName":"Tatil","currencyCode":"EUR","customerId":"10000000-0000-0000-0000-000000000001"}""")]
+    [InlineData("""{"accountName":"Tatil\u0000","currencyCode":"EUR"}""")] // passes the attributes, fails the account rules
+    [InlineData("")]
+    public async Task Invalid_requests_are_400_and_open_nothing(string json)
+    {
+        await using var user = await TestUser.CreateAsync();
+        await using var api = TestApi.Create();
+        using var client = api.CreateClient().WithToken(TestTokens.Create(user.CustomerId));
+
+        var response = await PostAsync(client, json);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal("[]", await client.GetStringAsync("/api/accounts"));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task An_account_name_of_101_characters_is_400()
+    {
+        await using var user = await TestUser.CreateAsync();
+        await using var api = TestApi.Create();
+        using var client = api.CreateClient().WithToken(TestTokens.Create(user.CustomerId));
+
+        var response = await PostAsync(client, $$"""{"accountName":"{{new string('a', 101)}}","currencyCode":"TRY"}""");
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Opening_an_account_for_a_customer_that_no_longer_exists_is_401()
+    {
+        await using var api = TestApi.Create();
+        using var client = api.CreateClient().WithToken(TestTokens.Create(Guid.NewGuid()));
+
+        var response = await PostAsync(client, """{"accountName":"Tatil","currencyCode":"EUR"}""");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     [Fact]
     [Trait("Category", "PostgreSQL")]
     public async Task One_account_for_a_customer_that_no_longer_exists_is_404_until_api_13()

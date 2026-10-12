@@ -15,7 +15,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Enums travel as names ("Business", later "Purchase"): readable for people and for the LLM, which would
 // otherwise have to guess what 2 means. Numbers are refused as input, so nothing is silently converted.
-builder.Services.AddControllers()
+// Action names keep their "Async" suffix, so CreatedAtAction(nameof(GetAsync), ...) finds the action it names.
+builder.Services.AddControllers(options => options.SuppressAsyncSuffixInActionNames = false)
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false)));
 builder.Services.AddOpenApi();
 
@@ -35,6 +36,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
 // would keep the first request's context forever and share it between concurrent requests.
 builder.Services.AddSingleton<PeriodResolver>();
 builder.Services.AddScoped<IAccountReadService, AccountReadService>();
+builder.Services.AddScoped<IAccountWriteService, AccountWriteService>();
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
     .Configure<JwtSettings>((options, jwt) =>
     {

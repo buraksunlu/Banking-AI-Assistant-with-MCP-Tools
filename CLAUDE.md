@@ -165,7 +165,8 @@ configuration'lardaki DB CHECK/unique/FK kısıtları. Yeni kural eklerken dört
 
 Sabit GUID'ler: müşteri `10000000-…-000000000001..3` (Ada Kahve, Deniz Market, Ege Yolcu), hesap
 `20000000-…-00000000000N` (7 = Deniz'in Business "Kahve Durağı" hesabı), işlem
-`30000000-…-{ordinal:D12}`, çift `40000000-…`. Kullanılan ordinal aralıkları: 1–14, 101–106,
+`30000000-…-{ordinal:D12}`, çift `40000000-…`. Demo hesap numaraları sabit (`DUMMY-…`); API'den açılan hesaplar
+`AccountNumberSequence` sayacından `ACC-n` alır (sayaç rollback'te geri dönmez, boşluk normaldir). Kullanılan ordinal aralıkları: 1–14, 101–106,
 201–206, 301–306, 401–402, 501–536, 601–628, 701–718. Seed'ler idempotenttir; aynı ID farklı
 içerikle bulunursa sessizce düzeltmez, hata verir. Transaction seed'leri advisory lock kullanır
 ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce gelmeli).
@@ -193,6 +194,8 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
   sadeleştirme (sabit tablo; tr-TR'de `"I".ToLower()` = `"ı"`), tam → tek adaylı kısmi (≥3 harf) →
   Ambiguous → NotFound; yazım hatası düzeltilmez; adaylar yalnız müşterinin kendi merchant'ları.
   SQL'e ham metin değil eşleşen kanonik ad parametre olarak gider.
+- ASP.NET tuzağı: `SuppressAsyncSuffixInActionNames = false` ayarlıdır; `CreatedAtAction(nameof(GetAsync), …)` buna dayanır
+  (varsayılan ayarda action adı "Get" olur ve Location üretimi 500 verir).
 - EF tuzakları: (1) constructor'la kurulan record'a projeksiyondan **sonra** `OrderBy` çevrilemez;
   `GroupBy(...).OrderBy(g => g.Key).Select(...)` kullan. (2) Nullable kolonda korelasyonlu join'de
   EF C# null semantiğini korur (`null == null` true) ve dış satırdaki null kontrolünü düşürebilir;
@@ -208,7 +211,7 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
   müşterisi olabilir) ve `EmptyCustomer`'a hesap açma (analytics testleri onu hesapsız bekler).
 - `BankingAI.Api.Tests`: `DemoData.cs` Application.Tests'ten link'lenir (kopyalanmaz); `TestApi.Create(...)` (WebApplicationFactory + ayar ezme), `TestTokens` (sahte/süresi
   geçmiş token), `TestUser` (commit edilen geçici "Test Api" müşterisi + `apitest.*` girişi, dispose'da silinir,
-  10 dk'dan eski kalıntılar temizlenir).
+  10 dk'dan eski kalıntılar temizlenir; API'den açtığı `ACC-` hesapları da silinir). Yazma testleri demo müşterisine değil `TestUser`'a yapılır.
 - Ada/Deniz'e geçici hesap açan Data testleri paralel çalışır: Application/Api testleri müşterinin **bütün**
   hesaplarını listeleyip saymamalı (sabit hesap ID'leriyle seçmeli) ya da kilit kullanmalıdır.
 - Test projeleri `dotnet test BankingAI.slnx`'te **paralel** çalışır. Commit eden testler
@@ -234,5 +237,5 @@ ayrı ve engellemeyen bir koldur, altın kaynağı (SRC-02) dış yanıt bekliyo
 ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/AccountType, çift
 yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, arama, en yüksek
 işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu testleri), REC-01–03 (düzenli
-ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}). Sıradaki: API-07+ ve ANA-09; sonra AI, MCP.
+ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts). Sıradaki: API-08+ ve ANA-09; sonra AI, MCP.
 Güncel ayrıntı her zaman `todo.md`'dedir.

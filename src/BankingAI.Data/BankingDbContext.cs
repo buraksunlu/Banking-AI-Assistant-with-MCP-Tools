@@ -7,6 +7,9 @@ namespace BankingAI.Data;
 
 public sealed class BankingDbContext : DbContext
 {
+    /// <summary>PostgreSQL sequence that numbers accounts opened through the API.</summary>
+    public const string AccountNumberSequence = "AccountNumberSequence";
+
     /// <summary>
     /// Used by the CLI and tests: the connection string comes from BANKINGAI_CONNECTION_STRING in OnConfiguring.
     /// </summary>
@@ -116,6 +119,8 @@ public sealed class BankingDbContext : DbContext
         modelBuilder.ApplyConfiguration(new DailyMarketPriceConfiguration());
         modelBuilder.ApplyConfiguration(new CustomerCredentialConfiguration());
         modelBuilder.HasSequence<long>("CustomerNumberSequence");
+        // Numbers of accounts opened through the API ("ACC-n"); seeded demo accounts keep their fixed numbers.
+        modelBuilder.HasSequence<long>(AccountNumberSequence);
         var customer = modelBuilder.Entity<Customer>();
         customer.ToTable("Customers", table =>
         {

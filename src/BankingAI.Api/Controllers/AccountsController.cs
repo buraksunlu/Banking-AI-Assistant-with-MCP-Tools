@@ -35,7 +35,7 @@ public sealed record CreateAccountRequest
 /// </summary>
 [ApiController]
 [Route("api/accounts")]
-public sealed class AccountsController(IAccountReadService accounts) : ControllerBase
+public sealed class AccountsController(IAccountReadService accounts, IAccountWriteService accountWriter) : ControllerBase
 {
     /// <summary>
     /// <c>GET /api/accounts</c>: every account of the customer as a plain array, oldest first; <c>[]</c> when
@@ -72,6 +72,32 @@ public sealed class AccountsController(IAccountReadService accounts) : Controlle
             // Also reached when the token's customer no longer exists: the service reports both with the same
             // exception, so until API-13 splits them this endpoint answers 404 there as well (decision 2-A).
             return NotFound();
+        }
+    }
+
+    /// <summary>
+    /// <c>POST /api/accounts</c>: opens a personal, zero-balance account for the customer and answers 201 with
+    /// its <c>Location</c> and the account exactly as <c>GET /api/accounts/{id}</c> returns it.
+    /// </summary>
+    [HttpPost]
+    public async Task<ActionResult<AccountDto>> CreateAsync(CreateAccountRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var account = await accountWriter.CreateAsync(
+                User.GetCustomerId(), new NewAccount(request.AccountName, request.CurrencyCode), cancellationToken);
+            return CreatedAtAction(nameof(GetAsync), new { id = account.Id }, account);
+        }
+        catch (KeyNotFoundException)
+        {
+            // No account id is involved here, so this can only be the token's customer: same 401 as the list.
+            return Unauthorized();
+        }
+        catch (ArgumentException error)
+        {
+            // Input that passes the request attributes but not the account rules (e.g. a NUL character).
+            ModelState.AddModelError(error.ParamName ?? nameof(request), error.Message);
+            return ValidationProblem(ModelState);
         }
     }
 }

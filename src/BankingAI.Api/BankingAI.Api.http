@@ -34,3 +34,15 @@ Authorization: Bearer {{login.response.body.$.token}}
 Accept: application/json
 
 ###
+
+# Opens a real account for the logged-in customer (writes to the database).
+POST {{BankingAI.Api_HostAddress}}/api/accounts
+Authorization: Bearer {{login.response.body.$.token}}
+Content-Type: application/json
+
+{
+  "accountName": "Tatil birikimi",
+  "currencyCode": "EUR"
+}
+
+###

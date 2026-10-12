@@ -142,7 +142,7 @@ Bir müşterinin belirli para birimindeki hesabını temsil eder.
 | Id | `Guid` | `uuid` | PK, required |
 | CustomerId | `Guid` | `uuid` | Required FK → `Customers.Id` |
 | AccountName | `string` | `varchar(100)` | Required, boş olamaz |
-| AccountNumber | `string` | `varchar(50)` | Required, unique dummy identifier |
+| AccountNumber | `string` | `varchar(50)` | Required, unique. Demo seed'de sabit `DUMMY-…`; API'den açılan hesaplarda `AccountNumberSequence` ile `ACC-n` (API-07) |
 | CurrencyCode | `string` | `char(3)` | Required, TRY/USD/EUR/GBP |
 | AccountType | `AccountType` | `smallint` | Required; Personal=1, Business=2 (dummy dükkân); DB varsayılanı yok |
 | Balance | `decimal` | `numeric(18,2)` | Required, yeni hesapta 0 |

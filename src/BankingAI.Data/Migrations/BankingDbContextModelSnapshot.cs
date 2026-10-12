@@ -22,6 +22,8 @@ namespace BankingAI.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.HasSequence("AccountNumberSequence");
+
             modelBuilder.HasSequence("CustomerNumberSequence");
 
             modelBuilder.Entity("BankingAI.Data.Entities.Account", b =>

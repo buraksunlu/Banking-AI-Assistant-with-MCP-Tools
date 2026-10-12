@@ -149,8 +149,13 @@ internal sealed class TestUser : IAsyncDisposable
     {
         if (customerIds.Count == 0)
             return;
-        // The login references the customer (ON DELETE RESTRICT), so it goes first. The name check keeps
-        // this from ever deleting a demo customer.
+        // Accounts and the login reference the customer (ON DELETE RESTRICT), so they go first. Only accounts
+        // opened through the API ("ACC-") are removed; they never have transactions. The name check below
+        // keeps this from ever deleting a demo customer.
+        await db.Accounts
+            .Where(a => customerIds.Contains(a.CustomerId) && a.AccountNumber.StartsWith("ACC-")
+                        && db.Customers.Any(c => c.Id == a.CustomerId && c.FirstName == FirstName && c.LastName == LastName))
+            .ExecuteDeleteAsync();
         await db.CustomerCredentials
             .Where(c => customerIds.Contains(c.CustomerId) && c.Username.StartsWith(UsernamePrefix))
             .ExecuteDeleteAsync();
