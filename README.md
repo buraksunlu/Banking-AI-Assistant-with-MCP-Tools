@@ -13,10 +13,17 @@ Bütün projeler `BankingAI.slnx` içindedir:
 | `src/BankingAI.Data` | Kütüphane: DbContext, entity, configuration, migration, seed, doğrulama |
 | `src/BankingAI.Cli` | Komut satırı aracı: `migrate`, `show`, `seed ...`; dotnet-ef startup projesi |
 | `src/BankingAI.Application` | Deterministik analytics servisleri (docs/analytics.md) |
+| `src/BankingAI.Api` | ASP.NET Core controller API; şimdilik `GET /api/health` |
+| `tests/BankingAI.Api.Tests` | HTTP integration testleri (WebApplicationFactory) |
 | `tests/BankingAI.Data.Tests` | Doğrulama, seed, bakiye ve demo veri testleri |
 | `tests/BankingAI.Application.Tests` | Analytics testleri |
 
-ASP.NET Core API, SwiftUI, FastAPI, LangChain, Qwen ve MCP henüz oluşturulmadı.
+SwiftUI, FastAPI, LangChain, Qwen ve MCP henüz oluşturulmadı. API yerelde şöyle çalışır
+(`http://localhost:5248/api/health`):
+
+```sh
+dotnet run --project src/BankingAI.Api --launch-profile http
+```
 
 Aktif PostgreSQL veritabanı `bankingai_foundation`dır. Eski `bankingai`
 veritabanı temizlendi. Bu projede gerçek banka veya müşteri verisi kullanılmaz.

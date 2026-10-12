@@ -7,6 +7,20 @@ namespace BankingAI.Data;
 
 public sealed class BankingDbContext : DbContext
 {
+    /// <summary>
+    /// Used by the CLI and tests: the connection string comes from BANKINGAI_CONNECTION_STRING in OnConfiguring.
+    /// </summary>
+    public BankingDbContext()
+    {
+    }
+
+    /// <summary>
+    /// Used by dependency injection in the API, which supplies the configured options.
+    /// </summary>
+    public BankingDbContext(DbContextOptions<BankingDbContext> options) : base(options)
+    {
+    }
+
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Account> Accounts => Set<Account>();
     public DbSet<TransactionCategory> TransactionCategories => Set<TransactionCategory>();
@@ -77,6 +91,10 @@ public sealed class BankingDbContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
+        // Options from dependency injection win; the environment variable is only the CLI/test fallback.
+        if (optionsBuilder.IsConfigured)
+            return;
+
         var connectionString = Environment.GetEnvironmentVariable("BANKINGAI_CONNECTION_STRING");
         if (string.IsNullOrWhiteSpace(connectionString))
             throw new InvalidOperationException("Set BANKINGAI_CONNECTION_STRING before running a database command.");

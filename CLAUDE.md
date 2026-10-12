@@ -67,6 +67,12 @@ dotnet test tests/BankingAI.Application.Tests --filter "FullyQualifiedName~Merch
 dotnet build tests/BankingAI.Data.Tests --no-incremental                        # uyarı sayısı kontrolü
 ```
 
+API (yerel, http://localhost:5248; `GET /api/health`, OpenAPI `/openapi/v1.json`):
+
+```sh
+dotnet run --project src/BankingAI.Api --launch-profile http
+```
+
 Console CLI (`src/BankingAI.Cli`), seed sırası önemlidir:
 
 ```sh
@@ -89,15 +95,20 @@ docker exec bankingai-week1-postgres-1 psql -U bankingai_foundation -d bankingai
 ## Mimari
 
 ```text
-BankingAI.Cli ───────────────────────────────────────► BankingAI.Data ─► PostgreSQL
-BankingAI.Application.Tests ─► BankingAI.Application ─► BankingAI.Data
-BankingAI.Data.Tests ─────────────────────────────────► BankingAI.Data
+BankingAI.Api.Tests ─► BankingAI.Api ─► BankingAI.Application ─► BankingAI.Data ─► PostgreSQL
+BankingAI.Cli ───────────────────────────────────────────────► BankingAI.Data
+BankingAI.Application.Tests ──────────► BankingAI.Application
+BankingAI.Data.Tests ────────────────────────────────────────► BankingAI.Data
 ```
 
 `BankingAI.Data` bir **kütüphanedir**: DbContext, entity, configuration, migration ve seed kodu.
 `BankingAI.Cli` yalnız `Program.cs`'i (migrate/show/seed komutları) taşıyan Exe'dir ve dotnet-ef'in
 startup projesidir (Microsoft.EntityFrameworkCore.Design burada). API-01a ile ayrıldı.
-`BankingDbContext` bağlantıyı `OnConfiguring` içinde ortam değişkeninden alır (DI henüz yok; API-01b).
+`BankingAI.Api` controller tabanlı ASP.NET Core projesidir: `AddDbContext` ile istek başına (scoped)
+DbContext, bağlantı `BANKINGAI_CONNECTION_STRING` yapılandırmasından; yoksa açılışta hata; API açılışında
+**asla migration çalışmaz**. `BankingDbContext` iki constructor taşır: DI ayarlı olan API için,
+parametresiz olan CLI/testler için (`OnConfiguring` yalnız DI ayarı yoksa ortam değişkenine düşer).
+Integration testler `WebApplicationFactory<Program>` kullanır (`public partial class Program`).
 
 ### Doğrulama katmanları
 
@@ -193,5 +204,5 @@ ayrı ve engellemeyen bir koldur, altın kaynağı (SRC-02) dış yanıt bekliyo
 ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/AccountType, çift
 yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, arama, en yüksek
 işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu testleri), REC-01–03 (düzenli
-ödemeler), API-01a (Data kütüphane + Cli + BankingAI.slnx). Sıradaki: API-01b (Api projesi, DI ile DbContext, health); ANA-09 ona bağlı; sonra AI, MCP.
+ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health). Sıradaki: müşteri bağlamı (SEC-01) kararı, sonra API-03+ ve ANA-09; sonra AI, MCP.
 Güncel ayrıntı her zaman `todo.md`'dedir.

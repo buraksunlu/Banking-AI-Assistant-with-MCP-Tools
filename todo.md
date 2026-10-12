@@ -204,8 +204,8 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 ## 11. Controller-based API temeli — foundation sonrasında
 
 - [x] API-01a — Kullanıcı kararıyla ayrıştırma: `BankingAI.Data` kütüphane oldu; `Program.cs` git geçmişiyle yeni `BankingAI.Cli` (Exe) projesine taşındı; `Microsoft.EntityFrameworkCore.Design` CLI'a alındı (dotnet-ef startup projesi). `BankingAI.slnx` eklendi. Davranış değişmedi: 136 + 38 test tek `dotnet test BankingAI.slnx` ile geçti; EF "model değişikliği yok", 10 migration; CLI migrate/show ve 12 seed komutu `Added: 0`; demo veri 116. README/CLAUDE.md/docs komutları güncellendi.
-- [ ] API-01b — `BankingAI.Api` (controller-based) + `GET /api/health` (DB bağlantı kontrolü) + `BankingAI.Api.Tests` (HTTP integration). API-02 ile birlikte.
-- [ ] API-02 — DbContext bağlantısını DI üzerinden yapılandır. Scoped yaşam süresi kullan; singleton DbContext/shared List kullanma. Migration'ı her HTTP başlangıcında otomatik çalıştırma.
+- [x] API-01b — `BankingAI.Api` (controller-based, şablon örnekleri silindi, OpenAPI korundu) → Application → Data. `HealthController`: `GET /api/health` 200 `{status:"ok",database:true}`, DB yoksa 503. `public partial class Program` integration testler için. `BankingAI.Api.Tests` (WebApplicationFactory, 5 test: sağlıklı, DB erişilemez 503, bilinmeyen adres 404, bağlantı bilgisi yoksa açılışta hata, açılış migration geçmişini değiştirmez — sınırı: DB güncelken Migrate eklense de geçer; asıl güvence API'de Migrate çağrısı olmaması). Kasıtlı 2 hata testlerce yakalandı. Kestrel ile gerçek çalıştırma: health 200, /openapi/v1.json 200. HTTPS yönlendirmesi kaldırıldı (yerel HTTP; karar OPS-04).
+- [x] API-02 — `AddDbContext<BankingDbContext>` (istek başına scoped); bağlantı `BANKINGAI_CONNECTION_STRING` yapılandırmasından, DbContext oluşturulurken okunur (test host'u değiştirebilir); yoksa API açılışta net hatayla durur. `BankingDbContext` DI constructor'ı aldı, `OnConfiguring` yalnız DI ayarı yoksa ortam değişkenine düşer (CLI/testler değişmedi). API açılışında migration yok.
 - [ ] API-03 — İlk AccountDto ve CreateAccountRequest modellerini oluştur. Entity'yi doğrudan JSON'a verme; müşteri/hesap kapsamı ve kullanıcıdan alınmayacak alanları belirle.
 - [ ] API-04 — İlk hesap okuma servisini oluştur. AsNoTracking, async I/O ve CancellationToken kullan; servis interface'inin gerekçesini incele, repository ekleme.
 - [ ] API-05 — GET /api/accounts ekle. Müşteri kapsamı, pagination ve sıralama belirle; boş listede 200 ve [] dön.
@@ -326,7 +326,7 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 - [ ] OPS-01 — .NET API için Dockerfile hazırla ve yerel çalıştırmayı doğrula.
 - [ ] OPS-02 — FastAPI için Dockerfile hazırla; bağımlılık sürümleri ve sağlık kontrolünü doğrula.
 - [ ] OPS-03 — MCP servisini container içinde çalıştır; yalnızca gerekli portları aç.
-- [ ] OPS-04 — Compose ile PostgreSQL/API/FastAPI/MCP bağlantılarını kur. Ollama Mac host üzerinde kalabilir; secret ve volume yönetimini belgele.
+- [ ] OPS-04 — Compose ile PostgreSQL/API/FastAPI/MCP bağlantılarını kur. Ollama Mac host üzerinde kalabilir; secret ve volume yönetimini belgele. Not (API-01b): API'de HTTPS yönlendirmesi kaldırıldı; TLS/HTTPS kararı burada verilecek.
 - [ ] OPS-05 — Sıfırdan yerel kurulum denemesi yap. DB migration/seed/import ayrı açık adımlar olarak çalışsın; mevcut veriyi yeniden başlatmada kaybetme.
 - [ ] OBS-01 — .NET tarafına trace/correlation kimliği ekle; DB sorgusu ve HTTP çağrıları ilişkilendirilsin.
 - [ ] OBS-02 — FastAPI ve MCP üzerinden trace bağlamını taşı; tek sorunun uçtan uca izini örnekle doğrula.
@@ -360,7 +360,7 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 ## Şu anki sonraki adım
 
 SYN-01–13 banking seed adımları tamamlandı ve banking foundation kabul edildi (DOC-09).
-ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01–04 tamamlandı. ANA-01–08 ve REC-01–03 tamamlandı; demo sorularının deterministik backend'i hazır ve kenar durumları test edildi. ANA-09 API-01'e bağlı. API-01a (Data kütüphane + Cli ayrımı, solution) tamamlandı. Sıradaki iş: API-01b (API projesi, DI ile DbContext, health endpoint). Market kolu
+ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01–04 tamamlandı. ANA-01–08 ve REC-01–03 tamamlandı; demo sorularının deterministik backend'i hazır ve kenar durumları test edildi. ANA-09 API-01'e bağlı. API-01a/01b ve API-02 tamamlandı (Data kütüphane + Cli, solution, BankingAI.Api + DI + health, API integration testleri). Sıradaki iş: API-03 ve sonrası; ilk gerçek endpoint'ten önce müşteri bağlamı (kimin adına istek?) kararı gerekiyor (SEC-01). Market kolu
 (SRC-02 altın kaynağı) paralel bekliyor.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.
