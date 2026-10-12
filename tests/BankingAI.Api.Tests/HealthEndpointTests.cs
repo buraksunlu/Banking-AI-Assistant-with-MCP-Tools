@@ -52,11 +52,14 @@ public sealed class HealthEndpointTests
 
     [Fact]
     [Trait("Category", "PostgreSQL")]
-    public async Task Unknown_route_is_404()
+    public async Task Unknown_route_is_401_without_a_token_and_404_with_one()
     {
         await using var api = Api();
         using var client = api.CreateClient();
 
+        // SEC-01b: every endpoint requires a token by default, so without one even route existence is not revealed.
+        Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync("/api/does-not-exist")).StatusCode);
+        client.WithToken(TestTokens.Create(Guid.NewGuid()));
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/does-not-exist")).StatusCode);
     }
 

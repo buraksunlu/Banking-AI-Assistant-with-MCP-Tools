@@ -1,4 +1,5 @@
 using BankingAI.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BankingAI.Api.Controllers;
@@ -14,6 +15,7 @@ public sealed record HealthResponse(string Status, bool Database);
 /// <c>GET /api/health</c>: proves the API is running and its injected DbContext can reach PostgreSQL.
 /// </summary>
 [ApiController]
+[AllowAnonymous]
 [Route("api/health")]
 public sealed class HealthController(BankingDbContext db) : ControllerBase
 {

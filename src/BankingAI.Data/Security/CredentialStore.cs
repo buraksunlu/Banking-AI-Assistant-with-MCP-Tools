@@ -10,10 +10,45 @@ public enum CredentialChange
 }
 
 /// <summary>
-/// Creates a customer's login or changes its password. Conflicts are errors, never silent overwrites.
+/// Creates a customer's login, changes its password and checks a login attempt. Conflicts are errors,
+/// never silent overwrites.
 /// </summary>
 public static class CredentialStore
 {
+    /// <summary>
+    /// Returns the customer of <paramref name="username"/> when <paramref name="password"/> is right, otherwise
+    /// <c>null</c>. An unknown username and a wrong password are indistinguishable to the caller.
+    /// </summary>
+    public static async Task<Guid?> VerifyAsync(
+        BankingDbContext db, string? username, string? password, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(db);
+        // Length and format rules are public, so rejecting them early reveals nothing; it also keeps an
+        // oversized password from being hashed.
+        var normalized = PasswordCredentials.NormalizeUsername(username ?? "");
+        if (!PasswordCredentials.IsValidUsername(normalized)
+            || string.IsNullOrEmpty(password) || password.Length > PasswordCredentials.MaximumPasswordLength)
+            return null;
+
+        var credential = await db.CustomerCredentials.AsNoTracking()
+            .Where(c => c.Username == normalized)
+            .Select(c => new { c.CustomerId, c.PasswordHash })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        // An unknown username still pays for one hash check, so response time does not reveal which
+        // usernames exist.
+        if (credential is null)
+        {
+            PasswordCredentials.Verify(UnknownUserHash, password);
+            return null;
+        }
+
+        return PasswordCredentials.Verify(credential.PasswordHash, password) ? credential.CustomerId : null;
+    }
+
+    // Hash of a random value nobody knows; it never matches a real password.
+    private static readonly string UnknownUserHash = PasswordCredentials.Hash(Guid.NewGuid().ToString("N"));
+
     /// <summary>
     /// Sets <paramref name="password"/> for <paramref name="username"/>. A new login needs <paramref name="customerId"/>;
     /// for an existing login it may be omitted, and if given it must match the login's customer.

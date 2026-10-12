@@ -151,12 +151,13 @@ public sealed class AtomicTransactionSeedWriterTests
     private static async Task<Guid> CreateTestAccountAsync()
     {
         await using var db = new BankingDbContext();
-        var customerId = await db.Customers.AsNoTracking().Select(c => c.Id).FirstAsync();
         var id = Guid.NewGuid();
         db.Accounts.Add(new Account
         {
             Id = id,
-            CustomerId = customerId,
+            // A fixed demo customer: "the first customer" could be a temporary one another test project is
+            // about to delete, and the empty demo customer must stay without accounts for analytics tests.
+            CustomerId = Guid.Parse("10000000-0000-0000-0000-000000000001"), // Ada
             AccountName = "BAL integration test",
             AccountNumber = $"DUMMY-BALTEST-{Guid.NewGuid():N}",
             CurrencyCode = "TRY"

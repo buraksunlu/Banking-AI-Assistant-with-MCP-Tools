@@ -1,4 +1,9 @@
+using System.Threading.RateLimiting;
+using BankingAI.Api.Controllers;
+using BankingAI.Api.Security;
 using BankingAI.Data;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 
 const string ConnectionStringKey = "BANKINGAI_CONNECTION_STRING";
@@ -14,16 +19,47 @@ builder.Services.AddOpenApi();
 builder.Services.AddDbContext<BankingDbContext>((services, options) =>
     options.UseNpgsql(services.GetRequiredService<IConfiguration>()[ConnectionStringKey]));
 
+// Token settings are read lazily from configuration, like the connection string, so test hosts can override them.
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton(services => JwtSettings.FromConfiguration(services.GetRequiredService<IConfiguration>()));
+builder.Services.AddSingleton<TokenIssuer>();
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
+    .Configure<JwtSettings>((options, jwt) =>
+    {
+        // Keep "sub" as "sub" instead of the long legacy claim type name.
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = jwt.ValidationParameters();
+    });
+
+// Every endpoint requires a token unless it opts out with [AllowAnonymous]; a forgotten attribute fails
+// closed, and without a token even unknown routes answer 401 instead of revealing what exists.
+builder.Services.AddAuthorizationBuilder()
+    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
+
+// Only the direct connection's IP is used; X-Forwarded-For is client-controlled and not trusted (OPS-04).
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(AuthController.LoginRateLimitPolicy, context => RateLimitPartition.GetFixedWindowLimiter(
+        context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+});
+
 var app = builder.Build();
 
 // Fail at startup with a clear message instead of on the first request.
 if (string.IsNullOrWhiteSpace(app.Configuration[ConnectionStringKey]))
     throw new InvalidOperationException($"Set {ConnectionStringKey} before starting the API.");
+app.Services.GetRequiredService<JwtSettings>();
 
 if (app.Environment.IsDevelopment())
-    app.MapOpenApi();
+    app.MapOpenApi().AllowAnonymous();
 
 // No HTTPS redirection yet: local development runs on HTTP only; TLS is decided with Docker (OPS-04).
+app.UseRateLimiter();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();

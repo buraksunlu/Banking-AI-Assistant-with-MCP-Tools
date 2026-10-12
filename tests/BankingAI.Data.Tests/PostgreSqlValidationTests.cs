@@ -1,5 +1,6 @@
 using BankingAI.Data.Entities;
 using BankingAI.Data.Enums;
+using BankingAI.TestSupport;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Xunit;
@@ -15,6 +16,9 @@ public class PostgreSqlValidationTests
     {
         Assert.False(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BANKINGAI_CONNECTION_STRING")),
             "PostgreSQL testi için önce .env ortam değişkenlerini yükleyin.");
+        // API tests in the other test project commit and delete temporary customers; holding this lock keeps
+        // them out until the second count below.
+        await using var rowsLock = await CommittedRowsLock.ExclusiveAsync();
         await using var db = new BankingDbContext();
         var before = await Counts(db);
         await using var scope = await db.Database.BeginTransactionAsync();

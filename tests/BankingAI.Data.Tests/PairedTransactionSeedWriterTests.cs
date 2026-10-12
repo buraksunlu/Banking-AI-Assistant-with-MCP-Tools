@@ -271,9 +271,9 @@ public sealed class PairedTransactionSeedWriterTests
         Assert.False(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BANKINGAI_CONNECTION_STRING")),
             "PostgreSQL testleri için önce .env ortam değişkenlerini yükleyin.");
         await using var db = new BankingDbContext();
-        // Two different customers: the default case is a transfer between people.
-        var customers = await db.Customers.AsNoTracking().OrderBy(c => c.Id).Select(c => c.Id).Take(2).ToListAsync();
-        Assert.Equal(2, customers.Count);
+        // Two different customers: the default case is a transfer between people. Fixed demo customers (Ada,
+        // Deniz), because a temporary customer from another test project could otherwise sort first.
+        Guid[] customers = [Guid.Parse("10000000-0000-0000-0000-000000000001"), Guid.Parse("10000000-0000-0000-0000-000000000002")];
         var accounts = customers.Select((customerId, index) => new Account
         {
             CustomerId = customerId, AccountName = "KIND-03 test", CurrencyCode = "TRY",

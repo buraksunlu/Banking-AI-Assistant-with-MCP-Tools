@@ -1,6 +1,6 @@
 # Proje TODO — AI-Powered Transaction Intelligence Platform
 
-Son güncelleme: 10 Ekim 2026.
+Son güncelleme: 12 Ekim 2026.
 
 Bu dosya projenin tek planıdır ve küçük, uygulanabilir işlerin listesidir.
 RULE.md çalışma kurallarını tutar. En son açık kullanıcı kararı, eski taslaklardan
@@ -311,7 +311,7 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 ## 19. Güvenilirlik, erişim sınırları ve değerlendirme
 
 - [x] SEC-01a — Kullanıcı kararlarıyla gerçek giriş: ayrı `CustomerCredentials` tablosu (onaylı migration `AddCustomerCredentials`), kullanıcı adı (CUST-n değil), ASP.NET `PasswordHasher` özeti, `UpdatedAt` sunucu saati, `CredentialStore` (çakışma = hata), CLI `users set-password` (gizli/iki kez/borudan). Demo kullanıcıları ada/deniz/ege; rastgele şifreler yalnız yerel `.env`'de, `.env.example`'da boş satırlar. 17 test + kasıtlı 2 güvenlik hatası yakalandı. docs/security.md.
-- [ ] SEC-01b — `POST /api/auth/login` (JWT, 60 dk, aynı 401, dakikada 5 deneme/IP → 429), `GET /api/me`, imza anahtarı env, iş endpoint'leri token ister. Hesap kilitleme sonraya (kullanıcı kararı).
+- [x] SEC-01b — `POST /api/auth/login` → `{ token, expiresAt }` (HS256 JWT, 60 dk, `ClockSkew` 0), yanlış şifre ve bilinmeyen kullanıcı aynı 401 (bilinmeyen kullanıcı da bir PBKDF2 doğrulaması öder), eksik/boş alan 400, IP başına dakikada 5 deneme → 429 (başarılılar da sayılır), `GET /api/me` (müşteri kimliği cevapta yok). Kullanıcı kararlarıyla: bütün endpoint'ler varsayılan olarak token ister (FallbackPolicy; tokensız bilinmeyen route 401), `BANKINGAI_JWT_SIGNING_KEY` yoksa/32 bayttan kısaysa API açılmaz. `CredentialStore.VerifyAsync`, `TokenIssuer`, `User.GetCustomerId()`. Testler: geçici commit'li "Test Api" müşterisi + `tests/Shared/CommittedRowsLock` (paralel test projeleri arası advisory lock); paralel koşuda ortaya çıkan iki eski test sorunu düzeltildi (Ada'nın girişi olduğu için yanlış kısıta takılan credential testi; "ilk müşteri"ye geçici hesap açan iki test → sabit Ada/Deniz). 4 kasıtlı bozma (limit, anahtar kontrolü, ClockSkew, FallbackPolicy) + kilitsiz koşu kırmızı; tam paket 10/10 yeşil. Data 58, Api 22, Application 136. Gerçek API'de ada ile giriş/me/429 denendi. Hesap kilitleme, logout/iptal, refresh token sonraya.
 - [ ] SEC-02 — Hesap/müşteri izolasyonunu API, servis ve MCP boyunca test et. Başka hesaba ID vererek erişim mümkün olmamalı; UI'da gizlemek yeterli değil.
 - [ ] SEC-03 — Prompt injection örneklerini dene. Kullanıcı mesajı, RawDescription ve tool verisindeki talimatlar yetkiyi veya allowlist'i değiştiremesin.
 - [ ] SEC-04 — LLM'nin SQL veya banking write operasyonu yaptıramadığını doğrula. Bilinmeyen tool ve ayrıcalık iddiaları reddedilsin.
@@ -362,7 +362,7 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 ## Şu anki sonraki adım
 
 SYN-01–13 banking seed adımları tamamlandı ve banking foundation kabul edildi (DOC-09).
-ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01–04 tamamlandı. ANA-01–08 ve REC-01–03 tamamlandı; demo sorularının deterministik backend'i hazır ve kenar durumları test edildi. ANA-09 API-01'e bağlı. API-01a/01b, API-02 ve SEC-01a tamamlandı (BankingAI.Api + DI + health; CustomerCredentials + CLI users set-password + demo kullanıcıları). Sıradaki iş: SEC-01b (login, JWT, /api/me), sonra API-03+ ve ANA-09. Market kolu
+ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01–04 tamamlandı. ANA-01–08 ve REC-01–03 tamamlandı; demo sorularının deterministik backend'i hazır ve kenar durumları test edildi. ANA-09 API-01'e bağlı. API-01a/01b, API-02, SEC-01a ve SEC-01b tamamlandı (BankingAI.Api + DI + health; CustomerCredentials + CLI users set-password + demo kullanıcıları; login + JWT + /api/me, varsayılan olarak token zorunlu). Sıradaki iş: API-03+ ve ANA-09 (müşteri her zaman `User.GetCustomerId()` ile token'dan). Market kolu
 (SRC-02 altın kaynağı) paralel bekliyor.
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

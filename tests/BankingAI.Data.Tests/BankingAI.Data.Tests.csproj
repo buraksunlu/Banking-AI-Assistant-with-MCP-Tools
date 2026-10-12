@@ -12,4 +12,7 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" PrivateAssets="all" />
     <ProjectReference Include="../../src/BankingAI.Data/BankingAI.Data.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="../Shared/CommittedRowsLock.cs" Link="Shared/CommittedRowsLock.cs" />
+  </ItemGroup>
 </Project>

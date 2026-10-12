@@ -138,6 +138,11 @@ public sealed class CredentialStoreTests
         await using var scope = await db.Database.BeginTransactionAsync();
         var username = TestUsername();
         await CredentialStore.SetPasswordAsync(db, username, TestPassword(), EmptyCustomer);
+        // A customer guaranteed to have no login (the demo customers may already have one), so each insert
+        // below breaks exactly the constraint it targets. Rolled back with the rest.
+        var spare = new Customer { FirstName = "Test", LastName = "Spare" };
+        db.Customers.Add(spare);
+        await db.SaveChangesAsync();
 
         async Task Reject(string sql, string sqlState, string constraint)
         {
@@ -148,12 +153,60 @@ public sealed class CredentialStoreTests
         }
 
         var insert = """INSERT INTO "CustomerCredentials" ("CustomerId", "Username", "PasswordHash", "CreatedAt", "UpdatedAt") VALUES ('{0}', '{1}', '{2}', now(), now())""";
-        await Reject(string.Format(insert, Ada, username, "x"), "23505", "IX_CustomerCredentials_Username");                 // duplicate username
+        await Reject(string.Format(insert, spare.Id, username, "x"), "23505", "IX_CustomerCredentials_Username");            // duplicate username
         await Reject(string.Format(insert, EmptyCustomer, "other.name", "x"), "23505", "PK_CustomerCredentials");             // second login for a customer
         await Reject(string.Format(insert, Guid.NewGuid(), "ghost.user", "x"), "23503", "FK_CustomerCredentials_Customers_CustomerId"); // no such customer
-        await Reject(string.Format(insert, Ada, "Ada Upper", "x"), "23514", "CK_CustomerCredentials_Username");
-        await Reject(string.Format(insert, Ada, "ada.blank", " "), "23514", "CK_CustomerCredentials_PasswordHash_NotBlank");
+        await Reject(string.Format(insert, spare.Id, "Ada Upper", "x"), "23514", "CK_CustomerCredentials_Username");
+        await Reject(string.Format(insert, spare.Id, "ada.blank", " "), "23514", "CK_CustomerCredentials_PasswordHash_NotBlank");
 
         await scope.RollbackAsync();
+    }
+
+    // SEC-01b. Login check used by POST /api/auth/login.
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Verify_returns_the_customer_for_the_right_password()
+    {
+        await using var db = Db();
+        await using var scope = await db.Database.BeginTransactionAsync();
+        var username = TestUsername();
+        var password = TestPassword();
+        await CredentialStore.SetPasswordAsync(db, username, password, EmptyCustomer);
+
+        Assert.Equal(EmptyCustomer, await CredentialStore.VerifyAsync(db, username, password));
+        // The login name is normalized the same way as when it was stored.
+        Assert.Equal(EmptyCustomer, await CredentialStore.VerifyAsync(db, "  " + username.ToUpperInvariant() + " ", password));
+
+        await scope.RollbackAsync();
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Verify_returns_null_for_a_wrong_password()
+    {
+        await using var db = Db();
+        await using var scope = await db.Database.BeginTransactionAsync();
+        var username = TestUsername();
+        var password = TestPassword();
+        await CredentialStore.SetPasswordAsync(db, username, password, EmptyCustomer);
+
+        Assert.Null(await CredentialStore.VerifyAsync(db, username, password + "x"));
+        Assert.Null(await CredentialStore.VerifyAsync(db, username, password.ToUpperInvariant())); // passwords are case-sensitive
+        Assert.Null(await CredentialStore.VerifyAsync(db, username, ""));
+        Assert.Null(await CredentialStore.VerifyAsync(db, username, null));
+
+        await scope.RollbackAsync();
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Verify_returns_null_for_unknown_or_invalid_usernames()
+    {
+        await using var db = Db();
+
+        Assert.Null(await CredentialStore.VerifyAsync(db, TestUsername(), TestPassword())); // valid format, no such login
+        Assert.Null(await CredentialStore.VerifyAsync(db, "a b", TestPassword()));          // invalid format
+        Assert.Null(await CredentialStore.VerifyAsync(db, "", TestPassword()));
+        Assert.Null(await CredentialStore.VerifyAsync(db, null, TestPassword()));
     }
 }
