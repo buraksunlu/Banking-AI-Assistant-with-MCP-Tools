@@ -55,4 +55,23 @@ public sealed class AccountsController(IAccountReadService accounts) : Controlle
             return Unauthorized();
         }
     }
+
+    /// <summary>
+    /// <c>GET /api/accounts/{id}</c>: one account of the customer. Another customer's account gets exactly the
+    /// 404 of a missing one, so guessing ids reveals nothing. An id that is not a GUID is a 400.
+    /// </summary>
+    [HttpGet("{id}")]
+    public async Task<ActionResult<AccountDto>> GetAsync(Guid id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await accounts.GetAsync(User.GetCustomerId(), id, cancellationToken));
+        }
+        catch (KeyNotFoundException)
+        {
+            // Also reached when the token's customer no longer exists: the service reports both with the same
+            // exception, so until API-13 splits them this endpoint answers 404 there as well (decision 2-A).
+            return NotFound();
+        }
+    }
 }

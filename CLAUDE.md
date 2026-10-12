@@ -143,7 +143,8 @@ configuration'lardaki DB CHECK/unique/FK kısıtları. Yeni kural eklerken dört
   `CreatedAt`, eşitse `AccountNumber`. Repository eklenmez.
 - DI (`Program.cs`): DbContext kullanan servisler **Scoped** (`AddScoped<IAccountReadService, AccountReadService>`);
   durumsuzlar Singleton (`PeriodResolver`, `TimeProvider`, `TokenIssuer`). Singleton'a Scoped servis verilirse API açılmaz.
-  Controller kalıbı: `User.GetCustomerId()` → servis → DTO; müşteri parametresi yoktur.
+  Controller kalıbı: `User.GetCustomerId()` → servis → DTO; müşteri parametresi yoktur. Başka müşterinin kaynağı
+  olmayan kaynakla birebir aynı 404'ü alır (403 değil). GUID parametreleri `Guid id` ile bağlanır (bozuk biçim 400).
 - Kategori yalnız Purchase'ta bulunur. `CategoryId == null` "Sınıflandırılmamış"tır ve `OTHER`
   ("Diğer") ile birleştirilmez. Kategori alanları (Id/Source/Confidence/CategorizedAt) birlikte değişir.
 - Tutar `numeric(18,2)`, sessiz yuvarlama yok; negatif bakiye yok. Zaman UTC `timestamptz`;
@@ -233,5 +234,5 @@ ayrı ve engellemeyen bir koldur, altın kaynağı (SRC-02) dış yanıt bekliyo
 ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/AccountType, çift
 yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, arama, en yüksek
 işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu testleri), REC-01–03 (düzenli
-ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts). Sıradaki: API-06+ ve ANA-09; sonra AI, MCP.
+ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}). Sıradaki: API-07+ ve ANA-09; sonra AI, MCP.
 Güncel ayrıntı her zaman `todo.md`'dedir.

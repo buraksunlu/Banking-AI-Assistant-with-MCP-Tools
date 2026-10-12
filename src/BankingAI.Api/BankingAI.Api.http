@@ -28,3 +28,9 @@ Authorization: Bearer {{login.response.body.$.token}}
 Accept: application/json
 
 ###
+
+GET {{BankingAI.Api_HostAddress}}/api/accounts/20000000-0000-0000-0000-000000000001
+Authorization: Bearer {{login.response.body.$.token}}
+Accept: application/json
+
+###

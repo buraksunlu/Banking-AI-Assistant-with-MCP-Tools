@@ -93,3 +93,22 @@ küçüktür; sayfalama işlem listesinde (API-09) tasarlanacak. Örnek (Ada):
 ```
 
 Bilinen sınır: OpenAPI belgesi şimdilik yalnız `200`'ü gösterir; `401` API-15'te belgelenecek.
+
+## `GET /api/accounts/{id}` (API-06)
+
+Token gerekir. Hesap yalnız token'daki müşterinin hesaplarında aranır.
+
+| Durum | Cevap |
+|---|---|
+| Kendi hesabı | `200` + tek `AccountDto` |
+| Olmayan hesap (sıfır GUID dahil) | `404` |
+| **Başka müşterinin hesabı** | `404`, olmayan hesapla birebir aynı gövde (403 verilmez; varlık sızmaz) |
+| Kimlik GUID değil (`abc`, `123`) | `400` (ASP.NET doğrulama cevabı; kullanıcı kararı) |
+| Token yok / geçersiz | `401` |
+| Token geçerli ama müşteri artık yok | şimdilik `404` (servis müşteri ve hesap yokluğunu aynı istisnayla bildiriyor; API-13'te `401` olacak) |
+
+404 gövdesi (ASP.NET varsayılanı; ortak biçim API-13'te):
+
+```json
+{ "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5", "title": "Not Found", "status": 404, "traceId": "…" }
+```

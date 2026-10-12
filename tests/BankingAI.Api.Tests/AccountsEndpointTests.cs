@@ -100,4 +100,93 @@ public sealed class AccountsEndpointTests
 
         Assert.Equal(HttpStatusCode.Unauthorized, status);
     }
+
+    // API-06. GET /api/accounts/{id}.
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task One_account_requires_a_token()
+    {
+        var (status, _) = await GetAsync($"/api/accounts/{AdaTryAccount}", customerId: null);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, status);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task One_account_returns_the_customers_own_account()
+    {
+        var (status, body) = await GetAsync($"/api/accounts/{AdaTryAccount}", Ada);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        var account = JsonNode.Parse(body)!.AsObject();
+        Assert.Equal(
+            (AdaTryAccount, "Ada günlük TRY", "DUMMY-ADA-TRY-001", "TRY", "Personal", "577490.18"),
+            (account["id"]!.GetValue<Guid>(), account["accountName"]!.GetValue<string>(), account["accountNumber"]!.GetValue<string>(),
+             account["currencyCode"]!.GetValue<string>(), account["accountType"]!.GetValue<string>(), account["balance"]!.ToJsonString()));
+        Assert.False(account.ContainsKey("customerId"));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task One_account_shows_a_business_account_to_its_owner()
+    {
+        var (status, body) = await GetAsync($"/api/accounts/{DenizShopAccount}", Deniz);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        var account = JsonNode.Parse(body)!.AsObject();
+        Assert.Equal(("Business", "2595.00"), (account["accountType"]!.GetValue<string>(), account["balance"]!.ToJsonString()));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Another_customers_account_gets_exactly_the_404_of_a_missing_one()
+    {
+        var foreign = await GetAsync($"/api/accounts/{DenizTryAccount}", Ada);
+        var missing = await GetAsync($"/api/accounts/{Guid.NewGuid()}", Ada);
+
+        Assert.Equal(HttpStatusCode.NotFound, foreign.Status);
+        Assert.Equal(HttpStatusCode.NotFound, missing.Status);
+        // Only the per-request trace id may differ; nothing reveals that Deniz's account exists.
+        Assert.Equal(WithoutTraceId(missing.Body), WithoutTraceId(foreign.Body));
+        Assert.DoesNotContain("DUMMY-DENIZ", foreign.Body);
+    }
+
+    private static string WithoutTraceId(string body)
+    {
+        var json = JsonNode.Parse(body)!.AsObject();
+        json.Remove("traceId");
+        return json.ToJsonString();
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task The_all_zero_id_is_a_missing_account()
+    {
+        var (status, _) = await GetAsync($"/api/accounts/{Guid.Empty}", Ada);
+
+        Assert.Equal(HttpStatusCode.NotFound, status);
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("abc")]
+    [InlineData("123")]
+    public async Task A_malformed_id_is_400(string id)
+    {
+        var (status, _) = await GetAsync($"/api/accounts/{id}", Ada);
+
+        Assert.Equal(HttpStatusCode.BadRequest, status);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task One_account_for_a_customer_that_no_longer_exists_is_404_until_api_13()
+    {
+        // Decision 2-A: the service reports a missing customer and a missing account with the same exception,
+        // so this endpoint cannot tell them apart. API-13 introduces distinct errors and changes this to 401.
+        var (status, _) = await GetAsync($"/api/accounts/{AdaTryAccount}", Guid.NewGuid());
+
+        Assert.Equal(HttpStatusCode.NotFound, status);
+    }
 }
