@@ -53,3 +53,19 @@ Backend belirler: sahip (token), `id`, `createdAt`, `accountNumber` (biçimi API
 
 Bilinen sınır: `[StringLength(100)]` UTF-16 birimi sayar, DB karakter sayar; emoji gibi iki birimlik
 karakterlerde API sınırı biraz daha sıkıdır.
+
+## Hesap okuma servisi (API-04)
+
+`IAccountReadService` (Application/Accounts) — controller'lar bu sözleşmeye bağlanır (kullanıcı kararı);
+gerçekleştirimi `AccountReadService`.
+
+| Metot | Sonuç | Hata |
+|---|---|---|
+| `ListAsync(customerId)` | müşterinin bütün hesapları; hesabı yoksa boş liste | bilinmeyen müşteri `KeyNotFoundException`, boş kimlik `ArgumentException` |
+| `GetAsync(customerId, accountId)` | tek hesap | olmayan **veya başka müşterinin** hesabı aynı `KeyNotFoundException` (varlık sızmaz) |
+
+- Sahiplik `CustomerScope`'ta karar verilir (analytics ile aynı kural, tek yer).
+- Sıra: açılış tarihi (eskiden yeniye), eşitse hesap numarası (demo hesapları aynı anda açıldı).
+- Sorgular: liste 2 (müşteri + hesaplar), tek hesap 3 (müşteri + sahiplik + DTO).
+- Repository yoktur; `BankingDbContext` bu rolü görür. DTO projeksiyonu EF tarafından takip edilmez.
+- HTTP eşlemesi API-05/06'da: `KeyNotFoundException` → 404.
