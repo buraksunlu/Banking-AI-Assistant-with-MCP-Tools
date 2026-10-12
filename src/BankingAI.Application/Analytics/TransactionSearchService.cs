@@ -17,7 +17,7 @@ public sealed record TransactionSearchQuery(
 // A DTO, never the entity. Counterparty is a masked person ("Deniz M***"), a shop's account name,
 // or the customer's own account name (CounterpartyIsOwnAccount); full names never leave the service.
 public sealed record TransactionItem(
-    Guid Id, string AccountName, DateTimeOffset OccurredAtUtc, DateOnly LocalDate,
+    Guid Id, Guid AccountId, string AccountName, DateTimeOffset OccurredAtUtc, DateOnly LocalDate,
     TransactionKind Kind, TransactionDirection Direction, decimal Amount, string CurrencyCode,
     string? Merchant, string? CategoryCode, string? CategoryDisplayName, string RawDescription,
     string? Counterparty, bool CounterpartyIsOwnAccount);

@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text;
+using System.Text.Json;
 using BankingAI.Api.Security;
 using BankingAI.Data;
 using BankingAI.Data.Entities;
@@ -8,6 +9,8 @@ using BankingAI.Data.Security;
 using BankingAI.TestSupport;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Xunit;
@@ -35,6 +38,20 @@ internal static class TestApi
                 foreach (var (key, value) in settings)
                     host.UseSetting(key, value);
             });
+    }
+
+    /// <summary>
+    /// The API's own JSON settings (enum names, unmapped-member rules), loaded from a host that never touches
+    /// the database, so contract tests run without PostgreSQL or a .env file.
+    /// </summary>
+    public static JsonSerializerOptions JsonOptions { get; } = LoadJsonOptions();
+
+    private static JsonSerializerOptions LoadJsonOptions()
+    {
+        using var api = new WebApplicationFactory<Program>().WithWebHostBuilder(host => host
+            .UseSetting(ConnectionStringKey, "Host=unused")
+            .UseSetting(JwtSettings.SigningKeyKey, new string('k', JwtSettings.MinimumKeyBytes)));
+        return api.Services.GetRequiredService<IOptions<Microsoft.AspNetCore.Mvc.JsonOptions>>().Value.JsonSerializerOptions;
     }
 
     public static HttpClient WithToken(this HttpClient client, string token)

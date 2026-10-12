@@ -138,6 +138,9 @@ configuration'lardaki DB CHECK/unique/FK kısıtları. Yeni kural eklerken dört
   sayısı, yazma isteklerinde tanınmayan alan 400 (`[JsonUnmappedMemberHandling(Disallow)]`). Entity JSON'a
   verilmez: dışarı DTO (Application, EF'in çevirdiği `Projection` ifadesiyle; sıralama `Select`'ten önce),
   içeri yalnız istemcinin seçebileceği alanları taşıyan request (Api). DTO'larda `CustomerId` bulunmaz.
+  İşlemin dış biçimi analytics'in `TransactionItem`'ıdır (ayrı DTO yazma). `CreateTransactionRequest` yalnız olayı taşır
+  (Purchase/Salary, tutar, açıklama, isteğe bağlı merchant); yön, para birimi, hesap, zaman ve kategori backend'indir.
+  Request'lerde tutar kuralı `InputRules.Money` çağrılarak yeniden kullanılır (kopyalanmaz).
 - Hesap okuma `Application/Accounts`: `IAccountReadService` (kullanıcı kararı: controller'lar interface'e bağlanır;
   analytics servisleri interface'siz kalır) → `AccountReadService`. Sahiplik yine `CustomerScope`'ta; liste sırası
   `CreatedAt`, eşitse `AccountNumber`. Repository eklenmez.
@@ -209,7 +212,7 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
   çalışır; ya kendi transaction'ında rollback yapar ya da geçici `DUMMY-*TEST-*` hesap açıp siler. Geçici
   hesaplar sabit demo müşterisine (Ada/Deniz) açılır; "ilk müşteri"yi seçme (başka test projesinin geçici
   müşterisi olabilir) ve `EmptyCustomer`'a hesap açma (analytics testleri onu hesapsız bekler).
-- `BankingAI.Api.Tests`: `DemoData.cs` Application.Tests'ten link'lenir (kopyalanmaz); `TestApi.Create(...)` (WebApplicationFactory + ayar ezme), `TestTokens` (sahte/süresi
+- `BankingAI.Api.Tests`: `DemoData.cs` Application.Tests'ten link'lenir (kopyalanmaz); `TestApi.JsonOptions` (API'nin JSON ayarları, DB'siz); `TestApi.Create(...)` (WebApplicationFactory + ayar ezme), `TestTokens` (sahte/süresi
   geçmiş token), `TestUser` (commit edilen geçici "Test Api" müşterisi + `apitest.*` girişi, dispose'da silinir,
   10 dk'dan eski kalıntılar temizlenir; API'den açtığı `ACC-` hesapları da silinir). Yazma testleri demo müşterisine değil `TestUser`'a yapılır.
 - Ada/Deniz'e geçici hesap açan Data testleri paralel çalışır: Application/Api testleri müşterinin **bütün**
@@ -237,5 +240,5 @@ ayrı ve engellemeyen bir koldur, altın kaynağı (SRC-02) dış yanıt bekliyo
 ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/AccountType, çift
 yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, arama, en yüksek
 işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu testleri), REC-01–03 (düzenli
-ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts). Sıradaki: API-08+ ve ANA-09; sonra AI, MCP.
+ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi). Sıradaki: API-09+ ve ANA-09; sonra AI, MCP.
 Güncel ayrıntı her zaman `todo.md`'dedir.

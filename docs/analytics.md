@@ -142,7 +142,7 @@ Bütün girdi kontrolleri DB'den önce yapılır.
 | Sıra | `OccurredAt` azalan, eşitlikte `Id` azalan; sayfalar kararlı |
 | Sonuç | `TotalCount` (COUNT sorgusu) ve `HasMore` |
 
-Çıktı entity değil `TransactionItem` DTO'sudur: hesap adı, UTC zaman ve müşterinin saat dilimine
+Çıktı entity değil `TransactionItem` DTO'sudur: hesap kimliği (`AccountId`, API-08) ve adı, UTC zaman ve müşterinin saat dilimine
 göre `LocalDate`, tür, yön, tutar, para birimi, merchant, kategori (Purchase'ta kategorisiz ise
 "Sınıflandırılmamış"; Purchase değilse null), ham açıklama ve karşı taraf.
 

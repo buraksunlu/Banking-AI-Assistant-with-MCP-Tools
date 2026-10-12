@@ -36,7 +36,7 @@ internal static class TransactionItemReader
             from otherOwner in db.Customers.Where(oc => oc.Id == otherAccount!.CustomerId).DefaultIfEmpty()
             select new
             {
-                t.Id, a.AccountName, t.OccurredAt, t.Kind, t.Direction, t.Amount, t.CurrencyCode,
+                t.Id, t.AccountId, a.AccountName, t.OccurredAt, t.Kind, t.Direction, t.Amount, t.CurrencyCode,
                 t.NormalizedMerchant, CategoryCode = (string?)c!.Code, CategoryName = (string?)c!.DisplayName,
                 t.RawDescription,
                 OtherAccountName = (string?)otherAccount!.AccountName,
@@ -66,7 +66,7 @@ internal static class TransactionItemReader
                 : ownAccount || r.OtherAccountType == AccountType.Business ? r.OtherAccountName
                 : MaskName(r.OtherFirstName!, r.OtherLastName!);
             return new TransactionItem(
-                r.Id, r.AccountName, r.OccurredAt,
+                r.Id, r.AccountId, r.AccountName, r.OccurredAt,
                 DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(r.OccurredAt, timeZone).DateTime),
                 r.Kind, r.Direction, r.Amount, r.CurrencyCode, r.NormalizedMerchant, r.CategoryCode,
                 r.Kind == TransactionKind.Purchase ? r.CategoryName ?? AnalyticsLabels.Unclassified : null,

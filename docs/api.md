@@ -144,3 +144,43 @@ Location: /api/accounts/c7f08208-4546-4b40-8b48-e83c50be4ab0
 Bilinen sınırlar: müşteri başına hesap sayısı sınırı yok (kullanıcı kararı; ACC-LIMIT); aynı isteğin
 iki kez gönderilmesi iki hesap açar (API-12); 400 cevabı tanınmayan alanda iç tip adını içeriyor (API-13).
 
+## İşlem sözleşmesi (API-08)
+
+Endpoint'ler sonraki maddelerde: liste API-09, tek işlem API-10, ekleme API-11.
+
+### Dışarı giden işlem: `TransactionItem`
+
+Kullanıcı kararı: API ayrı bir işlem DTO'su yazmaz; analytics'in döndürdüğü `TransactionItem` kullanılır
+(maskeleme ve join'ler tek yerde, `TransactionItemReader`). API-08 ile `accountId` eklendi.
+
+```json
+{ "id": "30000000-0000-0000-0000-000000000602", "accountId": "20000000-0000-0000-0000-000000000001",
+  "accountName": "Ada günlük TRY", "occurredAtUtc": "2026-10-06T09:00:00+00:00", "localDate": "2026-10-06",
+  "kind": "Purchase", "direction": "Debit", "amount": 210.00, "currencyCode": "TRY", "merchant": "Starbucks",
+  "categoryCode": "FOOD", "categoryDisplayName": "Yeme-İçme", "rawDescription": "POS 4412 STARBUCKS KADIKOY",
+  "counterparty": null, "counterpartyIsOwnAccount": false }
+```
+
+- Transferde `counterparty` maskelidir (`"Deniz M***"`); kendi hesabına transferde hesap adı ve
+  `counterpartyIsOwnAccount: true`; dükkân alışverişinde dükkân hesabının adı.
+- Çıkmayan iç alanlar: `pairId`, kategorizasyon kaynağı/güveni/zamanı, `createdAt`, müşteri kimliği.
+
+### İçeri gelen: `CreateTransactionRequest` (API-11'deki `POST /api/accounts/{accountId}/transactions`)
+
+```json
+{ "kind": "Purchase", "amount": 210.00, "description": "POS 4412 STARBUCKS KADIKOY", "merchant": "Starbucks" }
+```
+
+| Alan | Kural |
+|---|---|
+| `kind` | zorunlu; yalnız `Purchase` veya `Salary` (kullanıcı kararı; `Transfer`, `Sale`, `OpeningFunding`, sayı → 400) |
+| `amount` | zorunlu; 0,01 ≤ tutar ≤ 9999999999999999,99; en fazla 2 ondalık (`12.345` → 400, yuvarlanmaz) |
+| `description` | zorunlu; 1–500 karakter, yalnız boşluk olamaz |
+| `merchant` | isteğe bağlı; verilirse 1–150 karakter, boş/boşluk olamaz; `Salary` ile birlikte verilemez |
+
+Backend belirler (istekte gelirse 400): `direction` (Purchase → Debit, Salary → Credit), `currencyCode`
+(hesabın para birimi), `accountId` (adresten), `occurredAt` (sunucu saati; geçmiş tarih yok — kullanıcı
+kararı), kategori alanları (bankanın yorumu; yeni işlem "Sınıflandırılmamış" başlar).
+
+Bilinen sınır: enum girdisi harf büyüklüğüne duyarsız (`"purchase"` de `Purchase` olarak okunur).
+

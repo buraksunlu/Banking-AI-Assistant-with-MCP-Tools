@@ -20,6 +20,23 @@ public sealed class TransactionSearchServiceTests
 
     [Fact]
     [Trait("Category", "PostgreSQL")]
+    public async Task Items_carry_their_own_account_id()
+    {
+        // API-08: the API returns TransactionItem as its transaction DTO, so each item names its account.
+        var ada = await SearchAsync(new(Ada, PeriodKind.ThisMonth));
+        var shop = await SearchAsync(new(Deniz, PeriodKind.ThisMonth, AccountId: DenizShopAccount));
+
+        var starbucks = ada.Items.Single(i => i.Id == Guid.Parse("30000000-0000-0000-0000-000000000602"));
+        var transfer = ada.Items.Single(i => i.Id == Guid.Parse("30000000-0000-0000-0000-000000000711"));
+        Assert.Equal(AdaTryAccount, starbucks.AccountId);
+        // Adding the field leaves the masking untouched.
+        Assert.Equal((AdaTryAccount, "Deniz M***", false), (transfer.AccountId, transfer.Counterparty, transfer.CounterpartyIsOwnAccount));
+        Assert.NotEmpty(shop.Items);
+        Assert.All(shop.Items, i => Assert.Equal(DenizShopAccount, i.AccountId));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
     public async Task Statement_lists_every_kind_newest_first_with_masked_counterparties()
     {
         var result = await SearchAsync(new(Ada, PeriodKind.ThisMonth));

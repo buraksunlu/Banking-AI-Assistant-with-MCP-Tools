@@ -2,12 +2,8 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using BankingAI.Api.Controllers;
-using BankingAI.Api.Security;
 using BankingAI.Application.Accounts;
 using BankingAI.Data.Enums;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace BankingAI.Api.Tests;
@@ -16,15 +12,7 @@ namespace BankingAI.Api.Tests;
 // serializer settings. No database: the host only needs placeholder settings to start.
 public sealed class AccountContractTests
 {
-    private static readonly JsonSerializerOptions ApiJson = LoadApiJsonOptions();
-
-    private static JsonSerializerOptions LoadApiJsonOptions()
-    {
-        using var api = new WebApplicationFactory<Program>().WithWebHostBuilder(host => host
-            .UseSetting(TestApi.ConnectionStringKey, "Host=unused")
-            .UseSetting(JwtSettings.SigningKeyKey, new string('k', JwtSettings.MinimumKeyBytes)));
-        return api.Services.GetRequiredService<IOptions<Microsoft.AspNetCore.Mvc.JsonOptions>>().Value.JsonSerializerOptions;
-    }
+    private static readonly JsonSerializerOptions ApiJson = TestApi.JsonOptions;
 
     private static readonly DateTimeOffset CreatedAt = new(2026, 10, 9, 14, 8, 38, TimeSpan.Zero);
 
