@@ -1,5 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using BankingAI.Api.Security;
+using BankingAI.Application.Accounts;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BankingAI.Api.Controllers;
 
@@ -24,4 +27,32 @@ public sealed record CreateAccountRequest
     [Required]
     [AllowedValues("TRY", "USD", "EUR", "GBP")]
     public string CurrencyCode { get; init; } = "";
+}
+
+/// <summary>
+/// The logged-in customer's accounts. The customer always comes from the token; there is no customer
+/// parameter to tamper with.
+/// </summary>
+[ApiController]
+[Route("api/accounts")]
+public sealed class AccountsController(IAccountReadService accounts) : ControllerBase
+{
+    /// <summary>
+    /// <c>GET /api/accounts</c>: every account of the customer as a plain array, oldest first; <c>[]</c> when
+    /// there are none. No paging: a customer has only a handful of accounts.
+    /// </summary>
+    [HttpGet]
+    public async Task<ActionResult<IReadOnlyList<AccountDto>>> ListAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await accounts.ListAsync(User.GetCustomerId(), cancellationToken));
+        }
+        catch (KeyNotFoundException)
+        {
+            // The token is genuine but its customer no longer exists: same answer as GET /api/me, so the
+            // client sends the user back to the login screen. Moves to the shared error mapping in API-13.
+            return Unauthorized();
+        }
+    }
 }

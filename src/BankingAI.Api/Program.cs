@@ -2,6 +2,8 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using BankingAI.Api.Controllers;
 using BankingAI.Api.Security;
+using BankingAI.Application.Accounts;
+using BankingAI.Application.Analytics;
 using BankingAI.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -28,6 +30,11 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(services => JwtSettings.FromConfiguration(services.GetRequiredService<IConfiguration>()));
 builder.Services.AddSingleton<TokenIssuer>();
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+
+// Application services. Anything that uses the DbContext is scoped like the context itself; a singleton
+// would keep the first request's context forever and share it between concurrent requests.
+builder.Services.AddSingleton<PeriodResolver>();
+builder.Services.AddScoped<IAccountReadService, AccountReadService>();
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
     .Configure<JwtSettings>((options, jwt) =>
     {

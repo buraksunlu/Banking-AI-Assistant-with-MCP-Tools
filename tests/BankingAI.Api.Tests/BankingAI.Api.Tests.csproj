@@ -15,5 +15,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="../Shared/CommittedRowsLock.cs" Link="Shared/CommittedRowsLock.cs" />
+    <Compile Include="../BankingAI.Application.Tests/DemoData.cs" Link="Shared/DemoData.cs" />
   </ItemGroup>
 </Project>
