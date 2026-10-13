@@ -1,13 +1,22 @@
 using BankingAI.Data;
 using BankingAI.Data.Enums;
+using BankingAI.TestSupport;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace BankingAI.Data.Tests;
 
 [Collection(PostgreSqlCollection.Name)]
-public sealed class SyntheticDatasetIntegrityTests
+public sealed class SyntheticDatasetIntegrityTests : IAsyncLifetime
 {
+    // Several checks count rows across all customers, so temporary rows committed by tests in other projects
+    // (API-11 writes real transactions) must not exist while they run: exclusive against every shared holder.
+    private CommittedRowsLock? rowsLock;
+
+    public async Task InitializeAsync() => rowsLock = await CommittedRowsLock.ExclusiveAsync();
+
+    public async Task DisposeAsync() => await rowsLock!.DisposeAsync();
+
     // Expected values are hand-maintained acceptance fixtures. Do not derive them
     // from SyntheticTransactionSeeder, which could repeat the same incorrect data.
     private static readonly ExpectedAccount[] ExpectedAccounts =

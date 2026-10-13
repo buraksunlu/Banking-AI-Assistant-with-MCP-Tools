@@ -6,7 +6,8 @@ namespace BankingAI.TestSupport;
 /// Coordinates test projects that run at the same time against the same database. Tests that commit
 /// temporary rows (API tests) hold the lock <b>shared</b>, so they still run in parallel with each other;
 /// a test that compares whole-table row counts holds it <b>exclusive</b>, so no temporary row appears or
-/// disappears between its two counts. Compiled into both test projects from this one file.
+/// disappears between its counts. Compiled into all three test projects from this one file. Hold at most one
+/// lock per test: a second shared request queues behind a waiting exclusive one, which waits for the first.
 /// </summary>
 internal sealed class CommittedRowsLock : IAsyncDisposable
 {

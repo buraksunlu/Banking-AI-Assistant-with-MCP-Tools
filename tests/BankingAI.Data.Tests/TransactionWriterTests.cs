@@ -1,7 +1,8 @@
 using BankingAI.Data;
 using BankingAI.Data.Entities;
 using BankingAI.Data.Enums;
-using BankingAI.Data.Seeding;
+using BankingAI.Data.Writing;
+using BankingAI.TestSupport;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Xunit;
@@ -9,8 +10,16 @@ using Xunit;
 namespace BankingAI.Data.Tests;
 
 [Collection(PostgreSqlCollection.Name)]
-public sealed class AtomicTransactionSeedWriterTests
+public sealed class TransactionWriterTests : IAsyncLifetime
 {
+    // These tests commit temporary rows and delete them again. The shared lock keeps whole-table counts in
+    // other test projects (exclusive holders) from seeing those rows come and go.
+    private CommittedRowsLock? rowsLock;
+
+    public async Task InitializeAsync() => rowsLock = await CommittedRowsLock.SharedAsync();
+
+    public async Task DisposeAsync() => await rowsLock!.DisposeAsync();
+
     private const decimal StartingBalance = 100m;
 
     [Fact]
@@ -35,7 +44,7 @@ public sealed class AtomicTransactionSeedWriterTests
             {
                 await start.Task;
                 await using var db = new BankingDbContext();
-                await TransactionSeedWriter.AddAsync(db, transaction);
+                await TransactionWriter.AddAsync(db, transaction);
             }
 
             var creditTask = Task.Run(() => WriteAfterRelease(credit));
@@ -86,7 +95,7 @@ public sealed class AtomicTransactionSeedWriterTests
             await using (var db = new BankingDbContext())
             {
                 var error = await Assert.ThrowsAsync<DbUpdateException>(
-                    () => TransactionSeedWriter.AddAsync(db, rejectedInsert));
+                    () => TransactionWriter.AddAsync(db, rejectedInsert));
                 Assert.Equal("23503", Assert.IsType<PostgresException>(error.InnerException).SqlState);
             }
 
@@ -98,8 +107,8 @@ public sealed class AtomicTransactionSeedWriterTests
             var rejectedDebit = NewTransaction(accountId, before + 0.01m, TransactionDirection.Debit);
             await using (var db = new BankingDbContext())
             {
-                var error = await Assert.ThrowsAsync<InvalidOperationException>(
-                    () => TransactionSeedWriter.AddAsync(db, rejectedDebit));
+                var error = await Assert.ThrowsAsync<BalanceLimitException>(
+                    () => TransactionWriter.AddAsync(db, rejectedDebit));
                 Assert.Contains("Yetersiz bakiye", error.Message);
             }
 
@@ -131,12 +140,40 @@ public sealed class AtomicTransactionSeedWriterTests
             await using (var db = new BankingDbContext())
             {
                 var error = await Assert.ThrowsAsync<InvalidOperationException>(
-                    () => TransactionSeedWriter.AddAsync(db, halfTransfer));
+                    () => TransactionWriter.AddAsync(db, halfTransfer));
                 Assert.Contains("iki bacaklı", error.Message);
             }
 
             Assert.Equal(100m, await GetBalanceAsync(accountId));
             Assert.False(await TransactionExistsAsync(halfTransfer.Id));
+        }
+        finally
+        {
+            await DeleteTestAccountAsync(accountId);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Credit_above_the_money_ceiling_is_rejected_without_side_effects()
+    {
+        EnsurePostgreSqlConfigured();
+        var accountId = await CreateTestAccountAsync();
+        try
+        {
+            // The largest representable balance is allowed; one more cent is not.
+            await WriteAsync(accountId, 9999999999999999.99m, TransactionDirection.Credit);
+            var overflow = NewTransaction(accountId, 0.01m, TransactionDirection.Credit);
+
+            await using (var db = new BankingDbContext())
+            {
+                var error = await Assert.ThrowsAsync<BalanceLimitException>(
+                    () => TransactionWriter.AddAsync(db, overflow));
+                Assert.Contains("üst sınır", error.Message);
+            }
+
+            Assert.Equal(9999999999999999.99m, await GetBalanceAsync(accountId));
+            Assert.False(await TransactionExistsAsync(overflow.Id));
         }
         finally
         {
@@ -169,7 +206,7 @@ public sealed class AtomicTransactionSeedWriterTests
     private static async Task WriteAsync(Guid accountId, decimal amount, TransactionDirection direction)
     {
         await using var db = new BankingDbContext();
-        await TransactionSeedWriter.AddAsync(db, NewTransaction(accountId, amount, direction));
+        await TransactionWriter.AddAsync(db, NewTransaction(accountId, amount, direction));
     }
 
     private static Transaction NewTransaction(Guid accountId, decimal amount, TransactionDirection direction)

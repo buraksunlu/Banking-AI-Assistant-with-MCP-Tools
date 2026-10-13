@@ -1,5 +1,6 @@
 using BankingAI.Data.Entities;
 using BankingAI.Data.Enums;
+using BankingAI.Data.Writing;
 using Microsoft.EntityFrameworkCore;
 
 namespace BankingAI.Data.Seeding;
@@ -309,9 +310,9 @@ public static class SyntheticTransactionSeeder
         foreach (var transaction in additions)
         {
             if (transaction.PairId is null)
-                await TransactionSeedWriter.AddAsync(db, transaction, cancellationToken);
+                await TransactionWriter.AddAsync(db, transaction, cancellationToken);
             else if (transaction.Direction == TransactionDirection.Debit)
-                await PairedTransactionSeedWriter.AddAsync(db, transaction,
+                await PairedTransactionWriter.AddAsync(db, transaction,
                     additions.Single(t => t.PairId == transaction.PairId && t.Direction == TransactionDirection.Credit),
                     cancellationToken);
         }

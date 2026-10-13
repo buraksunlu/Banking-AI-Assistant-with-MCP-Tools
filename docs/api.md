@@ -15,7 +15,7 @@ Yerel adres `http://localhost:5248`; OpenAPI `/openapi/v1.json` (geliştirme). G
 | `POST /api/accounts` | evet | uygulandı | API-07 |
 | `GET /api/accounts/{accountId}/transactions` | evet | uygulandı | API-09 |
 | `GET /api/transactions/{id}` | evet | uygulandı | API-10 |
-| `POST /api/accounts/{accountId}/transactions` | evet | planlı (sözleşme API-08'de) | API-11 |
+| `POST /api/accounts/{accountId}/transactions` | evet | uygulandı | API-11 |
 | `GET /api/analytics/…` | evet | planlı | ANA-09 |
 
 Ortak davranış: müşteri yalnız token'dan gelir (istekte müşteri parametresi yoktur); başka müşterinin
@@ -164,7 +164,7 @@ iki kez gönderilmesi iki hesap açar (API-12); 400 cevabı tanınmayan alanda i
 
 ## İşlem sözleşmesi (API-08)
 
-Liste (API-09) ve tek işlem (API-10) uygulandı; ekleme API-11'de.
+Liste (API-09), tek işlem (API-10) ve ekleme (API-11) uygulandı.
 
 ### Dışarı giden işlem: `TransactionItem`
 
@@ -183,7 +183,7 @@ Kullanıcı kararı: API ayrı bir işlem DTO'su yazmaz; analytics'in döndürd�
   `counterpartyIsOwnAccount: true`; dükkân alışverişinde dükkân hesabının adı.
 - Çıkmayan iç alanlar: `pairId`, kategorizasyon kaynağı/güveni/zamanı, `createdAt`, müşteri kimliği.
 
-### İçeri gelen: `CreateTransactionRequest` (API-11'deki `POST /api/accounts/{accountId}/transactions`)
+### İçeri gelen: `CreateTransactionRequest` (`POST /api/accounts/{accountId}/transactions`, API-11)
 
 ```json
 { "kind": "Purchase", "amount": 210.00, "description": "POS 4412 STARBUCKS KADIKOY", "merchant": "Starbucks" }
@@ -262,3 +262,55 @@ liste ve tek işlem aynı `TransactionsController`'da, her metot kendi tam route
 Bilinen sınırlar: transferin iki bacağı ayrı kimliklerdir; müşteri yalnız kendi bacağını okur (karşı taraf maskeli
 adla görünür). OpenAPI şimdilik yalnız `200`'ü gösterir (API-15).
 
+## `POST /api/accounts/{accountId}/transactions` (API-11)
+
+Token gerekir. Müşterinin kendi hesabına **sentetik** bir Purchase (para çıkışı) veya Salary (para girişi) ekler;
+işlem satırı ve bakiye değişimi tek DB transaction'ında yazılır (`TransactionWriter`). Gövde `CreateTransactionRequest`
+(yukarıda). LLM/MCP'ye verilmez (RULE §15); MCP tool'ları read-only kalır.
+
+```http
+POST /api/accounts/{accountId}/transactions
+{ "kind": "Purchase", "amount": 250.75, "description": "POS 4412 STARBUCKS KADIKOY", "merchant": "Starbucks" }
+
+201 Created
+Location: /api/transactions/{id}
+{ "id": "…", "accountId": "…", "kind": "Purchase", "direction": "Debit", "amount": 250.75, "currencyCode": "TRY",
+  "merchant": "Starbucks", "categoryCode": null, "categoryDisplayName": "Sınıflandırılmamış", "…": "…" }
+```
+
+Cevap `GET /api/transactions/{id}` ile birebir aynıdır (kayıttan sonra aynı okuma koduyla okunur).
+
+| Durum | Cevap |
+|---|---|
+| Geçerli istek | `201` + `Location` + işlem |
+| Gövde kuralları (`kind` yalnız Purchase/Salary, tutar, açıklama, merchant, merchant'lı Salary, tanınmayan alan), boş gövde, NUL karakter, GUID olmayan hesap kimliği | `400` |
+| Token yok / geçersiz | `401` |
+| Başkasının / olmayan hesap; token geçerli ama müşteri artık yok (API-13'e kadar) | `404` (birebir aynı gövde) |
+| Yetersiz bakiye; bakiye üst sınırını (9999999999999999,99) aşacak maaş | `409` |
+
+```json
+{ "type": "https://tools.ietf.org/html/rfc9110#section-15.5.10", "title": "Bakiye sınırı", "status": 409,
+  "detail": "Yetersiz bakiye nedeniyle Debit işlemi reddedildi.", "traceId": "…" }
+```
+
+Kullanıcı kararları (API-11, 13 Ekim 2026):
+
+- Yetersiz bakiye **409**: istek geçerli, hesabın şu anki durumu izin vermiyor; aynı istek maaş girdikten sonra
+  başarılı olabilir. Yazıcı bunu ayrı bir tiple (`BalanceLimitException`) bildirir, programlama hataları 500 kalır.
+- **Business hesap da kabul edilir** (karar 3-B). Business hesaptaki harcamalar harcama analizlerinde görünmez
+  (analizler yalnız şahsi hesaplara bakar). Demo dükkânına yazılırsa veri bütünlüğü testinin dükkân fixture'ı değişir.
+- `merchant` olduğu gibi saklanır (`"starbucks"` → `"starbucks"`); sessiz düzeltme yok. Harf farkları merchant
+  dağılımında ayrı satır olur (CAT adımları).
+- Backend belirler: yön (Purchase → Debit, Salary → Credit), para birimi (hesabınki), `occurredAt` (sunucu saati),
+  kategori alanları (yeni işlem "Sınıflandırılmamış").
+
+Eşzamanlılık: bakiye `Balance + delta` olarak, "yeni bakiye 0 ile üst sınır arasında" şartıyla tek `UPDATE`'te
+değişir. Bakiye 100 iken aynı anda gelen iki 60'lık harcamadan biri 201, diğeri 409 alır; bakiye 40 olur. Önceden
+ayrı bir bakiye kontrolü yapılmaz (araya başka istek girebileceği için tek karar veren atomik güncellemedir).
+
+Sorgular (geçici testle ölçüldü): 8 komut — müşteri, sahiplik, hesabın para birimi; aynı kimlik kontrolü, ekleme,
+bakiye güncellemesi; geri okumada saat dilimi ve tek join'li okuma.
+
+Bilinen sınırlar: aynı istek iki kez gönderilirse iki işlem oluşur (API-12); NUL gibi işlem kurallarına takılan
+girdide 400 alan adı iç addır (`RawDescription`; API-13); cevap yeni bakiyeyi taşımaz (hesap ayrıca okunur);
+maaşı istemcinin yazabilmesi yalnız sentetik demo içindir.

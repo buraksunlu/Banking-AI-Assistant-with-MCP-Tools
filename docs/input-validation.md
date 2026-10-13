@@ -6,7 +6,7 @@ Bu belge altı entity için beklenen davranışı ve uygulanan doğrulama sını
 tanımlar. Entity, DbContext, configuration ve migration kontrolleri VAL-07 ile
 uygulandı; geçersiz örnekler C# ve gerçek PostgreSQL üzerinde test edildi.
 Transaction ekleme ile Account.Balance değişimi BAL-01–04 ile aynı atomik yazma
-yolunda birleştirildi (`TransactionSeedWriter`; iki bacaklı kayıtta KIND-03).
+yolunda birleştirildi (bugünkü adı `Writing/TransactionWriter`; iki bacaklı kayıtta KIND-03).
 
 > Durum notu (13 Ekim 2026): Aşağıdaki tablolardaki "mevcut durum" sütunları VAL-01 (9 Ekim)
 > anındaki eksikleri gösterir. Bu eksikler VAL-07 ile kapatıldı (aşağıdaki "VAL-06/VAL-07 uygulama
@@ -388,7 +388,7 @@ ve komisyonsuz satıcı hesabına geçmesi bir demo basitleştirmesidir.
 | --- | --- |
 | Kind ↔ Direction ↔ PairId ↔ kategori uyumu | `InputRules.Kind`, `EntityValidation` ve 5 DB CHECK (KIND-02) |
 | Bir çiftte en fazla bir Debit ve bir Credit | `UNIQUE (PairId, Direction)` |
-| Çiftin iki bacağı birlikte, aynı tutar/para birimi/zamanla yazılır | `PairedTransactionSeedWriter` (KIND-03) |
+| Çiftin iki bacağı birlikte, aynı tutar/para birimi/zamanla yazılır | `PairedTransactionWriter` (KIND-03; API-11'e kadar `PairedTransactionSeedWriter`) |
 | Yarım çift yazılamaz | Tek bacaklı yazıcı PairId'li kaydı reddeder |
 | Sale yalnız Business hesaba | İki bacaklı yazıcı (KIND-04a) ve `CK_Accounts_AccountType` |
 | Seed harcama/bakiye beklentileri | Bağımsız fixture testleri (`SyntheticDatasetIntegrityTests`) |
@@ -431,7 +431,7 @@ ilerliyor (`docs/api.md`); işlem ekleme API-11'de.
 
 - Kredili hesap simülasyonu yoktur. `Account.Balance < 0` C# doğrulaması ve
   `CK_Accounts_Balance_NonNegative` DB CHECK'i ile reddedilir. Seed yazma yolu
-  `TransactionSeedWriter` işlemi ve bakiye farkını aynı transaction'a alır;
+  `TransactionWriter` (eski adı `TransactionSeedWriter`) işlemi ve bakiye farkını aynı transaction'a alır;
   bakiye DB'de atomik artırılıp/azaltılır, yetersiz Debit reddedilir. Eşzamanlılık
   ve hata rollback kabul testleri BAL-03/04 kapsamında PostgreSQL'de geçti.
 - `InputRules` para precision, metin, UTC tarih ve kategori kombinasyonlarını
@@ -444,7 +444,7 @@ ilerliyor (`docs/api.md`); işlem ekleme API-11'de.
 
 ## BAL-03/BAL-04 atomik bakiye yazma kabul testleri
 
-`tests/BankingAI.Data.Tests/AtomicTransactionSeedWriterTests.cs` gerçek PostgreSQL
+`tests/BankingAI.Data.Tests/TransactionWriterTests.cs` (API-11'e kadar `AtomicTransactionSeedWriterTests.cs`) gerçek PostgreSQL
 üzerinde iki senaryoyu doğrular. Sıfır başlangıç bakiyesine önce 100 TRY Credit,
 ardından eşzamanlı 25 TRY Credit ve 40 TRY Debit uygulandı. Sonuç
 `0 + 100 + 25 - 40 = 85 TRY` oldu; test bunu saklanan işlem kayıtlarından

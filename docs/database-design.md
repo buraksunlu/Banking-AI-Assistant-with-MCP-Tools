@@ -153,7 +153,7 @@ Bir müşterinin belirli para birimindeki hesabını temsil eder.
 | CreatedAt | `DateTimeOffset` | `timestamptz` | Required, UTC |
 
 Gerçek IBAN üretilmez. İşlem bulunan hesabın currency'si değiştirilemez.
-Kredili hesap yoktur; negatif/yetersiz bakiye reddedilir. `TransactionSeedWriter`
+Kredili hesap yoktur; negatif/yetersiz bakiye reddedilir. `TransactionWriter` (API-11'e kadar `TransactionSeedWriter`)
 transaction insert'i ile bakiye delta'sını aynı DB transaction'ında uygular.
 Delta DB üzerinde atomik yazılır; bakiye önceden okunup uygulamadan üzerine yazılmaz.
 BAL-03/04 PostgreSQL testlerinde eşzamanlı delta ve iki yönlü rollback kontrolleri geçti.
@@ -302,7 +302,8 @@ boşlukları normaldir. Bu kontroller kalıcı otomatik test projesi değildir.
 - Finansal değerler `decimal`/PostgreSQL `numeric` kullanır; float/double kullanılmaz.
 - Zamanlar UTC `DateTimeOffset`/`timestamptz`; market günü `DateOnly`/`date` olur.
 - Transaction insert'i ve Account balance güncellemesi aynı DB transaction'ında yapılır
-  (`TransactionSeedWriter`, iki bacaklı kayıtta `PairedTransactionSeedWriter`).
+  (`Writing/TransactionWriter`, iki bacaklı kayıtta `Writing/PairedTransactionWriter`; sınır dışı bakiye
+  `BalanceLimitException`).
 - Index'ler gerçek query pattern'lerine göre eklenir; gereksiz index oluşturulmaz.
 
 ## Karşılaştırma kararı — 10 Ekim 2026

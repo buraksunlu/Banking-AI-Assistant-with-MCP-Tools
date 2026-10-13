@@ -74,6 +74,10 @@ Test değişiklikleri transaction rollback ile geri alındı.
 
 ## BAL-01 / BAL-02 atomik transaction yazımı
 
+> Not (API-11, 13 Ekim 2026): yazıcılar `Data/Writing/TransactionWriter` ve `PairedTransactionWriter` adını aldı;
+> aşağıdaki `TransactionSeedWriter` / `PairedTransactionSeedWriter` adları o tarihlerin kaydıdır. Bakiye sınırı
+> ihlali artık `BalanceLimitException` olarak atılır.
+
 `TransactionSeedWriter.AddAsync` seed için tek transaction yazma sınırıdır.
 `BankingDbContext` üzerinde önceden bekleyen değişiklik varsa çağrı reddedilir;
 EF `SaveChanges` bu değişiklikleri de kaydedebileceği için writer temiz bir context ister.

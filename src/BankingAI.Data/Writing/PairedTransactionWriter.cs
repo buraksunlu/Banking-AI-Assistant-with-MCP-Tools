@@ -3,12 +3,12 @@ using BankingAI.Data.Enums;
 using BankingAI.Data.Validation;
 using Microsoft.EntityFrameworkCore;
 
-namespace BankingAI.Data.Seeding;
+namespace BankingAI.Data.Writing;
 
 /// <summary>
-/// Transfer veya iç dükkân alışverişinin iki bacağını ve iki bakiyeyi tek DB transaction'ında yazar.
+/// Writes both legs of a transfer or an internal shop purchase, and both balance changes, in a single DB transaction.
 /// </summary>
-public static class PairedTransactionSeedWriter
+public static class PairedTransactionWriter
 {
     public static async Task AddAsync(
         BankingDbContext db,
@@ -21,9 +21,9 @@ public static class PairedTransactionSeedWriter
         ArgumentNullException.ThrowIfNull(credit);
 
         if (db.Database.CurrentTransaction is not null)
-            throw new InvalidOperationException("PairedTransactionSeedWriter kendi DB transaction'ını yönetir; mevcut transaction ile çağrılamaz.");
+            throw new InvalidOperationException("PairedTransactionWriter kendi DB transaction'ını yönetir; mevcut transaction ile çağrılamaz.");
         if (db.ChangeTracker.HasChanges())
-            throw new InvalidOperationException("PairedTransactionSeedWriter çağrısından önce DbContext'teki değişiklikleri kaydedin veya temizleyin.");
+            throw new InvalidOperationException("PairedTransactionWriter çağrısından önce DbContext'teki değişiklikleri kaydedin veya temizleyin.");
 
         // Every consistency rule is checked before the database is touched.
         ValidatePair(debit, credit);
@@ -55,7 +55,7 @@ public static class PairedTransactionSeedWriter
             // direction. Opposite transfers (a→b, b→a) then wait on the same first row instead of
             // each holding one row and waiting for the other (deadlock, PostgreSQL 40P01).
             foreach (var leg in new[] { debit, credit }.OrderBy(t => t.AccountId))
-                await TransactionSeedWriter.ApplyBalanceDeltaAsync(db, leg, cancellationToken);
+                await TransactionWriter.ApplyBalanceDeltaAsync(db, leg, cancellationToken);
 
             db.Transactions.AddRange(debit, credit);
             await db.SaveChangesAsync(cancellationToken);

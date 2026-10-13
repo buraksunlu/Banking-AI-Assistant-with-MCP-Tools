@@ -142,8 +142,10 @@ configuration'lardaki DB CHECK/unique/FK kısıtları. Yeni kural eklerken dört
   (Purchase/Salary, tutar, açıklama, isteğe bağlı merchant); yön, para birimi, hesap, zaman ve kategori backend'indir.
   Request'lerde tutar kuralı `InputRules.Money` çağrılarak yeniden kullanılır (kopyalanmaz).
   Analytics servisleri controller'a doğrudan (somut sınıf, Scoped) verilir; `TransactionsController` işlem listesini
-  ve tek işlemi (`GetAsync`, API-10) `TransactionSearchService` ile döndürür (yeni sorgu yazma); iki route farklı
-  köklerde olduğu için sınıfta `[Route]` yok, her action tam route'unu taşır. API gerçek saati kullanır: API testlerinde rakam
+  ve tek işlemi (`GetAsync`, API-10) `TransactionSearchService` ile döndürür (yeni sorgu yazma), işlem eklemeyi
+  (`CreateAsync`, API-11, `POST /api/accounts/{accountId}/transactions` → 201 + Location `/api/transactions/{id}`)
+  `ITransactionWriteService` ile yapar; route'lar farklı köklerde olduğu için sınıfta `[Route]` yok, her action tam
+  route'unu taşır. API gerçek saati kullanır: API testlerinde rakam
   kontrolü sabit `from`/`to` ile yapılır, `ThisMonth`/`Last3Months` ile değil.
 - Hesap okuma `Application/Accounts`: `IAccountReadService` (kullanıcı kararı: controller'lar interface'e bağlanır;
   analytics servisleri interface'siz kalır) → `AccountReadService`. Sahiplik yine `CustomerScope`'ta; liste sırası
@@ -161,12 +163,19 @@ configuration'lardaki DB CHECK/unique/FK kısıtları. Yeni kural eklerken dört
 
 `Transaction` doğrudan `db.Add` ile eklenmez:
 
-- `Seeding/TransactionSeedWriter`: tek bacak; insert + `ExecuteUpdate(Balance + delta)` aynı DB
-  transaction'ında. `PairId`'li işlemi reddeder.
-- `Seeding/PairedTransactionSeedWriter`: iki bacak + iki bakiye tek transaction'da; bakiyeler
+- `Writing/TransactionWriter` (API-11'e kadar `Seeding/TransactionSeedWriter`): tek bacak; insert +
+  `ExecuteUpdate(Balance + delta)` aynı DB transaction'ında. `PairId`'li işlemi reddeder. Seed'ler ve API (API-11)
+  kullanır. Kendi transaction'ını yönetir: açık transaction'lı context'i reddeder, bu yüzden testler rollback yapamaz.
+- `Writing/PairedTransactionWriter`: iki bacak + iki bakiye tek transaction'da; bakiyeler
   **her zaman küçük AccountId önce** güncellenir (aksi halde ters yönlü transferler 40P01 deadlock alır).
   Aynı PairId tekrarında şimdilik hata verir (API-12'de düzeltilecek).
-- Bakiye mantığı `TransactionSeedWriter.ApplyBalanceDeltaAsync` içinde ortaktır.
+- Bakiye mantığı `TransactionWriter.ApplyBalanceDeltaAsync` içinde ortaktır. Bakiye 0'ın altına ya da para üst
+  sınırının üstüne çıkacaksa `BalanceLimitException` (InvalidOperationException'dan türer) atılır ve hiçbir şey
+  yazılmaz; API bunu 409'a çevirir. Ön bakiye kontrolü yapılmaz: tek karar veren atomik güncellemedir.
+- API'den yazma: `Application/Transactions/TransactionWriteService` (`ITransactionWriteService`; yalnız Purchase/Salary,
+  yön türden, para birimi hesaptan, zaman `TimeProvider`'dan; Business hesap da kabul edilir — kullanıcı kararı 3-B).
+  Saat entity kurulmadan **önce** okunur: entity'nin `CreatedAt` varsayılanı kurulurken alınır ve yazıcı
+  `OccurredAt > CreatedAt`'i reddeder. LLM/MCP'ye yazma verilmez.
 
 ### Seed'ler
 
@@ -218,12 +227,19 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
   müşterisi olabilir) ve `EmptyCustomer`'a hesap açma (analytics testleri onu hesapsız bekler).
 - `BankingAI.Api.Tests`: `DemoData.cs` Application.Tests'ten link'lenir (kopyalanmaz); `TestApi.JsonOptions` (API'nin JSON ayarları, DB'siz); `TestApi.Create(...)` (WebApplicationFactory + ayar ezme), `TestTokens` (sahte/süresi
   geçmiş token), `TestUser` (commit edilen geçici "Test Api" müşterisi + `apitest.*` girişi, dispose'da silinir,
-  10 dk'dan eski kalıntılar temizlenir; API'den açtığı `ACC-` hesapları da silinir). Yazma testleri demo müşterisine değil `TestUser`'a yapılır.
+  10 dk'dan eski kalıntılar temizlenir; silme sırası işlemler → hesaplar → giriş → müşteri, müşterinin bütün hesapları
+  silinir). Yazma testleri demo müşterisine değil `TestUser`'a yapılır.
+- **İşlem yazan testler (API-11) demo hesabını hiç hedef almaz, ret bekleyen testler dahil:** kasıtlı bozmada kontrol
+  kalkınca yazma gerçekten olur. "Başkasının hesabı" testi ters kurulur (Ada'nın token'ıyla geçici hesaba yazma).
+  Application.Tests'te bunun için `TemporaryCustomer` ("Test Application" müşterisi + hesapları, paylaşımlı kilit,
+  dispose'da işlem → hesap → müşteri silinir) vardır.
 - Ada/Deniz'e geçici hesap açan Data testleri paralel çalışır: Application/Api testleri müşterinin **bütün**
   hesaplarını listeleyip saymamalı (sabit hesap ID'leriyle seçmeli) ya da kilit kullanmalıdır.
 - Test projeleri `dotnet test BankingAI.slnx`'te **paralel** çalışır. Commit eden testler
-  `tests/Shared/CommittedRowsLock.SharedAsync()`, tablo satır sayısı karşılaştıran testler `ExclusiveAsync()` alır
-  (PostgreSQL advisory lock 2026101201; dosya iki test projesine `<Compile Include … Link>` ile bağlı).
+  `tests/Shared/CommittedRowsLock.SharedAsync()`, müşteri ayırmadan satır sayan/toplayan testler `ExclusiveAsync()` alır
+  (PostgreSQL advisory lock 2026101201; dosya üç test projesine `<Compile Include … Link>` ile bağlı). Sınıf boyunca
+  gerekiyorsa `IAsyncLifetime` ile (yazıcı testleri paylaşımlı, `SyntheticDatasetIntegrityTests` özel). **Bir test en
+  fazla bir kilit alır:** ikinci paylaşımlı istek, ilkini bekleyen bir özel isteğin arkasında kuyruğa girer (kilitlenme).
 - `BankingAI.Application.Tests`: seed edilmiş demo DB'yi okur. Demo müşteri/hesap GUID'leri ve
   `DemoNowUtc` tek yerde, `DemoData.cs` içindedir (`using static ...DemoData;`); test dosyasına kopyalama.
 - Beklenen değerler **elle hesaplanmış fixture**'lardır; seeder'dan türetilmez
@@ -247,7 +263,7 @@ ayrı ve engellemeyen bir koldur, altın kaynağı (SRC-02) dış yanıt bekliyo
 ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/AccountType, çift
 yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, arama, en yüksek
 işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu testleri), REC-01–03 (düzenli
-ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi), API-09 (hesabın işlem listesi), API-10 (tek işlem). Sıradaki: API-11+ ve ANA-09; sonra AI, MCP.
+ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi), API-09 (hesabın işlem listesi), API-10 (tek işlem), API-11 (işlem ekleme). Sıradaki: API-12+ ve ANA-09; sonra AI, MCP.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11).
 Güncel ayrıntı her zaman `todo.md`'dedir.

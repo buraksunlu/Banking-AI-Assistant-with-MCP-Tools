@@ -1,5 +1,6 @@
 using BankingAI.Application.Analytics;
 using BankingAI.Data;
+using BankingAI.TestSupport;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 using static BankingAI.Application.Tests.DemoData;
@@ -161,6 +162,8 @@ public sealed class AnalyticsEdgeCaseTests
     [Trait("Category", "PostgreSQL")]
     public async Task Temporary_rows_never_reach_the_demo_data()
     {
+        // A whole-table count: wait until no other test holds committed temporary rows.
+        await using var rowsLock = await CommittedRowsLock.ExclusiveAsync();
         await using var db = Db();
 
         Assert.Equal(116, await db.Transactions.CountAsync());

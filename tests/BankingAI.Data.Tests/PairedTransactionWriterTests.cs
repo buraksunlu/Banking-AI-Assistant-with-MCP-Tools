@@ -1,15 +1,24 @@
 using BankingAI.Data;
 using BankingAI.Data.Entities;
 using BankingAI.Data.Enums;
-using BankingAI.Data.Seeding;
+using BankingAI.Data.Writing;
+using BankingAI.TestSupport;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace BankingAI.Data.Tests;
 
 [Collection(PostgreSqlCollection.Name)]
-public sealed class PairedTransactionSeedWriterTests
+public sealed class PairedTransactionWriterTests : IAsyncLifetime
 {
+    // These tests commit temporary rows and delete them again. The shared lock keeps whole-table counts in
+    // other test projects (exclusive holders) from seeing those rows come and go.
+    private CommittedRowsLock? rowsLock;
+
+    public async Task InitializeAsync() => rowsLock = await CommittedRowsLock.SharedAsync();
+
+    public async Task DisposeAsync() => await rowsLock!.DisposeAsync();
+
     [Fact]
     [Trait("Category", "PostgreSQL")]
     public async Task Transfer_moves_money_between_customers_atomically()
@@ -21,7 +30,7 @@ public sealed class PairedTransactionSeedWriterTests
             var (debit, credit) = Pair(a, b, 40m, TransactionKind.Transfer, TransactionKind.Transfer);
 
             await using (var db = new BankingDbContext())
-                await PairedTransactionSeedWriter.AddAsync(db, debit, credit);
+                await PairedTransactionWriter.AddAsync(db, debit, credit);
 
             Assert.Equal(60m, await BalanceAsync(a));
             Assert.Equal(40m, await BalanceAsync(b));
@@ -49,7 +58,7 @@ public sealed class PairedTransactionSeedWriterTests
             purchase.SetCategorization(foodId, CategorizationSource.Rule);
 
             await using (var db = new BankingDbContext())
-                await PairedTransactionSeedWriter.AddAsync(db, purchase, sale);
+                await PairedTransactionWriter.AddAsync(db, purchase, sale);
 
             var legs = await LegsAsync(purchase.PairId!.Value);
             var storedPurchase = legs.Single(l => l.Kind == TransactionKind.Purchase);
@@ -75,7 +84,7 @@ public sealed class PairedTransactionSeedWriterTests
             await using (var db = new BankingDbContext())
             {
                 var error = await Assert.ThrowsAsync<InvalidOperationException>(
-                    () => PairedTransactionSeedWriter.AddAsync(db, purchase, sale));
+                    () => PairedTransactionWriter.AddAsync(db, purchase, sale));
                 Assert.Contains("Business", error.Message);
             }
 
@@ -98,8 +107,8 @@ public sealed class PairedTransactionSeedWriterTests
 
             await using (var db = new BankingDbContext())
             {
-                var error = await Assert.ThrowsAsync<InvalidOperationException>(
-                    () => PairedTransactionSeedWriter.AddAsync(db, debit, credit));
+                var error = await Assert.ThrowsAsync<BalanceLimitException>(
+                    () => PairedTransactionWriter.AddAsync(db, debit, credit));
                 Assert.Contains("Yetersiz bakiye", error.Message);
             }
 
@@ -126,7 +135,7 @@ public sealed class PairedTransactionSeedWriterTests
             await using (var db = new BankingDbContext())
             {
                 var error = await Assert.ThrowsAsync<InvalidOperationException>(
-                    () => PairedTransactionSeedWriter.AddAsync(db, debit, credit));
+                    () => PairedTransactionWriter.AddAsync(db, debit, credit));
                 Assert.Contains("Hesap bulunamadı", error.Message);
             }
 
@@ -171,12 +180,12 @@ public sealed class PairedTransactionSeedWriterTests
             foreach (var (debitLeg, creditLeg) in invalidPairs)
             {
                 await using var db = new BankingDbContext();
-                await Assert.ThrowsAsync<ArgumentException>(() => PairedTransactionSeedWriter.AddAsync(db, debitLeg, creditLeg));
+                await Assert.ThrowsAsync<ArgumentException>(() => PairedTransactionWriter.AddAsync(db, debitLeg, creditLeg));
             }
 
             var sameId = Leg(a, debit, transfer);
             await using (var db = new BankingDbContext())
-                await Assert.ThrowsAsync<ArgumentException>(() => PairedTransactionSeedWriter.AddAsync(db, sameId,
+                await Assert.ThrowsAsync<ArgumentException>(() => PairedTransactionWriter.AddAsync(db, sameId,
                     new Transaction
                     {
                         Id = sameId.Id, AccountId = b, Amount = 10m, Direction = credit, Kind = transfer, PairId = pairId,
@@ -200,14 +209,14 @@ public sealed class PairedTransactionSeedWriterTests
             await FundAsync(a, 100m);
             var (debit, credit) = Pair(a, b, 40m, TransactionKind.Transfer, TransactionKind.Transfer);
             await using (var db = new BankingDbContext())
-                await PairedTransactionSeedWriter.AddAsync(db, debit, credit);
+                await PairedTransactionWriter.AddAsync(db, debit, credit);
 
             // Same PairId, new transaction ids: the retry must not move money again.
             var (retryDebit, retryCredit) = Pair(a, b, 40m, TransactionKind.Transfer, TransactionKind.Transfer, debit.PairId);
             await using (var db = new BankingDbContext())
             {
                 var error = await Assert.ThrowsAsync<InvalidOperationException>(
-                    () => PairedTransactionSeedWriter.AddAsync(db, retryDebit, retryCredit));
+                    () => PairedTransactionWriter.AddAsync(db, retryDebit, retryCredit));
                 Assert.Contains("zaten mevcut", error.Message);
             }
 
@@ -232,7 +241,7 @@ public sealed class PairedTransactionSeedWriterTests
             {
                 var (debit, credit) = Pair(from, to, 1m, TransactionKind.Transfer, TransactionKind.Transfer);
                 await using var db = new BankingDbContext();
-                await PairedTransactionSeedWriter.AddAsync(db, debit, credit);
+                await PairedTransactionWriter.AddAsync(db, debit, credit);
             }
 
             // Without a fixed lock order, a→b and b→a lock rows in opposite order and PostgreSQL aborts one (40P01).
@@ -288,7 +297,7 @@ public sealed class PairedTransactionSeedWriterTests
     private static async Task FundAsync(Guid accountId, decimal amount)
     {
         await using var db = new BankingDbContext();
-        await TransactionSeedWriter.AddAsync(db, new Transaction
+        await TransactionWriter.AddAsync(db, new Transaction
         {
             AccountId = accountId, Amount = amount, Direction = TransactionDirection.Credit,
             Kind = TransactionKind.OpeningFunding, CurrencyCode = "TRY", RawDescription = "KIND-03 funding",

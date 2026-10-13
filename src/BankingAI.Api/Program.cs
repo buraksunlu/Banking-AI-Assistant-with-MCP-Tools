@@ -4,6 +4,7 @@ using BankingAI.Api.Controllers;
 using BankingAI.Api.Security;
 using BankingAI.Application.Accounts;
 using BankingAI.Application.Analytics;
+using BankingAI.Application.Transactions;
 using BankingAI.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -38,6 +39,7 @@ builder.Services.AddSingleton<PeriodResolver>();
 builder.Services.AddScoped<IAccountReadService, AccountReadService>();
 builder.Services.AddScoped<IAccountWriteService, AccountWriteService>();
 builder.Services.AddScoped<TransactionSearchService>();
+builder.Services.AddScoped<ITransactionWriteService, TransactionWriteService>();
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
     .Configure<JwtSettings>((options, jwt) =>
     {

@@ -1274,8 +1274,9 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   bakiye taşmasında atomik yazma BAL adımlarındadır.
 - Yeni bakiye 0; açılış fonlaması Credit işlemle temsil edilir. Insert ve atomik bakiye
   değişimi aynı DB transaction'ındadır; bakiye DB içinde Balance + delta olarak güncellenir,
-  çünkü yalnız transaction açmak lost update'i engellemez (BAL-01–04: TransactionSeedWriter;
-  KIND-03: PairedTransactionSeedWriter). API'den işlem yazımı API-11'de aynı yolu kullanacak.
+  çünkü yalnız transaction açmak lost update'i engellemez (BAL-01–04 ve KIND-03; API-11'den beri
+  Data/Writing/TransactionWriter ve PairedTransactionWriter). API'den işlem yazımı (API-11) aynı yolu kullanır;
+  sınır dışı bakiye BalanceLimitException ile bildirilir (API'de 409).
 - Negatif bakiye politikası kesinleşti: kredili hesap yok, negatif bakiye ve
   yetersiz bakiye reddedilir. Future/backdated işlem kontrolleri uygulanmıştır.
 - Olay zamanları UTC DateTimeOffset/timestamptz. Npgsql yazımı offset 0;
@@ -1368,7 +1369,8 @@ COMPLETED
   AddCustomerCredentials, AddAccountNumberSequence). Kind/PairId/AccountType kuralları
   C# + DB CHECK ile korunur.
 - Dört katmanlı doğrulama (InputRules → EntityValidation → SaveChanges → DB kısıtı) ve atomik
-  bakiye yazımı (TransactionSeedWriter, PairedTransactionSeedWriter; küçük AccountId önce).
+  bakiye yazımı (Writing/TransactionWriter, PairedTransactionWriter; küçük AccountId önce;
+  sınır dışı bakiye BalanceLimitException).
 - Demo veri: 4 Customer (Ada, Deniz, Ege + hesapsız Demo Customer), 7 Account (1 Business
   dükkân), 11 kategori, 116 Transaction (44 Credit, 72 Debit, 9 çift), 3 MarketAsset;
   DailyMarketPrices boş.
@@ -1382,21 +1384,25 @@ COMPLETED
   GET/POST /api/accounts, GET /api/accounts/{id}, işlem sözleşmesi (TransactionItem +
   CreateTransactionRequest), GET /api/accounts/{id}/transactions (sayfalı),
   GET /api/transactions/{id} (docs/api.md).
+- İşlem ekleme (API-11): POST /api/accounts/{accountId}/transactions → 201 + Location; yalnız sentetik
+  Purchase/Salary, yön türden, para birimi hesaptan, zaman sunucudan; yetersiz bakiye ve üst sınır 409;
+  Business hesap da kabul edilir (kullanıcı kararı 3-B); ITransactionWriteService/TransactionWriteService.
 
 IN PROGRESS
-- API bölümünün kalanı: API-11 (işlem ekleme), API-12 (idempotency), API-13 (ortak hata
-  cevabı), API-14/15; ANA-09 (analytics endpoint'leri + demo "şimdi" kararı).
+- API bölümünün kalanı: API-12 (idempotency), API-13 (ortak hata cevabı), API-14/15; ANA-09
+  (analytics endpoint'leri + demo "şimdi" kararı).
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Kullanıcının seçtiği API-11+/ANA-09 maddesi; ardından local AI (todo bölüm 15) ve read-only
+- Kullanıcının seçtiği API-12+/ANA-09 maddesi; ardından local AI (todo bölüm 15) ve read-only
   MCP (bölüm 16). Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14, MCP-15–18) ANA-09'dan
   sonra; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 
 KNOWN ISSUES
-- Silinmiş müşterinin token'ı GET /api/accounts/{id} ve GET /api/transactions/{id}'de 404,
+- Silinmiş müşterinin token'ı GET /api/accounts/{id}, GET /api/transactions/{id} ve işlem eklemede 404,
   diğer endpoint'lerde 401 alıyor (API-13'te 401'de birleşecek).
+- İşlem kurallarına takılan girdide (ör. NUL) 400 alan adı iç addır ("RawDescription"; API-13).
 - 400 cevapları .NET'in "(Parameter '…')" ekini ve tanınmayan alanda iç tip adını içeriyor (API-13).
 - Enum girdisi harf büyüklüğüne duyarsız ("purchase" kabul ediliyor; API-13'te ele alınabilir).
 - Offset sayfalamasında araya yeni işlem girerse sayfa kenarında bir işlem tekrar görülebilir.
@@ -1405,19 +1411,20 @@ KNOWN ISSUES
 
 TECHNICAL DEBT
 - Ayrı test veritabanı yok (DB-01); testler seed edilmiş demo DB'yi rollback/geçici kayıtla kullanıyor.
-- Hesap sayısı sınırı ertelendi (ACC-LIMIT); aynı POST iki kez gönderilirse iki kayıt oluşur (API-12).
-- PairedTransactionSeedWriter aynı PairId tekrarında hata veriyor (API-12); yazıcıların Seeding/
-  dışına taşınması API-11'de kararlaştırılacak.
+- Hesap sayısı sınırı ertelendi (ACC-LIMIT); aynı POST (hesap veya işlem) iki kez gönderilirse iki kayıt
+  oluşur (API-12).
+- PairedTransactionWriter aynı PairId tekrarında hata veriyor (API-12).
 - Aylık seri satırları C#'ta aylara dağıtıyor (PERF-02'de ölçülecek).
 - Logout/token iptali, refresh token ve hesap kilitleme yok; HTTPS ve proxy IP kararları OPS-04'te.
 - OpenAPI belgesi yalnız 200 cevaplarını gösteriyor (API-15).
 
 TEST STATUS
-- Tam paket yeşil (13 Ekim 2026): Data 58, Application 164, Api 124; dotnet build
+- Tam paket yeşil (13 Ekim 2026, API-11 sonrası): Data 59, Application 175, Api 139; dotnet build
   --no-incremental 0 uyarı.
 - PostgreSQL testleri seed edilmiş demo DB üzerinde çalışır: rollback ya da geçici DUMMY-*TEST-*
   hesap / "Test Api" müşterisi açıp silme. Test projeleri paralel koşar; commit eden ve satır sayan
-  testler tests/Shared/CommittedRowsLock (advisory lock 2026101201) ile sıralanır.
+  testler tests/Shared/CommittedRowsLock (advisory lock 2026101201) ile sıralanır; müşteri ayırmadan sayan
+  testler özel kilit alır. İşlem yazan testler demo hesabını hiç hedef almaz (TestUser / TemporaryCustomer).
 - Beklenen değerler elle hesaplanmış fixture'lardır (SyntheticDatasetIntegrityTests,
   docs/synthetic-seed.md). Mevcut davranışı kapsayan yeni testler kasıtlı bozmayla doğrulanır.
 - Henüz yok: market import, AI, MCP ve SwiftUI testleri; ayrı test DB'si.

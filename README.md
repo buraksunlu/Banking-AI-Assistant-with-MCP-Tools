@@ -13,7 +13,7 @@ read-only olacaktır. Her şey ücretsiz ve yereldir (local Qwen + Ollama). Ger�
 | --- | --- |
 | Veritabanı + synthetic demo veri | Tamam: 6 domain tablosu + giriş tablosu, 12 migration, 3 demo müşteri, 7 hesap, 116 işlem |
 | Deterministik analytics | Tamam: özet, kategori, merchant, arama, en yüksek işlemler, dönem karşılaştırması, aylık seri, düzenli ödemeler |
-| HTTP API | Sürüyor: giriş/JWT, hesaplar, işlem listesi ve tek işlem hazır; işlem ekleme (API-11) ve analytics endpoint'leri (ANA-09) sırada |
+| HTTP API | Sürüyor: giriş/JWT, hesaplar, işlem listesi, tek işlem ve işlem ekleme hazır; analytics endpoint'leri (ANA-09) sırada |
 | Local AI (FastAPI + LangChain + Qwen), MCP, SwiftUI | Henüz başlamadı |
 | Market verisi (USDTRY/EURTRY/gram altın) | Ayrı kol; altın kaynağı dış yanıt bekliyor, import yok |
 
@@ -136,7 +136,7 @@ Authorization: Bearer <token>
 | `POST /api/accounts` | Yeni şahsi hesap (bakiye 0, numara `ACC-n`) | API-07 |
 | `GET /api/accounts/{accountId}/transactions` | Hesabın işlemleri, sayfalı; varsayılan son 3 ay | API-09 |
 | `GET /api/transactions/{id}` | Tek işlem; başkasının işlemi = olmayan işlem (404) | API-10 |
-| `POST /api/accounts/{accountId}/transactions` | *Planlı:* Purchase/Salary ekleme | API-11 |
+| `POST /api/accounts/{accountId}/transactions` | Sentetik Purchase/Salary ekler, bakiyeyi atomik değiştirir; yetersiz bakiye 409 | API-11 |
 | `GET /api/analytics/…` | *Planlı:* analytics servisleri | ANA-09 |
 
 JSON kuralları: enum'lar yazıyla, para JSON sayısı (`577490.18`), yazma isteğinde tanınmayan alan 400.
@@ -173,8 +173,8 @@ MarketAsset 1 ── N DailyMarketPrice
 - **CustomerCredential:** giriş bilgisi; şifre saklanmaz, yalnız `PasswordHasher` özeti tutulur.
 - **MarketAsset / DailyMarketPrice:** USDTRY, EURTRY, GRAM_GOLD_TRY tanımlı; fiyat kaydı henüz yok.
 
-İşlem satırı doğrudan `db.Add` ile eklenmez. `TransactionSeedWriter` (tek kayıt) ve
-`PairedTransactionSeedWriter` (iki kayıt) işlemi ve bakiye değişimini aynı DB transaction'ında yazar.
+İşlem satırı doğrudan `db.Add` ile eklenmez. `Writing/TransactionWriter` (tek kayıt; seed'ler ve API) ve
+`Writing/PairedTransactionWriter` (iki kayıt) işlemi ve bakiye değişimini aynı DB transaction'ında yazar.
 Bakiye DB içinde `Balance + delta` olarak güncellenir. Tablolar ve kurallar
 [docs/database-design.md](docs/database-design.md) ve [docs/input-validation.md](docs/input-validation.md) içindedir.
 
@@ -210,7 +210,7 @@ dotnet tool run dotnet-ef migrations add <Name> --project src/BankingAI.Data --s
 
 ## Yol haritası
 
-1. API'nin kalanı: işlem ekleme (API-11), tekrar gönderilen istek (API-12), ortak hata cevabı (API-13),
+1. API'nin kalanı: tekrar gönderilen istek (API-12), ortak hata cevabı (API-13),
    analytics endpoint'leri (ANA-09).
 2. Local AI: Qwen model seçimi, Ollama, FastAPI + LangChain; önce backend sonucunu Türkçe açıklama.
 3. Read-only MCP tool'ları; Qwen tool seçer, argümanlar backend'de yeniden doğrulanır.

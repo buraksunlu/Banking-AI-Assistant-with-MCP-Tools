@@ -3,12 +3,13 @@ using BankingAI.Data.Enums;
 using BankingAI.Data.Validation;
 using Microsoft.EntityFrameworkCore;
 
-namespace BankingAI.Data.Seeding;
+namespace BankingAI.Data.Writing;
 
 /// <summary>
-/// Seed amaçlı transaction insert'i ile account bakiyesini tek DB transaction'ında yazar.
+/// Writes one unpaired transaction and the matching account balance change in a single DB transaction.
+/// Used by the seeds and by the API; the balance is changed atomically inside PostgreSQL.
 /// </summary>
-public static class TransactionSeedWriter
+public static class TransactionWriter
 {
     private const decimal MaximumBalance = 9999999999999999.99m;
 
@@ -21,9 +22,9 @@ public static class TransactionSeedWriter
         ArgumentNullException.ThrowIfNull(transaction);
 
         if (db.Database.CurrentTransaction is not null)
-            throw new InvalidOperationException("TransactionSeedWriter kendi DB transaction'ını yönetir; mevcut transaction ile çağrılamaz.");
+            throw new InvalidOperationException("TransactionWriter kendi DB transaction'ını yönetir; mevcut transaction ile çağrılamaz.");
         if (db.ChangeTracker.HasChanges())
-            throw new InvalidOperationException("TransactionSeedWriter çağrısından önce DbContext'teki değişiklikleri kaydedin veya temizleyin.");
+            throw new InvalidOperationException("TransactionWriter çağrısından önce DbContext'teki değişiklikleri kaydedin veya temizleyin.");
 
         // Writing one leg of a pair here would leave half a transfer/sale; KIND-03 adds the two-leg writer.
         if (transaction.PairId is not null)
@@ -80,9 +81,10 @@ public static class TransactionSeedWriter
             if (!accountExists)
                 throw new InvalidOperationException("Hesap bulunamadı veya işlem para birimi hesapla eşleşmiyor.");
 
-            throw new InvalidOperationException(transaction.Direction == TransactionDirection.Debit
+            // A distinct type, so callers can tell this state-dependent refusal from a programming error.
+            throw new BalanceLimitException(transaction.Direction == TransactionDirection.Debit
                 ? "Yetersiz bakiye nedeniyle Debit işlemi reddedildi."
-                : "Credit işlemi hesap bakiye sınırını aşar.");
+                : "Credit işlemi hesap bakiyesinin üst sınırını aşar.");
         }
 
         // ExecuteUpdate bypasses EF's change tracker. Refresh a previously loaded Account
