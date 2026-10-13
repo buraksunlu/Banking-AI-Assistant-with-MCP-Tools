@@ -229,8 +229,9 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
   (`SyntheticDatasetIntegrityTests`, `docs/synthetic-seed.md`). Seed eklemek bakiye/sayı fixture'larını değiştirir.
 - Mevcut davranışı kapsayan yeni testler yeşil başlarsa, kodu geçici bozup (ör. sınırda `<` → `<=`)
   kırmızıyı gör, sonra geri al. Değişikliği dosyanın kendisinde yap ve `git checkout -- <dosya>` ile
-  geri al; `cp`/`mv` ile yedek dosya kullanma (proje iCloud'lu Masaüstünde, " 2" adlı çakışma
-  kopyaları oluşuyor ve `.cs` kopyası derlemeyi bozar). Sonunda `dotnet build --no-incremental` ile
+  geri al; `cp`/`mv` ile yedek dosya kullanma (proje klasörüne fazladan `.cs` kopyası derlemeyi bozar).
+  Proje 13 Ekim 2026'da iCloud'lu Masaüstünden `~/Projects/VAKIFBANK/AI_Assistant`'ye taşındı; iCloud `.git`
+  nesnelerini buluta alıp git'i kilitliyordu. Depoyu iCloud/eşitlenen klasöre geri koyma. Sonunda `dotnet build --no-incremental` ile
   doğrula; eski dosya zamanı MSBuild'in bozuk derlemeyi kullanmasına yol açabilir.
 - Yeni enum kolonunda EF migration'ı `NOT NULL DEFAULT 0` üretir: elle nullable ekle → backfill →
   belirsiz kayıtta `RAISE EXCEPTION` → `NOT NULL` yap. DB varsayılanı olmadığı için testlerdeki ham
