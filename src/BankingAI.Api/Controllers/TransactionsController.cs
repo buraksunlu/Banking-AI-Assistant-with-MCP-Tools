@@ -1,9 +1,91 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using BankingAI.Api.Security;
+using BankingAI.Application.Analytics;
 using BankingAI.Data.Enums;
 using BankingAI.Data.Validation;
+using Microsoft.AspNetCore.Mvc;
 
 namespace BankingAI.Api.Controllers;
+
+/// <summary>
+/// One page of an account's transactions: the resolved period, how many transactions it holds, whether more
+/// pages follow, and the items (the shared <see cref="TransactionItem"/>, newest first).
+/// </summary>
+public sealed record TransactionPage(ResolvedPeriod Period, int TotalCount, bool HasMore, IReadOnlyList<TransactionItem> Items);
+
+/// <summary>
+/// Transactions of one of the logged-in customer's accounts. Listing, filtering and ownership are done by
+/// <see cref="TransactionSearchService"/>; this controller only translates HTTP.
+/// </summary>
+[ApiController]
+[Route("api/accounts/{accountId}/transactions")]
+public sealed class TransactionsController(TransactionSearchService search) : ControllerBase
+{
+    /// <summary>Period used when the client gives neither a period nor dates (decision 1-B).</summary>
+    public const PeriodKind DefaultPeriod = PeriodKind.Last3Months;
+
+    /// <summary>
+    /// <c>GET /api/accounts/{accountId}/transactions</c>: a page of the account's transactions, newest first.
+    /// Either a symbolic <paramref name="period"/> or both <paramref name="from"/> and <paramref name="to"/>
+    /// (local dates, inclusive); neither means the last three months. Another customer's account is a 404.
+    /// </summary>
+    [HttpGet]
+    public async Task<ActionResult<TransactionPage>> ListAsync(
+        Guid accountId,
+        [FromQuery] string? period,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        [FromQuery] int limit = TransactionSearchService.DefaultLimit,
+        [FromQuery] int offset = 0,
+        CancellationToken cancellationToken = default)
+    {
+        if ((from is null) != (to is null))
+            return Invalid(nameof(from), "Başlangıç ve bitiş tarihi birlikte verilmeli.");
+
+        PeriodKind kind;
+        if (from is not null)
+        {
+            if (period is not null)
+                return Invalid(nameof(period), "Dönem adı ile tarih aralığı birlikte verilemez.");
+            kind = PeriodKind.Custom;
+        }
+        else if (period is null)
+        {
+            kind = DefaultPeriod;
+        }
+        // Names only, like enums in JSON: Enum.TryParse would also accept "2". A custom range comes from dates.
+        else if (period.Any(char.IsDigit) || !Enum.TryParse(period, ignoreCase: true, out kind)
+                 || !Enum.IsDefined(kind) || kind == PeriodKind.Custom)
+        {
+            return Invalid(nameof(period), "ThisMonth, LastMonth, Last3Months veya Last6Months olmalı.");
+        }
+
+        try
+        {
+            var result = await search.SearchAsync(
+                new TransactionSearchQuery(User.GetCustomerId(), kind, from, to, accountId, Limit: limit, Offset: offset),
+                cancellationToken);
+            return Ok(new TransactionPage(result.Period, result.TotalCount, result.HasMore, result.Items));
+        }
+        catch (KeyNotFoundException)
+        {
+            // A missing or foreign account (and, until API-13, a customer that no longer exists): the same 404.
+            return NotFound();
+        }
+        catch (ArgumentException error)
+        {
+            // Limit/offset bounds and date rules are enforced by the service and the period resolver.
+            return Invalid(error.ParamName ?? nameof(period), error.Message);
+        }
+    }
+
+    private ActionResult Invalid(string field, string message)
+    {
+        ModelState.AddModelError(field, message);
+        return ValidationProblem(ModelState);
+    }
+}
 
 /// <summary>
 /// Body of <c>POST /api/accounts/{accountId}/transactions</c> (API-11): only the event itself. The backend

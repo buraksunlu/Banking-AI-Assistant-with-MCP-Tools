@@ -184,3 +184,40 @@ kararı), kategori alanları (bankanın yorumu; yeni işlem "Sınıflandırılma
 
 Bilinen sınır: enum girdisi harf büyüklüğüne duyarsız (`"purchase"` de `Purchase` olarak okunur).
 
+## `GET /api/accounts/{accountId}/transactions` (API-09)
+
+Token gerekir. Hesabın işlemlerini en yeniden eskiye (eşitse işlem kimliği) sayfa sayfa döndürür. Liste,
+filtre ve sahiplik `TransactionSearchService` içindedir; bütün türler (maaş, transfer, satış, harcama)
+ve Business hesaplar dahildir.
+
+| Parametre | Kural |
+|---|---|
+| `period` | isteğe bağlı, yalnız adla: `ThisMonth`, `LastMonth`, `Last3Months`, `Last6Months` |
+| `from`, `to` | isteğe bağlı, `yyyy-MM-dd`, **birlikte** (yerel tarih, dahil; özel dönem en fazla 24 ay); `period` ile birlikte verilemez |
+| (ikisi de yoksa) | **son 3 ay** (kullanıcı kararı) |
+| `limit` | 1–50, varsayılan 20 |
+| `offset` | 0–10.000, varsayılan 0 |
+
+Tür/yön/kategori/merchant filtreleri bu endpoint'te yoktur (kullanıcı kararı; ANA-09'da).
+
+```json
+{
+  "period": { "kind": "Custom", "startUtc": "2026-09-30T21:00:00+00:00", "endUtc": "2026-10-10T21:00:00+00:00",
+              "startDate": "2026-10-01", "endDate": "2026-10-10" },
+  "totalCount": 8,
+  "hasMore": true,
+  "items": [ { "id": "30000000-0000-0000-0000-000000000604", "kind": "Purchase", "amount": 145.00, "...": "..." } ]
+}
+```
+
+| Durum | Cevap |
+|---|---|
+| Kendi hesabı | `200` + sayfa (işlem yoksa `items: []`, `totalCount: 0`) |
+| Başka müşterinin / olmayan hesap | `404` (birebir aynı gövde) |
+| Bozuk parametre (limit/offset sınırı, tek tarih, `from` > `to`, 24 aydan uzun, `period` + tarih, `period=Custom`/`2`/`Foo`, geçersiz tarih) veya GUID olmayan kimlik | `400` |
+| Token yok / geçersiz | `401` |
+
+Bilinen sınırlar: offset sayfalamasında liste gezilirken araya yeni işlem girerse sayfa kenarında bir
+işlem tekrar görünebilir (istemci kimliğe göre ayıklamalı); API gerçek saati kullanır (demo "şimdi" ANA-09);
+silinmiş müşterinin token'ı şimdilik `404` (API-13); 400 mesajlarında .NET'in `(Parameter '…')` eki var (API-13).
+

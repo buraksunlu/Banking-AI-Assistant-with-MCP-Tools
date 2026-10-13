@@ -37,6 +37,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
 builder.Services.AddSingleton<PeriodResolver>();
 builder.Services.AddScoped<IAccountReadService, AccountReadService>();
 builder.Services.AddScoped<IAccountWriteService, AccountWriteService>();
+builder.Services.AddScoped<TransactionSearchService>();
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
     .Configure<JwtSettings>((options, jwt) =>
     {
