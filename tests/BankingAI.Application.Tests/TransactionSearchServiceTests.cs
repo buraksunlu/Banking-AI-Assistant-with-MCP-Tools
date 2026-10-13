@@ -181,6 +181,113 @@ public sealed class TransactionSearchServiceTests
         await Assert.ThrowsAsync<ArgumentException>(() => SearchAsync(new(Ada, PeriodKind.ThisMonth, Limit: limit, Offset: offset)));
     }
 
+    // API-10: one transaction by id. Expected values are the seeded rows (docs/synthetic-seed.md), Istanbul time.
+    private static Guid Tx(int ordinal) => Guid.Parse($"30000000-0000-0000-0000-{ordinal:D12}");
+
+    private static async Task<TransactionItem> GetAsync(Guid customerId, Guid transactionId, CancellationToken cancellationToken = default)
+    {
+        await using var db = new BankingDbContext();
+        return await new TransactionSearchService(db, new PeriodResolver(new FixedTimeProvider(DemoNowUtc)))
+            .GetAsync(customerId, transactionId, cancellationToken);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task One_transaction_is_returned_with_every_field()
+    {
+        var item = await GetAsync(Ada, Tx(602));
+
+        Assert.Equal(new TransactionItem(
+            Tx(602), AdaTryAccount, "Ada günlük TRY", new DateTimeOffset(2026, 10, 6, 9, 0, 0, TimeSpan.Zero), new DateOnly(2026, 10, 6),
+            TransactionKind.Purchase, TransactionDirection.Debit, 210.00m, "TRY", "Starbucks", "FOOD", "Yeme & İçme",
+            "POS 4412 STARBUCKS KADIKOY", null, false), item);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Counterparties_are_masked_or_named_like_in_the_statement()
+    {
+        var outgoing = await GetAsync(Ada, Tx(711));
+        var incoming = await GetAsync(Ada, Tx(718));
+        var shopPurchase = await GetAsync(Ada, Tx(709));
+        var ownShopTransfer = await GetAsync(Deniz, Tx(707));
+
+        Assert.Equal((TransactionKind.Transfer, TransactionDirection.Debit, 1500m, "Deniz M***", false, (string?)null),
+            (outgoing.Kind, outgoing.Direction, outgoing.Amount, outgoing.Counterparty, outgoing.CounterpartyIsOwnAccount, outgoing.CategoryDisplayName));
+        Assert.Equal((TransactionDirection.Credit, 300m, "Ege Y***"), (incoming.Direction, incoming.Amount, incoming.Counterparty));
+        Assert.Equal((TransactionKind.Purchase, 120m, "Kahve Durağı – Kadıköy", false),
+            (shopPurchase.Kind, shopPurchase.Amount, shopPurchase.Counterparty, shopPurchase.CounterpartyIsOwnAccount));
+        Assert.Equal((2000m, "Kahve Durağı – Kadıköy", true, new DateOnly(2026, 9, 30)),
+            (ownShopTransfer.Amount, ownShopTransfer.Counterparty, ownShopTransfer.CounterpartyIsOwnAccount, ownShopTransfer.LocalDate));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task A_business_account_transaction_is_readable_by_its_owner()
+    {
+        var sale = await GetAsync(Deniz, Tx(710));
+
+        Assert.Equal((DenizShopAccount, "Kahve Durağı – Kadıköy", TransactionKind.Sale, TransactionDirection.Credit, 120m, "Ada K***", (string?)null),
+            (sale.AccountId, sale.AccountName, sale.Kind, sale.Direction, sale.Amount, sale.Counterparty, sale.CategoryDisplayName));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task There_is_no_period_limit()
+    {
+        // Ada's USD opening funding from April 2025, far outside any default listing window.
+        var funding = await GetAsync(Ada, Tx(1));
+
+        Assert.Equal((AdaUsdAccount, "Ada USD", TransactionKind.OpeningFunding, TransactionDirection.Credit, 500.00m, "USD", new DateOnly(2025, 4, 1)),
+            (funding.AccountId, funding.AccountName, funding.Kind, funding.Direction, funding.Amount, funding.CurrencyCode, funding.LocalDate));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Another_customers_transaction_is_reported_exactly_like_a_missing_one()
+    {
+        // 710 is the shop leg of Ada's own purchase 709 and 712 the receiving leg of her transfer 711: related
+        // to Ada, but on Deniz's accounts.
+        var errors = new[]
+        {
+            await Assert.ThrowsAsync<KeyNotFoundException>(() => GetAsync(Ada, Tx(710))),
+            await Assert.ThrowsAsync<KeyNotFoundException>(() => GetAsync(Ada, Tx(712))),
+            await Assert.ThrowsAsync<KeyNotFoundException>(() => GetAsync(Ada, Guid.NewGuid())),
+            await Assert.ThrowsAsync<KeyNotFoundException>(() => GetAsync(Ada, Guid.Empty))
+        };
+
+        Assert.All(errors, e => Assert.Equal("İşlem bulunamadı.", e.Message));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task An_unknown_or_empty_customer_is_rejected()
+    {
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => GetAsync(Guid.NewGuid(), Tx(602)));
+        await Assert.ThrowsAsync<ArgumentException>(() => GetAsync(Guid.Empty, Tx(602)));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task A_single_transaction_equals_its_statement_row()
+    {
+        var statement = await SearchAsync(new(Ada, PeriodKind.ThisMonth));
+
+        Assert.Equal(8, statement.Items.Count);
+        foreach (var row in statement.Items)
+            Assert.Equal(row, await GetAsync(Ada, row.Id));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task A_cancelled_single_read_stops_the_query()
+    {
+        using var cancelled = new CancellationTokenSource();
+        await cancelled.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => GetAsync(Ada, Tx(602), cancelled.Token));
+    }
+
     [Fact]
     [Trait("Category", "PostgreSQL")]
     public async Task Contradictory_filters_are_rejected()

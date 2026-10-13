@@ -142,7 +142,8 @@ configuration'lardaki DB CHECK/unique/FK kısıtları. Yeni kural eklerken dört
   (Purchase/Salary, tutar, açıklama, isteğe bağlı merchant); yön, para birimi, hesap, zaman ve kategori backend'indir.
   Request'lerde tutar kuralı `InputRules.Money` çağrılarak yeniden kullanılır (kopyalanmaz).
   Analytics servisleri controller'a doğrudan (somut sınıf, Scoped) verilir; `TransactionsController` işlem listesini
-  `TransactionSearchService` ile döndürür (yeni sorgu yazma). API gerçek saati kullanır: API testlerinde rakam
+  ve tek işlemi (`GetAsync`, API-10) `TransactionSearchService` ile döndürür (yeni sorgu yazma); iki route farklı
+  köklerde olduğu için sınıfta `[Route]` yok, her action tam route'unu taşır. API gerçek saati kullanır: API testlerinde rakam
   kontrolü sabit `from`/`to` ile yapılır, `ThisMonth`/`Last3Months` ile değil.
 - Hesap okuma `Application/Accounts`: `IAccountReadService` (kullanıcı kararı: controller'lar interface'e bağlanır;
   analytics servisleri interface'siz kalır) → `AccountReadService`. Sahiplik yine `CustomerScope`'ta; liste sırası
@@ -244,5 +245,5 @@ ayrı ve engellemeyen bir koldur, altın kaynağı (SRC-02) dış yanıt bekliyo
 ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/AccountType, çift
 yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, arama, en yüksek
 işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu testleri), REC-01–03 (düzenli
-ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi), API-09 (hesabın işlem listesi). Sıradaki: API-10+ ve ANA-09; sonra AI, MCP.
+ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi), API-09 (hesabın işlem listesi), API-10 (tek işlem). Sıradaki: API-11+ ve ANA-09; sonra AI, MCP.
 Güncel ayrıntı her zaman `todo.md`'dedir.

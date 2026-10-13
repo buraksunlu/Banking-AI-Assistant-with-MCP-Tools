@@ -221,3 +221,26 @@ Bilinen sınırlar: offset sayfalamasında liste gezilirken araya yeni işlem gi
 işlem tekrar görünebilir (istemci kimliğe göre ayıklamalı); API gerçek saati kullanır (demo "şimdi" ANA-09);
 silinmiş müşterinin token'ı şimdilik `404` (API-13); 400 mesajlarında .NET'in `(Parameter '…')` eki var (API-13).
 
+## `GET /api/transactions/{id}` (API-10)
+
+Token gerekir. Tek işlemi kimliğiyle, **zarfsız** düz `TransactionItem` olarak döndürür (liste kalemiyle birebir
+aynı biçim). Okuma `TransactionSearchService.GetAsync`'tedir: bütün türler, müşterinin bütün hesapları (Business
+dükkân dahil), **dönem sınırı yok** (2025 kaydı da okunur). Sahiplik aynı sorgunun içindedir (2 SQL komutu: saat
+dilimi + tek join'li okuma).
+
+| Durum | Cevap |
+|---|---|
+| Kendi hesabındaki işlem | `200` + `TransactionItem` |
+| Olmayan işlem (sıfır GUID dahil) | `404` |
+| **Başka müşterinin hesabındaki işlem** | `404`, olmayan işlemle birebir aynı gövde. Ada'nın kendi alışverişinin dükkândaki bacağı (Deniz'in hesabı) da bu durumdadır |
+| Kimlik GUID değil (`abc`, `123`) | `400` (route kısıtı yok; kullanıcı kararı, API-06 ile aynı) |
+| Token yok / geçersiz | `401` |
+| Token geçerli ama müşteri artık yok | şimdilik `404` (API-13'te `401`) |
+
+Kullanıcı kararları (API-10): okuma ayrı servis değil arama servisinin metodu (analytics interface'siz kalır);
+liste ve tek işlem aynı `TransactionsController`'da, her metot kendi tam route'unu taşır; adres iç içe değil
+`api/transactions/{id}` (hesap kimliği gerekmez).
+
+Bilinen sınırlar: transferin iki bacağı ayrı kimliklerdir; müşteri yalnız kendi bacağını okur (karşı taraf maskeli
+adla görünür). OpenAPI şimdilik yalnız `200`'ü gösterir (API-15).
+

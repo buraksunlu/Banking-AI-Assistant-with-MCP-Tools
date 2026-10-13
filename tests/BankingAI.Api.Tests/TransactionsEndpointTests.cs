@@ -158,4 +158,89 @@ public sealed class TransactionsEndpointTests
 
         Assert.Equal(HttpStatusCode.BadRequest, status);
     }
+
+    // API-10. GET /api/transactions/{id}: one transaction of the token's customer, no period limit.
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task One_transaction_requires_a_token()
+    {
+        var (status, _) = await GetAsync($"/api/transactions/{Tx(602)}");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, status);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task One_transaction_is_the_plain_transaction_item()
+    {
+        var (status, body) = await GetAsync($"/api/transactions/{Tx(602)}", Ada);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        var json = JsonNode.Parse(body)!.AsObject();
+        // No envelope and no internal fields (pairId, categorization source, customer id).
+        Assert.Equal(
+            ["id", "accountId", "accountName", "occurredAtUtc", "localDate", "kind", "direction", "amount", "currencyCode",
+             "merchant", "categoryCode", "categoryDisplayName", "rawDescription", "counterparty", "counterpartyIsOwnAccount"],
+            json.Select(p => p.Key));
+        Assert.Equal((Tx(602), AdaTryAccount, "Purchase", "210.00", "2026-10-06", "Starbucks"),
+            (json["id"]!.GetValue<Guid>(), json["accountId"]!.GetValue<Guid>(), json["kind"]!.GetValue<string>(),
+             json["amount"]!.ToJsonString(), json["localDate"]!.GetValue<string>(), json["merchant"]!.GetValue<string>()));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task A_shop_owner_reads_a_sale_on_the_business_account()
+    {
+        var (status, body) = await GetAsync($"/api/transactions/{Tx(710)}", Deniz);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        var json = JsonNode.Parse(body)!;
+        Assert.Equal(("Sale", "Credit", "Ada K***"),
+            (json["kind"]!.GetValue<string>(), json["direction"]!.GetValue<string>(), json["counterparty"]!.GetValue<string>()));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Another_customers_transaction_gets_exactly_the_404_of_a_missing_one()
+    {
+        // 710 is the shop's leg of Ada's own purchase 709: related to her, but on Deniz's account.
+        var foreign = await GetAsync($"/api/transactions/{Tx(710)}", Ada);
+        var missing = await GetAsync($"/api/transactions/{Guid.NewGuid()}", Ada);
+
+        Assert.Equal(HttpStatusCode.NotFound, foreign.Status);
+        Assert.Equal(HttpStatusCode.NotFound, missing.Status);
+        Assert.Equal(WithoutTraceId(missing.Body), WithoutTraceId(foreign.Body));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task The_all_zero_id_is_a_missing_transaction()
+    {
+        var (status, _) = await GetAsync($"/api/transactions/{Guid.Empty}", Ada);
+
+        Assert.Equal(HttpStatusCode.NotFound, status);
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("abc")]
+    [InlineData("123")]
+    public async Task A_malformed_transaction_id_is_400(string id)
+    {
+        var (status, _) = await GetAsync($"/api/transactions/{id}", Ada);
+
+        Assert.Equal(HttpStatusCode.BadRequest, status);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task One_transaction_for_a_customer_that_no_longer_exists_is_404_until_api_13()
+    {
+        // Decision 4-A, as for GET /api/accounts/{id}: a missing customer and a missing transaction share one
+        // exception, so the endpoint cannot tell them apart until API-13.
+        var (status, _) = await GetAsync($"/api/transactions/{Tx(602)}", Guid.NewGuid());
+
+        Assert.Equal(HttpStatusCode.NotFound, status);
+    }
 }

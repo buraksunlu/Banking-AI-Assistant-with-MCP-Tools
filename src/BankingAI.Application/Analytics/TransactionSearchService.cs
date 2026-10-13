@@ -83,6 +83,29 @@ public sealed class TransactionSearchService(BankingDbContext db, PeriodResolver
         return new TransactionSearchResult(period, merchantMatch, totalCount, query.Offset + items.Count < totalCount, items);
     }
 
+    /// <summary>
+    /// One transaction of the customer by id, in the same shape as a statement row. Any kind and any of the
+    /// customer's accounts (a Business shop account included); no period limit.
+    /// </summary>
+    /// <exception cref="ArgumentException">The customer id is empty.</exception>
+    /// <exception cref="KeyNotFoundException">
+    /// The customer does not exist, or the transaction does not exist or sits on someone else's account; the
+    /// last two are indistinguishable so another customer's transaction never leaks its existence.
+    /// </exception>
+    public async Task<TransactionItem> GetAsync(Guid customerId, Guid transactionId, CancellationToken cancellationToken = default)
+    {
+        var (timeZoneId, accounts) = await _scope.ResolveAccountsAsync(
+            customerId, accountId: null, personalOnly: false, cancellationToken);
+
+        // Ownership is part of the same query: a foreign transaction simply yields no row.
+        var transaction = db.Transactions.AsNoTracking()
+            .Where(t => t.Id == transactionId && accounts.Contains(t.AccountId));
+
+        var items = await TransactionItemReader.ReadAsync(db, transaction, TransactionOrder.NewestFirst,
+            skip: 0, take: 1, customerId, timeZoneId, cancellationToken);
+        return items.SingleOrDefault() ?? throw new KeyNotFoundException("İşlem bulunamadı.");
+    }
+
     // Every input check runs before the database is touched.
     private static void Validate(TransactionSearchQuery query)
     {

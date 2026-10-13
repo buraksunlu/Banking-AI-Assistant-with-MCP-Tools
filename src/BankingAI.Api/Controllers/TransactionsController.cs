@@ -15,11 +15,14 @@ namespace BankingAI.Api.Controllers;
 public sealed record TransactionPage(ResolvedPeriod Period, int TotalCount, bool HasMore, IReadOnlyList<TransactionItem> Items);
 
 /// <summary>
-/// Transactions of one of the logged-in customer's accounts. Listing, filtering and ownership are done by
-/// <see cref="TransactionSearchService"/>; this controller only translates HTTP.
+/// The logged-in customer's transactions: an account's list and single transactions. Listing, filtering and
+/// ownership are done by <see cref="TransactionSearchService"/>; this controller only translates HTTP.
 /// </summary>
+/// <remarks>
+/// Each action carries its full route because the two live under different roots: a list belongs to an
+/// account, while a single transaction is addressed by its own id.
+/// </remarks>
 [ApiController]
-[Route("api/accounts/{accountId}/transactions")]
 public sealed class TransactionsController(TransactionSearchService search) : ControllerBase
 {
     /// <summary>Period used when the client gives neither a period nor dates (decision 1-B).</summary>
@@ -30,7 +33,7 @@ public sealed class TransactionsController(TransactionSearchService search) : Co
     /// Either a symbolic <paramref name="period"/> or both <paramref name="from"/> and <paramref name="to"/>
     /// (local dates, inclusive); neither means the last three months. Another customer's account is a 404.
     /// </summary>
-    [HttpGet]
+    [HttpGet("api/accounts/{accountId}/transactions")]
     public async Task<ActionResult<TransactionPage>> ListAsync(
         Guid accountId,
         [FromQuery] string? period,
@@ -77,6 +80,26 @@ public sealed class TransactionsController(TransactionSearchService search) : Co
         {
             // Limit/offset bounds and date rules are enforced by the service and the period resolver.
             return Invalid(error.ParamName ?? nameof(period), error.Message);
+        }
+    }
+
+    /// <summary>
+    /// <c>GET /api/transactions/{id}</c>: one transaction of the customer, of any kind and on any of their accounts,
+    /// without a period limit. Another customer's transaction gets exactly the 404 of a missing one; an id that is
+    /// not a GUID is a 400.
+    /// </summary>
+    [HttpGet("api/transactions/{id}")]
+    public async Task<ActionResult<TransactionItem>> GetAsync(Guid id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await search.GetAsync(User.GetCustomerId(), id, cancellationToken));
+        }
+        catch (KeyNotFoundException)
+        {
+            // Also reached when the token's customer no longer exists: the service reports both with the same
+            // exception, so until API-13 splits them this endpoint answers 404 there as well (decision 4-A).
+            return NotFound();
         }
     }
 

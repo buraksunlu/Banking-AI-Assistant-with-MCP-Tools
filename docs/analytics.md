@@ -172,6 +172,20 @@ satırlarla çoğalır (ilk uygulamada testler bunu yakaladı).
 | Deniz, dükkân hesabı, bu ay | Sale: Ada K***, Ege Y***, Ada K*** |
 | Deniz, geçen ay, Transfer + Debit | 2.000 kendi dükkânına (own), 750 Ege Y*** |
 
+**Tek işlem (`GetAsync(customerId, transactionId)`, API-10):** aynı ekstre kapsamı (bütün türler, bütün hesaplar,
+`CustomerScope(personalOnly: false)`) ama **dönemsiz**. Kaynak sorgu `Id = @id AND AccountId IN (müşterinin
+hesapları)`; satır `TransactionItemReader` ile okunur, yani tek işlem liste kalemiyle birebir aynıdır (testle
+korunur). Satır yoksa — olmayan veya başka müşterinin işlemi — aynı `KeyNotFoundException("İşlem bulunamadı.")`.
+SQL: saat dilimi + tek join'li okuma (2 komut, yakalanarak doğrulandı).
+
+| İstek | Sonuç |
+| --- | --- |
+| Ada, 602 | Starbucks 210 TRY, FOOD "Yeme & İçme", 6 Eki |
+| Ada, 709 / Deniz, 710 | Ada: Purchase 120, karşı taraf "Kahve Durağı – Kadıköy"; Deniz (dükkân): Sale 120, "Ada K***" |
+| Deniz, 707 | 2.000 kendi dükkânına, own = true, 30 Eyl |
+| Ada, 001 | 2025 USD açılış fonlaması 500 (dönem sınırı yok) |
+| Ada, 710 veya 712 | `KeyNotFoundException` (işlem Ada'yla ilgili ama Deniz'in hesabında) |
+
 ## ANA-06 — En yüksek işlemler (`HighestTransactionsService`)
 
 Girdi `HighestTransactionsQuery(CustomerId, Period, From?, To?, AccountId?, Limit = 5,
