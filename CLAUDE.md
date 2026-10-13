@@ -231,6 +231,8 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
 - Mevcut davranışı kapsayan yeni testler yeşil başlarsa, kodu geçici bozup (ör. sınırda `<` → `<=`)
   kırmızıyı gör, sonra geri al. Değişikliği dosyanın kendisinde yap ve `git checkout -- <dosya>` ile
   geri al; `cp`/`mv` ile yedek dosya kullanma (proje klasörüne fazladan `.cs` kopyası derlemeyi bozar).
+  Dosyada commit edilmemiş yeni kod varsa (TDD adımında normal durum) `git checkout` onu da siler: o zaman
+  bozmayı tersine çevrilebilir tek düzenlemeyle yap ve geri dönüşü `shasum` önce/sonra karşılaştırmasıyla doğrula.
   Proje 13 Ekim 2026'da iCloud'lu Masaüstünden `~/Projects/VAKIFBANK/AI_Assistant`'ye taşındı; iCloud `.git`
   nesnelerini buluta alıp git'i kilitliyordu. Depoyu iCloud/eşitlenen klasöre geri koyma. Sonunda `dotnet build --no-incremental` ile
   doğrula; eski dosya zamanı MSBuild'in bozuk derlemeyi kullanmasına yol açabilir.
@@ -246,4 +248,6 @@ ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/
 yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, arama, en yüksek
 işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu testleri), REC-01–03 (düzenli
 ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi), API-09 (hesabın işlem listesi), API-10 (tek işlem). Sıradaki: API-11+ ve ANA-09; sonra AI, MCP.
+13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
+katmanı (todo 15b, AI-09–13 + IOS-11).
 Güncel ayrıntı her zaman `todo.md`'dedir.

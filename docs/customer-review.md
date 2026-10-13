@@ -1,5 +1,8 @@
 # Modül 1 — Customer tablosu
 
+> Tarihsel inceleme belgesi (7–8 Ekim 2026). Sonundaki COMPLETED/NEXT satırları o günün durumudur;
+> güncel model `docs/database-design.md`, güncel durum `RULE.md` §29 ve `todo.md` içindedir.
+
 Durum: PostgreSQL üzerinde oluşturuldu ve kontrol edildi. Bu belge Customer
 modelini açıklar; Account, TransactionCategory ve Transaction tabloları da
 ayrı adımlarda oluşturulmuştur.

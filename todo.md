@@ -1,6 +1,6 @@
 # Proje TODO — AI-Powered Transaction Intelligence Platform
 
-Son güncelleme: 12 Ekim 2026.
+Son güncelleme: 13 Ekim 2026.
 
 Bu dosya projenin tek planıdır ve küçük, uygulanabilir işlerin listesidir.
 RULE.md çalışma kurallarını tutar. En son açık kullanıcı kararı, eski taslaklardan
@@ -21,8 +21,8 @@ RULE.md çalışma kurallarını tutar. En son açık kullanıcı kararı, eski 
 
 ## 0. Şimdiye kadar yapılanlar
 
-Bu bölüm mevcut kaynak dosyaları, bu sohbetin doğrulama sonuçları ve 8 Ekim'deki
-canlı PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna dahil değildir.
+DONE maddeleri 7–8 Ekim 2026 kayıtlarıdır. "Gerçek mevcut durum" tablosu 13 Ekim 2026'daki canlı
+PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna dahil değildir.
 
 - [x] DONE-01 — Önceki uygulama temizlendi; database-first başlangıca geçildi.
 - [x] DONE-02 — Önce veritabanı, sonra uygulama katmanları sırası todo.md içine yazıldı.
@@ -55,14 +55,16 @@ canlı PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna 
 | --- | --- |
 | Aktif DB | bankingai_foundation |
 | Domain tabloları | Customers, Accounts, TransactionCategories, Transactions, MarketAssets, DailyMarketPrices |
+| Giriş tablosu | CustomerCredentials (SEC-01a); 3 demo girişi: ada, deniz, ege |
 | EF yardımcı tablosu | __EFMigrationsHistory |
-| Uygulanmış migration | 11 |
+| Uygulanmış migration | 12 |
 | Veri | 4 Customer; 7 Account (1 Business); 11 Category; 116 Transaction (44 Credit, 72 Debit; 9 çift) |
 | Hesap bakiyeleri | Ada TRY 577490.18; Ada USD 500; Deniz TRY 522900; Kahve Durağı 2595; Ege EUR 1000; Ege TRY 273380; boş TRY 0 |
 | Market tabloları | MarketAssets mevcut ve üç seed kaydı var; DailyMarketPrices henüz boş |
-| Bakiye güncelleme akışı | `TransactionSeedWriter` insert ve atomik bakiye delta'sını aynı DB transaction'ında yazar; BAL-03/04 PostgreSQL kabul testleri geçti |
-| Kalıcı otomatik test projesi | tests/BankingAI.Data.Tests; C# ve rollback edilen PostgreSQL kontrolleri |
-| API / SwiftUI / AI / MCP | Henüz yok |
+| Bakiye güncelleme akışı | `TransactionSeedWriter` (tek kayıt) ve `PairedTransactionSeedWriter` (iki kayıt) insert ile atomik bakiye delta'sını aynı DB transaction'ında yazar; BAL-03/04 ve KIND-03 PostgreSQL testleri geçti. API'den işlem yazımı henüz yok (API-11) |
+| Otomatik testler | Data 58, Application 164, Api 124 (hepsi yeşil). PostgreSQL testleri seed edilmiş demo DB'yi kullanır; rollback veya geçici kayıtla çalışır (ayrı test DB'si DB-01'de açık) |
+| API | BankingAI.Api: health, login/JWT, /api/me, hesap listesi/tek hesap/hesap açma, hesabın işlem listesi, tek işlem (docs/api.md) |
+| SwiftUI / AI / MCP | Henüz yok |
 
 Migration geçmişi:
 1. 20261007142113_CreateCustomers
@@ -76,6 +78,7 @@ Migration geçmişi:
 9. 20261010183748_AddTransactionKind
 10. 20261010190233_AddAccountType
 11. 20261012071956_AddCustomerCredentials
+12. 20261012122334_AddAccountNumberSequence
 
 ## 1. Mevcut kararları ve belgeleri tutarlı hale getir
 
@@ -193,7 +196,7 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 
 ## 10. Database foundation kabulü
 
-- [ ] DB-01 — Küçük xUnit entegrasyon test projesi kur. Gerçek PostgreSQL'de yalnızca testin sahip olduğu ayrı veritabanını kullansın; aktif demo DB'ye dokunmasın.
+- [ ] DB-01 — Küçük xUnit entegrasyon test projesi kur. Gerçek PostgreSQL'de yalnızca testin sahip olduğu ayrı veritabanını kullansın; aktif demo DB'ye dokunmasın. (13 Ekim durumu: üç test projesi var ama seed edilmiş demo DB'yi kullanıyor; ayrı test DB'si hâlâ açık. KIND-04b'deki "yarım çift" dalının testi buna bağlı.)
 - [ ] DB-02 — Tüm migration'ları boş test DB'sine uygula. Altı domain tablosu, anahtarlar, index'ler ve gerekli özel SQL nesneleri sıfırdan oluşmalı.
 - [ ] DB-03 — Önceki geçici constraint kontrollerini kalıcı testlere taşı. FK, unique, enum, null, uzunluk, amount, confidence ve para birimi uyumu kapsansın.
 - [ ] DB-04 — EF üzerinden entity yazma/okumayı doğrula. Private setter/backing field, nullable enum, UTC ve DateOnly değerleri doğru geri gelmeli.
@@ -216,7 +219,7 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 - [x] API-08 — Kullanıcı kararları: dışarı giden işlem biçimi analytics'in `TransactionItem`'ı (ayrı TransactionDto yok; maskeleme/join tek yerde), `AccountId` eklendi (okuyucuda tek satır). İçeri: `CreateTransactionRequest` (Api) yalnız olay: `kind` **Purchase veya Salary** (Transfer/Sale/OpeningFunding 400), `amount` (`InputRules.Money` yeniden kullanılır: ≥0,01, ≤ üst sınır, en fazla 2 ondalık, yuvarlama yok), `description` 1–500, isteğe bağlı `merchant` 1–150 (Salary + merchant 400). Yön türden, para birimi hesaptan, hesap adresten, zaman sunucu saatinden (geçmiş tarih yok); kategori alanları ve iç alanlar (PairId, kategorizasyon kaynağı/güveni/zamanı, CreatedAt) ne girer ne çıkar. Tanınmayan alan 400. Testler: Application +1 (AccountId: Starbucks 602 ve transfer 711 Ada TRY, maskeleme "Deniz M***" korunuyor, dükkân işlemleri dükkân hesabında), Api +28 (JSON alanları, 4 geçerli, 15 geçersiz, uzunluk sınırları, 6 yasak alan; DB'siz). `TestApi.JsonOptions` ortak yardımcı oldu. 4 kasıtlı bozma yakalandı. Tam paket 5/5 yeşil: Application 156, Data 58, Api 95. Sınır: enum girdisi harf büyüklüğüne duyarsız (`"purchase"` kabul ediliyor); endpoint yok (API-09/10/11).
 - [x] API-09 — `GET /api/accounts/{accountId}/transactions` (`TransactionsController`, `TransactionSearchService` DI Scoped; yeni sorgu yok). Cevap zarf: `{ period, totalCount, hasMore, items: [TransactionItem] }`, en yeniden eskiye (eşitse Id). Kullanıcı kararları: tarih verilmezse **son 3 ay**; yalnız tarih + sayfalama açık (tür/kategori/merchant filtreleri ANA-09'a); `limit` 1–50 (varsayılan 20) + `offset` 0–10.000. `period` yalnız adla (`?period=2` 400), `from`+`to` birlikte (özel dönem ≤ 24 ay), ikisi birden 400. Başkasının hesabı = olmayan hesap 404; Business hesap listelenebilir. 21 test (Ada TRY 1–10 Ekim: 8 işlem sırası, sayfalar 604/718/603 ve 711/709, boş hesap, varsayılan dönem, adla dönem, 401, 404, 13 hatalı parametre, bozuk kimlik). 4 kasıtlı bozma yakalandı (hesap filtresi yok, varsayılan ThisMonth, rakamlı period, 404 eşlemesi yok). Tam paket 5/5 yeşil: Application 156, Data 58, Api 116. Gerçek API'de ada ile denendi. Sınırlar: offset kayması (araya yeni işlem girerse sayfa kenarında tekrar), API gerçek saati kullanıyor (demo 'şimdi' ANA-09), silinmiş müşteri 404 (API-13).
 - [x] API-10 — `GET /api/transactions/{id}` → düz `TransactionItem` (zarf yok; liste kalemiyle birebir aynı). Kullanıcı kararları: okuma `TransactionSearchService.GetAsync` (ayrı servis/interface yok; `CustomerScope` + `TransactionItemReader` yeniden kullanıldı); liste ve tek işlem aynı `TransactionsController`, sınıf route'u kaldırıldı, her metot tam route'unu taşıyor (21 liste testi değişmeden yeşil); adres `api/transactions/{id}` (hesap kimliği gerekmez); silinmiş müşteri şimdilik 404 (API-13); dönem sınırı yok. Bütün türler ve bütün hesaplar (Business dükkân dahil); başkasının işlemi = olmayan işlem, aynı 404 ve aynı `KeyNotFoundException("İşlem bulunamadı.")` — Ada'nın kendi alışverişinin dükkân bacağı (710) ve transferinin karşı bacağı (712) dahil. Sorgu sayısı geçici testle ölçüldü: 2 (saat dilimi + sahipliği içeren tek join'li okuma). Testler: Application +8 (602 tam alan eşitliği, maskeli/dükkân/kendi hesabı karşı taraf, Deniz'in Sale'i, 2025 USD açılış fonlaması, 4 bulunamadı durumu aynı mesaj, olmayan/boş müşteri, Ada'nın Ekim ekstresindeki 8 işlemin her biri tek okumayla birebir aynı, iptal), Api +8 (401, 15 alanlı düz JSON, dükkân Sale'i, başkasının = olmayanın 404'ü, sıfır GUID 404, `abc`/`123` 400, silinmiş müşteri 404). 4 kasıtlı bozma yakalandı (sahiplik filtresi yok, personalOnly, catch yok → 500, `{id:guid}` → 404). Tam paket yeşil, 0 uyarı: Application 164, Data 58, Api 124. Gerçek API'de ada ile 602 → 200, 710 → 404, abc → 400, tokensız → 401. Sınırlar: silinmiş müşteri 404 (API-13), OpenAPI yalnız 200 (API-15).
-- [ ] API-11 — Synthetic transaction POST akışını ekle. Foundation'da doğrulanan atomik bakiye/insert yaklaşımını kullan; bunu AI write tool'u yapma.
+- [ ] API-11 — Synthetic transaction POST akışını ekle. Foundation'da doğrulanan atomik bakiye/insert yaklaşımını kullan; bunu AI write tool'u yapma. (13 Ekim notları: sözleşme API-08'de hazır — `POST /api/accounts/{accountId}/transactions`, `CreateTransactionRequest`. Yazım `TransactionSeedWriter`'ın atomik insert + bakiye mantığını kullanmalı; yazıcıların `Seeding/` dışına taşınması ve adlandırması bu adımda kararlaştırılır (KIND-03 notu). Commit eden işlem testleri gelince toplam işlem sayan testler — `AnalyticsEdgeCaseTests`'in 116 kontrolü — `CommittedRowsLock.ExclusiveAsync` almalı; dosya henüz Application.Tests'e bağlı değil.)
 - [ ] API-12 — Tekrar gönderilen POST davranışını belirle. Idempotency gerekiyorsa küçük ayrı tasarım yap; ağ tekrarlarında aynı işlemin iki kez oluşmasını sessizce kabul etme. KIND-03 notu: iki bacaklı yazıcı aynı PairId'de şimdilik hata veriyor; kullanıcı kararıyla burada düzeltilecek (aynı içerikli tekrar → ilk sonucu döndür, farklı içerik → 409).
 - [ ] API-13 — Ortak hata cevabını oluştur. (API-09 notu: servisten gelen `ArgumentException` mesajları 400 gövdesinde .NET'in `(Parameter 'Limit')` ekiyle çıkıyor; sadeleştirilecek. Enum girdisinin harf büyüklüğüne duyarsızlığı — API-08 — burada ele alınabilir.) (API-07 notu: tanınmayan alanlı 400 cevabı iç tip adını — `BankingAI.Api.Controllers.CreateAccountRequest` — ve anlamsız "request field is required" satırını içeriyor; ortak biçimde sadeleştirilecek.) (API-06 notu, kullanıcı kararı: `CustomerScope` müşteri ve hesap yokluğunu aynı `KeyNotFoundException` ile bildiriyor; burada ayrı türlere ayrılıp silinmiş müşteri her endpoint'te 401, olmayan/başkasının hesabı 404 yapılacak — `GET /api/accounts/{id}` ve `GET /api/transactions/{id}` (API-10) şimdilik 404 veriyor. Mevcut `ThrowsAsync<KeyNotFoundException>` kontrolleri birlikte güncellenecek.) Validation, bozuk JSON, 404, 409 ve beklenmeyen hata ayrımını yap; stack trace/bağlantı bilgisi sızdırma.
 - [ ] API-14 — HTTP integration testlerini yaz. Başarı, null body, invalid input, unique yarış, hata ve veri kalıcılığı senaryoları kapsansın.
@@ -233,6 +236,20 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 - [x] ANA-07 — `SpendingComparisonService`. Kullanıcı kararları: "geçen aya göre" = son tam ay vs önceki ay (varsayılan), ayrıca MonthToDate (aynı günler) ve çakışmasız Custom; kategori katkıları mutlak farka göre; aylık seri takvim ayı + devam eden ay (IsPartial) + harcamasız ay 0, N 6/en fazla 24, kategori veya merchant filtresi. `PeriodResolver.ResolveComparison/ResolveMonthlyWindows` (10 saf test). Refactor: CustomerScope/PurchaseScope dönemsiz yetki yolu. Karşılaştırma tek CASE WHEN sorgusu; seri 3 kolonluk okuma + C# kovalama (Npgsql 10 DateTimeOffset TZ dönüşümünü çeviremiyor; PERF-02'de tekrar bak). 13 servis testi; özetle tutarlılık. Application 115/115, Data 38/38.
 - [x] ANA-08 — Kapsam tablosu çıkarıldı; çok müşteri zaten kapsanmıştı. `AnalyticsEdgeCaseTests` (rollback'li geçici kayıtlar): hesapsız Demo Customer'da 7 servis boş sonuç; İstanbul gece yarısı sınırları (31 Ağu/1 Eyl ve 30 Eyl/1 Eki) özet, karşılaştırma CASE WHEN, aylık seri ve aramada; ikinci para birimi (USD) kategori, merchant, karşılaştırma, seri ve düzenli ödemede ayrı; demo veri 116'da kalıyor. İlk sürüm karşılaştırmanın iki dönem sınırını denemiyordu; kasıtlı hata yerleştirme bunu gösterdi, sınır eklendi. 4 kasıtlı sınır hatasının (kapsam, karşılaştırma önceki/bu dönem, seri) hepsi yakalanıyor. Application 136/136, Data 38/38.
 - [ ] ANA-09 — Doğrulanan hesaplamaları controller endpointlerine tek tek bağla. Controller yalnızca HTTP sorumluluğunu taşısın. (Kullanıcı kararı: ANA bölümünde kalır; API-01'e bağımlı, API projesi kurulduktan sonra yapılır.)
+
+## 12b. Yeni soru tipleri — kullanıcı kararı 13 Ekim 2026
+
+Amaç: demo sorularının ötesindeki soru tiplerini de backend'in deterministik hesabına dayandırmak. LLM
+yalnız argüman üretir ve sonucu anlatır; toplam, ortalama, kalan ve tahmin backend'dedir. Yeni tablo yok.
+Her madde sırasıyla: saf C#/servis + elle hesaplanmış testler → ANA-09 kalıbıyla endpoint → MCP tool'u
+(bölüm 16, MCP-15–18). Sıra: ANA-09'dan sonra, ilgili tool'lardan önce (katman kuralı). Örnek rakamlar demo
+"şimdi"sine (10 Ekim 2026) göredir; kesin fixture'lar adım planında elle yeniden hesaplanır.
+
+- [ ] ANA-10 — Kavramsal merchant harcaması (kapalı küme). "Kahveye ne kadar harcadım?" gibi kavramlarda backend müşterinin kendi merchant listesini verir; model bu listeden alt küme seçer, yeni ad üretemez. Backend her adı kanonik listeyle doğrular (liste dışı ad hata; sessiz düzeltme yok), toplamı `PurchaseScope` kapsamında hesaplar ve dahil edilen merchant'ları döndürür; cevap bunları söyler. Embedding/RAG gerekmez. Örnek: Ada, bu ay, {Starbucks, Kahve Durağı} → 375 + 215 = 590 TRY.
+- [ ] ANA-11 — Tutar filtresi. `TransactionSearchService` ve `HighestTransactionsService`'e isteğe bağlı en az/en çok tutar ("500 TL üstü market harcamalarım"); tutarlar `InputRules.Money` kuralıyla, en az ≤ en çok.
+- [ ] ANA-12 — Yaklaşan ödemeler. `RecurringPaymentDetector`'ın tahmini sonraki ödeme tarihinden önümüzdeki N gün (varsayılan 30) listesi ve para birimi başına toplam; çıktı bunun tahmin olduğunu açıkça taşır. Örnek: Ada → Netflix 229,99 (12 Eki), Spotify 99,99 (18 Eki), toplam 329,98 TRY; Deniz ve Ege boş.
+- [ ] ANA-13 — Bütçe kontrolü (tablosuz). Bütçe tutarı kullanıcının sorusundan argüman olarak gelir; backend kategori veya merchant için bu ay harcananı, kalanı ya da aşımı, günlük ortalamayı ve "bu hızla ay sonu" tahminini hesaplar; tahmin yöntemi çıktıda yazılıdır. Örnek: Ada, FOOD, 1.000 TL → harcanan 590, kalan 410, 10 günde günlük ortalama 59, bu hızla ay sonu 1.829 (bütçe aşılır). Kalıcı bütçe tablosu ayrı kullanıcı kararıdır.
+- [ ] ANA-14 — Tasarruf simülasyonu ("ne olur?"). Kategori veya merchant için son N tam ayın (varsayılan 6) aylık ortalaması × azaltma oranı (%1–100) → aylık ve yıllık tahmini tasarruf; ortalama, ay sayısı ve varsayım çıktıda. Yatırım tavsiyesi veya getiri hesabı değildir (o, opportunity-cost kolu). Örnek: Ada, Starbucks, %50 → Nisan–Eylül 2026 ortalaması 185 → ayda 92,50, yılda 1.110 TRY.
 
 ## 13. Opportunity-cost hesabı
 
@@ -259,6 +276,7 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 - [ ] IOS-08 — Kategori ve aylık grafiklerini Swift Charts ile ekle. Boş veri ve kategorisiz tutarlar doğru gösterilsin.
 - [ ] IOS-09 — Dönem karşılaştırması ve opportunity-cost sonucunu sade göster. Varsayım, veri tarihi ve eksik veri durumu görünür olsun.
 - [ ] IOS-10 — Temel ViewModel/JSON/ağ hata testlerini yap. SwiftUI çalışıyor diye finansal hesapları mobilde yeniden yazma.
+- [ ] IOS-11 — AI cevabının altında açılır "Bu cevap nasıl hesaplandı?" paneli (AI-11): kullanılan araçlar, dönem ve kapsam notları sade Türkçeyle; ham JSON gösterilmez.
 
 ## 15. Local AI — önce hazır sonucu açıklama
 
@@ -271,6 +289,20 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 - [ ] AI-07 — .NET → FastAPI iletişimini ekle. Timeout, cancellation ve AI kapalıyken deterministik sonucu gösterebilme davranışını test et.
 - [ ] AI-08 — SwiftUI chat ekranının temelini ekle. Bekleme, hata, iptal ve yeniden deneme durumları açık olsun.
 
+## 15b. Güvenilir cevap katmanı — kullanıcı kararı 13 Ekim 2026
+
+Amaç: modelin cevabı backend'in verdiği rakamlardan sapamasın, saparsa kullanıcı yanlış rakam görmesin;
+kullanıcı cevabın nereden geldiğini görebilsin ve asistan kapsam dışı isteklere net sınır koysun. LLM yine
+hesap yapmaz; bu maddeler onun çıktısını sınırlar ve denetler. Sıra: AI-09 ve AI-13 ilk açıklama prompt'uyla
+(AI-04/05), AI-10 model çıktısı doğrulamasıyla (AI-06), AI-11 ve AI-12 tool seçimiyle (MCP-12) birlikte
+veya sonrasında.
+
+- [ ] AI-09 — Sayılar backend'de biçimlenir. Modele giden her tutar, yüzde ve tarih hem değer hem Türkçe gösterim metni olarak verilir ("1.840,00 TL", "%29,17", "12 Ekim 2026"). Biçimlendirme deterministik kodla tek yerde yapılır (yeri adım planında: MCP çıktısı veya AI servisi) ve makinenin kültür ayarına bağlı olmaz. Model sayı biçimlendirmez, yuvarlamaz, toplamaz, yüzde hesaplamaz; prompt bu metinleri aynen kullanmasını ister.
+- [ ] AI-10 — Sayı doğrulayıcı ve şablon cevap. Cevaptaki her sayı (tutar, yüzde, adet, tarih) tool sonucunda (AI-09 metinleriyle) ya da kullanıcının kendi sorusunda bulunmalı; bulunmayan sayı varsa cevap bir kez yeniden üretilir, yine olmazsa deterministik Türkçe şablon cevap döner ("Bu ay 735,00 TL harcadınız (5 işlem; transferler hariç)."). Türkçe yazımlar ("1.840,00", "1840", "%29,17") normalize edilerek karşılaştırılır; yazıyla sayılar ("beş işlem") kapsam sınırı olarak belgelenir. AI-06'yı somutlaştırır. Testler: uydurma sayı, yanlış yuvarlama, kullanıcının verdiği sayı (ANA-13 bütçesi gibi), sayısız cevap.
+- [ ] AI-11 — "Bu cevap nasıl hesaplandı?". Cevapla birlikte kullanılan tool'lar, argümanlar, çözülen dönem (yerel tarihlerle) ve kapsam notları döner ("transferler hariç", "yalnız şahsi hesaplar", "merchant kısmi eşleşmeyle bulundu"). Notlar backend sonucundan üretilir, modelden değil. SwiftUI paneli IOS-11.
+- [ ] AI-12 — Kapsam koruması. Alan dışı sorular, yatırım tavsiyesi istekleri, para gönderme/kart kapatma gibi yazma talepleri ve başka müşterinin bilgisini isteme sabit Türkçe metinlerle reddedilir. Sınıflandırmayı model yapabilir, ret metni modelin serbest metnine bırakılmaz. EVAL-01'de ayrı kategori; SEC-03/04 ile birlikte test edilir.
+- [ ] AI-13 — Modele veri minimizasyonu. Prompt'a ve tool sonuçlarına yalnız cevap için gereken alanlar girer: tam müşteri adı, hesap numarası, iç kimlikler ve token girmez; karşı taraf yalnız maskeli adla. İşlem/hesap kimlikleri modele gerekiyorsa oturum içi kısa takma adlarla verilir (öneri: `t1`, `a2`; AI servisi geri çevirir), böylece model GUID kopyalamaz. Prompt içeriği testle kontrol edilir (ör. Ada'nın transfer sorusunda "Deniz M***" var, "Deniz Market" yok).
+
 ## 16. Read-only MCP — her tool ayrı review
 
 - [ ] MCP-01 — MCP server/client sınırını tasarla. .NET mevcut hesaplama servislerini çağırır; Python istemci bağlanır. DB sorgusu veya finansal hesap LLM'ye verilmez.
@@ -278,15 +310,19 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 - [ ] MCP-03 — get_accounts tool'unu ekle; typed args, müşteri kapsamı ve sınırlı çıktı kullan.
 - [ ] MCP-04 — get_transactions tool'unu ekle; pagination ve hesap kapsamını doğrula.
 - [ ] MCP-05 — get_spending_summary tool'unu ekle; dönem ve para birimi kuralları backend'de kalsın.
-- [ ] MCP-06 — search_transactions tool'unu ekle; filtre ve limitleri yeniden doğrula.
+- [ ] MCP-06 — search_transactions tool'unu ekle; filtre ve limitleri yeniden doğrula. (ANA-11 sonrası: en az/en çok tutar argümanı.)
 - [ ] MCP-07 — get_category_breakdown tool'unu ekle; kategorisiz tutar bilgisini koru.
 - [ ] MCP-08 — get_merchant_breakdown tool'unu ekle; null merchant davranışını açıkla.
 - [ ] MCP-09 — compare_spending_periods tool'unu ekle; sıfır payda ve dönem sınırlarını test et.
-- [ ] MCP-10 — get_highest_transactions tool'unu ekle; limit ve yetki kapsamını koru.
+- [ ] MCP-10 — get_highest_transactions tool'unu ekle; limit ve yetki kapsamını koru. (ANA-11 sonrası: en az/en çok tutar argümanı.)
 - [ ] MCP-11 — get_spending_with_opportunity_cost tool'unu ekle; varlık allowlist'i, fiyat tarihi ve eksik veri alanları dönsün.
 - [ ] MCP-12 — LangChain MCP client'ını bağla. Qwen tool seçsin; arguments backend'de tekrar doğrulansın, tool çağrı sayısı sınırlansın.
 - [ ] MCP-13 — Yanlış/olmayan tool, eksik argüman, timeout, server kapalı ve boş sonuç testlerini yap.
 - [ ] MCP-14 — En az beş farklı Türkçe soruda doğru tool + doğru argüman + backend'e dayalı cevap akışını göster.
+- [ ] MCP-15 — ANA-10 için iki read-only tool: müşterinin merchant listesi ve seçilen merchant'ların harcaması. Backend her adı yeniden doğrular; liste dışı ad reddedilir, cevap dahil edilen merchant'ları taşır.
+- [ ] MCP-16 — get_upcoming_payments tool'unu ekle (ANA-12); sonucun tahmin olduğu bilgisi çıktıda korunur.
+- [ ] MCP-17 — check_budget tool'unu ekle (ANA-13); bütçe tutarı argümanı backend'de yeniden doğrulanır, model hesap yapmaz.
+- [ ] MCP-18 — simulate_savings tool'unu ekle (ANA-14); oran ve dönem sınırları backend'de, çıktı yatırım tavsiyesi dili taşımaz.
 
 ## 17. Merchant normalization ve kategorilendirme
 
@@ -317,9 +353,9 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 - [ ] SEC-03 — Prompt injection örneklerini dene. Kullanıcı mesajı, RawDescription ve tool verisindeki talimatlar yetkiyi veya allowlist'i değiştiremesin.
 - [ ] SEC-04 — LLM'nin SQL veya banking write operasyonu yaptıramadığını doğrula. Bilinmeyen tool ve ayrıcalık iddiaları reddedilsin.
 - [ ] SEC-05 — Secret/log kontrolü yap. Bağlantı parolası, API anahtarı ve gereksiz müşteri detayları log/fixture/repo içine girmesin.
-- [ ] EVAL-01 — En az 50, tercihen 75–100 synthetic soru hazırla. Beklenen tool, arguments, sonuç ve belirsizlik davranışı bağımsız olarak tanımlansın.
+- [ ] EVAL-01 — En az 50, tercihen 75–100 synthetic soru hazırla. Beklenen tool, arguments, sonuç ve belirsizlik davranışı bağımsız olarak tanımlansın. (13 Ekim: kapsam dışı/ret gerektiren sorular ayrı kategori — AI-12; 12b soru tipleri de kapsansın.)
 - [ ] EVAL-02 — Tool selection ve argument accuracy ölç. Yanlış tarih, kategori, merchant ve hesap seçimini ayrı raporla.
-- [ ] EVAL-03 — Finansal doğruluk ve grounded response ölç. Modelin eklediği uydurma sayı, eksik fiyatı gizleme ve yanlış birimi hata say.
+- [ ] EVAL-03 — Finansal doğruluk ve grounded response ölç. Modelin eklediği uydurma sayı, eksik fiyatı gizleme ve yanlış birimi hata say. (13 Ekim: AI-10 sayı doğrulayıcısının yakaladığı ve kaçırdığı sayılar ayrı raporlansın.)
 - [ ] EVAL-04 — Opportunity-cost fiyat seçimi, birim ve hesap sonuçlarını ayrı ölç; yalnızca cevap akıcı diye başarılı sayma.
 - [ ] EVAL-05 — PostgreSQL, Ollama, FastAPI ve MCP kesintilerini ayrı test et. Timeout/iptal kontrollü bitsin; yanlış başarı cevabı verilmesin.
 - [ ] EVAL-06 — Latency, başarı oranı ve hallucination sonuçlarını model/prompt sürümüyle raporla. Değişikliklerden sonra aynı fixture ile karşılaştır.
@@ -362,8 +398,25 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-SYN-01–13 banking seed adımları tamamlandı ve banking foundation kabul edildi (DOC-09).
-ANA-01 (PeriodResolver) ve SYN-14 (müşteri bazlı demo verisi) tamamlandı. KIND-01–04 tamamlandı. ANA-01–08 ve REC-01–03 tamamlandı; demo sorularının deterministik backend'i hazır ve kenar durumları test edildi. ANA-09 API-01'e bağlı. API-01a/01b, API-02, SEC-01a ve SEC-01b tamamlandı (BankingAI.Api + DI + health; CustomerCredentials + CLI users set-password + demo kullanıcıları; login + JWT + /api/me, varsayılan olarak token zorunlu). API-03 tamamlandı (AccountDto, CreateAccountRequest, JSON kuralları; docs/api.md). API-04 tamamlandı (IAccountReadService/AccountReadService). API-05 tamamlandı (GET /api/accounts). API-06 tamamlandı (GET /api/accounts/{id}). API-07 tamamlandı (POST /api/accounts, ACC-n sayacı). API-08 tamamlandı (işlem DTO'su = TransactionItem + AccountId; CreateTransactionRequest). API-09 tamamlandı (GET /api/accounts/{id}/transactions, sayfalı). API-10 tamamlandı (GET /api/transactions/{id}, düz TransactionItem). Sıradaki iş: API-11+ ve ANA-09 (müşteri her zaman `User.GetCustomerId()` ile token'dan). Market kolu
-(SRC-02 altın kaynağı) paralel bekliyor.
+Güncelleme: 13 Ekim 2026.
+
+Tamamlanan bloklar: banking foundation (DOC-09; SYN-01–14, KIND-01–05), deterministik analytics
+(ANA-01–08, REC-01–03), API temeli ve güvenlik (API-01a/01b, API-02–10, SEC-01a/01b). Testler:
+Data 58, Application 164, Api 124, hepsi yeşil.
+
+Sıradaki adaylar (kullanıcı seçer; müşteri her zaman `User.GetCustomerId()` ile token'dan gelir):
+
+- API-11 — işlem ekleme (sözleşme API-08'de hazır).
+- API-12 — tekrar gönderilen POST (idempotency) ve iki bacaklı yazıcının aynı PairId davranışı.
+- API-13 — ortak hata cevabı (silinmiş müşteri → 401 dahil).
+- ANA-09 — analytics servislerini endpoint'lere bağlama ve demo "şimdi" kararı.
+- API-14/15 — kalan HTTP testleri, OpenAPI ve örnekler.
+
+Sonra RULE.md §21 sırasıyla local AI (bölüm 15) ve read-only MCP (bölüm 16); SwiftUI (bölüm 14) çalışan
+endpoint'ler üzerine küçük ekranlarla ilerler. 13 Ekim 2026 kullanıcı kararıyla iki genişletme eklendi:
+yeni soru tipleri (bölüm 12b, ANA-10–14; MCP-15–18) ANA-09'dan sonra, güvenilir cevap katmanı (bölüm 15b,
+AI-09–13; IOS-11) AI adımlarıyla birlikte. Paralel kol: market verisi (SRC-02 altın kaynağı dış yanıt
+bekliyor); yalnız opportunity-cost (bölüm 13) onu bekler.
+
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği
 madde üzerinden ilerlenir.

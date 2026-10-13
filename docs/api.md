@@ -3,9 +3,27 @@
 Yerel adres `http://localhost:5248`; OpenAPI `/openapi/v1.json` (geliştirme). Giriş ve token kuralları
 `docs/security.md`'dedir. Bu belge API-15'te örnek istek/cevaplarla genişletilecek.
 
+## Endpoint özeti (13 Ekim 2026)
+
+| Endpoint | Token | Durum | Madde |
+|---|---|---|---|
+| `GET /api/health` | hayır | uygulandı | API-01b |
+| `POST /api/auth/login` | hayır | uygulandı | SEC-01b |
+| `GET /api/me` | evet | uygulandı | SEC-01b |
+| `GET /api/accounts` | evet | uygulandı | API-05 |
+| `GET /api/accounts/{id}` | evet | uygulandı | API-06 |
+| `POST /api/accounts` | evet | uygulandı | API-07 |
+| `GET /api/accounts/{accountId}/transactions` | evet | uygulandı | API-09 |
+| `GET /api/transactions/{id}` | evet | uygulandı | API-10 |
+| `POST /api/accounts/{accountId}/transactions` | evet | planlı (sözleşme API-08'de) | API-11 |
+| `GET /api/analytics/…` | evet | planlı | ANA-09 |
+
+Ortak davranış: müşteri yalnız token'dan gelir (istekte müşteri parametresi yoktur); başka müşterinin
+kaynağı olmayan kaynakla birebir aynı `404`'ü alır; GUID olmayan kimlik `400`'dür.
+
 ## Genel JSON kuralları (API-03, 12 Ekim 2026, kullanıcı kararları)
 
-- **Enum'lar yazıyla taşınır:** `"accountType": "Personal"`, ileride `"kind": "Purchase"`. Girdi olarak da
+- **Enum'lar yazıyla taşınır:** `"accountType": "Personal"`, `"kind": "Purchase"`. Girdi olarak da
   yalnız ad kabul edilir; `2` gibi bir sayı 400'dür (sessiz dönüşüm yok). Gerekçe: insanlar ve LLM için
   okunur; modelin `2`'nin ne olduğunu tahmin etmesi gerekmez.
 - **Para JSON sayısıdır:** `"balance": 577490.18`. `decimal` birebir yazılır (`2595.00` → `2595.00`).
@@ -37,7 +55,7 @@ Yerel adres `http://localhost:5248`; OpenAPI `/openapi/v1.json` (geliştirme). G
 - `AccountDto.Projection` EF Core'un SQL'e çevirdiği eşlemedir; yalnız bu kolonlar okunur (`CustomerId`
   okunmaz). Sıralama `Select`'ten önce uygulanmalıdır.
 
-`CreateAccountRequest` (Api) — `POST /api/accounts` gövdesi (endpoint API-07'de):
+`CreateAccountRequest` (Api) — `POST /api/accounts` gövdesi (API-07):
 
 ```json
 { "accountName": "Tatil birikimi", "currencyCode": "EUR" }
@@ -48,7 +66,7 @@ Yerel adres `http://localhost:5248`; OpenAPI `/openapi/v1.json` (geliştirme). G
 | `accountName` | zorunlu, 1–100 karakter, yalnız boşluk olamaz |
 | `currencyCode` | zorunlu, tam olarak `TRY`/`USD`/`EUR`/`GBP` (`try` düzeltilmez, 400) |
 
-Backend belirler: sahip (token), `id`, `createdAt`, `accountNumber` (biçimi API-07), `accountType`
+Backend belirler: sahip (token), `id`, `createdAt`, `accountNumber` (`ACC-n`, API-07), `accountType`
 (her zaman `Personal`; `Business` yalnız demo dükkânı), `balance` (her zaman 0; para yalnız işlemle girer).
 
 Bilinen sınır: `[StringLength(100)]` UTF-16 birimi sayar, DB karakter sayar; emoji gibi iki birimlik
@@ -68,7 +86,7 @@ gerçekleştirimi `AccountReadService`.
 - Sıra: açılış tarihi (eskiden yeniye), eşitse hesap numarası (demo hesapları aynı anda açıldı).
 - Sorgular: liste 2 (müşteri + hesaplar), tek hesap 3 (müşteri + sahiplik + DTO).
 - Repository yoktur; `BankingDbContext` bu rolü görür. DTO projeksiyonu EF tarafından takip edilmez.
-- HTTP eşlemesi API-05/06'da: `KeyNotFoundException` → 404.
+- HTTP eşlemesi (API-05/06): `KeyNotFoundException` → 404 (listede müşteri yoksa 401).
 
 ## `GET /api/accounts` (API-05)
 
@@ -146,7 +164,7 @@ iki kez gönderilmesi iki hesap açar (API-12); 400 cevabı tanınmayan alanda i
 
 ## İşlem sözleşmesi (API-08)
 
-Endpoint'ler sonraki maddelerde: liste API-09, tek işlem API-10, ekleme API-11.
+Liste (API-09) ve tek işlem (API-10) uygulandı; ekleme API-11'de.
 
 ### Dışarı giden işlem: `TransactionItem`
 
@@ -157,7 +175,7 @@ Kullanıcı kararı: API ayrı bir işlem DTO'su yazmaz; analytics'in döndürd�
 { "id": "30000000-0000-0000-0000-000000000602", "accountId": "20000000-0000-0000-0000-000000000001",
   "accountName": "Ada günlük TRY", "occurredAtUtc": "2026-10-06T09:00:00+00:00", "localDate": "2026-10-06",
   "kind": "Purchase", "direction": "Debit", "amount": 210.00, "currencyCode": "TRY", "merchant": "Starbucks",
-  "categoryCode": "FOOD", "categoryDisplayName": "Yeme-İçme", "rawDescription": "POS 4412 STARBUCKS KADIKOY",
+  "categoryCode": "FOOD", "categoryDisplayName": "Yeme & İçme", "rawDescription": "POS 4412 STARBUCKS KADIKOY",
   "counterparty": null, "counterpartyIsOwnAccount": false }
 ```
 

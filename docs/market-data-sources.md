@@ -2,6 +2,9 @@
 
 İnceleme tarihi: 10 Ekim 2026. Bu belge kaynak araştırmasıdır; import henüz uygulanmadı.
 
+> Durum (13 Ekim 2026): USD/EUR için TCMB günlük XML adayı; altın (SRC-02) sağlayıcıdan yanıt bekliyor.
+> Market kolu API/analytics/AI işlerini engellemez; yalnız opportunity-cost (todo bölüm 13) bunu bekler.
+
 ## Saklanacak değer
 
 | Symbol | Price anlamı |

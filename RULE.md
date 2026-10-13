@@ -1,7 +1,7 @@
 # PROJECT MASTER PROMPT
 # AI-Powered Transaction Intelligence Platform
 
-Son kural güncellemesi: 10 Ekim 2026.
+Son kural güncellemesi: 13 Ekim 2026.
 
 Bu dosya proje kararlarının esas kaynağıdır. Kullanıcının son açık talimatı,
 eski doküman veya taslakla çeliştiğinde önceliklidir. todo.md projenin tek iş
@@ -292,10 +292,11 @@ MarketAsset 1 → N DailyMarketPrice.
 - Customer: Id, FirstName, LastName, CreatedAt; mevcut ek alanlar CustomerNumber,
   PreferredCurrency ve TimeZone korunur. FirstName/LastName required ve
   varchar(100) olarak eşlenir; eski FullName alanı yeni migration ile bölünür.
-- Account: Id, CustomerId, AccountName, AccountNumber, CurrencyCode, Balance, CreatedAt.
+- Account: Id, CustomerId, AccountName, AccountNumber, CurrencyCode, AccountType
+  (Personal/Business, KIND-04a), Balance, CreatedAt.
 - TransactionCategory: short Id, Code, DisplayName. Code unique; ID seed ile sabit verilir.
-- Transaction: Id, AccountId, nullable CategoryId, Amount, Direction, CurrencyCode,
-  RawDescription, nullable NormalizedMerchant, CategorizationSource,
+- Transaction: Id, AccountId, nullable CategoryId, Amount, Direction, Kind (KIND-02),
+  nullable PairId, CurrencyCode, RawDescription, nullable NormalizedMerchant, CategorizationSource,
   CategoryConfidence, CategorizedAt, OccurredAt ve CreatedAt.
 - MarketAsset: short Id, Symbol, Name, AssetType, BaseUnit, QuoteCurrency, IsActive.
 - DailyMarketPrice: long identity Id, MarketAssetId, PriceDate, Price, nullable Source.
@@ -303,6 +304,8 @@ MarketAsset 1 → N DailyMarketPrice.
 Merchant, MerchantMappings, RecurringPayments, InvestmentSimulations, AI/MCP
 özel tabloları veya LLM log tablosu ilk kapsamda oluşturulmaz. Yeni tablo ancak
 somut ihtiyaç ve ayrı kullanıcı kararıyla değerlendirilir.
+SEC-01a (12 Ekim 2026, kullanıcı onayı): giriş için ayrı CustomerCredentials tablosu
+eklendi; domain tablosu değil, kimlik tablosudur (docs/security.md).
 Recurring ve yatırım senaryoları mevcut veriden runtime hesaplanır.
 Banking verisi synthetic; piyasa fiyatı doğrulanmış gerçek tarihsel veridir.
 
@@ -326,7 +329,7 @@ GET /api/accounts/{id}/transactions
 
 GET /api/transactions/{id}
 
-POST /api/transactions
+POST /api/accounts/{id}/transactions
 
 Analytics:
 
@@ -341,6 +344,11 @@ GET /api/analytics/period-comparison
 GET /api/analytics/recurring-payments
 
 Gerekli query parameters tasarıma göre eklenebilir.
+
+Güncel durum (13 Ekim 2026): işlem ekleme adresi API-08 kullanıcı kararıyla
+POST /api/accounts/{accountId}/transactions oldu; giriş için POST /api/auth/login ve
+GET /api/me eklendi; analytics adresleri ANA-09'da kesinleşir. Uygulanan sözleşme
+docs/api.md'dedir.
 
 HTTP semantics ve REST conventions mümkün olduğunca doğru uygulanmalı.
 
@@ -383,6 +391,11 @@ Recurring payment detection ilk aşamada deterministic heuristics kullanabilir.
 - yaklaşık düzenli zaman aralığı
 
 LLM recurring payment'ın varlığı konusunda source of truth olmamalıdır.
+
+13 Ekim 2026 kullanıcı kararı (todo bölüm 12b): ek deterministik yetenekler — kavramsal
+merchant harcaması (model müşterinin kendi merchant listesinden seçer, backend doğrular ve
+toplar), tutar filtresi, yaklaşan ödemeler (tahmin olarak), tablosuz bütçe kontrolü (bütçe
+tutarı sorudan gelir) ve tasarruf simülasyonu. Hepsinde hesap backend'dedir; yeni tablo yoktur.
 
 ==================================================
 9. AI SERVICE
@@ -491,6 +504,10 @@ get_merchant_breakdown
 find_recurring_payments
 
 get_highest_transactions
+
+13 Ekim 2026: bölüm 8'deki ek yetenekler için read-only tool'lar planlandı (merchant listesi +
+seçilen merchant'ların harcaması, get_upcoming_payments, check_budget, simulate_savings;
+todo MCP-15–18).
 
 
 İlk sürümde MCP tool'larının tamamı READ-ONLY olmalıdır.
@@ -605,6 +622,14 @@ Schema validation kullan.
 Tool inputlarını backend tarafında tekrar validate et.
 
 Tool result'larını modelin değiştirebileceği source of truth gibi kabul etme.
+
+13 Ekim 2026 kullanıcı kararı (todo bölüm 15b, güvenilir cevap katmanı):
+- Sayılar backend'de deterministik kodla Türkçe biçimlenir; model sayı biçimlendirmez/hesaplamaz.
+- Cevaptaki her sayı tool sonucunda veya kullanıcının kendi sorusunda bulunmalıdır; bulunmazsa
+  bir kez yeniden üretilir, yine olmazsa deterministik şablon cevap döner.
+- Cevapla birlikte "nasıl hesaplandı" bilgisi (tool, argüman, dönem, kapsam notu) döner.
+- Kapsam dışı sorular, yatırım tavsiyesi ve yazma talepleri sabit metinle reddedilir.
+- Modele yalnız cevap için gereken alanlar gider (tam ad, hesap numarası, iç kimlik, token gitmez).
 
 ==================================================
 15. SECURITY
@@ -1217,7 +1242,8 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 
 - Aktif DB bankingai_foundation; bankingai önceki uygulamadan kalmıştır.
   Hedef bağlantıyı kontrol et; eski DB'yi kendiliğinden silme veya ona migration uygulama.
-- Şu an küçük BankingAI.Data console projesi kullanılır. API/DI katmanı henüz yok.
+- BankingAI.Data kütüphanedir; komut satırı BankingAI.Cli, HTTP API BankingAI.Api'dir
+  (API-01a/01b). API DbContext'i DI ile istek başına alır ve açılışta migration çalıştırmaz (API-02).
 - Şema EF Core migrations ile yönetilir. Entity → configuration → DbContext →
   migration → PostgreSQL akışı açıklanır; pgAdmin yalnızca görüntüleme/yönetim aracıdır.
 - Incremental migration yaklaşımı kullanılır. Her schema değişikliği için yeni
@@ -1246,9 +1272,10 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   sınırı mutlak 9999999999999999.99; Amount pozitiftir. Kredili hesap yoktur,
   negatif bakiye reddedilir. C# ve DB kontrolleri VAL-07 ile uygulanmıştır;
   bakiye taşmasında atomik yazma BAL adımlarındadır.
-- Yeni bakiye 0; açılış fonlaması Credit işlemle temsil edilir. İleride insert ve
-  atomik bakiye değişimi aynı DB transaction'ında olacak; sadece transaction açmak
-  lost update'i engellemez. Bu yazma akışı henüz implement edilmedi.
+- Yeni bakiye 0; açılış fonlaması Credit işlemle temsil edilir. Insert ve atomik bakiye
+  değişimi aynı DB transaction'ındadır; bakiye DB içinde Balance + delta olarak güncellenir,
+  çünkü yalnız transaction açmak lost update'i engellemez (BAL-01–04: TransactionSeedWriter;
+  KIND-03: PairedTransactionSeedWriter). API'den işlem yazımı API-11'de aynı yolu kullanacak.
 - Negatif bakiye politikası kesinleşti: kredili hesap yok, negatif bakiye ve
   yetersiz bakiye reddedilir. Future/backdated işlem kontrolleri uygulanmıştır.
 - Olay zamanları UTC DateTimeOffset/timestamptz. Npgsql yazımı offset 0;
@@ -1329,54 +1356,68 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   kullanıcıyla netleşir; açıkça istenen varlık korunur. Eksik veride kazanan uydurulmaz.
 
 ==================================================
-29. MEVCUT PROJE DURUMU — 12 EKİM 2026
+29. MEVCUT PROJE DURUMU — 13 EKİM 2026
 ==================================================
 
 COMPLETED
-- .NET 10 BankingAI.Data console, EF Core/Npgsql ve ortam değişkenli bağlantı.
-- Customer, Account, TransactionCategory, Transaction, MarketAsset ve DailyMarketPrice entity'leri; iki transaction enum'u.
-- Account, TransactionCategory, Transaction, MarketAsset ve DailyMarketPrice configuration'ları; Customer eşlemesi DbContext içinde.
-- bankingai_foundation üzerinde altı domain tablosu ve __EFMigrationsHistory.
-- On iki uygulanmış migration: CreateCustomers, AddCustomerPreferences,
-  AddAccountsAndTransactionCategories, AddTransactions, SplitCustomerName,
-  AddMarketAssets, AddDailyMarketPrices, EnforceInputValidation, AddTransactionKind, AddAccountType, AddCustomerCredentials, AddAccountNumberSequence.
-- Transactions.Kind (Purchase/Sale/Transfer/Salary/OpeningFunding) ve nullable PairId; kurallar C# + DB CHECK ile korunur (KIND-01/02).
-- DailyMarketPrice → MarketAsset RESTRICT ilişkisi ve varlık/gün unique index'i uygulandı; MarketAssets'te üç seed kaydı, DailyMarketPrices'ta henüz fiyat kaydı yok.
-- PK/FK/unique/check/index eşlemeleri ve hesap/işlem currency eşleşmesi.
-- Bir demo Customer, 11 TransactionCategory ve 3 MarketAsset seed kaydı; SYN-03–05, SYN-14 ve KIND-04b ile üç dummy Customer ve yedi Account (biri Business dükkân); SYN-06–14 ve KIND-04b ile 116 Transaction (44 Credit, 72 Debit; 4 transfer + 5 dükkân alışverişi çifti) vardır. DailyMarketPrices'ta fiyat kaydı yoktur.
-- todo.md oluşturuldu; tamamlanan ve bekleyen küçük adımlar ayrıldı.
+- Proje yapısı (API-01a/01b, API-02): BankingAI.Data kütüphanesi, BankingAI.Cli
+  (migrate/show/seed/users), BankingAI.Application (servisler), BankingAI.Api (controller
+  tabanlı, DI ile istek başına DbContext, açılışta migration yok) ve üç test projesi; hepsi
+  BankingAI.slnx içinde.
+- Veritabanı: altı domain tablosu + CustomerCredentials; 12 artımlı migration (son ikisi
+  AddCustomerCredentials, AddAccountNumberSequence). Kind/PairId/AccountType kuralları
+  C# + DB CHECK ile korunur.
+- Dört katmanlı doğrulama (InputRules → EntityValidation → SaveChanges → DB kısıtı) ve atomik
+  bakiye yazımı (TransactionSeedWriter, PairedTransactionSeedWriter; küçük AccountId önce).
+- Demo veri: 4 Customer (Ada, Deniz, Ege + hesapsız Demo Customer), 7 Account (1 Business
+  dükkân), 11 kategori, 116 Transaction (44 Credit, 72 Debit, 9 çift), 3 MarketAsset;
+  DailyMarketPrices boş.
+- Deterministik analytics (ANA-01–08, REC-01–03): PeriodResolver, CustomerScope/PurchaseScope,
+  özet, kategori, merchant (MerchantMatcher), arama, en yüksek işlemler, karşılaştırma +
+  aylık seri, düzenli ödemeler (docs/analytics.md).
+- Güvenlik (SEC-01a/01b): CustomerCredentials + PasswordHasher, CLI users set-password,
+  POST /api/auth/login → HS256 JWT 60 dk, IP başına dakikada 5 deneme, FallbackPolicy ile
+  varsayılan token zorunlu, GET /api/me (docs/security.md).
+- API (API-03–10): AccountDto/CreateAccountRequest, IAccountReadService/IAccountWriteService,
+  GET/POST /api/accounts, GET /api/accounts/{id}, işlem sözleşmesi (TransactionItem +
+  CreateTransactionRequest), GET /api/accounts/{id}/transactions (sayfalı),
+  GET /api/transactions/{id} (docs/api.md).
 
 IN PROGRESS
-- Banking foundation kabul edildi (§26). Deterministik analytics'e geçiliyor.
+- API bölümünün kalanı: API-11 (işlem ekleme), API-12 (idempotency), API-13 (ortak hata
+  cevabı), API-14/15; ANA-09 (analytics endpoint'leri + demo "şimdi" kararı).
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- ANA-01 (PeriodResolver) ve SYN-14 (Ada/Deniz/Ege farklı demo karakterleri) tamamlandı.
-- KIND-01–05 tamamlandı (Kind/PairId, iki bacaklı yazıcı, AccountType, Kahve Durağı + 9 çift, VAL-05 = Kind Purchase).
-- ANA-01–08 ve REC-01–03 tamamlandı (analytics servisleri, düzenli ödeme tespiti, kenar durumu testleri; docs/analytics.md). ANA-09 API-01'e bağlı. API-01a/01b ve API-02 tamamlandı (BankingAI.Api, DI ile scoped DbContext, GET /api/health, Api.Tests). SEC-01a tamamlandı (CustomerCredentials, PasswordHasher, CLI users set-password; docs/security.md). SEC-01b tamamlandı (POST /api/auth/login → HS256 JWT 60 dk, yanlış kullanıcı/şifre aynı 401, IP başına dakikada 5 deneme → 429, GET /api/me; bütün endpoint'ler varsayılan olarak token ister, yalnız health/login/OpenAPI açık; anahtar BANKINGAI_JWT_SIGNING_KEY). API-03 tamamlandı (AccountDto + Projection, CreateAccountRequest; JSON'da enum yazıyla, para sayı, yazma isteğinde tanınmayan alan 400; docs/api.md). API-04 tamamlandı (IAccountReadService + AccountReadService; sahiplik CustomerScope ile, sıra açılış tarihi + hesap numarası, repository yok). API-05 tamamlandı (GET /api/accounts: müşteri yalnız token'dan, düz dizi/sayfalama yok, müşterisi olmayan token 401). API-06 tamamlandı (GET /api/accounts/{id}: başkasının hesabı = olmayan hesap 404, GUID olmayan kimlik 400; silinmiş müşteri şimdilik 404, API-13'te 401). API-07 tamamlandı (POST /api/accounts: 201 + Location, Personal/0 bakiye, numara AccountNumberSequence ile ACC-n, hesap sayısı sınırı yok). API-08 tamamlandı (işlem DTO'su TransactionItem + AccountId; CreateTransactionRequest: Purchase/Salary, tutar InputRules.Money, isteğe bağlı merchant; yön/para birimi/hesap/zaman/kategori backend'in). API-09 tamamlandı (GET /api/accounts/{id}/transactions: TransactionSearchService, zarf period/totalCount/hasMore/items, varsayılan son 3 ay, limit/offset). API-10 tamamlandı (GET /api/transactions/{id}: TransactionSearchService.GetAsync, düz TransactionItem, dönemsiz, bütün türler ve hesaplar; başkasının işlemi = olmayan 404; silinmiş müşteri şimdilik 404). Sıradaki: API-11+ ve ANA-09.
-- Ardından ANA-02 harcama özeti; harcama yalnızca Purchase türünü sayar.
+- Kullanıcının seçtiği API-11+/ANA-09 maddesi; ardından local AI (todo bölüm 15) ve read-only
+  MCP (bölüm 16). Ayrıntı todo.md "Şu anki sonraki adım".
+- 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14, MCP-15–18) ANA-09'dan
+  sonra; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 
 KNOWN ISSUES
-- Synthetic seed kapsamları parça parça hazırdır: categories, market-assets, customers, accounts ve seçili transaction komutları. Transaction seed grupları sabit ID, atomik bakiye yazımı ve PostgreSQL advisory lock kullanır. Tek komutluk `seed synthetic` ve historical market import henüz yoktur.
-- `TransactionSeedWriter` seed işlem insert'i ile Account.Balance delta'sını aynı
-  DB transaction'ında yazar. BAL-03/04 concurrency/rollback PostgreSQL kontrolleri geçti.
-- Customer FirstName/LastName geçişi SplitCustomerName migration'ıyla uygulandı.
-- Dış API giriş sözleşmesi API adımlarında; atomik seed yazma yolu BAL-01/02'de eklendi.
-- README güncel console/database durumuna getirildi; database-design içindeki kalan uyarlamalar todo.md'de takip ediliyor.
-- Controller/API/DTO/service, SwiftUI, AI ve MCP henüz oluşturulmadı.
+- Silinmiş müşterinin token'ı GET /api/accounts/{id} ve GET /api/transactions/{id}'de 404,
+  diğer endpoint'lerde 401 alıyor (API-13'te 401'de birleşecek).
+- 400 cevapları .NET'in "(Parameter '…')" ekini ve tanınmayan alanda iç tip adını içeriyor (API-13).
+- Enum girdisi harf büyüklüğüne duyarsız ("purchase" kabul ediliyor; API-13'te ele alınabilir).
+- Offset sayfalamasında araya yeni işlem girerse sayfa kenarında bir işlem tekrar görülebilir.
+- API gerçek saati kullanıyor; demo verisi 10 Ekim 2026'ya göre (karar ANA-09'da).
+- Tek komutluk seed synthetic ve market fiyatı import'u yok.
 
 TECHNICAL DEBT
-- `tests/BankingAI.Data.Tests` otomatik test projesi vardır; her veri/DB değişikliği için uygun kontroller sürdürülür.
-- Tek başlangıç migration isteğiyle mevcut artımlı geçmişin nasıl uzlaştırılacağı ayrı karar.
-- Veri ve connection yönetiminin tekrarlanabilir yerel kurulum dokümanı tamamlanacak.
+- Ayrı test veritabanı yok (DB-01); testler seed edilmiş demo DB'yi rollback/geçici kayıtla kullanıyor.
+- Hesap sayısı sınırı ertelendi (ACC-LIMIT); aynı POST iki kez gönderilirse iki kayıt oluşur (API-12).
+- PairedTransactionSeedWriter aynı PairId tekrarında hata veriyor (API-12); yazıcıların Seeding/
+  dışına taşınması API-11'de kararlaştırılacak.
+- Aylık seri satırları C#'ta aylara dağıtıyor (PERF-02'de ölçülecek).
+- Logout/token iptali, refresh token ve hesap kilitleme yok; HTTPS ve proxy IP kararları OPS-04'te.
+- OpenAPI belgesi yalnız 200 cevaplarını gösteriyor (API-15).
 
 TEST STATUS
-- Entity build'leri ve migration build/uygulamaları geçti; bu tüm foundation'ın bittiği anlamına gelmez.
-- InputRules/EntityValidation ve AccountId/Amount guard'ları C# testleriyle,
-  DB CHECK'leri PostgreSQL integration testleriyle kontrol edildi.
-- Customer kısıtları ve 12 paralel numara üretimi; Account/Category temel DB kısıtları;
-  Transaction nullable/kategorili yazımı ve 13 geçersiz veri kontrolü PostgreSQL'de denendi.
-- Test kayıtları rollback edildi. Seed/market import/bakiye concurrency/HTTP/AI/MCP testleri henüz yok.
-- DailyMarketPrice duplicate varlık/gün, olmayan varlık, geçersiz fiyat ve RESTRICT kontrolleri gerçek PostgreSQL'de geçti. EF DateOnly okuması UTC ve Europe/Istanbul oturumlarında, decimal/identity/nullable Source ile birlikte doğrulandı; tüm deneme kayıtları geri alındı.
-- Önceki silinmiş uygulamanın 48 xUnit testi ve API sonuçları bu projeye ait tamamlanma kanıtı değildir.
-- HTTP integration testleri (Api.Tests) commit edilen geçici "Test Api" müşterisi kullanır; test projeleri paralel çalıştığı için satır sayan testlerle `tests/Shared/CommittedRowsLock` (PostgreSQL advisory lock 2026101201: kayıt yazan testler paylaşımlı, satır sayan testler tek başına) ile sıralanır. Geçici hesap açan Data testleri sabit demo müşterisi (Ada/Deniz) kullanır.
+- Tam paket yeşil (13 Ekim 2026): Data 58, Application 164, Api 124; dotnet build
+  --no-incremental 0 uyarı.
+- PostgreSQL testleri seed edilmiş demo DB üzerinde çalışır: rollback ya da geçici DUMMY-*TEST-*
+  hesap / "Test Api" müşterisi açıp silme. Test projeleri paralel koşar; commit eden ve satır sayan
+  testler tests/Shared/CommittedRowsLock (advisory lock 2026101201) ile sıralanır.
+- Beklenen değerler elle hesaplanmış fixture'lardır (SyntheticDatasetIntegrityTests,
+  docs/synthetic-seed.md). Mevcut davranışı kapsayan yeni testler kasıtlı bozmayla doğrulanır.
+- Henüz yok: market import, AI, MCP ve SwiftUI testleri; ayrı test DB'si.

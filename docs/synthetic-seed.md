@@ -9,7 +9,7 @@ Customer, Account ve Transaction kayıtlarını ayrı komutlarla veritabanına y
 
 `SyntheticSeedSettings.CreateFaker<T>()` her çağrıda aynı seed ile yeni bir Bogus `Faker<T>` oluşturur. Faker global bir değişkende tutulmadığı için farklı üretim akışları ortak mutable rastgelelik durumu paylaşmaz. Aynı sürüm, seed ve kurallar ile çalıştırılan üretim aynı değer dizisini tekrar üretir.
 
-Bu ayarlar veri setinin kimliğini ve tarih referansını sabitler; tek başına veritabanı idempotency'si, gerçek veri doğrulaması veya seed komutu sağlamaz. Synthetic kayıt üretimi SYN-02 ve sonraki adımlarda eklenecektir.
+Bu ayarlar veri setinin kimliğini ve tarih referansını sabitler; tek başına veritabanı idempotency'si, gerçek veri doğrulaması veya seed komutu sağlamaz. Synthetic kayıt üretimi SYN-02 ve sonraki adımlarda eklendi (aşağıda).
 
 ## SYN-02 profilleri
 

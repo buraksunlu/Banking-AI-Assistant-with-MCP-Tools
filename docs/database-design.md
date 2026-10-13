@@ -1,11 +1,13 @@
 # Database Foundation — Güncel Tasarım
 
-Son güncelleme: 10 Ekim 2026.
+Son güncelleme: 13 Ekim 2026.
 
 Bu dosya hedef veri modelini ve gerçek mevcut durumu ayrı anlatır. Hedefte altı
 domain tablosu vardır: `Customers`, `Accounts`, `TransactionCategories`,
-`Transactions`, `MarketAssets`, `DailyMarketPrices`. EF'nin yönettiği
-`__EFMigrationsHistory` domain tablosu değildir.
+`Transactions`, `MarketAssets`, `DailyMarketPrices`. Girişler için ayrı `CustomerCredentials`
+tablosu vardır (SEC-01a; domain değil, kimlik tablosu). EF'nin yönettiği `__EFMigrationsHistory`
+domain tablosu değildir. Numaralar iki PostgreSQL sayacından gelir: `CustomerNumberSequence` (`CUST-n`)
+ve `AccountNumberSequence` (`ACC-n`, API-07).
 
 ## Gerçek mevcut durum
 
@@ -18,6 +20,7 @@ Aktif veritabanı `bankingai_foundation`dır. Şu altı domain tablosu uygulanm�
 - `MarketAssets`
 - `DailyMarketPrices`
 
+`CustomerCredentials` tablosunda üç demo girişi vardır (ada, deniz, ege).
 `MarketAssets` tablosunda üç başlangıç seed kaydı vardır; `DailyMarketPrices`
 henüz boştur. 11 kategori, demo dahil dört Customer ve yedi dummy Account (biri Business) vardır.
 Transactions tablosunda 44 kategorisiz Credit ve 72 Debit bulunur; 9 PairId çifti vardır (KIND-04b sonrası). 2025 dataset'i
@@ -27,7 +30,7 @@ harcama tarih kapsamına daraltıldı; gerçek fiyat verisi ve tarih örtüşmes
 çalışmalarında doğrulanacak.
 Historical market import henüz yoktur.
 
-Aktif veritabanında on bir migration uygulanmıştır:
+Aktif veritabanında on iki migration uygulanmıştır (13 Ekim 2026'da doğrulandı):
 
 1. `CreateCustomers`
 2. `AddCustomerPreferences`
@@ -40,6 +43,7 @@ Aktif veritabanında on bir migration uygulanmıştır:
 9. `AddTransactionKind`
 10. `AddAccountType`
 11. `AddCustomerCredentials`
+12. `AddAccountNumberSequence`
 
 Migration yaklaşımı incremental'dır: her schema değişikliği yeni bir migration
 olarak eklenir. Uygulanmış migration'lar silinmez veya geriye dönük değiştirilmez;
@@ -48,7 +52,7 @@ veritabanı tek başlangıç migration'ına dönmek için resetlenmez.
 ## SEED-01 — Migration, seed ve import sınırları
 
 Veri yazan işlemler açık komutlarla ayrı tutulur. Uygulamanın açılması, `show`
-komutu veya ileride API'nin başlaması kendiliğinden seed/import çalıştırmaz.
+komutu veya API'nin başlaması kendiliğinden migration/seed/import çalıştırmaz.
 
 | Komut | Sorumluluk | Veri yazabilir mi? |
 | --- | --- | --- |
@@ -205,9 +209,9 @@ Transaction foreign key'i `(AccountId, CurrencyCode)` üzerinden
 `Accounts(Id, CurrencyCode)` alternatif anahtarına bağlanır. Böylece USD işlem
 TRY hesabına yazılamaz. Kategori bağlantısı nullable ve `RESTRICT` davranışlıdır.
 
-Kategorilendirme alanları ilk importta null olabilir. İleride CategoryId,
-CategorizationSource, CategoryConfidence ve CategorizedAt aynı application
-işleminde tutarlı şekilde güncellenecektir.
+Kategorilendirme alanları ilk importta null olabilir. CategoryId, CategorizationSource,
+CategoryConfidence ve CategorizedAt yalnız entity metotlarıyla (`SetCategorization`,
+`ClearCategorization`) birlikte değişir (VAL-04); LLM'li kategorilendirme akışı CAT adımlarındadır.
 
 ## MarketAssets
 
@@ -297,7 +301,8 @@ boşlukları normaldir. Bu kontroller kalıcı otomatik test projesi değildir.
 - Account/Transaction currency kodları TRY, USD, EUR, GBP'dir; `TL` kullanılmaz.
 - Finansal değerler `decimal`/PostgreSQL `numeric` kullanır; float/double kullanılmaz.
 - Zamanlar UTC `DateTimeOffset`/`timestamptz`; market günü `DateOnly`/`date` olur.
-- Transaction ve Account balance güncellemesi ileride aynı DB transaction'ında yapılır.
+- Transaction insert'i ve Account balance güncellemesi aynı DB transaction'ında yapılır
+  (`TransactionSeedWriter`, iki bacaklı kayıtta `PairedTransactionSeedWriter`).
 - Index'ler gerçek query pattern'lerine göre eklenir; gereksiz index oluşturulmaz.
 
 ## Karşılaştırma kararı — 10 Ekim 2026
@@ -371,6 +376,10 @@ sorguda çalışmaz; tetiklenecek sorgular ayrıca netleştirilecektir.
 5. Üç asset için en az iki yıllık gerçek historical import.
 6. Database foundation testleri ve kabul review'ü.
 7. Bundan sonra controller-based API.
+
+Durum (13 Ekim 2026): 1–4 tamamlandı. 5 (gerçek fiyat importu) market kolunda açık.
+6 banking tarafı için kabul edildi (DOC-09); ayrı test DB'si (DB-01) açık. 7 sürüyor
+(API-01–10 tamamlandı).
 
 Her adım kullanıcı review'ünden sonra başlar; hedef listesi implementation izni
 anlamına gelmez.

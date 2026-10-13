@@ -1,12 +1,16 @@
 # Girdi kuralları — VAL-01–VAL-07
 
-Tarih: 9 Ekim 2026.
+Tarih: 9 Ekim 2026 (durum notu 13 Ekim 2026).
 
 Bu belge altı entity için beklenen davranışı ve uygulanan doğrulama sınırlarını
 tanımlar. Entity, DbContext, configuration ve migration kontrolleri VAL-07 ile
 uygulandı; geçersiz örnekler C# ve gerçek PostgreSQL üzerinde test edildi.
-Transaction ekleme ile Account.Balance değişimini aynı atomik yazma yolunda
-birleştirme henüz BAL görevlerinin kapsamındadır.
+Transaction ekleme ile Account.Balance değişimi BAL-01–04 ile aynı atomik yazma
+yolunda birleştirildi (`TransactionSeedWriter`; iki bacaklı kayıtta KIND-03).
+
+> Durum notu (13 Ekim 2026): Aşağıdaki tablolardaki "mevcut durum" sütunları VAL-01 (9 Ekim)
+> anındaki eksikleri gösterir. Bu eksikler VAL-07 ile kapatıldı (aşağıdaki "VAL-06/VAL-07 uygulama
+> doğrulaması"). HTTP girdi kuralları ve hata kodları `docs/api.md`'dedir; ortak hata cevabı API-13'te.
 
 ## Ortak davranış
 
@@ -20,8 +24,8 @@ birleştirme henüz BAL görevlerinin kapsamındadır.
 | Kodlarda yanlış harf büyüklüğü veya kenar boşlukları | Geçerli kodla eşleşmiyorsa reddet; otomatik dönüştürme yapma | Whitelist kontrolü yazma yolunda da yapılacak; DB `char(3)` son boşluk davranışına tek başına güvenilmez |
 | Geçersiz kayıt | Kalıcı kayıt veya kısmi yan etki oluşmamalı | Yazma akışında validation ve gerektiğinde DB transaction kullanılacak; bakiye akışı BAL adımlarında |
 
-HTTP katmanı henüz yoktur. HTTP hata kodları ve cevap sözleşmesi API adımlarında
-tanımlanacak. DB kısıtları son korumadır; kullanıcıya alan bazlı hata sunmak için
+HTTP katmanı VAL-01 sırasında yoktu; HTTP hata kodları ve cevap sözleşmesi artık `docs/api.md`'dedir
+(ortak hata cevabı API-13). DB kısıtları son korumadır; kullanıcıya alan bazlı hata sunmak için
 yazma yolunda ayrıca doğrulama gereklidir.
 
 ## Kimlikler ve ilişkiler
@@ -252,7 +256,8 @@ kaynak kod ve resmî sağlayıcı dokümanı incelendi; yeni DB testi veya build
 
 Bu dört alan, kabul edilerek kaydedilmiş son kategori atamasını temsil eder;
 başarısız veya kabul edilmeyen model önerisini saklamak için kullanılmaz.
-Aşağıdaki tablo tasarım kararıdır; mevcut kodda ortak kısıt henüz yoktur.
+Aşağıdaki tablo tasarım kararıdır; VAL-07 ile entity metotları, SaveChanges doğrulaması ve DB CHECK
+olarak uygulandı.
 
 | Durum | CategoryId | CategorizationSource | CategoryConfidence | CategorizedAt |
 | --- | --- | --- | --- | --- |
@@ -419,8 +424,8 @@ tasarlanır. Bu karar alınmadan Credit'leri iade saymak veya Amount'u negatif y
 - VAL-06: kredili hesap yok; negatif bakiye ve yetersiz bakiye reddi kararı.
 - VAL-07: entity, SaveChanges ve DB doğrulama sınırları uygulandı; geçersiz örnek testleri geçti.
 
-VAL-01–VAL-07 doğrulamaları, atomik bakiye yazma/concurrency ve dış API sözleşmesinin
-tamamlandığı anlamına gelmez; bunlar ilgili BAL/API görevlerinde ele alınacaktır.
+Atomik bakiye yazma ve eşzamanlılık BAL-01–04'te tamamlandı. Dış API sözleşmesi API adımlarında
+ilerliyor (`docs/api.md`); işlem ekleme API-11'de.
 
 ## VAL-06/VAL-07 uygulama doğrulaması
 
@@ -476,4 +481,4 @@ Kullanıcı kararıyla Transactions iki alan kazanır. Direction paranın yönü
   "açılış fonlaması" olan Credit → OpeningFunding; "maaş ödemesi" olan Credit → Salary.
   Eşleşmeyen kayıt kalırsa migration hata verip durur; tahmini tür atanmaz.
 - LLM/MCP transfer veya ödeme yazamaz; yazma yalnız uygulama/API ve seed üzerindendir.
-- VAL-05 harcama tanımı KIND-05'te güncellenecek: harcama = `Kind = Purchase` toplamı.
+- VAL-05 harcama tanımı KIND-05'te güncellendi: harcama = `Kind = Purchase` toplamı.
