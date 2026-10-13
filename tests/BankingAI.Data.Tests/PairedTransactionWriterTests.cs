@@ -201,7 +201,32 @@ public sealed class PairedTransactionWriterTests : IAsyncLifetime
 
     [Fact]
     [Trait("Category", "PostgreSQL")]
-    public async Task Repeated_pair_id_is_rejected_and_balances_change_once()
+    public async Task A_repeated_pair_id_with_the_same_event_returns_the_first_result_and_balances_change_once()
+    {
+        // KIND-03 decision, applied in API-12: a retry of the same pair is not an error; nothing moves again.
+        var (a, b) = await CreateTestAccountsAsync();
+        try
+        {
+            await FundAsync(a, 100m);
+            var (debit, credit) = Pair(a, b, 40m, TransactionKind.Transfer, TransactionKind.Transfer);
+            await using (var db = new BankingDbContext())
+                Assert.Equal(WriteOutcome.Created, await PairedTransactionWriter.AddAsync(db, debit, credit));
+
+            // Same PairId, new transaction ids: the retry must not move money again.
+            var (retryDebit, retryCredit) = Pair(a, b, 40m, TransactionKind.Transfer, TransactionKind.Transfer, debit.PairId);
+            await using (var db = new BankingDbContext())
+                Assert.Equal(WriteOutcome.AlreadyExisted, await PairedTransactionWriter.AddAsync(db, retryDebit, retryCredit));
+
+            Assert.Equal(60m, await BalanceAsync(a));
+            Assert.Equal(40m, await BalanceAsync(b));
+            Assert.Equal(2, (await LegsAsync(debit.PairId!.Value)).Count);
+        }
+        finally { await DeleteTestAccountsAsync(a, b); }
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task A_repeated_pair_id_with_a_different_event_is_a_conflict()
     {
         var (a, b) = await CreateTestAccountsAsync();
         try
@@ -211,14 +236,9 @@ public sealed class PairedTransactionWriterTests : IAsyncLifetime
             await using (var db = new BankingDbContext())
                 await PairedTransactionWriter.AddAsync(db, debit, credit);
 
-            // Same PairId, new transaction ids: the retry must not move money again.
-            var (retryDebit, retryCredit) = Pair(a, b, 40m, TransactionKind.Transfer, TransactionKind.Transfer, debit.PairId);
+            var (otherDebit, otherCredit) = Pair(a, b, 50m, TransactionKind.Transfer, TransactionKind.Transfer, debit.PairId);
             await using (var db = new BankingDbContext())
-            {
-                var error = await Assert.ThrowsAsync<InvalidOperationException>(
-                    () => PairedTransactionWriter.AddAsync(db, retryDebit, retryCredit));
-                Assert.Contains("zaten mevcut", error.Message);
-            }
+                await Assert.ThrowsAsync<IdempotencyConflictException>(() => PairedTransactionWriter.AddAsync(db, otherDebit, otherCredit));
 
             Assert.Equal(60m, await BalanceAsync(a));
             Assert.Equal(40m, await BalanceAsync(b));

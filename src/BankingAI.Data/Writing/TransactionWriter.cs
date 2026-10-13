@@ -13,7 +13,7 @@ public static class TransactionWriter
 {
     private const decimal MaximumBalance = 9999999999999999.99m;
 
-    public static async Task AddAsync(
+    public static async Task<WriteOutcome> AddAsync(
         BankingDbContext db,
         Transaction transaction,
         CancellationToken cancellationToken = default)
@@ -38,9 +38,10 @@ public static class TransactionWriter
         await using var dbTransaction = await db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            // A duplicate stable Transaction ID must never apply the balance delta again.
-            if (await db.Transactions.AsNoTracking().AnyAsync(t => t.Id == transaction.Id, cancellationToken))
-                throw new InvalidOperationException($"Transaction Id {transaction.Id} zaten mevcut; bakiye ikinci kez değiştirilmedi.");
+            // The same id again is a retry (API-12): it must never apply the balance delta a second time.
+            var existing = await db.Transactions.AsNoTracking().SingleOrDefaultAsync(t => t.Id == transaction.Id, cancellationToken);
+            if (existing is not null)
+                return Replay(existing, transaction); // nothing was written; disposing rolls the transaction back
 
             db.Transactions.Add(transaction);
             await db.SaveChangesAsync(cancellationToken);
@@ -48,6 +49,18 @@ public static class TransactionWriter
             await ApplyBalanceDeltaAsync(db, transaction, cancellationToken);
 
             await dbTransaction.CommitAsync(cancellationToken);
+            return WriteOutcome.Created;
+        }
+        catch (DbUpdateException error) when (IsUniqueViolation(error))
+        {
+            // A concurrent retry inserted the same id between our check and our insert. Its row is committed
+            // (the unique index waited for it), so it is compared like any other existing row.
+            await dbTransaction.RollbackAsync(CancellationToken.None);
+            db.ChangeTracker.Clear();
+            var existing = await db.Transactions.AsNoTracking().SingleOrDefaultAsync(t => t.Id == transaction.Id, cancellationToken);
+            if (existing is null)
+                throw;
+            return Replay(existing, transaction);
         }
         catch
         {
@@ -57,6 +70,24 @@ public static class TransactionWriter
             throw;
         }
     }
+
+    // A stored row with the same identity: the same event is a harmless retry, anything else a conflict.
+    private static WriteOutcome Replay(Transaction stored, Transaction incoming) =>
+        SameEvent(stored, incoming) ? WriteOutcome.AlreadyExisted : throw new IdempotencyConflictException();
+
+    /// <summary>
+    /// Whether two transactions describe the same event: everything the caller states. The server's own fields
+    /// (id, OccurredAt, CreatedAt, categorization) are left out; a retry arrives later and gets a new time.
+    /// </summary>
+    internal static bool SameEvent(Transaction stored, Transaction incoming) =>
+        stored.AccountId == incoming.AccountId && stored.Kind == incoming.Kind && stored.Direction == incoming.Direction
+        && stored.Amount == incoming.Amount && stored.CurrencyCode == incoming.CurrencyCode
+        && stored.RawDescription == incoming.RawDescription && stored.NormalizedMerchant == incoming.NormalizedMerchant
+        && stored.PairId == incoming.PairId;
+
+    // PostgreSQL 23505: a primary key or unique index refused the row.
+    internal static bool IsUniqueViolation(DbUpdateException error) =>
+        error.InnerException is Npgsql.PostgresException { SqlState: Npgsql.PostgresErrorCodes.UniqueViolation };
 
     // Shared by the single- and two-leg writers. PostgreSQL evaluates the arithmetic against the
     // locked current row, so concurrent writes add their deltas instead of overwriting a read balance.

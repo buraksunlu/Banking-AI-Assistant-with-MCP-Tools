@@ -136,7 +136,7 @@ Authorization: Bearer <token>
 | `POST /api/accounts` | Yeni şahsi hesap (bakiye 0, numara `ACC-n`) | API-07 |
 | `GET /api/accounts/{accountId}/transactions` | Hesabın işlemleri, sayfalı; varsayılan son 3 ay | API-09 |
 | `GET /api/transactions/{id}` | Tek işlem; başkasının işlemi = olmayan işlem (404) | API-10 |
-| `POST /api/accounts/{accountId}/transactions` | Sentetik Purchase/Salary ekler, bakiyeyi atomik değiştirir; yetersiz bakiye 409 | API-11 |
+| `POST /api/accounts/{accountId}/transactions` | Sentetik Purchase/Salary ekler, bakiyeyi atomik değiştirir; yetersiz bakiye 409; `Idempotency-Key` zorunlu (tekrar ikinci kez yazmaz) | API-11, API-12 |
 | `GET /api/analytics/…` | *Planlı:* analytics servisleri | ANA-09 |
 
 JSON kuralları: enum'lar yazıyla ve tam adla, para JSON sayısı (`577490.18`), yazma isteğinde tanınmayan alan 400.
@@ -212,7 +212,7 @@ dotnet tool run dotnet-ef migrations add <Name> --project src/BankingAI.Data --s
 
 ## Yol haritası
 
-1. API'nin kalanı: tekrar gönderilen istek (API-12), HTTP testleri ve OpenAPI (API-14/15),
+1. API'nin kalanı: HTTP testleri ve OpenAPI (API-14/15),
    analytics endpoint'leri (ANA-09).
 2. Local AI: Qwen model seçimi, Ollama, FastAPI + LangChain; önce backend sonucunu Türkçe açıklama.
 3. Read-only MCP tool'ları; Qwen tool seçer, argümanlar backend'de yeniden doğrulanır.

@@ -30,6 +30,9 @@ public sealed class ErrorResponseTests
         using var request = new HttpRequestMessage(method, path);
         if (body is not null)
             request.Content = new StringContent(body, Encoding.UTF8, mediaType);
+        // Adding a transaction needs a key (API-12); its absence is tested where it matters.
+        if (method == HttpMethod.Post && path.EndsWith("/transactions"))
+            request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
         var response = await client.SendAsync(request);
         return (response.StatusCode, response.Content.Headers.ContentType?.MediaType, await response.Content.ReadAsStringAsync());
     }

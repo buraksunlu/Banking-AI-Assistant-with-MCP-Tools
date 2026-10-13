@@ -69,10 +69,14 @@ public sealed class AccountsController(IAccountReadService accounts, IAccountWri
     /// its <c>Location</c> and the account exactly as <c>GET /api/accounts/{id}</c> returns it.
     /// </summary>
     [HttpPost]
-    public async Task<ActionResult<AccountDto>> CreateAsync(CreateAccountRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<AccountDto>> CreateAsync(CreateAccountRequest request,
+        [FromHeader(Name = ApiProblems.IdempotencyKeyHeader)] string? idempotencyKey, CancellationToken cancellationToken)
     {
-        var account = await accountWriter.CreateAsync(
-            User.GetCustomerId(), new NewAccount(request.AccountName, request.CurrencyCode), cancellationToken);
-        return CreatedAtAction(nameof(GetAsync), new { id = account.Id }, account);
+        // The key is optional here (decision 2-A): a duplicate empty account is harmless, a duplicate payment is not.
+        var result = await accountWriter.CreateAsync(
+            User.GetCustomerId(), new NewAccount(request.AccountName, request.CurrencyCode), idempotencyKey, cancellationToken);
+        if (result.Replayed)
+            Response.Headers[ApiProblems.ReplayedHeader] = "true";
+        return CreatedAtAction(nameof(GetAsync), new { id = result.Account.Id }, result.Account);
     }
 }

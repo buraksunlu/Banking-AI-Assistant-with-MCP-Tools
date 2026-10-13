@@ -10,7 +10,7 @@ namespace BankingAI.Data.Writing;
 /// </summary>
 public static class PairedTransactionWriter
 {
-    public static async Task AddAsync(
+    public static async Task<WriteOutcome> AddAsync(
         BankingDbContext db,
         Transaction debit,
         Transaction credit,
@@ -35,10 +35,12 @@ public static class PairedTransactionWriter
         await using var dbTransaction = await db.Database.BeginTransactionAsync(cancellationToken);
         try
         {
-            // A retried pair must not move money twice. Concurrent duplicates that both pass this
-            // check are still stopped by UNIQUE (PairId, Direction) and rolled back.
-            if (await db.Transactions.AsNoTracking().AnyAsync(t => t.PairId == pairId, cancellationToken))
-                throw new InvalidOperationException($"PairId {pairId} zaten mevcut; bakiyeler ikinci kez değiştirilmedi.");
+            // A retried pair must not move money twice (KIND-03 decision, API-12): the same pair returns the first
+            // result, a different one is a conflict. Concurrent duplicates that both pass this check are stopped by
+            // UNIQUE (PairId, Direction) below and compared after the rollback.
+            var existing = await LegsAsync(db, pairId, cancellationToken);
+            if (existing.Count > 0)
+                return Replay(existing, debit, credit); // nothing was written; disposing rolls the transaction back
 
             // Sales income belongs to a shop. A missing account is reported by the balance update below.
             if (credit.Kind == TransactionKind.Sale)
@@ -61,6 +63,17 @@ public static class PairedTransactionWriter
             await db.SaveChangesAsync(cancellationToken);
 
             await dbTransaction.CommitAsync(cancellationToken);
+            return WriteOutcome.Created;
+        }
+        catch (DbUpdateException error) when (TransactionWriter.IsUniqueViolation(error))
+        {
+            // The balance updates of this attempt are undone with the rollback; the committed pair is compared.
+            await dbTransaction.RollbackAsync(CancellationToken.None);
+            db.ChangeTracker.Clear();
+            var existing = await LegsAsync(db, pairId, cancellationToken);
+            if (existing.Count == 0)
+                throw;
+            return Replay(existing, debit, credit);
         }
         catch
         {
@@ -69,6 +82,20 @@ public static class PairedTransactionWriter
             db.ChangeTracker.Clear();
             throw;
         }
+    }
+
+    private static Task<List<Transaction>> LegsAsync(BankingDbContext db, Guid pairId, CancellationToken cancellationToken) =>
+        db.Transactions.AsNoTracking().Where(t => t.PairId == pairId).ToListAsync(cancellationToken);
+
+    // Both stored legs must be the same events as the incoming ones; leg ids may differ (a retry builds new objects).
+    private static WriteOutcome Replay(List<Transaction> stored, Transaction debit, Transaction credit)
+    {
+        var storedDebit = stored.SingleOrDefault(t => t.Direction == TransactionDirection.Debit);
+        var storedCredit = stored.SingleOrDefault(t => t.Direction == TransactionDirection.Credit);
+        return storedDebit is not null && storedCredit is not null && stored.Count == 2
+               && TransactionWriter.SameEvent(storedDebit, debit) && TransactionWriter.SameEvent(storedCredit, credit)
+            ? WriteOutcome.AlreadyExisted
+            : throw new IdempotencyConflictException();
     }
 
     private static void ValidatePair(Transaction debit, Transaction credit)

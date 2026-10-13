@@ -174,16 +174,21 @@ configuration'lardaki DB CHECK/unique/FK kısıtları. Yeni kural eklerken dört
 - `Writing/TransactionWriter` (API-11'e kadar `Seeding/TransactionSeedWriter`): tek bacak; insert +
   `ExecuteUpdate(Balance + delta)` aynı DB transaction'ında. `PairId`'li işlemi reddeder. Seed'ler ve API (API-11)
   kullanır. Kendi transaction'ını yönetir: açık transaction'lı context'i reddeder, bu yüzden testler rollback yapamaz.
+  `WriteOutcome` döner (API-12): aynı kimlik + aynı olay (`TransactionWriter.SameEvent`: istemcinin söylediği alanlar;
+  zaman/kategori hariç) → `AlreadyExisted`, bakiye ikinci kez değişmez; farklı olay → `IdempotencyConflictException` (409).
+  Eşzamanlı tekrar birincil anahtara (23505) takılır, geri alınıp aynı karşılaştırılır.
 - `Writing/PairedTransactionWriter`: iki bacak + iki bakiye tek transaction'da; bakiyeler
   **her zaman küçük AccountId önce** güncellenir (aksi halde ters yönlü transferler 40P01 deadlock alır).
-  Aynı PairId tekrarında şimdilik hata verir (API-12'de düzeltilecek).
+  Aynı PairId tekrarı (API-12, KIND-03 kararı): aynı iki bacak → `AlreadyExisted`, farklı → çakışma.
 - Bakiye mantığı `TransactionWriter.ApplyBalanceDeltaAsync` içinde ortaktır. Bakiye 0'ın altına ya da para üst
   sınırının üstüne çıkacaksa `BalanceLimitException` (InvalidOperationException'dan türer) atılır ve hiçbir şey
   yazılmaz; API bunu 409'a çevirir. Ön bakiye kontrolü yapılmaz: tek karar veren atomik güncellemedir.
 - API'den yazma: `Application/Transactions/TransactionWriteService` (`ITransactionWriteService`; yalnız Purchase/Salary,
   yön türden, para birimi hesaptan, zaman `TimeProvider`'dan; Business hesap da kabul edilir — kullanıcı kararı 3-B).
   Saat entity kurulmadan **önce** okunur: entity'nin `CreatedAt` varsayılanı kurulurken alınır ve yazıcı
-  `OccurredAt > CreatedAt`'i reddeder. LLM/MCP'ye yazma verilmez.
+  `OccurredAt > CreatedAt`'i reddeder. LLM/MCP'ye yazma verilmez. `Idempotency-Key` (API-12) işlem eklemede zorunlu,
+  hesap açmada isteğe bağlı; kayıt kimliği `IdempotentId.For(kaynak, müşteri, anahtar)` ile türetilir, tekrar
+  `Idempotent-Replayed: true` başlığıyla aynı 201'i alır. Testlerdeki POST yardımcıları her çağrıda yeni anahtar üretir.
 
 ### Seed'ler
 
@@ -271,8 +276,8 @@ ayrı ve engellemeyen bir koldur, altın kaynağı (SRC-02) dış yanıt bekliyo
 ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/AccountType, çift
 yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, arama, en yüksek
 işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu testleri), REC-01–03 (düzenli
-ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi), API-09 (hesabın işlem listesi), API-10 (tek işlem), API-11 (işlem ekleme), API-13 (ortak hata cevabı). Sıradaki: ANA-09,
-API-12, API-14/15; sonra AI, MCP.
+ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi), API-09 (hesabın işlem listesi), API-10 (tek işlem), API-11 (işlem ekleme), API-12 (Idempotency-Key), API-13 (ortak hata cevabı). Sıradaki: ANA-09,
+API-14/15; sonra AI, MCP.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11).
 Güncel ayrıntı her zaman `todo.md`'dedir.

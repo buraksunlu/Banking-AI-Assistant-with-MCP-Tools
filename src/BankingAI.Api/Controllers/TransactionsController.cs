@@ -88,18 +88,25 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
     /// <summary>
     /// <c>POST /api/accounts/{accountId}/transactions</c>: adds a synthetic Purchase or Salary to one of the
     /// customer's accounts and answers 201 with its <c>Location</c> and the transaction exactly as
-    /// <c>GET /api/transactions/{id}</c> returns it. A balance that would leave its range is a 409; another
-    /// customer's account is a 404.
+    /// <c>GET /api/transactions/{id}</c> returns it. Needs an <c>Idempotency-Key</c>: the same key again returns
+    /// the first answer. A balance that would leave its range, or a key reused for another request, is a 409;
+    /// another customer's account is a 404.
     /// </summary>
     [HttpPost("api/accounts/{accountId}/transactions")]
     public async Task<ActionResult<TransactionItem>> CreateAsync(
-        Guid accountId, CreateTransactionRequest request, CancellationToken cancellationToken)
+        Guid accountId, CreateTransactionRequest request,
+        [FromHeader(Name = ApiProblems.IdempotencyKeyHeader)] string? idempotencyKey,
+        CancellationToken cancellationToken)
     {
-        // Required and validated by the request rules before this runs, so the values are present.
-        var item = await writer.CreateAsync(User.GetCustomerId(), accountId,
+        // Required and validated by the request rules before this runs, so the values are present. The key is
+        // checked by the service (required for money), so its error names the field like every other rule.
+        var result = await writer.CreateAsync(User.GetCustomerId(), accountId,
             new NewTransaction(request.Kind!.Value, request.Amount!.Value, request.Description, request.Merchant),
-            cancellationToken);
-        return CreatedAtAction(nameof(GetAsync), new { id = item.Id }, item);
+            idempotencyKey, cancellationToken);
+        // A retry gets the first answer unchanged (201, same body and Location); the header only says so.
+        if (result.Replayed)
+            Response.Headers[ApiProblems.ReplayedHeader] = "true";
+        return CreatedAtAction(nameof(GetAsync), new { id = result.Transaction.Id }, result.Transaction);
     }
 
     private ActionResult Invalid(string field, string message)

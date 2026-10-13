@@ -1390,14 +1390,17 @@ COMPLETED
 - Ortak hata cevabı (API-13): her hata ProblemDetails + Türkçe başlık + makine kodu (`code`) + traceId; eşleme
   tek yerde (ApiExceptionHandler, UseStatusCodePages, ApiValidation); controller'larda try/catch yok; silinmiş
   müşteri her endpoint'te 401 session_invalid (CustomerNotFoundException); katı enum adları; her ortamda genel 500.
+- Tekrar gönderilen istek (API-12): Idempotency-Key (işlemde zorunlu, hesapta isteğe bağlı); kayıt kimliği
+  müşteri + tür + anahtardan türetilir (migration yok); aynı istek → aynı 201 + Idempotent-Replayed, farklı → 409
+  idempotency_conflict; yazıcılar aynı kimlik / PairId tekrarında WriteOutcome.AlreadyExisted döner.
 
 IN PROGRESS
-- API bölümünün kalanı: API-12 (idempotency), API-14/15; ANA-09 (analytics endpoint'leri + demo "şimdi"
+- API bölümünün kalanı: API-14/15; ANA-09 (analytics endpoint'leri + demo "şimdi"
   kararı).
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Kullanıcının seçtiği ANA-09 / API-12 / API-14/15 maddesi; ardından local AI (todo bölüm 15) ve read-only
+- Kullanıcının seçtiği ANA-09 / API-14/15 maddesi; ardından local AI (todo bölüm 15) ve read-only
   MCP (bölüm 16). Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14, MCP-15–18) ANA-09'dan
   sonra; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
@@ -1411,15 +1414,13 @@ KNOWN ISSUES
 
 TECHNICAL DEBT
 - Ayrı test veritabanı yok (DB-01); testler seed edilmiş demo DB'yi rollback/geçici kayıtla kullanıyor.
-- Hesap sayısı sınırı ertelendi (ACC-LIMIT); aynı POST (hesap veya işlem) iki kez gönderilirse iki kayıt
-  oluşur (API-12).
-- PairedTransactionWriter aynı PairId tekrarında hata veriyor (API-12).
+- Hesap sayısı sınırı ertelendi (ACC-LIMIT); anahtarsız hesap açma isteği iki kez gönderilirse iki hesap açılır.
 - Aylık seri satırları C#'ta aylara dağıtıyor (PERF-02'de ölçülecek).
 - Logout/token iptali, refresh token ve hesap kilitleme yok; HTTPS ve proxy IP kararları OPS-04'te.
 - OpenAPI belgesi yalnız 200 cevaplarını gösteriyor (API-15).
 
 TEST STATUS
-- Tam paket yeşil (13 Ekim 2026, API-13 sonrası): Data 59, Application 175, Api 162; dotnet build
+- Tam paket yeşil (13 Ekim 2026, API-12 sonrası): Data 63, Application 192, Api 170; dotnet build
   --no-incremental 0 uyarı.
 - PostgreSQL testleri seed edilmiş demo DB üzerinde çalışır: rollback ya da geçici DUMMY-*TEST-*
   hesap / "Test Api" müşterisi açıp silme. Test projeleri paralel koşar; commit eden ve satır sayan

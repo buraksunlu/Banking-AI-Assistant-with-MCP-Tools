@@ -52,6 +52,7 @@ başlığı ayrıştırmak yerine `code`'a bakar.
 | Olmayan veya başkasının kaynağı; bilinmeyen adres | 404 | `not_found` | Bulunamadı. (`detail` yok; gövdeler birebir aynı) |
 | Yanlış HTTP metodu | 405 | `method_not_allowed` | Bu adres bu yöntemi desteklemiyor. |
 | Bakiye sınırı (yetersiz bakiye, üst sınır) | 409 | `balance_limit` | Bakiye sınırı (+ `detail`) |
+| Aynı `Idempotency-Key` farklı bir istekle (API-12) | 409 | `idempotency_conflict` | Bu anahtar farklı bir istek için kullanılmış |
 | JSON olmayan gövde | 415 | `unsupported_media_type` | Desteklenmeyen içerik türü; JSON gönderin. |
 | Login deneme sınırı | 429 | `too_many_requests` | Çok fazla deneme; biraz sonra tekrar deneyin. |
 | Beklenmeyen hata | 500 | `internal_error` | Beklenmeyen bir hata oluştu. (ayrıntı yalnız sunucu logunda) |
@@ -200,8 +201,9 @@ Location: /api/accounts/c7f08208-4546-4b40-8b48-e83c50be4ab0
   istekler bile aynı numarayı alamaz; sayaç geri alınmadığı için numaralarda boşluk olabilir.
 - Ad olduğu gibi saklanır (kırpılmaz); aynı adla birden çok hesap açılabilir.
 
-Bilinen sınırlar: müşteri başına hesap sayısı sınırı yok (kullanıcı kararı; ACC-LIMIT); aynı isteğin
-iki kez gönderilmesi iki hesap açar (API-12).
+İsteğe bağlı `Idempotency-Key` başlığıyla tekrar gönderilen istek ikinci hesap açmaz (API-12, aşağıda).
+Bilinen sınır: müşteri başına hesap sayısı sınırı yok (kullanıcı kararı; ACC-LIMIT); anahtarsız istek iki kez
+gönderilirse iki hesap açılır.
 
 ## İşlem sözleşmesi (API-08)
 
@@ -353,6 +355,42 @@ ayrı bir bakiye kontrolü yapılmaz (araya başka istek girebileceği için tek
 Sorgular (geçici testle ölçüldü): 8 komut — müşteri, sahiplik, hesabın para birimi; aynı kimlik kontrolü, ekleme,
 bakiye güncellemesi; geri okumada saat dilimi ve tek join'li okuma.
 
-Bilinen sınırlar: aynı istek iki kez gönderilirse iki işlem oluşur (API-12); NUL gibi işlem kurallarına takılan
+`Idempotency-Key` başlığı **zorunludur** (API-12, aşağıda); anahtarsız istek 400 `errors.idempotencyKey`.
+
+Bilinen sınırlar: NUL gibi işlem kurallarına takılan
 girdi API-13'ten beri istemcinin alanında (`description`) raporlanır; cevap yeni bakiyeyi taşımaz (hesap ayrıca okunur);
 maaşı istemcinin yazabilmesi yalnız sentetik demo içindir.
+
+## Tekrar gönderilen istek: `Idempotency-Key` (API-12, 13 Ekim 2026)
+
+Bağlantı koptuğunda istemci isteği tekrar gönderebilir; para iki kez hareket etmemelidir. İstemci her **yeni** yazma
+için rastgele bir anahtar üretir (ör. UUID) ve tekrarlarda aynısını gönderir:
+
+```http
+POST /api/accounts/{accountId}/transactions
+Idempotency-Key: 7c2f9a1e-…
+
+1. istek                         → 201 Created, işlem yazılır, bakiye değişir
+aynı anahtar + aynı gövde        → 201 Created + "Idempotent-Replayed: true", aynı gövde ve Location, bakiye DEĞİŞMEZ
+aynı anahtar + farklı gövde/hesap → 409 idempotency_conflict, hiçbir şey yazılmaz
+```
+
+| Kural | Değer |
+|---|---|
+| Nerede | İşlem ekleme: **zorunlu**; hesap açma: isteğe bağlı (yoksa her istek yeni hesap) |
+| Biçim | 1–100 görünür ASCII karakter, boşluk yok (geçersiz → 400 `errors.idempotencyKey`) |
+| Aynı istek sayılan | İstemcinin söylediği her şey: hesap, tür, tutar, açıklama, merchant (hesapta ad ve para birimi). Sunucunun atadığı zaman ve kategori karşılaştırılmaz |
+| Başarısız ilk deneme | Saklanmaz: ör. 409 yetersiz bakiyeden sonra aynı anahtar, bakiye yettiğinde başarılı olur |
+| Süre | Dolmaz: anahtar, oluşturduğu kaydın kimliği gibidir; yeni işlem = yeni anahtar |
+
+Nasıl çalışır: kaydın kimliği (GUID) müşteri + kaynak türü + anahtardan hesaplanır (`IdempotentId`, SHA-256, RFC 9562
+sürüm 8). Aynı üçlü hep aynı kimliği verir; veritabanı aynı kimliği ikinci kez kabul etmez. Yazıcı aynı kimliği
+bulursa içeriği karşılaştırır: aynıysa hiçbir şey yazmadan "zaten vardı" der (`WriteOutcome.AlreadyExisted`), farklıysa
+`IdempotencyConflictException` (409). Aynı anda gelen iki tekrardan ikincisi birincil anahtara takılır; yazıcı geri alır
+ve kayıtlı satırı aynı şekilde karşılaştırır. Farklı müşteriler aynı anahtarı kullansa da kimlikler çakışmaz. Migration
+yoktur. İki bacaklı yazıcı aynı kuralı `PairId` için uygular (KIND-03 kararı: aynı çift → ilk sonuç, farklı → 409).
+
+Kullanıcı kararları (API-12): anahtardan türetilen kimlik (1-A), işlemde zorunlu / hesapta isteğe bağlı (2-A), tekrar
+= aynı 201 + `Idempotent-Replayed: true` (3-A), farklı içerik 409 (4-A), başarısızlık saklanmaz (5-A), kapsam iki yazıcı +
+iki endpoint (6-A).
+

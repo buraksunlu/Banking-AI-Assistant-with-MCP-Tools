@@ -40,7 +40,7 @@ public sealed class AccountWriteServiceTests
         await using var db = Db();
         await using var scope = await db.Database.BeginTransactionAsync();
 
-        var created = await Service(db).CreateAsync(EmptyCustomer, new NewAccount("Tatil birikimi", "EUR"));
+        var created = (await Service(db).CreateAsync(EmptyCustomer, new NewAccount("Tatil birikimi", "EUR"))).Account;
 
         Assert.Equal(("Tatil birikimi", "EUR", AccountType.Personal, 0m),
             (created.AccountName, created.CurrencyCode, created.AccountType, created.Balance));
@@ -60,8 +60,8 @@ public sealed class AccountWriteServiceTests
         await using var scope = await db.Database.BeginTransactionAsync();
         var service = Service(db);
 
-        var first = await service.CreateAsync(EmptyCustomer, new NewAccount("Bir", "TRY"));
-        var second = await service.CreateAsync(EmptyCustomer, new NewAccount("Bir", "TRY")); // same name is allowed
+        var first = (await service.CreateAsync(EmptyCustomer, new NewAccount("Bir", "TRY"))).Account;
+        var second = (await service.CreateAsync(EmptyCustomer, new NewAccount("Bir", "TRY"))).Account; // same name is allowed
 
         Assert.True(NumberOf(second) > NumberOf(first));
         Assert.NotEqual(first.Id, second.Id);
@@ -93,6 +93,59 @@ public sealed class AccountWriteServiceTests
 
         await Assert.ThrowsAsync<ArgumentException>(() => Service(db).CreateAsync(EmptyCustomer, new NewAccount(name, currency)));
         Assert.False(await db.Accounts.AnyAsync(a => a.CustomerId == EmptyCustomer));
+
+        await scope.RollbackAsync();
+    }
+
+    // API-12: an optional Idempotency-Key makes a retried "open account" open it once.
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task The_same_key_opens_the_account_once()
+    {
+        await using var db = Db();
+        await using var scope = await db.Database.BeginTransactionAsync();
+        var service = Service(db);
+
+        var first = await service.CreateAsync(EmptyCustomer, new NewAccount("Tatil", "EUR"), "hesap-tatil");
+        var retry = await service.CreateAsync(EmptyCustomer, new NewAccount("Tatil", "EUR"), "hesap-tatil");
+
+        Assert.Equal((false, true), (first.Replayed, retry.Replayed));
+        Assert.Equal(first.Account, retry.Account);
+        Assert.Equal(IdempotentId.For(IdempotentId.Account, EmptyCustomer, "hesap-tatil"), first.Account.Id);
+        Assert.Equal(1, await db.Accounts.CountAsync(a => a.CustomerId == EmptyCustomer));
+
+        await scope.RollbackAsync();
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task The_same_key_for_a_different_account_is_a_conflict()
+    {
+        await using var db = Db();
+        await using var scope = await db.Database.BeginTransactionAsync();
+        var service = Service(db);
+        await service.CreateAsync(EmptyCustomer, new NewAccount("Tatil", "EUR"), "hesap-tatil");
+
+        await Assert.ThrowsAsync<BankingAI.Data.Writing.IdempotencyConflictException>(
+            () => service.CreateAsync(EmptyCustomer, new NewAccount("Tatil", "USD"), "hesap-tatil"));
+        Assert.Equal(1, await db.Accounts.CountAsync(a => a.CustomerId == EmptyCustomer));
+
+        await scope.RollbackAsync();
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Without_a_key_every_call_opens_a_new_account()
+    {
+        await using var db = Db();
+        await using var scope = await db.Database.BeginTransactionAsync();
+        var service = Service(db);
+
+        await service.CreateAsync(EmptyCustomer, new NewAccount("Tatil", "EUR"));
+        await service.CreateAsync(EmptyCustomer, new NewAccount("Tatil", "EUR"));
+
+        Assert.Equal(2, await db.Accounts.CountAsync(a => a.CustomerId == EmptyCustomer));
 
         await scope.RollbackAsync();
     }

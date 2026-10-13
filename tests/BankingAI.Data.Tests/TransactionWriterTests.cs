@@ -181,6 +181,109 @@ public sealed class TransactionWriterTests : IAsyncLifetime
         }
     }
 
+    // API-12: the same transaction id again is a retry. The same event changes nothing; a different one is refused.
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task A_repeated_id_with_the_same_event_changes_nothing()
+    {
+        EnsurePostgreSqlConfigured();
+        var accountId = await CreateTestAccountAsync();
+        try
+        {
+            await WriteAsync(accountId, 100m, TransactionDirection.Credit);
+            var purchase = NewTransaction(accountId, 40m, TransactionDirection.Debit);
+
+            Assert.Equal(WriteOutcome.Created, await AddAsync(purchase));
+            // A later retry carries its own server time; only what the caller said is compared.
+            Assert.Equal(WriteOutcome.AlreadyExisted, await AddAsync(SameIdAs(purchase, 40m)));
+
+            Assert.Equal(60m, await GetBalanceAsync(accountId));
+            Assert.Equal(2, await CountAsync(accountId));
+        }
+        finally
+        {
+            await DeleteTestAccountAsync(accountId);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task A_repeated_id_with_a_different_event_is_a_conflict_and_changes_nothing()
+    {
+        EnsurePostgreSqlConfigured();
+        var accountId = await CreateTestAccountAsync();
+        try
+        {
+            await WriteAsync(accountId, 100m, TransactionDirection.Credit);
+            var purchase = NewTransaction(accountId, 40m, TransactionDirection.Debit);
+            await AddAsync(purchase);
+
+            await Assert.ThrowsAsync<IdempotencyConflictException>(() => AddAsync(SameIdAs(purchase, 50m)));
+
+            Assert.Equal(60m, await GetBalanceAsync(accountId));
+            Assert.Equal(2, await CountAsync(accountId));
+        }
+        finally
+        {
+            await DeleteTestAccountAsync(accountId);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Concurrent_writes_of_the_same_id_move_the_balance_once()
+    {
+        EnsurePostgreSqlConfigured();
+        var accountId = await CreateTestAccountAsync();
+        try
+        {
+            await WriteAsync(accountId, 100m, TransactionDirection.Credit);
+            var purchase = NewTransaction(accountId, 40m, TransactionDirection.Debit);
+            var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            async Task<WriteOutcome> AddAfterRelease(Transaction transaction)
+            {
+                await start.Task;
+                return await AddAsync(transaction);
+            }
+
+            // Both may pass the "already there?" check; the primary key then stops the second insert.
+            var first = Task.Run(() => AddAfterRelease(purchase));
+            var second = Task.Run(() => AddAfterRelease(SameIdAs(purchase, 40m)));
+            start.SetResult();
+            var outcomes = await Task.WhenAll(first, second);
+
+            Assert.Equal([WriteOutcome.Created, WriteOutcome.AlreadyExisted], outcomes.Order());
+            Assert.Equal(60m, await GetBalanceAsync(accountId));
+            Assert.Equal(2, await CountAsync(accountId));
+        }
+        finally
+        {
+            await DeleteTestAccountAsync(accountId);
+        }
+    }
+
+    private static async Task<WriteOutcome> AddAsync(Transaction transaction)
+    {
+        await using var db = new BankingDbContext();
+        return await TransactionWriter.AddAsync(db, transaction);
+    }
+
+    // The same id and account, a new object as a retry would build it, with its own (later) time.
+    private static Transaction SameIdAs(Transaction original, decimal amount) => new()
+    {
+        Id = original.Id, AccountId = original.AccountId, Amount = amount, Direction = original.Direction,
+        Kind = original.Kind, CurrencyCode = original.CurrencyCode, RawDescription = original.RawDescription,
+        OccurredAt = DateTimeOffset.UtcNow.AddMilliseconds(-500)
+    };
+
+    private static async Task<int> CountAsync(Guid accountId)
+    {
+        await using var db = new BankingDbContext();
+        return await db.Transactions.CountAsync(t => t.AccountId == accountId);
+    }
+
     private static void EnsurePostgreSqlConfigured() =>
         Assert.False(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BANKINGAI_CONNECTION_STRING")),
             "PostgreSQL testleri için önce .env ortam değişkenlerini yükleyin.");

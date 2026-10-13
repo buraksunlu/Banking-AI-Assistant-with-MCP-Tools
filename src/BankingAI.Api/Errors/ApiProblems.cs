@@ -15,9 +15,16 @@ public static class ApiProblems
     public const string NotFound = "not_found";
     public const string MethodNotAllowed = "method_not_allowed";
     public const string BalanceLimit = "balance_limit";
+    public const string IdempotencyConflict = "idempotency_conflict";
     public const string UnsupportedMediaType = "unsupported_media_type";
     public const string TooManyRequests = "too_many_requests";
     public const string InternalError = "internal_error";
+
+    /// <summary>Request header with the client's key for one write (API-12).</summary>
+    public const string IdempotencyKeyHeader = "Idempotency-Key";
+
+    /// <summary>Response header set when a write was a retry that returned the first answer.</summary>
+    public const string ReplayedHeader = "Idempotent-Replayed";
 
     /// <summary>Title of an unexpected error; also used for statuses the table does not list.</summary>
     public const string InternalErrorTitle = "Beklenmeyen bir hata oluştu.";

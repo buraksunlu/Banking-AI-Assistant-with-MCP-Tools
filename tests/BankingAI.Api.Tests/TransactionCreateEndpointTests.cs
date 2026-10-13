@@ -17,8 +17,13 @@ public sealed class TransactionCreateEndpointTests
 {
     private static StringContent Json(string json) => new(json, Encoding.UTF8, "application/json");
 
-    private static Task<HttpResponseMessage> PostAsync(HttpClient client, Guid accountId, string json) =>
-        client.PostAsync($"/api/accounts/{accountId}/transactions", Json(json));
+    // Every call is a new event with a fresh Idempotency-Key unless a test repeats a key on purpose (API-12).
+    private static Task<HttpResponseMessage> PostAsync(HttpClient client, Guid accountId, string json, string? key = null)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/api/accounts/{accountId}/transactions") { Content = Json(json) };
+        request.Headers.Add("Idempotency-Key", key ?? Guid.NewGuid().ToString());
+        return client.SendAsync(request);
+    }
 
     private static string Salary(string amount) => $$"""{"kind":"Salary","amount":{{amount}},"description":"Maaş ödemesi"}""";
 

@@ -27,6 +27,8 @@ public sealed class ApiExceptionHandler(IProblemDetailsService problems, ILogger
             // No detail: a foreign resource must look exactly like a missing one.
             KeyNotFoundException => new ProblemDetails { Status = StatusCodes.Status404NotFound },
             BalanceLimitException error => Coded(StatusCodes.Status409Conflict, ApiProblems.BalanceLimit, "Bakiye sınırı", error.Message),
+            IdempotencyConflictException error => Coded(StatusCodes.Status409Conflict, ApiProblems.IdempotencyConflict,
+                "Bu anahtar farklı bir istek için kullanılmış", error.Message),
             ArgumentException error => Validation(error),
             BadHttpRequestException error => new ProblemDetails { Status = error.StatusCode },
             _ => null
