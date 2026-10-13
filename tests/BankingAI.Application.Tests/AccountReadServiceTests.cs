@@ -107,8 +107,8 @@ public sealed class AccountReadServiceTests
         await using var db = Db();
         var service = Service(db);
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.ListAsync(Guid.NewGuid()));
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.GetAsync(Guid.NewGuid(), AdaTryAccount));
+        await Assert.ThrowsAsync<CustomerNotFoundException>(() => service.ListAsync(Guid.NewGuid()));
+        await Assert.ThrowsAsync<CustomerNotFoundException>(() => service.GetAsync(Guid.NewGuid(), AdaTryAccount));
     }
 
     [Fact]

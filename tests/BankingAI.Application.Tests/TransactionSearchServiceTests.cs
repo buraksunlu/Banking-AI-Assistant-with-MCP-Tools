@@ -263,7 +263,7 @@ public sealed class TransactionSearchServiceTests
     [Trait("Category", "PostgreSQL")]
     public async Task An_unknown_or_empty_customer_is_rejected()
     {
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => GetAsync(Guid.NewGuid(), Tx(602)));
+        await Assert.ThrowsAsync<CustomerNotFoundException>(() => GetAsync(Guid.NewGuid(), Tx(602)));
         await Assert.ThrowsAsync<ArgumentException>(() => GetAsync(Guid.Empty, Tx(602)));
     }
 

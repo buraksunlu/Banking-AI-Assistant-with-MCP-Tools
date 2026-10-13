@@ -91,7 +91,8 @@ public sealed class TransactionCreateEndpointTests
         var tooMuch = await PostAsync(client, account, Purchase("749.26"));
         Assert.Equal(HttpStatusCode.Conflict, tooMuch.StatusCode);
         var problem = await BodyAsync(tooMuch);
-        Assert.Equal(("Bakiye sınırı", 409), (problem["title"]!.GetValue<string>(), problem["status"]!.GetValue<int>()));
+        Assert.Equal(("Bakiye sınırı", 409, "balance_limit"),
+            (problem["title"]!.GetValue<string>(), problem["status"]!.GetValue<int>(), problem["code"]!.GetValue<string>()));
         Assert.Contains("Yetersiz bakiye", problem["detail"]!.GetValue<string>());
         Assert.Equal("749.25", await BalanceAsync(client, account));
 
@@ -236,14 +237,14 @@ public sealed class TransactionCreateEndpointTests
 
     [Fact]
     [Trait("Category", "PostgreSQL")]
-    public async Task A_customer_that_no_longer_exists_gets_404_until_api_13()
+    public async Task A_customer_that_no_longer_exists_gets_401()
     {
-        // As for GET /api/accounts/{id}: a missing customer and a missing account share one exception today.
+        // API-13: a missing customer is told apart from a missing account.
         await using var api = TestApi.Create();
         using var client = api.CreateClient().WithToken(TestTokens.Create(Guid.NewGuid()));
 
         var response = await PostAsync(client, Guid.NewGuid(), Salary("10"));
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 }

@@ -33,7 +33,8 @@ internal sealed class CustomerScope(BankingDbContext db, PeriodResolver periodRe
             .Where(c => c.Id == customerId)
             .Select(c => c.TimeZone)
             .SingleOrDefaultAsync(cancellationToken)
-            ?? throw new KeyNotFoundException("Müşteri bulunamadı.");
+            // Its own type: a missing customer (a stale token) is "sign in again", not "not found".
+            ?? throw new CustomerNotFoundException();
 
         if (accountId is not null)
         {

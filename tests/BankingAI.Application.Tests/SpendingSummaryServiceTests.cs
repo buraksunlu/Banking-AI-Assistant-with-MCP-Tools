@@ -113,7 +113,7 @@ public sealed class SpendingSummaryServiceTests
     [Trait("Category", "PostgreSQL")]
     public async Task Unknown_customer_is_reported_as_not_found()
     {
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => GetAsync(new(Guid.NewGuid(), PeriodKind.ThisMonth)));
+        await Assert.ThrowsAsync<CustomerNotFoundException>(() => GetAsync(new(Guid.NewGuid(), PeriodKind.ThisMonth)));
     }
 
     [Fact]

@@ -11,7 +11,9 @@ namespace BankingAI.Api.Controllers;
 /// <summary>
 /// Body of <c>POST /api/auth/login</c>. Both fields are required; a missing or blank one is a 400.
 /// </summary>
-public sealed record LoginRequest([Required] string Username, [Required] string Password);
+public sealed record LoginRequest(
+    [Required(ErrorMessage = "Zorunlu alan.")] string Username,
+    [Required(ErrorMessage = "Zorunlu alan.")] string Password);
 
 /// <summary>
 /// A successful login: the bearer token and the moment it stops being accepted.

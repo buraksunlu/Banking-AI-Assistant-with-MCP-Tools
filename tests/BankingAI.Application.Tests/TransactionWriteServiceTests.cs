@@ -139,7 +139,7 @@ public sealed class TransactionWriteServiceTests
         await using var customer = await TemporaryCustomer.CreateAsync();
         var account = await customer.AddAccountAsync("TRY");
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => AddAsync(Guid.NewGuid(), account, TransactionKind.Salary, 10m));
+        await Assert.ThrowsAsync<CustomerNotFoundException>(() => AddAsync(Guid.NewGuid(), account, TransactionKind.Salary, 10m));
         await Assert.ThrowsAsync<ArgumentException>(() => AddAsync(Guid.Empty, account, TransactionKind.Salary, 10m));
         Assert.Equal((0m, 0), await StateAsync(account));
     }

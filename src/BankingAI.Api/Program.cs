@@ -1,6 +1,6 @@
-using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using BankingAI.Api.Controllers;
+using BankingAI.Api.Errors;
 using BankingAI.Api.Security;
 using BankingAI.Application.Accounts;
 using BankingAI.Application.Analytics;
@@ -14,12 +14,22 @@ const string ConnectionStringKey = "BANKINGAI_CONNECTION_STRING";
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Enums travel as names ("Business", later "Purchase"): readable for people and for the LLM, which would
-// otherwise have to guess what 2 means. Numbers are refused as input, so nothing is silently converted.
+// Enums travel as their exact names ("Purchase"): readable for people and for the LLM, which would otherwise have
+// to guess what 2 means. Numbers and other casings are refused as input, so nothing is silently converted.
 // Action names keep their "Async" suffix, so CreatedAtAction(nameof(GetAsync), ...) finds the action it names.
-builder.Services.AddControllers(options => options.SuppressAsyncSuffixInActionNames = false)
-    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false)));
+builder.Services.AddControllers(options =>
+    {
+        options.SuppressAsyncSuffixInActionNames = false;
+        ApiValidation.UseTurkishMessages(options.ModelBindingMessageProvider);
+    })
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new StrictEnumConverter()))
+    .ConfigureApiBehaviorOptions(options => options.InvalidModelStateResponseFactory = ApiValidation.InvalidModelState);
 builder.Services.AddOpenApi();
+
+// Every error is a ProblemDetails body with a Turkish title, a machine code and a traceId (API-13). Exceptions
+// from services are mapped in one place, so controllers carry no try/catch.
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = ApiProblems.Customize);
+builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 
 // One DbContext per HTTP request (scoped); never shared between requests. The connection string is
 // read from configuration (the existing environment variable) when the context is created, so test
@@ -71,6 +81,12 @@ app.Services.GetRequiredService<JwtSettings>();
 
 if (app.Environment.IsDevelopment())
     app.MapOpenApi().AllowAnonymous();
+
+// First in the pipeline, so every later failure reaches it. The same generic 500 in every environment: the
+// details of an unexpected error stay in the server log (decision 5-A), never in the response.
+app.UseExceptionHandler();
+// Gives a problem body to answers that have none (401 challenge, unknown route 404, 405, 429).
+app.UseStatusCodePages();
 
 // No HTTPS redirection yet: local development runs on HTTP only; TLS is decided with Docker (OPS-04).
 app.UseRateLimiter();

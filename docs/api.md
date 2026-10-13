@@ -23,15 +23,56 @@ kaynağı olmayan kaynakla birebir aynı `404`'ü alır; GUID olmayan kimlik `40
 
 ## Genel JSON kuralları (API-03, 12 Ekim 2026, kullanıcı kararları)
 
-- **Enum'lar yazıyla taşınır:** `"accountType": "Personal"`, `"kind": "Purchase"`. Girdi olarak da
-  yalnız ad kabul edilir; `2` gibi bir sayı 400'dür (sessiz dönüşüm yok). Gerekçe: insanlar ve LLM için
-  okunur; modelin `2`'nin ne olduğunu tahmin etmesi gerekmez.
+- **Enum'lar yazıyla taşınır:** `"accountType": "Personal"`, `"kind": "Purchase"`. Girdi olarak yalnız
+  **tam ad** kabul edilir; `2` gibi bir sayı ve `"purchase"` gibi farklı harf büyüklüğü 400'dür (API-13, kullanıcı
+  kararı 4-A; `?period=lastmonth` da). Gerekçe: insanlar ve LLM için okunur; sessiz dönüşüm yok.
 - **Para JSON sayısıdır:** `"balance": 577490.18`. `decimal` birebir yazılır (`2595.00` → `2595.00`).
   Bütün hesaplar backend'de yapılır; istemciler tutarı yalnız gösterir. Swift'in varsayılan JSON okuyucusu
   `Decimal`'i `double` üzerinden okuyabildiği için SwiftUI adımında tutar dikkatli çözülecek.
 - **Yazma isteklerinde tanınmayan alan 400'dür** (`[JsonUnmappedMemberHandling(Disallow)]`). Örneğin hesap
   açarken `balance` göndermek sessizce yok sayılmaz, reddedilir. Okuma istekleri ve login bu kurala tabi değil.
 - Alan adları camelCase'dir (ASP.NET varsayılanı).
+
+## Hata cevapları (API-13, 13 Ekim 2026, kullanıcı kararları)
+
+Her hata aynı biçimdedir: **ProblemDetails** (RFC 9457), içerik tipi `application/problem+json`, Türkçe `title`,
+sabit makine kodu `code` ve `traceId`. Gövdesiz cevap yoktur (401, bilinmeyen adres 404, 405, 429 dahil). İstemci
+başlığı ayrıştırmak yerine `code`'a bakar.
+
+```json
+{ "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1", "title": "İstek geçersiz.", "status": 400,
+  "errors": { "balance": ["Tanınmayan alan."] }, "traceId": "…", "code": "validation_failed" }
+```
+
+| Durum | Kod | `code` | `title` |
+|---|---|---|---|
+| Girdi kuralı, bozuk JSON, GUID olmayan kimlik, tanınmayan alan | 400 | `validation_failed` | İstek geçersiz. (+ alan bazlı `errors`) |
+| Token yok / geçersiz / süresi dolmuş; yanlış kullanıcı adı veya şifre | 401 | `unauthorized` | Giriş gerekli. |
+| Token geçerli ama müşteri artık yok | 401 | `session_invalid` | Oturum geçersiz; yeniden giriş yapın. |
+| Olmayan veya başkasının kaynağı; bilinmeyen adres | 404 | `not_found` | Bulunamadı. (`detail` yok; gövdeler birebir aynı) |
+| Yanlış HTTP metodu | 405 | `method_not_allowed` | Bu adres bu yöntemi desteklemiyor. |
+| Bakiye sınırı (yetersiz bakiye, üst sınır) | 409 | `balance_limit` | Bakiye sınırı (+ `detail`) |
+| JSON olmayan gövde | 415 | `unsupported_media_type` | Desteklenmeyen içerik türü; JSON gönderin. |
+| Login deneme sınırı | 429 | `too_many_requests` | Çok fazla deneme; biraz sonra tekrar deneyin. |
+| Beklenmeyen hata | 500 | `internal_error` | Beklenmeyen bir hata oluştu. (ayrıntı yalnız sunucu logunda) |
+
+`errors` kuralları:
+
+- Anahtar, istemcinin gönderdiği addır (camelCase JSON/sorgu adı: `accountName`, `limit`, `password`); gövdenin
+  bütünü için `body`.
+- Mesajlar Türkçedir; .NET'in `(Parameter '…')` eki, iç tip adları, JSON yolları (`$.x`) ve bayt konumları görünmez.
+  JSON hataları sabit metne çevrilir: tanımlı olmayan alan → "Tanınmayan alan.", tipi tutmayan değer → "Geçersiz
+  değer.", ayrıştırılamayan gövde → "Geçersiz JSON.", boş gövde → "İstek gövdesi zorunlu.".
+- İstekler metin ve tutar kurallarını `InputRules`'tan yeniden kullanır; NUL karakter de istemcinin alanında
+  (`description`, `accountName`) raporlanır, karakterler DB gibi sayılır.
+
+Kullanıcı kararları: her yerde ProblemDetails (1-A); eşleme tek yerde, `ApiExceptionHandler` + `UseStatusCodePages`,
+controller'larda `try/catch` yok (2-A); Türkçe mesajlar (3-A); katı enum (4-A); her ortamda aynı genel 500, geliştirme
+ortamında da stack trace yok (5-A); `code` alanı (6-A). Silinmiş müşteri her endpoint'te 401 (API-06 kararı).
+
+Bilinen sınır: servislerden gelen her `ArgumentException` 400 sayılır; programlama hatasından doğan bir
+`ArgumentException` da 400 görünür (mesajlar bizim Türkçe kurallarımızdır; ayrı tip `InputRules`'u ve 70 testi
+etkilerdi).
 
 ## Hesap (API-03)
 
@@ -123,12 +164,12 @@ Token gerekir. Hesap yalnız token'daki müşterinin hesaplarında aranır.
 | **Başka müşterinin hesabı** | `404`, olmayan hesapla birebir aynı gövde (403 verilmez; varlık sızmaz) |
 | Kimlik GUID değil (`abc`, `123`) | `400` (ASP.NET doğrulama cevabı; kullanıcı kararı) |
 | Token yok / geçersiz | `401` |
-| Token geçerli ama müşteri artık yok | şimdilik `404` (servis müşteri ve hesap yokluğunu aynı istisnayla bildiriyor; API-13'te `401` olacak) |
+| Token geçerli ama müşteri artık yok | `401` `session_invalid` (API-13) |
 
-404 gövdesi (ASP.NET varsayılanı; ortak biçim API-13'te):
+404 gövdesi (ortak biçim, yukarıda):
 
 ```json
-{ "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5", "title": "Not Found", "status": 404, "traceId": "…" }
+{ "type": "https://tools.ietf.org/html/rfc9110#section-15.5.5", "title": "Bulunamadı.", "status": 404, "traceId": "…", "code": "not_found" }
 ```
 
 ## `POST /api/accounts` (API-07)
@@ -160,7 +201,7 @@ Location: /api/accounts/c7f08208-4546-4b40-8b48-e83c50be4ab0
 - Ad olduğu gibi saklanır (kırpılmaz); aynı adla birden çok hesap açılabilir.
 
 Bilinen sınırlar: müşteri başına hesap sayısı sınırı yok (kullanıcı kararı; ACC-LIMIT); aynı isteğin
-iki kez gönderilmesi iki hesap açar (API-12); 400 cevabı tanınmayan alanda iç tip adını içeriyor (API-13).
+iki kez gönderilmesi iki hesap açar (API-12).
 
 ## İşlem sözleşmesi (API-08)
 
@@ -200,7 +241,7 @@ Backend belirler (istekte gelirse 400): `direction` (Purchase → Debit, Salary 
 (hesabın para birimi), `accountId` (adresten), `occurredAt` (sunucu saati; geçmiş tarih yok — kullanıcı
 kararı), kategori alanları (bankanın yorumu; yeni işlem "Sınıflandırılmamış" başlar).
 
-Bilinen sınır: enum girdisi harf büyüklüğüne duyarsız (`"purchase"` de `Purchase` olarak okunur).
+Enum girdisi katıdır: `"purchase"` 400'dür (API-13).
 
 ## `GET /api/accounts/{accountId}/transactions` (API-09)
 
@@ -237,7 +278,7 @@ Tür/yön/kategori/merchant filtreleri bu endpoint'te yoktur (kullanıcı karar�
 
 Bilinen sınırlar: offset sayfalamasında liste gezilirken araya yeni işlem girerse sayfa kenarında bir
 işlem tekrar görünebilir (istemci kimliğe göre ayıklamalı); API gerçek saati kullanır (demo "şimdi" ANA-09);
-silinmiş müşterinin token'ı şimdilik `404` (API-13); 400 mesajlarında .NET'in `(Parameter '…')` eki var (API-13).
+silinmiş müşterinin token'ı `401` `session_invalid` (API-13).
 
 ## `GET /api/transactions/{id}` (API-10)
 
@@ -253,7 +294,7 @@ dilimi + tek join'li okuma).
 | **Başka müşterinin hesabındaki işlem** | `404`, olmayan işlemle birebir aynı gövde. Ada'nın kendi alışverişinin dükkândaki bacağı (Deniz'in hesabı) da bu durumdadır |
 | Kimlik GUID değil (`abc`, `123`) | `400` (route kısıtı yok; kullanıcı kararı, API-06 ile aynı) |
 | Token yok / geçersiz | `401` |
-| Token geçerli ama müşteri artık yok | şimdilik `404` (API-13'te `401`) |
+| Token geçerli ama müşteri artık yok | `401` `session_invalid` (API-13) |
 
 Kullanıcı kararları (API-10): okuma ayrı servis değil arama servisinin metodu (analytics interface'siz kalır);
 liste ve tek işlem aynı `TransactionsController`'da, her metot kendi tam route'unu taşır; adres iç içe değil
@@ -285,7 +326,8 @@ Cevap `GET /api/transactions/{id}` ile birebir aynıdır (kayıttan sonra aynı 
 | Geçerli istek | `201` + `Location` + işlem |
 | Gövde kuralları (`kind` yalnız Purchase/Salary, tutar, açıklama, merchant, merchant'lı Salary, tanınmayan alan), boş gövde, NUL karakter, GUID olmayan hesap kimliği | `400` |
 | Token yok / geçersiz | `401` |
-| Başkasının / olmayan hesap; token geçerli ama müşteri artık yok (API-13'e kadar) | `404` (birebir aynı gövde) |
+| Başkasının / olmayan hesap | `404` (birebir aynı gövde) |
+| Token geçerli ama müşteri artık yok | `401` `session_invalid` (API-13) |
 | Yetersiz bakiye; bakiye üst sınırını (9999999999999999,99) aşacak maaş | `409` |
 
 ```json
@@ -312,5 +354,5 @@ Sorgular (geçici testle ölçüldü): 8 komut — müşteri, sahiplik, hesabın
 bakiye güncellemesi; geri okumada saat dilimi ve tek join'li okuma.
 
 Bilinen sınırlar: aynı istek iki kez gönderilirse iki işlem oluşur (API-12); NUL gibi işlem kurallarına takılan
-girdide 400 alan adı iç addır (`RawDescription`; API-13); cevap yeni bakiyeyi taşımaz (hesap ayrıca okunur);
+girdi API-13'ten beri istemcinin alanında (`description`) raporlanır; cevap yeni bakiyeyi taşımaz (hesap ayrıca okunur);
 maaşı istemcinin yazabilmesi yalnız sentetik demo içindir.

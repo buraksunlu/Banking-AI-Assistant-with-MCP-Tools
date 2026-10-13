@@ -1387,24 +1387,24 @@ COMPLETED
 - İşlem ekleme (API-11): POST /api/accounts/{accountId}/transactions → 201 + Location; yalnız sentetik
   Purchase/Salary, yön türden, para birimi hesaptan, zaman sunucudan; yetersiz bakiye ve üst sınır 409;
   Business hesap da kabul edilir (kullanıcı kararı 3-B); ITransactionWriteService/TransactionWriteService.
+- Ortak hata cevabı (API-13): her hata ProblemDetails + Türkçe başlık + makine kodu (`code`) + traceId; eşleme
+  tek yerde (ApiExceptionHandler, UseStatusCodePages, ApiValidation); controller'larda try/catch yok; silinmiş
+  müşteri her endpoint'te 401 session_invalid (CustomerNotFoundException); katı enum adları; her ortamda genel 500.
 
 IN PROGRESS
-- API bölümünün kalanı: API-12 (idempotency), API-13 (ortak hata cevabı), API-14/15; ANA-09
-  (analytics endpoint'leri + demo "şimdi" kararı).
+- API bölümünün kalanı: API-12 (idempotency), API-14/15; ANA-09 (analytics endpoint'leri + demo "şimdi"
+  kararı).
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Kullanıcının seçtiği API-12+/ANA-09 maddesi; ardından local AI (todo bölüm 15) ve read-only
+- Kullanıcının seçtiği ANA-09 / API-12 / API-14/15 maddesi; ardından local AI (todo bölüm 15) ve read-only
   MCP (bölüm 16). Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14, MCP-15–18) ANA-09'dan
   sonra; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 
 KNOWN ISSUES
-- Silinmiş müşterinin token'ı GET /api/accounts/{id}, GET /api/transactions/{id} ve işlem eklemede 404,
-  diğer endpoint'lerde 401 alıyor (API-13'te 401'de birleşecek).
-- İşlem kurallarına takılan girdide (ör. NUL) 400 alan adı iç addır ("RawDescription"; API-13).
-- 400 cevapları .NET'in "(Parameter '…')" ekini ve tanınmayan alanda iç tip adını içeriyor (API-13).
-- Enum girdisi harf büyüklüğüne duyarsız ("purchase" kabul ediliyor; API-13'te ele alınabilir).
+- Servislerden gelen her ArgumentException 400 sayılıyor; bir programlama hatasından doğan ArgumentException da
+  400 görünür (API-13 bilinçli sınırı; ayrı tip InputRules'u ve 70 testi etkilerdi).
 - Offset sayfalamasında araya yeni işlem girerse sayfa kenarında bir işlem tekrar görülebilir.
 - API gerçek saati kullanıyor; demo verisi 10 Ekim 2026'ya göre (karar ANA-09'da).
 - Tek komutluk seed synthetic ve market fiyatı import'u yok.
@@ -1419,7 +1419,7 @@ TECHNICAL DEBT
 - OpenAPI belgesi yalnız 200 cevaplarını gösteriyor (API-15).
 
 TEST STATUS
-- Tam paket yeşil (13 Ekim 2026, API-11 sonrası): Data 59, Application 175, Api 139; dotnet build
+- Tam paket yeşil (13 Ekim 2026, API-13 sonrası): Data 59, Application 175, Api 162; dotnet build
   --no-incremental 0 uyarı.
 - PostgreSQL testleri seed edilmiş demo DB üzerinde çalışır: rollback ya da geçici DUMMY-*TEST-*
   hesap / "Test Api" müşterisi açıp silme. Test projeleri paralel koşar; commit eden ve satır sayan

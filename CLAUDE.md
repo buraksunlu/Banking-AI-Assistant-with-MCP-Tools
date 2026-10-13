@@ -134,13 +134,14 @@ configuration'lardaki DB CHECK/unique/FK kısıtları. Yeni kural eklerken dört
   taşır (health, login, OpenAPI). Controller'larda müşteri yalnız `User.GetCustomerId()` ile token'ın `sub`
   claim'inden alınır. JWT HS256, 60 dk, anahtar `BANKINGAI_JWT_SIGNING_KEY` (≥ 32 bayt, yoksa API açılmaz);
   login IP başına dakikada 5 deneme.
-- API JSON kuralları (docs/api.md): enum'lar yazıyla (girdi olarak sayı reddedilir), para `decimal` JSON
+- API JSON kuralları (docs/api.md): enum'lar yazıyla ve **tam adla** (`StrictEnumConverter`: sayı ve `"purchase"` 400), para `decimal` JSON
   sayısı, yazma isteklerinde tanınmayan alan 400 (`[JsonUnmappedMemberHandling(Disallow)]`). Entity JSON'a
   verilmez: dışarı DTO (Application, EF'in çevirdiği `Projection` ifadesiyle; sıralama `Select`'ten önce),
   içeri yalnız istemcinin seçebileceği alanları taşıyan request (Api). DTO'larda `CustomerId` bulunmaz.
   İşlemin dış biçimi analytics'in `TransactionItem`'ıdır (ayrı DTO yazma). `CreateTransactionRequest` yalnız olayı taşır
   (Purchase/Salary, tutar, açıklama, isteğe bağlı merchant); yön, para birimi, hesap, zaman ve kategori backend'indir.
-  Request'lerde tutar kuralı `InputRules.Money` çağrılarak yeniden kullanılır (kopyalanmaz).
+  Request'lerde tutar ve metin kuralları `InputRules.Money`/`InputRules.Text` çağrılarak `ApiValidation.Rule` ile yeniden
+  kullanılır (kopyalanmaz); `[StringLength]` yerine (DB gibi karakter sayar, NUL'u istemcinin alanında yakalar).
   Analytics servisleri controller'a doğrudan (somut sınıf, Scoped) verilir; `TransactionsController` işlem listesini
   ve tek işlemi (`GetAsync`, API-10) `TransactionSearchService` ile döndürür (yeni sorgu yazma), işlem eklemeyi
   (`CreateAsync`, API-11, `POST /api/accounts/{accountId}/transactions` → 201 + Location `/api/transactions/{id}`)
@@ -152,8 +153,15 @@ configuration'lardaki DB CHECK/unique/FK kısıtları. Yeni kural eklerken dört
   `CreatedAt`, eşitse `AccountNumber`. Repository eklenmez.
 - DI (`Program.cs`): DbContext kullanan servisler **Scoped** (`AddScoped<IAccountReadService, AccountReadService>`);
   durumsuzlar Singleton (`PeriodResolver`, `TimeProvider`, `TokenIssuer`). Singleton'a Scoped servis verilirse API açılmaz.
-  Controller kalıbı: `User.GetCustomerId()` → servis → DTO; müşteri parametresi yoktur. Başka müşterinin kaynağı
-  olmayan kaynakla birebir aynı 404'ü alır (403 değil). GUID parametreleri `Guid id` ile bağlanır (bozuk biçim 400).
+  Controller kalıbı: `User.GetCustomerId()` → servis → DTO; müşteri parametresi yoktur; **`try/catch` yazılmaz**.
+  Başka müşterinin kaynağı olmayan kaynakla birebir aynı 404'ü alır (403 değil). GUID parametreleri `Guid id` ile
+  bağlanır (bozuk biçim 400).
+- Hatalar (API-13, `Api/Errors`): her cevap ProblemDetails + Türkçe `title` + `code` + `traceId`. İstisna eşlemesi tek
+  yerde, `ApiExceptionHandler`: `CustomerNotFoundException` (Application; `KeyNotFoundException`'dan türer, `CustomerScope`
+  atar) → 401 `session_invalid`, `KeyNotFoundException` → 404, `BalanceLimitException` → 409, `ArgumentException` → 400
+  (`(Parameter …)` eki temizlenir), diğer her şey → 500 (ayrıntı yalnız logda, her ortamda). Gövdesiz cevaplar
+  `UseStatusCodePages`'le, otomatik 400 `ApiValidation.InvalidModelState` ile (camelCase alan, Türkçe mesaj, JSON
+  yolu/tip adı yok). Kodlar ve başlıklar `ApiProblems` tablosunda; yeni hata türü eklenirse oraya.
 - Kategori yalnız Purchase'ta bulunur. `CategoryId == null` "Sınıflandırılmamış"tır ve `OTHER`
   ("Diğer") ile birleştirilmez. Kategori alanları (Id/Source/Confidence/CategorizedAt) birlikte değişir.
 - Tutar `numeric(18,2)`, sessiz yuvarlama yok; negatif bakiye yok. Zaman UTC `timestamptz`;
@@ -263,7 +271,8 @@ ayrı ve engellemeyen bir koldur, altın kaynağı (SRC-02) dış yanıt bekliyo
 ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/AccountType, çift
 yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, arama, en yüksek
 işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu testleri), REC-01–03 (düzenli
-ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi), API-09 (hesabın işlem listesi), API-10 (tek işlem), API-11 (işlem ekleme). Sıradaki: API-12+ ve ANA-09; sonra AI, MCP.
+ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi), API-09 (hesabın işlem listesi), API-10 (tek işlem), API-11 (işlem ekleme), API-13 (ortak hata cevabı). Sıradaki: ANA-09,
+API-12, API-14/15; sonra AI, MCP.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11).
 Güncel ayrıntı her zaman `todo.md`'dedir.

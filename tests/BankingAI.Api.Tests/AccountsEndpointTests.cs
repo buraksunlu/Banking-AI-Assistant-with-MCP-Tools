@@ -292,12 +292,11 @@ public sealed class AccountsEndpointTests
 
     [Fact]
     [Trait("Category", "PostgreSQL")]
-    public async Task One_account_for_a_customer_that_no_longer_exists_is_404_until_api_13()
+    public async Task One_account_for_a_customer_that_no_longer_exists_is_401()
     {
-        // Decision 2-A: the service reports a missing customer and a missing account with the same exception,
-        // so this endpoint cannot tell them apart. API-13 introduces distinct errors and changes this to 401.
+        // API-13: a missing customer has its own exception now, so every endpoint sends the user back to sign in.
         var (status, _) = await GetAsync($"/api/accounts/{AdaTryAccount}", Guid.NewGuid());
 
-        Assert.Equal(HttpStatusCode.NotFound, status);
+        Assert.Equal(HttpStatusCode.Unauthorized, status);
     }
 }

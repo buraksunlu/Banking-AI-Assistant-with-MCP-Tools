@@ -235,12 +235,11 @@ public sealed class TransactionsEndpointTests
 
     [Fact]
     [Trait("Category", "PostgreSQL")]
-    public async Task One_transaction_for_a_customer_that_no_longer_exists_is_404_until_api_13()
+    public async Task One_transaction_for_a_customer_that_no_longer_exists_is_401()
     {
-        // Decision 4-A, as for GET /api/accounts/{id}: a missing customer and a missing transaction share one
-        // exception, so the endpoint cannot tell them apart until API-13.
+        // API-13: a missing customer is told apart from a missing transaction.
         var (status, _) = await GetAsync($"/api/transactions/{Tx(602)}", Guid.NewGuid());
 
-        Assert.Equal(HttpStatusCode.NotFound, status);
+        Assert.Equal(HttpStatusCode.Unauthorized, status);
     }
 }

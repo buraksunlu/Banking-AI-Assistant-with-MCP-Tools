@@ -1,11 +1,11 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using BankingAI.Api.Errors;
 using BankingAI.Api.Security;
 using BankingAI.Application.Analytics;
 using BankingAI.Application.Transactions;
 using BankingAI.Data.Enums;
 using BankingAI.Data.Validation;
-using BankingAI.Data.Writing;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BankingAI.Api.Controllers;
@@ -60,30 +60,20 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
         {
             kind = DefaultPeriod;
         }
-        // Names only, like enums in JSON: Enum.TryParse would also accept "2". A custom range comes from dates.
-        else if (period.Any(char.IsDigit) || !Enum.TryParse(period, ignoreCase: true, out kind)
+        // Exact names only, like enums in JSON: Enum.TryParse would also accept "2" or "lastmonth". A custom
+        // range comes from dates.
+        else if (period.Any(char.IsDigit) || !Enum.TryParse(period, ignoreCase: false, out kind)
                  || !Enum.IsDefined(kind) || kind == PeriodKind.Custom)
         {
             return Invalid(nameof(period), "ThisMonth, LastMonth, Last3Months veya Last6Months olmalı.");
         }
 
-        try
-        {
-            var result = await search.SearchAsync(
-                new TransactionSearchQuery(User.GetCustomerId(), kind, from, to, accountId, Limit: limit, Offset: offset),
-                cancellationToken);
-            return Ok(new TransactionPage(result.Period, result.TotalCount, result.HasMore, result.Items));
-        }
-        catch (KeyNotFoundException)
-        {
-            // A missing or foreign account (and, until API-13, a customer that no longer exists): the same 404.
-            return NotFound();
-        }
-        catch (ArgumentException error)
-        {
-            // Limit/offset bounds and date rules are enforced by the service and the period resolver.
-            return Invalid(error.ParamName ?? nameof(period), error.Message);
-        }
+        // Limit/offset bounds and date rules are the service's and the period resolver's; their errors, like a
+        // missing or foreign account, are answered by ApiExceptionHandler.
+        var result = await search.SearchAsync(
+            new TransactionSearchQuery(User.GetCustomerId(), kind, from, to, accountId, Limit: limit, Offset: offset),
+            cancellationToken);
+        return Ok(new TransactionPage(result.Period, result.TotalCount, result.HasMore, result.Items));
     }
 
     /// <summary>
@@ -92,19 +82,8 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
     /// not a GUID is a 400.
     /// </summary>
     [HttpGet("api/transactions/{id}")]
-    public async Task<ActionResult<TransactionItem>> GetAsync(Guid id, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return Ok(await search.GetAsync(User.GetCustomerId(), id, cancellationToken));
-        }
-        catch (KeyNotFoundException)
-        {
-            // Also reached when the token's customer no longer exists: the service reports both with the same
-            // exception, so until API-13 splits them this endpoint answers 404 there as well (decision 4-A).
-            return NotFound();
-        }
-    }
+    public async Task<ActionResult<TransactionItem>> GetAsync(Guid id, CancellationToken cancellationToken) =>
+        Ok(await search.GetAsync(User.GetCustomerId(), id, cancellationToken));
 
     /// <summary>
     /// <c>POST /api/accounts/{accountId}/transactions</c>: adds a synthetic Purchase or Salary to one of the
@@ -116,29 +95,11 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
     public async Task<ActionResult<TransactionItem>> CreateAsync(
         Guid accountId, CreateTransactionRequest request, CancellationToken cancellationToken)
     {
-        try
-        {
-            // Required and validated by the request rules before this runs, so the values are present.
-            var item = await writer.CreateAsync(User.GetCustomerId(), accountId,
-                new NewTransaction(request.Kind!.Value, request.Amount!.Value, request.Description, request.Merchant),
-                cancellationToken);
-            return CreatedAtAction(nameof(GetAsync), new { id = item.Id }, item);
-        }
-        catch (KeyNotFoundException)
-        {
-            // A missing or foreign account (and, until API-13, a customer that no longer exists): the same 404.
-            return NotFound();
-        }
-        catch (BalanceLimitException error)
-        {
-            // The request is valid; the account's current balance does not allow it, so it may succeed later.
-            return Problem(statusCode: StatusCodes.Status409Conflict, title: "Bakiye sınırı", detail: error.Message);
-        }
-        catch (ArgumentException error)
-        {
-            // Input that passes the request attributes but not the transaction rules (e.g. a NUL character).
-            return Invalid(error.ParamName ?? nameof(request), error.Message);
-        }
+        // Required and validated by the request rules before this runs, so the values are present.
+        var item = await writer.CreateAsync(User.GetCustomerId(), accountId,
+            new NewTransaction(request.Kind!.Value, request.Amount!.Value, request.Description, request.Merchant),
+            cancellationToken);
+        return CreatedAtAction(nameof(GetAsync), new { id = item.Id }, item);
     }
 
     private ActionResult Invalid(string field, string message)
@@ -160,47 +121,39 @@ public sealed record CreateTransactionRequest : IValidatableObject
     /// <c>Purchase</c> (money out) or <c>Salary</c> (money in, so new zero-balance accounts can be used).
     /// Two-legged kinds (Transfer, Sale) and OpeningFunding are not accepted.
     /// </summary>
-    [Required]
-    [AllowedValues(TransactionKind.Purchase, TransactionKind.Salary)]
+    [Required(ErrorMessage = "Zorunlu alan.")]
+    [AllowedValues(TransactionKind.Purchase, TransactionKind.Salary, ErrorMessage = "Purchase veya Salary olmalı.")]
     public TransactionKind? Kind { get; init; }
 
     /// <summary>Positive, at most two decimals, within the money ceiling; never rounded.</summary>
-    [Required]
+    [Required(ErrorMessage = "Zorunlu alan.")]
     public decimal? Amount { get; init; }
 
     /// <summary>The raw statement text, 1–500 characters, not only whitespace.</summary>
-    [Required]
-    [StringLength(500)]
+    [Required(ErrorMessage = "Zorunlu alan.")]
     public string Description { get; init; } = "";
 
     /// <summary>
     /// Optional shop name, part of the event like on a card statement (1–150 characters). The category, the
     /// bank's interpretation, is never taken from the client.
     /// </summary>
-    [StringLength(150)]
     public string? Merchant { get; init; }
 
-    /// <summary>Rules that span fields or reuse the account-wide money rule.</summary>
+    /// <summary>
+    /// The money and text rules the database layer enforces (reused, not copied, so the API cannot drift from them
+    /// and counts characters like the database), plus the rule that spans fields.
+    /// </summary>
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        // The same money rule the database layer enforces, so the API cannot drift from it.
-        string? amountError = null;
         if (Amount is { } amount)
-        {
-            try
-            {
-                InputRules.Money(amount, nameof(Amount), positive: true);
-            }
-            catch (ArgumentException error)
-            {
-                amountError = error.Message;
-            }
-        }
-        if (amountError is not null)
-            yield return new ValidationResult(amountError, [nameof(Amount)]);
-
-        if (Merchant is not null && string.IsNullOrWhiteSpace(Merchant))
-            yield return new ValidationResult("Mağaza adı verildiyse boş olamaz.", [nameof(Merchant)]);
+            foreach (var error in ApiValidation.Rule(() => InputRules.Money(amount, nameof(Amount), positive: true), nameof(Amount)))
+                yield return error;
+        // A missing or blank description is already reported by [Required].
+        if (!string.IsNullOrWhiteSpace(Description))
+            foreach (var error in ApiValidation.Rule(() => InputRules.Text(Description, 500, nameof(Description)), nameof(Description)))
+                yield return error;
+        foreach (var error in ApiValidation.Rule(() => InputRules.Text(Merchant, 150, nameof(Merchant), optional: true), nameof(Merchant)))
+            yield return error;
 
         if (Kind == TransactionKind.Salary && Merchant is not null)
             yield return new ValidationResult("Maaş işleminde mağaza adı olmaz.", [nameof(Merchant)]);

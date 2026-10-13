@@ -76,7 +76,7 @@ public sealed class AccountWriteServiceTests
         await using var db = Db();
         var service = Service(db);
 
-        await Assert.ThrowsAsync<KeyNotFoundException>(() => service.CreateAsync(Guid.NewGuid(), new NewAccount("Tatil", "EUR")));
+        await Assert.ThrowsAsync<CustomerNotFoundException>(() => service.CreateAsync(Guid.NewGuid(), new NewAccount("Tatil", "EUR")));
         await Assert.ThrowsAsync<ArgumentException>(() => service.CreateAsync(Guid.Empty, new NewAccount("Tatil", "EUR")));
         Assert.Empty(db.ChangeTracker.Entries());
     }

@@ -1,4 +1,5 @@
 using BankingAI.Api.Security;
+using BankingAI.Application;
 using BankingAI.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -34,6 +35,7 @@ public sealed class MeController(BankingDbContext db) : ControllerBase
                     customer.LastName, customer.PreferredCurrency, customer.TimeZone))
             .SingleOrDefaultAsync(cancellationToken);
 
-        return me is null ? Unauthorized() : Ok(me);
+        // A genuine token whose customer (or login) is gone: the same "sign in again" answer as every other endpoint.
+        return me is null ? throw new CustomerNotFoundException() : Ok(me);
     }
 }

@@ -85,7 +85,11 @@ public sealed class AuthEndpointTests
             Assert.Equal(HttpStatusCode.Unauthorized, (await LoginAsync(client, user.Username, "wrong-password")).StatusCode);
 
         // Every attempt counts, so even the right password is refused once the limit is reached.
-        Assert.Equal(HttpStatusCode.TooManyRequests, (await LoginAsync(client, user.Username, user.Password)).StatusCode);
+        var limited = await LoginAsync(client, user.Username, user.Password);
+        Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);
+        // API-13: the refusal is a problem body like every other error.
+        Assert.Equal("application/problem+json", limited.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("too_many_requests", System.Text.Json.Nodes.JsonNode.Parse(await limited.Content.ReadAsStringAsync())!["code"]!.GetValue<string>());
     }
 
     [Fact]
