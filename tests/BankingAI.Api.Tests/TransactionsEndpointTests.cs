@@ -100,6 +100,20 @@ public sealed class TransactionsEndpointTests
         Assert.Equal("LastMonth", JsonNode.Parse(body)!["period"]!["kind"]!.GetValue<string>());
     }
 
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("ThisMonth")]
+    [InlineData("LastMonth")]
+    [InlineData("Last3Months")] // names with digits: only a purely numeric value like "2" is refused
+    [InlineData("Last6Months")]
+    public async Task Every_symbolic_period_is_accepted_by_its_name(string period)
+    {
+        var (status, body) = await GetAsync(AdaTry($"?period={period}"), Ada);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(period, JsonNode.Parse(body)!["period"]!["kind"]!.GetValue<string>());
+    }
+
     [Fact]
     [Trait("Category", "PostgreSQL")]
     public async Task Listing_requires_a_token()

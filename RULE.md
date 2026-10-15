@@ -1395,8 +1395,9 @@ COMPLETED
   idempotency_conflict; yazıcılar aynı kimlik / PairId tekrarında WriteOutcome.AlreadyExisted döner.
 
 IN PROGRESS
-- API bölümünün kalanı: API-14/15; ANA-09 (analytics endpoint'leri + demo "şimdi"
-  kararı).
+- ANA-09 (analytics endpoint'leri): 1. parça tamam — ortak dönem okuma, iş saati (isteğe bağlı BANKINGAI_DEMO_NOW;
+  token gerçek saatte), spending-summary / category-breakdown / merchant-breakdown / merchant-spending; sırada
+  karşılaştırma, aylık seri, en yüksek, düzenli ödemeler ve arama. Ardından API-14/15.
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
@@ -1409,7 +1410,9 @@ KNOWN ISSUES
 - Servislerden gelen her ArgumentException 400 sayılıyor; bir programlama hatasından doğan ArgumentException da
   400 görünür (API-13 bilinçli sınırı; ayrı tip InputRules'u ve 70 testi etkilerdi).
 - Offset sayfalamasında araya yeni işlem girerse sayfa kenarında bir işlem tekrar görülebilir.
-- API gerçek saati kullanıyor; demo verisi 10 Ekim 2026'ya göre (karar ANA-09'da).
+- İş saati varsayılan olarak gerçek saattir; demo için BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z verilmeli (ANA-09). Ayar açıkken
+  eklenen işlemler aynı ana düşer.
+- Tam pakette SyntheticAccountSeederTests bir kez açıklanamayan biçimde kırmızı oldu (14 tekrarda yeşil; inceleme bekliyor).
 - Tek komutluk seed synthetic ve market fiyatı import'u yok.
 
 TECHNICAL DEBT
@@ -1420,7 +1423,7 @@ TECHNICAL DEBT
 - OpenAPI belgesi yalnız 200 cevaplarını gösteriyor (API-15).
 
 TEST STATUS
-- Tam paket yeşil (13 Ekim 2026, API-12 sonrası): Data 63, Application 192, Api 170; dotnet build
+- Tam paket yeşil (13 Ekim 2026, ANA-09 1. parça sonrası): Data 63, Application 192, Api 190; dotnet build
   --no-incremental 0 uyarı.
 - PostgreSQL testleri seed edilmiş demo DB üzerinde çalışır: rollback ya da geçici DUMMY-*TEST-*
   hesap / "Test Api" müşterisi açıp silme. Test projeleri paralel koşar; commit eden ve satır sayan

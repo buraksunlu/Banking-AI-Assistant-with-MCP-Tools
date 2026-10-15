@@ -2,6 +2,7 @@ using System.Threading.RateLimiting;
 using BankingAI.Api.Controllers;
 using BankingAI.Api.Errors;
 using BankingAI.Api.Security;
+using BankingAI.Api.Time;
 using BankingAI.Application.Accounts;
 using BankingAI.Application.Analytics;
 using BankingAI.Application.Transactions;
@@ -45,11 +46,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
 
 // Application services. Anything that uses the DbContext is scoped like the context itself; a singleton
 // would keep the first request's context forever and share it between concurrent requests.
-builder.Services.AddSingleton<PeriodResolver>();
+// Business time (analytics periods, the time of new transactions) may be fixed to the demo moment with
+// BANKINGAI_DEMO_NOW; security keeps the real clock above, so tokens never look expired (decision ANA-09 2-A).
+builder.Services.AddSingleton(services => BusinessClock.FromConfiguration(
+    services.GetRequiredService<IConfiguration>(), services.GetRequiredService<TimeProvider>()));
+builder.Services.AddSingleton(services => new PeriodResolver(services.GetRequiredService<BusinessClock>().Time));
 builder.Services.AddScoped<IAccountReadService, AccountReadService>();
 builder.Services.AddScoped<IAccountWriteService, AccountWriteService>();
 builder.Services.AddScoped<TransactionSearchService>();
-builder.Services.AddScoped<ITransactionWriteService, TransactionWriteService>();
+builder.Services.AddScoped<SpendingSummaryService>();
+builder.Services.AddScoped<CategoryBreakdownService>();
+builder.Services.AddScoped<MerchantSpendingService>();
+builder.Services.AddScoped<ITransactionWriteService>(services => new TransactionWriteService(
+    services.GetRequiredService<BankingDbContext>(), services.GetRequiredService<PeriodResolver>(),
+    services.GetRequiredService<BusinessClock>().Time, services.GetRequiredService<TransactionSearchService>()));
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
     .Configure<JwtSettings>((options, jwt) =>
     {
@@ -78,6 +88,7 @@ var app = builder.Build();
 if (string.IsNullOrWhiteSpace(app.Configuration[ConnectionStringKey]))
     throw new InvalidOperationException($"Set {ConnectionStringKey} before starting the API.");
 app.Services.GetRequiredService<JwtSettings>();
+app.Services.GetRequiredService<BusinessClock>();
 
 if (app.Environment.IsDevelopment())
     app.MapOpenApi().AllowAnonymous();

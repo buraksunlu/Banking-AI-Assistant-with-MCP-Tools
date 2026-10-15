@@ -16,7 +16,8 @@ Yerel adres `http://localhost:5248`; OpenAPI `/openapi/v1.json` (geliştirme). G
 | `GET /api/accounts/{accountId}/transactions` | evet | uygulandı | API-09 |
 | `GET /api/transactions/{id}` | evet | uygulandı | API-10 |
 | `POST /api/accounts/{accountId}/transactions` | evet | uygulandı | API-11 |
-| `GET /api/analytics/…` | evet | planlı | ANA-09 |
+| `GET /api/analytics/spending-summary`, `category-breakdown`, `merchant-breakdown`, `merchant-spending` | evet | uygulandı | ANA-09 (1. parça) |
+| Diğer analytics (karşılaştırma, aylık seri, en yüksek, düzenli ödemeler), `GET /api/transactions` arama | evet | planlı | ANA-09 (2.–3. parça) |
 
 Ortak davranış: müşteri yalnız token'dan gelir (istekte müşteri parametresi yoktur); başka müşterinin
 kaynağı olmayan kaynakla birebir aynı `404`'ü alır; GUID olmayan kimlik `400`'dür.
@@ -279,7 +280,7 @@ Tür/yön/kategori/merchant filtreleri bu endpoint'te yoktur (kullanıcı karar�
 | Token yok / geçersiz | `401` |
 
 Bilinen sınırlar: offset sayfalamasında liste gezilirken araya yeni işlem girerse sayfa kenarında bir
-işlem tekrar görünebilir (istemci kimliğe göre ayıklamalı); API gerçek saati kullanır (demo "şimdi" ANA-09);
+işlem tekrar görünebilir (istemci kimliğe göre ayıklamalı); dönem "bugün"ü iş saatine göredir (`BANKINGAI_DEMO_NOW`, ANA-09);
 silinmiş müşterinin token'ı `401` `session_invalid` (API-13).
 
 ## `GET /api/transactions/{id}` (API-10)
@@ -393,4 +394,62 @@ yoktur. İki bacaklı yazıcı aynı kuralı `PairId` için uygular (KIND-03 kar
 Kullanıcı kararları (API-12): anahtardan türetilen kimlik (1-A), işlemde zorunlu / hesapta isteğe bağlı (2-A), tekrar
 = aynı 201 + `Idempotent-Replayed: true` (3-A), farklı içerik 409 (4-A), başarısızlık saklanmaz (5-A), kapsam iki yazıcı +
 iki endpoint (6-A).
+
+## İş saati ve demo "şimdi" (ANA-09, karar 2-A)
+
+"Bu ay", "son 3 ay" gibi dönemlerin ve yeni eklenen işlemin zamanının dayandığı saat **iş saati**dir
+(`Api/Time/BusinessClock`). İsteğe bağlı `BANKINGAI_DEMO_NOW` ayarı (tam olarak `2026-10-10T12:00:00Z` biçiminde, UTC)
+verilirse iş saati o ana sabitlenir; demo verisi her gün aynı cevapları verir. Ayar yoksa gerçek saat kullanılır.
+Giriş ve token süresi **her zaman gerçek saattir** (iş saati token'a uygulanmaz; aksi hâlde token verilir verilmez
+süresi dolmuş sayılırdı). Biçimi bozuk ya da gelecekteki bir değer API'yi açılışta durdurur (gelecek tarihli işlem
+yazıcıda reddedilir). Sınır: ayar açıkken eklenen bütün işlemler aynı ana düşer (sıra kimliğe göre).
+
+## Dönem parametreleri (bütün endpoint'lerde aynı, `Api/Queries/PeriodParameters`)
+
+Ya `period` (tam adla: `ThisMonth`, `LastMonth`, `Last3Months`, `Last6Months`) ya da `from` + `to` (yerel tarih, dahil;
+en fazla 24 ay). İkisi birlikte, tek tarih, bilinmeyen ad, `Custom`, sayı (`2`) ya da farklı harf büyüklüğü → 400.
+Hesabın işlem listesinde dönem verilmezse son 3 ay; **analytics'te dönem zorunludur** (karar 3-A; yoksa 400
+`errors.period`). Düzeltme (ANA-09): API-09'dan beri `Last3Months` ve `Last6Months` adları "içinde rakam var"
+kontrolüne takılıp 400 alıyordu; artık yalnız tanımlı adlarla birebir eşleşme aranıyor.
+
+## Analytics (ANA-09)
+
+Token gerekir; müşteri token'dan gelir. Bütün hesaplar servislerdedir (docs/analytics.md); cevaplar servis kayıtlarıdır
+(karar 4-A; müşteri/hesap kimliği taşımazlar). Para birimleri ayrı satırdır; harcama yoksa liste boştur (uydurma "0"
+yok). `accountId` isteğe bağlıdır: başkasının hesabı `404`, harcama analizinde işletme hesabı `400`
+(`errors.accountId`). Beklenen değerler demo anı (10 Ekim 2026) içindir.
+
+### `GET /api/analytics/spending-summary?period=…[&accountId=…]`
+
+Harcama (`Kind = Purchase`, şahsi hesaplar) para birimi başına; kategorisiz kısım ayrıca.
+
+```json
+{ "period": { "kind": "ThisMonth", "startDate": "2026-10-01", "endDate": "2026-10-10", "…": "…" },
+  "currencies": [ { "currencyCode": "TRY", "totalAmount": 735.00, "transactionCount": 5,
+                    "uncategorizedAmount": 145.00, "uncategorizedCount": 1 } ] }
+```
+
+Ada bu ay 735 (1.500 TL transfer harcama değildir); Deniz geçen ay 31.000 (1 işlem); Ada Ocak 2026 → `currencies: []`.
+
+### `GET /api/analytics/category-breakdown?period=…`
+
+Para birimi başına kategoriler, büyükten küçüğe; yüzde backend'de (2 ondalık). Kategorisiz grup `categoryCode: null`,
+`displayName: "Sınıflandırılmamış"`; `OTHER` ile birleşmez. Ada bu ay: FOOD 590 (%80,27), Sınıflandırılmamış 145 (%19,73).
+
+### `GET /api/analytics/merchant-breakdown?period=…`
+
+Merchant başına harcama; merchant'sız grup `merchant: null`. Ada bu ay: Starbucks 375 (%51,02), Kahve Durağı 215
+(%29,25), Sınıflandırılmamış 145 (%19,73).
+
+### `GET /api/analytics/merchant-spending?merchant=…&period=…`
+
+Metin müşterinin **kendi** merchant'larıyla eşleştirilir (`MerchantMatcher`); tahmin yapılmaz.
+
+| `match.status` | Anlamı | Örnek |
+|---|---|---|
+| `Matched` | Tek merchant bulundu (`isPartialMatch` true ise kısmi eşleşme) | Ada, `starbucks` / `starbuck`, son 3 ay → 930 TRY, 5 işlem |
+| `Ambiguous` | Birden çok aday; tutar yok, `candidates` dolu | Ege, `şehir` → Şehir Ulaşım, Şehirlerarası Otobüs |
+| `NotFound` | Müşterinin böyle bir merchant'ı yok | Ada, `Aile Marketi` (Deniz'in) |
+
+`merchant` yoksa ya da boşsa `400` (`errors.merchant`).
 

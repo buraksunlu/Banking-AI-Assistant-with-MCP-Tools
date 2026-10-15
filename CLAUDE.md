@@ -146,8 +146,12 @@ configuration'lardaki DB CHECK/unique/FK kısıtları. Yeni kural eklerken dört
   ve tek işlemi (`GetAsync`, API-10) `TransactionSearchService` ile döndürür (yeni sorgu yazma), işlem eklemeyi
   (`CreateAsync`, API-11, `POST /api/accounts/{accountId}/transactions` → 201 + Location `/api/transactions/{id}`)
   `ITransactionWriteService` ile yapar; route'lar farklı köklerde olduğu için sınıfta `[Route]` yok, her action tam
-  route'unu taşır. API gerçek saati kullanır: API testlerinde rakam
-  kontrolü sabit `from`/`to` ile yapılır, `ThisMonth`/`Last3Months` ile değil.
+  route'unu taşır. Dönem parametreleri her endpoint'te `Api/Queries/PeriodParameters` ile okunur (hata → `ArgumentException`
+  → 400). `AnalyticsController` (`/api/analytics/...`, ANA-09) analytics servislerini (Scoped, somut sınıf) çağırır; dönem
+  zorunlu. İş saati (`Api/Time/BusinessClock`): `BANKINGAI_DEMO_NOW` verilirse analytics dönemleri ve yeni işlem zamanı o
+  ana sabitlenir; `PeriodResolver` ve `TransactionWriteService` bunu kullanır, `TokenIssuer`/JWT gerçek `TimeProvider`'da
+  kalır. Analytics API testleri `TestApi.Create((BusinessClock.DemoNowKey, BusinessClockTests.DemoNow))` ile sembolik
+  dönem kullanır; ayarsız testlerde rakam kontrolü sabit `from`/`to` ile yapılır.
 - Hesap okuma `Application/Accounts`: `IAccountReadService` (kullanıcı kararı: controller'lar interface'e bağlanır;
   analytics servisleri interface'siz kalır) → `AccountReadService`. Sahiplik yine `CustomerScope`'ta; liste sırası
   `CreatedAt`, eşitse `AccountNumber`. Repository eklenmez.

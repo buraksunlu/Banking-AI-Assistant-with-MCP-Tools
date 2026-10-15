@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
 using BankingAI.Api.Errors;
+using BankingAI.Api.Queries;
 using BankingAI.Api.Security;
 using BankingAI.Application.Analytics;
 using BankingAI.Application.Transactions;
@@ -46,27 +47,7 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
         [FromQuery] int offset = 0,
         CancellationToken cancellationToken = default)
     {
-        if ((from is null) != (to is null))
-            return Invalid(nameof(from), "Başlangıç ve bitiş tarihi birlikte verilmeli.");
-
-        PeriodKind kind;
-        if (from is not null)
-        {
-            if (period is not null)
-                return Invalid(nameof(period), "Dönem adı ile tarih aralığı birlikte verilemez.");
-            kind = PeriodKind.Custom;
-        }
-        else if (period is null)
-        {
-            kind = DefaultPeriod;
-        }
-        // Exact names only, like enums in JSON: Enum.TryParse would also accept "2" or "lastmonth". A custom
-        // range comes from dates.
-        else if (period.Any(char.IsDigit) || !Enum.TryParse(period, ignoreCase: false, out kind)
-                 || !Enum.IsDefined(kind) || kind == PeriodKind.Custom)
-        {
-            return Invalid(nameof(period), "ThisMonth, LastMonth, Last3Months veya Last6Months olmalı.");
-        }
+        var kind = PeriodParameters.Resolve(period, from, to, DefaultPeriod);
 
         // Limit/offset bounds and date rules are the service's and the period resolver's; their errors, like a
         // missing or foreign account, are answered by ApiExceptionHandler.
@@ -107,12 +88,6 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
         if (result.Replayed)
             Response.Headers[ApiProblems.ReplayedHeader] = "true";
         return CreatedAtAction(nameof(GetAsync), new { id = result.Transaction.Id }, result.Transaction);
-    }
-
-    private ActionResult Invalid(string field, string message)
-    {
-        ModelState.AddModelError(field, message);
-        return ValidationProblem(ModelState);
     }
 }
 

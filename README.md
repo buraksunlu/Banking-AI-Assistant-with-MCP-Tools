@@ -63,6 +63,7 @@ BankingAI.Cli ──────────────────────
 | `BANKINGAI_CONNECTION_STRING` | PostgreSQL bağlantısı |
 | `BANKINGAI_JWT_SIGNING_KEY` | Token imza anahtarı; en az 32 bayt rastgele değer (`openssl rand -base64 48`). Yoksa API açılmaz |
 | `BANKINGAI_DEMO_PASSWORD_ADA` / `_DENIZ` / `_EGE` | Demo giriş şifreleri; kendi rastgele değerlerinizi üretin |
+| `BANKINGAI_DEMO_NOW` | İsteğe bağlı: iş saatini demo anına sabitler (ör. `2026-10-10T12:00:00Z`); token'lar gerçek saatte kalır |
 
 Uygulama `.env`'yi kendiliğinden okumaz; her yeni terminalde:
 
@@ -137,7 +138,8 @@ Authorization: Bearer <token>
 | `GET /api/accounts/{accountId}/transactions` | Hesabın işlemleri, sayfalı; varsayılan son 3 ay | API-09 |
 | `GET /api/transactions/{id}` | Tek işlem; başkasının işlemi = olmayan işlem (404) | API-10 |
 | `POST /api/accounts/{accountId}/transactions` | Sentetik Purchase/Salary ekler, bakiyeyi atomik değiştirir; yetersiz bakiye 409; `Idempotency-Key` zorunlu (tekrar ikinci kez yazmaz) | API-11, API-12 |
-| `GET /api/analytics/…` | *Planlı:* analytics servisleri | ANA-09 |
+| `GET /api/analytics/spending-summary`, `category-breakdown`, `merchant-breakdown`, `merchant-spending` | Harcama özeti, kategori/merchant dağılımı, tek merchant; dönem zorunlu | ANA-09 |
+| `GET /api/analytics/…` (diğerleri), `GET /api/transactions` | *Planlı:* karşılaştırma, aylık seri, en yüksek işlemler, düzenli ödemeler, arama | ANA-09 |
 
 JSON kuralları: enum'lar yazıyla ve tam adla, para JSON sayısı (`577490.18`), yazma isteğinde tanınmayan alan 400.
 Her hata ProblemDetails biçimindedir: Türkçe `title`, makine kodu `code` (ör. `validation_failed`, `session_invalid`,
