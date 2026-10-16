@@ -150,6 +150,26 @@ public sealed class AnalyticsController(
                 categoryCode, merchant, months ?? SavingsSimulationService.DefaultMonths, accountId),
             cancellationToken));
 
+    /// <summary>
+    /// <c>GET /api/analytics/merchants</c>: every merchant the customer has bought from on personal accounts, all time,
+    /// with the latest category and purchase date (ANA-10). This is the closed set a model chooses names from.
+    /// </summary>
+    [HttpGet("merchants")]
+    public async Task<ActionResult<MerchantList>> MerchantsAsync([FromQuery] Guid? accountId, CancellationToken cancellationToken) =>
+        Ok(await merchants.ListAsync(new MerchantListQuery(User.GetCustomerId(), accountId), cancellationToken));
+
+    /// <summary>
+    /// <c>GET /api/analytics/merchant-group-spending?merchants=…&amp;merchants=…</c>: spending at 1–20 merchants chosen from
+    /// <c>/merchants</c> ("kahve" → Starbucks and Kahve Durağı), per currency and per merchant (ANA-10). Each name must be
+    /// another spelling of one of the customer's merchants; anything else is a 400, never completed or guessed.
+    /// </summary>
+    [HttpGet("merchant-group-spending")]
+    public async Task<ActionResult<MerchantGroupSpending>> MerchantGroupSpendingAsync(
+        [FromQuery(Name = "merchants")] string[]? names,
+        [FromQuery] string? period, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] Guid? accountId,
+        CancellationToken cancellationToken) =>
+        Ok(await merchants.GetGroupSpendingAsync(Spending(period, from, to, accountId), names ?? [], cancellationToken));
+
     // The customer comes from the token only; the period is required (no fallback).
     private SpendingQuery Spending(string? period, DateOnly? from, DateOnly? to, Guid? accountId) =>
         new(User.GetCustomerId(), PeriodParameters.Resolve(period, from, to, fallback: null), from, to, accountId);

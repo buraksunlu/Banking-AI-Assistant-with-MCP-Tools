@@ -646,4 +646,74 @@ public sealed class AnalyticsEndpointTests
         Assert.Equal(HttpStatusCode.NotFound, foreign.Status);
         await AssertInvalidAsync($"{path}&accountId={DenizShopAccount}", Deniz, "accountId", "Harcama analizi yalnızca şahsi hesaplar içindir.");
     }
+
+    // ---- merchants and merchant-group-spending (ANA-10)
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Merchant_list_is_the_closed_set_to_choose_from()
+    {
+        var body = Ok(await GetAsync("/api/analytics/merchants", Ada));
+
+        Assert.Equal(["merchants"], body.AsObject().Select(p => p.Key));
+        var merchants = body["merchants"]!.AsArray();
+        Assert.Equal(["Hobi Dükkânı", "Kahve Durağı", "Netflix", "Spotify", "Starbucks"], merchants.Select(m => m!["merchant"]!.GetValue<string>()));
+        Assert.Equal(("FOOD", "Yeme & İçme", "2026-10-08", 9),
+            (merchants[4]!["categoryCode"]!.GetValue<string>(), merchants[4]!["categoryDisplayName"]!.GetValue<string>(),
+             merchants[4]!["lastPurchaseDate"]!.GetValue<string>(), merchants[4]!["transactionCount"]!.GetValue<int>()));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Merchant_group_spending_adds_up_the_chosen_merchants()
+    {
+        var body = Ok(await GetAsync("/api/analytics/merchant-group-spending?merchants=Starbucks&merchants=Kahve%20Durağı&period=ThisMonth", Ada));
+
+        Assert.Equal(["period", "merchants", "currencies"], body.AsObject().Select(p => p.Key));
+        Assert.Equal(["Starbucks", "Kahve Durağı"], body["merchants"]!.AsArray().Select(m => m!.GetValue<string>()));
+        var tl = Assert.Single(body["currencies"]!.AsArray())!;
+        Assert.Equal(("TRY", 590m), (tl["currencyCode"]!.GetValue<string>(), Amount(tl["totalAmount"])));
+        Assert.Equal([("Starbucks", 375m, 63.56m), ("Kahve Durağı", 215m, 36.44m)],
+            tl["merchants"]!.AsArray().Select(m => (m!["merchant"]!.GetValue<string>(), Amount(m["amount"]), Amount(m["percentage"]))));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Merchant_group_names_are_answered_canonically_once()
+    {
+        var body = Ok(await GetAsync(
+            "/api/analytics/merchant-group-spending?merchants=starbucks&merchants=kahve%20duragi&merchants=Starbucks&period=ThisMonth", Ada));
+
+        Assert.Equal(["Starbucks", "Kahve Durağı"], body["merchants"]!.AsArray().Select(m => m!.GetValue<string>()));
+        Assert.Equal(590m, Amount(body["currencies"]![0]!["totalAmount"]));
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("period=ThisMonth", "merchants", "1 ile 20 arasında merchant verilmeli.")]
+    [InlineData("merchants=Starbuck&period=ThisMonth", "merchants", "'Starbuck' müşterinin merchant listesinde yok.")]
+    [InlineData("merchants=Aile%20Marketi&period=ThisMonth", "merchants", "'Aile Marketi' müşterinin merchant listesinde yok.")]
+    [InlineData("merchants=Starbucks", "period", "Dönem zorunlu: period ya da from ile to verilmeli.")]
+    public async Task Merchant_group_parameters_are_checked(string query, string field, string message) =>
+        await AssertInvalidAsync($"/api/analytics/merchant-group-spending?{query}", Ada, field, message);
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("merchants?")]
+    [InlineData("merchant-group-spending?merchants=Starbucks&period=ThisMonth")]
+    public async Task Merchant_endpoints_apply_the_token_and_account_rules(string pathAndQuery)
+    {
+        var path = $"/api/analytics/{pathAndQuery}";
+        var separator = path.EndsWith('?') ? "" : "&";
+
+        var noToken = await GetAsync(path, null);
+        var own = await GetAsync($"{path}{separator}accountId={AdaTryAccount}", Ada);
+        var foreign = await GetAsync($"{path}{separator}accountId={DenizTryAccount}", Ada);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, noToken.Status);
+        Ok(own);
+        Assert.Equal(HttpStatusCode.NotFound, foreign.Status);
+        var shop = await GetAsync($"/api/analytics/merchants?accountId={DenizShopAccount}", Deniz);
+        Assert.Equal(HttpStatusCode.BadRequest, shop.Status);
+    }
 }

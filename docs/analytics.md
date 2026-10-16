@@ -445,6 +445,44 @@ Tasarruflar yuvarlanmış ortalamadan değil tam toplamdan: aylık = toplam × o
 
 Sınırlar: fiyat artışı, mevsimsellik ve davranış değişimi hesaba katılmaz; cevapta kategori adı değil kodu var.
 
+## ANA-10 — Kavramsal merchant harcaması (kapalı küme, 16 Ekim 2026)
+
+"Kahveye ne kadar harcadım?": "kahve" bir merchant ya da kategori değil, bir kavram. Çözüm kapalı küme: backend
+müşterinin kendi merchant listesini verir (`MerchantSpendingService.ListAsync`), model bu listeden kavrama uyanları seçer
+ve yeni ad uyduramaz; backend her adı listeyle doğrular, toplamı `PurchaseScope` kapsamında hesaplar ve dahil ettiği
+merchant'ları döndürür (`GetGroupSpendingAsync`). Embedding/RAG gerekmez.
+
+Kullanıcı kararları:
+
+- **K1-A — doğrulama:** `MerchantMatcher.MatchExact` (eşleştiricinin yalnız tam, sadeleştirilmiş adımı): büyük/küçük harf,
+  boşluk ve Türkçe işaretler tolere edilir ("kahve duragi" → "Kahve Durağı"); **kısmi eşleşme yok** ("Starbuck" hata).
+  `Match` artık ilk adımında `MatchExact`'i kullanır (refactor; mevcut testler değişmedi).
+- **K2-A — liste içeriği:** kanonik ad, son alışverişin kategorisi (kod + ad; yoksa "Sınıflandırılmamış"), son alışveriş
+  tarihi (müşterinin yerel günü), toplam işlem sayısı; ordinal sırada.
+- **K3-A — liste tüm zamanlar:** doğrulama kümesiyle aynı (eşleştirme adayları da tüm zamanlardır); dönem harcamada uygulanır.
+- **K4-A — 1–20 ad:** aynı merchant'a çıkan tekrarlar tek sayılır (hata değil).
+
+Liste dışı ad: `ArgumentException` (`Merchants`) "'X' müşterinin merchant listesinde yok."; iki kanonik ad aynı
+sadeleşmiş yazıma çıkarsa "birden çok merchant'a karşılık geliyor". Sonuç `MerchantGroupSpending(Period, Merchants,
+Currencies)`: `Merchants` dahil edilen kanonik adlar (istek sırası, tekrarsız); `Currencies` merchant dökümüyle aynı biçim
+(`CurrencyMerchantBreakdown`, ortak `BreakdownAsync`); dönemde harcaması olmayan merchant listede var ama satırı yok.
+SQL'e modelin metni değil kanonik adlar gider.
+
+| İstek | Sonuç |
+| --- | --- |
+| Liste, Ada | Hobi Dükkânı (OTHER, 22.06.2025, 1), Kahve Durağı (FOOD, 07.10.2026, 3), Netflix (SUBSCRIPTION, 12.09.2026, 9), Spotify (SUBSCRIPTION, 18.09.2026, 9), Starbucks (FOOD, 08.10.2026, 9) |
+| Liste, Deniz | Aile Marketi, Akaryakıt İstasyonu, Elektrik Faturası, Çocuk Giyim, Şehir Ulaşım (dükkân satışları yok) |
+| Ada, bu ay, {Starbucks, Kahve Durağı} | 590 TRY: Starbucks 375 (%63,56), Kahve Durağı 215 (%36,44) |
+| Ada, son 3 ay, aynı | 1.255: Starbucks 930 (5), Kahve Durağı 325 (3) |
+| Ada, bu ay, {Netflix, Starbucks} | `Merchants` ikisi; döküm yalnız Starbucks 375 (%100) |
+| Ada, {"starbucks", "kahve duragi"} · {Starbucks, "starbucks"} | kanonik iki ad, 590 · tek ad, 375 |
+| Ege, son 6 ay, {Şehir Ulaşım, Şehirlerarası Otobüs} | 6.800: 5.600 (13) %82,35, 1.200 (1) %17,65 |
+| "Starbuck", Deniz'in "Aile Marketi", boş liste, 21 ad | `ArgumentException` (`Merchants`) |
+
+Sınırlar: kavrama hangi merchant'ların girdiğini model seçer (backend adların gerçekliğini ve hesabı garanti eder,
+seçimin doğruluğunu değil; cevap dahil edilenleri söyler); merchant'ı olmayan alışveriş hiçbir gruba giremez; liste
+sayfalanmaz (büyük müşteride PERF/MCP adımında bakılır).
+
 ## ANA-08 — Kenar durumları (`AnalyticsEdgeCaseTests`)
 
 Geçici kayıtlar testin kendi DB transaction'ında eklenir ve rollback edilir; demo verisi 116

@@ -86,4 +86,42 @@ public sealed class MerchantMatcherTests
     [Fact]
     public void Text_longer_than_the_stored_column_is_rejected() =>
         Assert.Throws<ArgumentException>(() => MerchantMatcher.Match(new string('a', 151), Known));
+
+    // ---- MatchExact (ANA-10): only the exact folded step
+
+    [Theory]
+    [InlineData("starbucks", "Starbucks")]
+    [InlineData("kahve duragi", "Kahve Durağı")]           // Turkish letters written without their marks
+    [InlineData("  KAHVE   DURAĞI ", "Kahve Durağı")]       // case and spacing
+    public void Exact_only_accepts_another_spelling_of_the_same_name(string requested, string expected)
+    {
+        var match = MerchantMatcher.MatchExact(requested, Known);
+
+        Assert.Equal((MerchantMatchStatus.Matched, expected, false), (match.Status, match.Merchant, match.IsPartialMatch));
+    }
+
+    [Theory]
+    [InlineData("Starbuck")]  // Match would accept this as a single containing name
+    [InlineData("şehir")]     // Match would call this ambiguous
+    [InlineData("Kahve")]
+    public void Exact_only_never_completes_a_partial_name(string requested)
+    {
+        var match = MerchantMatcher.MatchExact(requested, Known);
+
+        Assert.Equal((MerchantMatchStatus.NotFound, (string?)null), (match.Status, match.Merchant));
+        Assert.Empty(match.Candidates);
+    }
+
+    [Fact]
+    public void Exact_only_reports_names_that_fold_to_the_same_text_as_ambiguous()
+    {
+        var match = MerchantMatcher.MatchExact("kahve durağı", ["Kahve Durağı", "Kahve Duragi", "Starbucks"]);
+
+        Assert.Equal(MerchantMatchStatus.Ambiguous, match.Status);
+        Assert.Equal(["Kahve Duragi", "Kahve Durağı"], match.Candidates);
+    }
+
+    [Fact]
+    public void Exact_only_follows_the_same_text_rule() =>
+        Assert.Equal("Merchant", Assert.Throws<ArgumentException>(() => MerchantMatcher.MatchExact("   ", Known)).ParamName);
 }
