@@ -108,7 +108,7 @@ public sealed class SpendingComparisonService(BankingDbContext db, PeriodResolve
                 .Where(c => c.Code == code)
                 .Select(c => (short?)c.Id)
                 .SingleOrDefaultAsync(cancellationToken)
-                ?? throw new ArgumentException("Tanımlı bir kategori kodu olmalı.", nameof(query));
+                ?? throw new ArgumentException("Tanımlı bir kategori kodu olmalı.", nameof(query.CategoryCode));
             purchases = purchases.Where(t => t.CategoryId == categoryId);
         }
 

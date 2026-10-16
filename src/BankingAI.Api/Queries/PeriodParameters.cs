@@ -28,10 +28,49 @@ public static class PeriodParameters
         if (period is null)
             return fallback ?? throw new ArgumentException("Dönem zorunlu: period ya da from ile to verilmeli.", nameof(period));
 
-        // Exact names only, like enums in JSON. Enum.TryParse would also accept "2" or "lastmonth", and refusing every
-        // value with a digit refused "Last3Months" too (a bug from API-09). A custom range comes from dates only.
-        if (!Enum.GetNames<PeriodKind>().Contains(period) || period == nameof(PeriodKind.Custom))
-            throw new ArgumentException("ThisMonth, LastMonth, Last3Months veya Last6Months olmalı.", nameof(period));
-        return Enum.Parse<PeriodKind>(period);
+        return ExactName(period, PeriodKind.Custom, nameof(period), "ThisMonth, LastMonth, Last3Months veya Last6Months olmalı.");
+    }
+
+    /// <summary>
+    /// The comparison the query asks for (required): either a <c>comparison</c> by its exact name, or all four
+    /// dates, which mean <see cref="ComparisonKind.Custom"/>. The dates themselves are checked by the resolver.
+    /// </summary>
+    /// <exception cref="ArgumentException">Missing, incomplete, conflicting or unknown comparison parameters.</exception>
+    public static ComparisonKind ResolveComparison(
+        string? comparison, DateOnly? currentFrom, DateOnly? currentTo, DateOnly? previousFrom, DateOnly? previousTo)
+    {
+        var dates = new[] { currentFrom, currentTo, previousFrom, previousTo }.Count(d => d is not null);
+        if (dates is not (0 or 4))
+            throw new ArgumentException(
+                "Dört tarih birlikte verilmeli: currentFrom, currentTo, previousFrom ve previousTo.", nameof(currentFrom));
+        if (dates == 4)
+        {
+            if (comparison is not null)
+                throw new ArgumentException("Karşılaştırma adı ile tarih aralıkları birlikte verilemez.", nameof(comparison));
+            return ComparisonKind.Custom;
+        }
+        if (comparison is null)
+            throw new ArgumentException(
+                "Karşılaştırma zorunlu: comparison ya da currentFrom, currentTo, previousFrom ve previousTo verilmeli.",
+                nameof(comparison));
+
+        return ExactName(comparison, ComparisonKind.Custom, nameof(comparison), "PreviousFullMonth veya MonthToDate olmalı.");
+    }
+
+    /// <summary>
+    /// The number of complete months of a monthly trend (required, decision K2-A). Its range is the service's rule.
+    /// </summary>
+    /// <exception cref="ArgumentException">No number of months was given.</exception>
+    public static int TrendMonths(int? months) =>
+        months ?? throw new ArgumentException(
+            $"Ay sayısı zorunlu: months 1 ile {PeriodResolver.MaximumTrendMonths} arasında verilmeli.", nameof(months));
+
+    // Exact names only, like enums in JSON. Enum.TryParse would also accept "2" or "lastmonth", and refusing every
+    // value with a digit refused "Last3Months" too (a bug from API-09). A custom range comes from dates only.
+    private static TEnum ExactName<TEnum>(string value, TEnum custom, string field, string message) where TEnum : struct, Enum
+    {
+        if (!Enum.GetNames<TEnum>().Contains(value) || value == custom.ToString())
+            throw new ArgumentException(message, field);
+        return Enum.Parse<TEnum>(value);
     }
 }

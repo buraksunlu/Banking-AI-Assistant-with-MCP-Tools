@@ -17,7 +17,8 @@ Yerel adres `http://localhost:5248`; OpenAPI `/openapi/v1.json` (geliştirme). G
 | `GET /api/transactions/{id}` | evet | uygulandı | API-10 |
 | `POST /api/accounts/{accountId}/transactions` | evet | uygulandı | API-11 |
 | `GET /api/analytics/spending-summary`, `category-breakdown`, `merchant-breakdown`, `merchant-spending` | evet | uygulandı | ANA-09 (1. parça) |
-| Diğer analytics (karşılaştırma, aylık seri, en yüksek, düzenli ödemeler), `GET /api/transactions` arama | evet | planlı | ANA-09 (2.–3. parça) |
+| `GET /api/analytics/period-comparison`, `monthly-trend`, `highest-transactions`, `recurring-payments` | evet | uygulandı | ANA-09 (2. parça) |
+| `GET /api/transactions` arama | evet | planlı | ANA-09 (3. parça) |
 
 Ortak davranış: müşteri yalnız token'dan gelir (istekte müşteri parametresi yoktur); başka müşterinin
 kaynağı olmayan kaynakla birebir aynı `404`'ü alır; GUID olmayan kimlik `400`'dür.
@@ -453,3 +454,51 @@ Metin müşterinin **kendi** merchant'larıyla eşleştirilir (`MerchantMatcher`
 
 `merchant` yoksa ya da boşsa `400` (`errors.merchant`).
 
+### `GET /api/analytics/period-comparison?comparison=…` ya da `?currentFrom=…&currentTo=…&previousFrom=…&previousTo=…`
+
+İki dönemin harcaması para birimi başına: toplamlar, adetler, fark (`change` = şimdiki − önceki) ve yüzde; kategoriler
+farkın mutlak değerine göre büyükten küçüğe (artış da azalış da "en büyük neden" önce). Karşılaştırma **zorunludur**
+(karar K1-A): `comparison` tam adla (`PreviousFullMonth` = son tam ay vs önceki ay, "geçen aya göre"; `MonthToDate` =
+bu ayın bugüne kadarı vs önceki ayın aynı günleri) **ya da** dört tarihin dördü birden (kendiliğinden `Custom`;
+`comparison=Custom` adı kabul edilmez). Ad + tarih, eksik tarih, bilinmeyen ad/sayı/farklı harf büyüklüğü → 400;
+çakışan dönemler → 400 `errors.previousFrom`. Önceki dönem 0 ise `percentageChange: null` (sıfırdan büyüme oranı yok).
+
+```json
+{ "current":  { "kind": "LastMonth", "startDate": "2026-09-01", "endDate": "2026-09-30", "…": "…" },
+  "previous": { "kind": "Custom",    "startDate": "2026-08-01", "endDate": "2026-08-31", "…": "…" },
+  "currencies": [ { "currencyCode": "TRY", "currentAmount": 31000.00, "currentCount": 1, "previousAmount": 24000.00,
+                    "previousCount": 1, "change": 7000.00, "percentageChange": 29.17,
+                    "categories": [ { "categoryCode": "GROCERY", "displayName": "…", "currentAmount": 31000.00,
+                                      "previousAmount": 24000.00, "change": 7000.00 } ] } ] }
+```
+
+Deniz `PreviousFullMonth` yukarıdaki; Ege 1.530 / 2.100 (−570, %−27,14; TRAVEL −1.200 önce); Deniz `MonthToDate`
+11.350 / 0 (`percentageChange: null`); Ada Eylül / Temmuz 624,98 / 514,98.
+
+### `GET /api/analytics/monthly-trend?months=…[&categoryCode=… | &merchant=…]`
+
+Son `months` tam takvim ayı + devam eden ay (`isPartial: true`), eskiden yeniye. `months` **zorunlu**, 1–24 (karar K2-A).
+Harcama olmayan ay `amount: 0` ile görünür, atlanmaz. `categoryCode` (tanımlı kod, ör. `FOOD`) ya da `merchant`
+(`MerchantMatcher`, tahmin yok; `merchantMatch` alanı eşleşmeyi anlatır, eşleşme yoksa `currencies: []`) verilebilir,
+ikisi birlikte 400 `errors.merchant`. Tanımsız kategori kodu 400 `errors.categoryCode` (ANA-09'da düzeltildi; önceden
+`errors.query` görünürdü). Cevap: `months` (her ayın penceresi, `period` ile), `merchantMatch` (filtre yoksa `null`),
+`currencies[].months[]` (`year`, `month`, `isPartial`, `amount`, `transactionCount`).
+Deniz `months=6`: 12.000, 14.000, 16.000, 18.000, 24.000, 31.000, 11.350 (Ekim kısmi); Ege TRAVEL: yalnız Ağustos 1.200.
+
+### `GET /api/analytics/highest-transactions?period=…[&limit=…][&includeAllTransactions=true]`
+
+Para birimi başına en büyük işlemler (`TransactionItem`), tutar büyükten küçüğe, eşitse yeni olan önce. Dönem zorunlu;
+`limit` 1–100, varsayılan 5. Varsayılan kapsam harcamadır (şahsi hesap + `Purchase`); `includeAllTransactions=true`
+maaş, transfer ve işletme hesabının satışlarını da katar (ekstre kapsamı; işletme hesabı `accountId` ile seçilebilir).
+Ada bu ay: 210, 165, 145, 120, 95; tüm işlemlerle: maaş 45.000, transfer 1.500 ("Deniz M***"), transfer 300, 210, 165.
+
+### `GET /api/analytics/recurring-payments`
+
+Son 6 ayda aylık tekrar eden ödemeler (≥3 ödeme, 26–35 gün aralık, ±%10 tutar, son ödeme ≤35 gün önce) ve para birimi
+başına aylık toplam (son tutarların toplamı). **Dönem parametresi yoktur** (karar K3-A): 6 ay kuralın kendisidir ve
+cevaptaki `period` alanında görünür; gönderilen `period` yok sayılır. `pattern` neden düzenli sayıldığını anlatır;
+`nextExpectedDate` son ödeme + 1 aydır, **tahmindir, söz değildir**. Ada: Netflix 229,99 (6 ödeme, sıradaki 12 Ekim),
+Spotify 99,99 (18 Ekim), toplam 329,98 TRY. Deniz ve Ege: boş liste (market tutarı büyüyor; ulaşım ayda iki kez).
+
+Dört endpoint'te de: token yoksa 401, başkasının hesabı 404, harcama analizinde işletme hesabı 400 (`errors.accountId`;
+yalnız `includeAllTransactions=true` ile en yüksek işlemlerde kabul edilir).

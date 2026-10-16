@@ -13,7 +13,8 @@ namespace BankingAI.Api.Controllers;
 [ApiController]
 [Route("api/analytics")]
 public sealed class AnalyticsController(
-    SpendingSummaryService summaries, CategoryBreakdownService categories, MerchantSpendingService merchants)
+    SpendingSummaryService summaries, CategoryBreakdownService categories, MerchantSpendingService merchants,
+    SpendingComparisonService comparisons, HighestTransactionsService highest, RecurringPaymentService recurring)
     : ControllerBase
 {
     /// <summary>
@@ -50,6 +51,57 @@ public sealed class AnalyticsController(
         CancellationToken cancellationToken) =>
         // A missing merchant reaches the service's own text rule, which names the field.
         Ok(await merchants.GetSpendingAsync(Spending(period, from, to, accountId), merchant!, cancellationToken));
+
+    /// <summary>
+    /// <c>GET /api/analytics/period-comparison</c>: spending of two periods per currency, with the change and the
+    /// categories that caused it (largest first). The comparison is required: <c>PreviousFullMonth</c> (last complete
+    /// month against the month before), <c>MonthToDate</c>, or two explicit ranges given by four dates.
+    /// </summary>
+    [HttpGet("period-comparison")]
+    public async Task<ActionResult<SpendingComparison>> PeriodComparisonAsync(
+        [FromQuery] string? comparison,
+        [FromQuery] DateOnly? currentFrom, [FromQuery] DateOnly? currentTo,
+        [FromQuery] DateOnly? previousFrom, [FromQuery] DateOnly? previousTo,
+        [FromQuery] Guid? accountId, CancellationToken cancellationToken) =>
+        Ok(await comparisons.CompareAsync(
+            new SpendingComparisonQuery(User.GetCustomerId(),
+                PeriodParameters.ResolveComparison(comparison, currentFrom, currentTo, previousFrom, previousTo),
+                currentFrom, currentTo, previousFrom, previousTo, accountId),
+            cancellationToken));
+
+    /// <summary>
+    /// <c>GET /api/analytics/monthly-trend</c>: spending per calendar month for the last <c>months</c> complete months
+    /// plus the running month; a month without spending is 0. Optionally narrowed to one category or one merchant.
+    /// </summary>
+    [HttpGet("monthly-trend")]
+    public async Task<ActionResult<SpendingTrend>> MonthlyTrendAsync(
+        [FromQuery] int? months, [FromQuery] string? categoryCode, [FromQuery] string? merchant, [FromQuery] Guid? accountId,
+        CancellationToken cancellationToken) =>
+        Ok(await comparisons.GetMonthlyTrendAsync(
+            new SpendingTrendQuery(User.GetCustomerId(), PeriodParameters.TrendMonths(months), categoryCode, merchant, accountId),
+            cancellationToken));
+
+    /// <summary>
+    /// <c>GET /api/analytics/highest-transactions</c>: the largest purchases per currency (5 by default, at most 100).
+    /// <c>includeAllTransactions=true</c> widens it to every kind on every account of the customer.
+    /// </summary>
+    [HttpGet("highest-transactions")]
+    public async Task<ActionResult<HighestTransactions>> HighestTransactionsAsync(
+        [FromQuery] string? period, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] Guid? accountId,
+        [FromQuery] int? limit, [FromQuery] bool? includeAllTransactions, CancellationToken cancellationToken) =>
+        Ok(await highest.GetAsync(
+            new HighestTransactionsQuery(User.GetCustomerId(), PeriodParameters.Resolve(period, from, to, fallback: null),
+                from, to, accountId, limit ?? HighestTransactionsService.DefaultLimit, includeAllTransactions ?? false),
+            cancellationToken));
+
+    /// <summary>
+    /// <c>GET /api/analytics/recurring-payments</c>: the monthly payments found in the last six months and what they
+    /// add up to per month. The six months are the rule itself, so this endpoint takes no period (decision K3-A).
+    /// </summary>
+    [HttpGet("recurring-payments")]
+    public async Task<ActionResult<RecurringPayments>> RecurringPaymentsAsync(
+        [FromQuery] Guid? accountId, CancellationToken cancellationToken) =>
+        Ok(await recurring.GetAsync(new RecurringPaymentQuery(User.GetCustomerId(), accountId), cancellationToken));
 
     // The customer comes from the token only; the period is required (no fallback).
     private SpendingQuery Spending(string? period, DateOnly? from, DateOnly? to, Guid? accountId) =>

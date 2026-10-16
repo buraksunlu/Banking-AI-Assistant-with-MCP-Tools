@@ -1396,8 +1396,10 @@ COMPLETED
 
 IN PROGRESS
 - ANA-09 (analytics endpoint'leri): 1. parça tamam — ortak dönem okuma, iş saati (isteğe bağlı BANKINGAI_DEMO_NOW;
-  token gerçek saatte), spending-summary / category-breakdown / merchant-breakdown / merchant-spending; sırada
-  karşılaştırma, aylık seri, en yüksek, düzenli ödemeler ve arama. Ardından API-14/15.
+  token gerçek saatte), spending-summary / category-breakdown / merchant-breakdown / merchant-spending. 2. parça tamam
+  (16 Ekim 2026) — period-comparison (karşılaştırma zorunlu: tam ad ya da dört tarih), monthly-trend (months zorunlu),
+  highest-transactions (limit, includeAllTransactions), recurring-payments (dönem parametresi yok, kural 6 ay). Sırada
+  3. parça: GET /api/transactions arama. Ardından API-14/15.
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
@@ -1423,7 +1425,7 @@ TECHNICAL DEBT
 - OpenAPI belgesi yalnız 200 cevaplarını gösteriyor (API-15).
 
 TEST STATUS
-- Tam paket yeşil (13 Ekim 2026, ANA-09 1. parça sonrası): Data 63, Application 192, Api 190; dotnet build
+- Tam paket yeşil (16 Ekim 2026, ANA-09 2. parça sonrası): Data 63, Application 192, Api 225; dotnet build
   --no-incremental 0 uyarı.
 - PostgreSQL testleri seed edilmiş demo DB üzerinde çalışır: rollback ya da geçici DUMMY-*TEST-*
   hesap / "Test Api" müşterisi açıp silme. Test projeleri paralel koşar; commit eden ve satır sayan

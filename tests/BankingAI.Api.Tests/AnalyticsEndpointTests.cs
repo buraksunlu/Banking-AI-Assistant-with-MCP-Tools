@@ -171,4 +171,284 @@ public sealed class AnalyticsEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, missing.Status);
         Assert.Equal(["Metin null, boş veya yalnızca whitespace olamaz."], Errors(missing.Body!, "merchant"));
     }
+
+    // ==== Part 2: comparison, monthly trend, highest transactions, recurring payments
+
+    // Sums of zero rows may come back as 0 or 0.00; the value, not its scale, is compared here.
+    private static decimal Amount(JsonNode? value) => value!.GetValue<decimal>();
+
+    private static (string Start, string End) Dates(JsonNode period) =>
+        (period["startDate"]!.GetValue<string>(), period["endDate"]!.GetValue<string>());
+
+    private static async Task AssertInvalidAsync(string path, Guid customerId, string field, string message)
+    {
+        var response = await GetAsync(path, customerId);
+
+        Assert.True(response.Status == HttpStatusCode.BadRequest, response.Body?.ToJsonString());
+        Assert.Equal([message], Errors(response.Body!, field));
+    }
+
+    // ---- period-comparison
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Comparison_of_the_last_full_month_explains_the_increase()
+    {
+        var body = Ok(await GetAsync("/api/analytics/period-comparison?comparison=PreviousFullMonth", Deniz));
+
+        Assert.Equal(["current", "previous", "currencies"], body.AsObject().Select(p => p.Key));
+        Assert.Equal(("2026-09-01", "2026-09-30"), Dates(body["current"]!));
+        Assert.Equal(("2026-08-01", "2026-08-31"), Dates(body["previous"]!));
+        var tl = Assert.Single(body["currencies"]!.AsArray())!;
+        Assert.Equal(("TRY", 31000m, 1, 24000m, 1, 7000m, 29.17m),
+            (tl["currencyCode"]!.GetValue<string>(), Amount(tl["currentAmount"]), tl["currentCount"]!.GetValue<int>(),
+             Amount(tl["previousAmount"]), tl["previousCount"]!.GetValue<int>(), Amount(tl["change"]), Amount(tl["percentageChange"])));
+        Assert.Equal([("GROCERY", 7000m)],
+            tl["categories"]!.AsArray().Select(c => (c!["categoryCode"]!.GetValue<string>(), Amount(c["change"]))));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Comparison_lists_the_largest_cause_first_even_for_a_decrease()
+    {
+        var body = Ok(await GetAsync("/api/analytics/period-comparison?comparison=PreviousFullMonth", Ege));
+
+        var tl = Assert.Single(body["currencies"]!.AsArray())!;
+        Assert.Equal((1530m, 2100m, -570m, -27.14m),
+            (Amount(tl["currentAmount"]), Amount(tl["previousAmount"]), Amount(tl["change"]), Amount(tl["percentageChange"])));
+        // August's 1.200 bus ticket explains more than September's extra transport.
+        Assert.Equal([("TRAVEL", -1200m), ("TRANSPORTATION", 500m), ("FOOD", 130m)],
+            tl["categories"]!.AsArray().Select(c => (c!["categoryCode"]!.GetValue<string>(), Amount(c["change"]))));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Month_to_date_without_previous_spending_has_no_percentage()
+    {
+        var body = Ok(await GetAsync("/api/analytics/period-comparison?comparison=MonthToDate", Deniz));
+
+        Assert.Equal(("2026-10-01", "2026-10-10"), Dates(body["current"]!));
+        Assert.Equal(("2026-09-01", "2026-09-10"), Dates(body["previous"]!));
+        var tl = Assert.Single(body["currencies"]!.AsArray())!.AsObject();
+        Assert.Equal((11350m, 0m, 11350m), (Amount(tl["currentAmount"]), Amount(tl["previousAmount"]), Amount(tl["change"])));
+        // A growth rate from zero is never invented: the field is there, and it is null.
+        Assert.True(tl.ContainsKey("percentageChange"));
+        Assert.Null(tl["percentageChange"]);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Comparison_of_two_given_ranges()
+    {
+        var body = Ok(await GetAsync(
+            "/api/analytics/period-comparison?currentFrom=2026-09-01&currentTo=2026-09-30&previousFrom=2026-07-01&previousTo=2026-07-31", Ada));
+
+        Assert.Equal(("Custom", "Custom"), (body["current"]!["kind"]!.GetValue<string>(), body["previous"]!["kind"]!.GetValue<string>()));
+        var tl = Assert.Single(body["currencies"]!.AsArray())!;
+        Assert.Equal((624.98m, 514.98m), (Amount(tl["currentAmount"]), Amount(tl["previousAmount"])));
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("", "comparison", "Karşılaştırma zorunlu: comparison ya da currentFrom, currentTo, previousFrom ve previousTo verilmeli.")]
+    [InlineData("comparison=Custom", "comparison", "PreviousFullMonth veya MonthToDate olmalı.")]
+    [InlineData("comparison=previousfullmonth", "comparison", "PreviousFullMonth veya MonthToDate olmalı.")]
+    [InlineData("comparison=1", "comparison", "PreviousFullMonth veya MonthToDate olmalı.")]
+    [InlineData("comparison=PreviousFullMonth&currentFrom=2026-09-01&currentTo=2026-09-30&previousFrom=2026-07-01&previousTo=2026-07-31",
+        "comparison", "Karşılaştırma adı ile tarih aralıkları birlikte verilemez.")]
+    [InlineData("currentFrom=2026-09-01&currentTo=2026-09-30&previousFrom=2026-07-01",
+        "currentFrom", "Dört tarih birlikte verilmeli: currentFrom, currentTo, previousFrom ve previousTo.")]
+    [InlineData("currentFrom=2026-09-01&currentTo=2026-09-30&previousFrom=2026-09-15&previousTo=2026-10-05",
+        "previousFrom", "Karşılaştırılan dönemler çakışmamalı.")]
+    public async Task Comparison_parameters_are_strict(string query, string field, string message) =>
+        await AssertInvalidAsync($"/api/analytics/period-comparison?{query}", Ada, field, message);
+
+    // ---- monthly-trend
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Monthly_trend_lists_full_months_and_marks_the_running_month()
+    {
+        var body = Ok(await GetAsync("/api/analytics/monthly-trend?months=6", Deniz));
+
+        Assert.Equal(["months", "merchantMatch", "currencies"], body.AsObject().Select(p => p.Key));
+        Assert.Null(body["merchantMatch"]);
+        var points = Assert.Single(body["currencies"]!.AsArray())!["months"]!.AsArray();
+        Assert.Equal(
+            [(4, false, 12000m), (5, false, 14000m), (6, false, 16000m), (7, false, 18000m), (8, false, 24000m),
+             (9, false, 31000m), (10, true, 11350m)],
+            points.Select(p => (p!["month"]!.GetValue<int>(), p["isPartial"]!.GetValue<bool>(), Amount(p["amount"]))));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Category_trend_keeps_months_without_spending_as_zero()
+    {
+        var transport = Ok(await GetAsync("/api/analytics/monthly-trend?months=6&categoryCode=TRANSPORTATION", Ege));
+        var travel = Ok(await GetAsync("/api/analytics/monthly-trend?months=6&categoryCode=TRAVEL", Ege));
+
+        Assert.Equal([(600m, 2), (650m, 2), (700m, 2), (650m, 2), (900m, 2), (1400m, 2), (700m, 1)],
+            transport["currencies"]![0]!["months"]!.AsArray().Select(p => (Amount(p!["amount"]), p["transactionCount"]!.GetValue<int>())));
+        Assert.Equal([0m, 0m, 0m, 0m, 1200m, 0m, 0m],
+            travel["currencies"]![0]!["months"]!.AsArray().Select(p => Amount(p!["amount"])));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Merchant_trend_never_guesses_between_merchants()
+    {
+        var starbucks = Ok(await GetAsync("/api/analytics/monthly-trend?months=6&merchant=starbucks", Ada));
+        var ambiguous = Ok(await GetAsync("/api/analytics/monthly-trend?months=6&merchant=şehir", Ege));
+
+        Assert.Equal(("Matched", "Starbucks"),
+            (starbucks["merchantMatch"]!["status"]!.GetValue<string>(), starbucks["merchantMatch"]!["merchant"]!.GetValue<string>()));
+        Assert.Equal([185m, 185m, 185m, 185m, 185m, 185m, 375m],
+            starbucks["currencies"]![0]!["months"]!.AsArray().Select(p => Amount(p!["amount"])));
+        Assert.Equal("Ambiguous", ambiguous["merchantMatch"]!["status"]!.GetValue<string>());
+        Assert.Empty(ambiguous["currencies"]!.AsArray());
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("", "months", "Ay sayısı zorunlu: months 1 ile 24 arasında verilmeli.")]
+    [InlineData("months=0", "months", "1 ile 24 arasında olmalı.")]
+    [InlineData("months=25", "months", "1 ile 24 arasında olmalı.")]
+    [InlineData("months=abc", "months", "'abc' geçerli bir değer değil.")]
+    [InlineData("months=6&categoryCode=FOOD&merchant=Starbucks", "merchant", "Kategori ve merchant filtresi birlikte kullanılamaz.")]
+    [InlineData("months=6&categoryCode=YEMEK", "categoryCode", "Tanımlı bir kategori kodu olmalı.")]
+    public async Task Trend_parameters_are_checked(string query, string field, string message) =>
+        await AssertInvalidAsync($"/api/analytics/monthly-trend?{query}", Ada, field, message);
+
+    // ---- highest-transactions
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Highest_transactions_are_the_five_largest_purchases_by_default()
+    {
+        var body = Ok(await GetAsync("/api/analytics/highest-transactions?period=ThisMonth", Ada));
+
+        Assert.Equal(["period", "currencies"], body.AsObject().Select(p => p.Key));
+        var items = Assert.Single(body["currencies"]!.AsArray())!["items"]!.AsArray();
+        // The 45.000 salary and the 1.500 transfer are not spending.
+        Assert.Equal(
+            [("2026-10-06", 210m, "Starbucks"), ("2026-10-08", 165m, "Starbucks"), ("2026-10-09", 145m, null),
+             ("2026-10-02", 120m, "Kahve Durağı"), ("2026-10-07", 95m, "Kahve Durağı")],
+            items.Select(i => (i!["localDate"]!.GetValue<string>(), Amount(i["amount"]), i["merchant"]?.GetValue<string>())));
+        Assert.All(items, i => Assert.Equal("Purchase", i!["kind"]!.GetValue<string>()));
+        Assert.Equal("Kahve Durağı – Kadıköy", items[3]!["counterparty"]!.GetValue<string>());
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Highest_transactions_return_the_requested_count()
+    {
+        var body = Ok(await GetAsync("/api/analytics/highest-transactions?period=Last6Months&limit=3", Deniz));
+
+        Assert.Equal([31000m, 24000m, 18000m],
+            body["currencies"]![0]!["items"]!.AsArray().Select(i => Amount(i!["amount"])));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task All_transactions_on_request_include_salary_transfers_and_the_shop()
+    {
+        var ada = Ok(await GetAsync("/api/analytics/highest-transactions?period=ThisMonth&includeAllTransactions=true", Ada));
+        var shop = Ok(await GetAsync(
+            $"/api/analytics/highest-transactions?period=ThisMonth&includeAllTransactions=true&accountId={DenizShopAccount}", Deniz));
+
+        var items = ada["currencies"]![0]!["items"]!.AsArray();
+        Assert.Equal(
+            [("Salary", "Credit", 45000m), ("Transfer", "Debit", 1500m), ("Transfer", "Credit", 300m),
+             ("Purchase", "Debit", 210m), ("Purchase", "Debit", 165m)],
+            items.Select(i => (i!["kind"]!.GetValue<string>(), i["direction"]!.GetValue<string>(), Amount(i["amount"]))));
+        Assert.Equal("Deniz M***", items[1]!["counterparty"]!.GetValue<string>());
+        // The shop's sales are not spending, but they are transactions.
+        Assert.Equal([("Sale", 140m), ("Sale", 120m), ("Sale", 95m)],
+            shop["currencies"]![0]!["items"]!.AsArray().Select(i => (i!["kind"]!.GetValue<string>(), Amount(i["amount"]))));
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("", "period", "Dönem zorunlu: period ya da from ile to verilmeli.")]
+    [InlineData("period=ThisMonth&limit=0", "limit", "1 ile 100 arasında olmalı.")]
+    [InlineData("period=ThisMonth&limit=101", "limit", "1 ile 100 arasında olmalı.")]
+    [InlineData("period=ThisMonth&includeAllTransactions=evet", "includeAllTransactions", "'evet' geçerli bir değer değil.")]
+    public async Task Highest_transaction_parameters_are_checked(string query, string field, string message) =>
+        await AssertInvalidAsync($"/api/analytics/highest-transactions?{query}", Ada, field, message);
+
+    // ---- recurring-payments
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Recurring_payments_explain_why_they_count_as_monthly()
+    {
+        var body = Ok(await GetAsync("/api/analytics/recurring-payments", Ada));
+
+        Assert.Equal(["period", "payments", "monthlyTotals"], body.AsObject().Select(p => p.Key));
+        // The rule itself looks back six months; it is not a period the client chooses.
+        Assert.Equal(("2026-04-10", "2026-10-10"), Dates(body["period"]!));
+        var payments = body["payments"]!.AsArray();
+        Assert.Equal(["Netflix", "Spotify"], payments.Select(p => p!["merchant"]!.GetValue<string>()));
+        var netflix = payments[0]!;
+        Assert.Equal(("SUBSCRIPTION", "Abonelik", "Ada günlük TRY", "TRY"),
+            (netflix["categoryCode"]!.GetValue<string>(), netflix["categoryDisplayName"]!.GetValue<string>(),
+             netflix["accountName"]!.GetValue<string>(), netflix["currencyCode"]!.GetValue<string>()));
+        var pattern = netflix["pattern"]!;
+        Assert.Equal((6, 229.99m, "2026-04-12", "2026-09-12", 30, 31, "2026-10-12"),
+            (pattern["occurrenceCount"]!.GetValue<int>(), Amount(pattern["latestAmount"]), pattern["firstDate"]!.GetValue<string>(),
+             pattern["lastDate"]!.GetValue<string>(), pattern["minIntervalDays"]!.GetValue<int>(),
+             pattern["maxIntervalDays"]!.GetValue<int>(), pattern["nextExpectedDate"]!.GetValue<string>()));
+        Assert.Equal((99.99m, "2026-10-18"),
+            (Amount(payments[1]!["pattern"]!["latestAmount"]), payments[1]!["pattern"]!["nextExpectedDate"]!.GetValue<string>()));
+        Assert.Equal([("TRY", 329.98m)],
+            body["monthlyTotals"]!.AsArray().Select(t => (t!["currencyCode"]!.GetValue<string>(), Amount(t["monthlyTotal"]))));
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("Deniz")] // Aile Marketi is monthly, but its amount grows from 12.000 to 31.000
+    [InlineData("Ege")]   // transport is twice a month
+    public async Task Regular_shopping_is_not_a_recurring_payment(string customer)
+    {
+        var body = Ok(await GetAsync("/api/analytics/recurring-payments", customer == "Deniz" ? Deniz : Ege));
+
+        Assert.Empty(body["payments"]!.AsArray());
+        Assert.Empty(body["monthlyTotals"]!.AsArray());
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Recurring_payments_can_be_limited_to_one_account()
+    {
+        var own = Ok(await GetAsync($"/api/analytics/recurring-payments?accountId={AdaTryAccount}", Ada));
+        var usd = Ok(await GetAsync($"/api/analytics/recurring-payments?accountId={AdaUsdAccount}", Ada));
+
+        Assert.Equal(2, own["payments"]!.AsArray().Count);
+        Assert.Empty(usd["payments"]!.AsArray());
+    }
+
+    // ---- shared rules of the part 2 endpoints
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("period-comparison?comparison=PreviousFullMonth")]
+    [InlineData("monthly-trend?months=6")]
+    [InlineData("highest-transactions?period=ThisMonth")]
+    [InlineData("recurring-payments?")]
+    public async Task Part_two_endpoints_apply_the_token_and_account_rules(string pathAndQuery)
+    {
+        var path = $"/api/analytics/{pathAndQuery}";
+        var separator = path.EndsWith('?') ? "" : "&";
+
+        var noToken = await GetAsync(path, null);
+        var own = await GetAsync($"{path}{separator}accountId={AdaTryAccount}", Ada);
+        var foreign = await GetAsync($"{path}{separator}accountId={DenizTryAccount}", Ada);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, noToken.Status);
+        Ok(own);
+        // Another customer's account is answered exactly like an account that does not exist.
+        Assert.Equal(HttpStatusCode.NotFound, foreign.Status);
+        await AssertInvalidAsync($"{path}{separator}accountId={DenizShopAccount}", Deniz,
+            "accountId", "Harcama analizi yalnızca şahsi hesaplar içindir.");
+    }
 }
