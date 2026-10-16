@@ -13,8 +13,9 @@ read-only olacaktır. Her şey ücretsiz ve yereldir (local Qwen + Ollama). Ger�
 | --- | --- |
 | Veritabanı + synthetic demo veri | Tamam: 6 domain tablosu + giriş tablosu, 12 migration, 3 demo müşteri, 7 hesap, 116 işlem |
 | Deterministik analytics | Tamam: özet, kategori, merchant, arama, en yüksek işlemler, dönem karşılaştırması, aylık seri, düzenli ödemeler |
-| HTTP API | Sürüyor: giriş/JWT, hesaplar, işlem listesi, tek işlem ve işlem ekleme hazır; analytics endpoint'leri (ANA-09) sırada |
-| Local AI (FastAPI + LangChain + Qwen), MCP, SwiftUI | Henüz başlamadı |
+| HTTP API | Tamam: giriş/JWT, hesaplar, işlemler, analytics endpoint'leri, ortak hata cevabı, OpenAPI + Scalar |
+| Local AI (FastAPI + LangChain + Qwen) | Başladı: model seçildi (`qwen3.5:4b`, Ollama; [docs/local-ai.md](docs/local-ai.md)) |
+| MCP, SwiftUI | Henüz başlamadı |
 | Market verisi (USDTRY/EURTRY/gram altın) | Ayrı kol; altın kaynağı dış yanıt bekliyor, import yok |
 
 Ayrıntılı iş planı ve sıradaki adım [todo.md](todo.md), kalıcı kurallar [RULE.md](RULE.md) içindedir.
@@ -64,6 +65,8 @@ BankingAI.Cli ──────────────────────
 | `BANKINGAI_JWT_SIGNING_KEY` | Token imza anahtarı; en az 32 bayt rastgele değer (`openssl rand -base64 48`). Yoksa API açılmaz |
 | `BANKINGAI_DEMO_PASSWORD_ADA` / `_DENIZ` / `_EGE` | Demo giriş şifreleri; kendi rastgele değerlerinizi üretin |
 | `BANKINGAI_DEMO_NOW` | İsteğe bağlı: iş saatini demo anına sabitler (ör. `2026-10-10T12:00:00Z`); token'lar gerçek saatte kalır |
+| `BANKINGAI_LLM_MODEL` | Local model adı (Ollama), varsayılan önerisi `qwen3.5:4b` |
+| `BANKINGAI_OLLAMA_URL` | İsteğe bağlı Ollama adresi (boşsa `http://127.0.0.1:11434`) |
 
 Uygulama `.env`'yi kendiliğinden okumaz; her yeni terminalde:
 
@@ -164,6 +167,13 @@ PostgreSQL testleri seed edilmiş demo veritabanını kullanır ve `.env` yükle
 verisini değiştirmez: ya kendi DB transaction'ında rollback yapar ya da geçici kayıt açıp siler. Beklenen
 değerler seeder'dan türetilmez, elle hesaplanmış fixture'lardır. Güncel test sayıları `todo.md` içindedir.
 
+Local model ölçümü (Python 3, yalnız standart kütüphane; ayrıntı [docs/local-ai.md](docs/local-ai.md)):
+
+```sh
+python3 -m unittest discover -s ai/model_check                       # puanlama testleri (Ollama gerekmez)
+python3 ai/model_check/run.py --model qwen3.5:4b --model qwen3.5:9b   # modelleri karşılaştır (Ollama açık olmalı)
+```
+
 ## Veri modeli
 
 ```text
@@ -215,14 +225,14 @@ dotnet tool run dotnet-ef migrations add <Name> --project src/BankingAI.Data --s
 | [docs/database-design.md](docs/database-design.md) | Tablolar, ilişkiler, seed/import sınırları |
 | [docs/input-validation.md](docs/input-validation.md) | Girdi kuralları (VAL), harcama tanımı, işlem türleri |
 | [docs/synthetic-seed.md](docs/synthetic-seed.md) | Demo veri ve beklenen rakamlar |
+| [docs/local-ai.md](docs/local-ai.md) | Local model seçimi: ölçüm yöntemi, sonuçlar, karar |
 | [docs/market-data-sources.md](docs/market-data-sources.md) | Döviz/altın fiyat kaynağı araştırması |
 | [docs/customer-review.md](docs/customer-review.md) | İlk modülün (Customer tablosu) tarihsel incelemesi |
 
 ## Yol haritası
 
-1. API'nin kalanı: HTTP testleri ve OpenAPI (API-14/15),
-   analytics endpoint'leri (ANA-09).
-2. Local AI: Qwen model seçimi, Ollama, FastAPI + LangChain; önce backend sonucunu Türkçe açıklama.
+1. ~~API~~ tamam (16 Ekim 2026).
+2. Local AI: Qwen model seçimi (tamam: `qwen3.5:4b`), Ollama bağlantısı, FastAPI + LangChain; önce backend sonucunu Türkçe açıklama.
 3. Read-only MCP tool'ları; Qwen tool seçer, argümanlar backend'de yeniden doğrulanır.
    Genişletmeler (13 Ekim 2026): yeni soru tipleri (kavramsal merchant, tutar filtresi, yaklaşan ödemeler,
    bütçe kontrolü, tasarruf simülasyonu) ve güvenilir cevap katmanı (sayı doğrulayıcı + şablon cevap,

@@ -280,7 +280,7 @@ Her madde sırasıyla: saf C#/servis + elle hesaplanmış testler → ANA-09 kal
 
 ## 15. Local AI — önce hazır sonucu açıklama
 
-- [ ] AI-01 — Donanıma uygun local Qwen modelini seç. Türkçe, structured output ve tool calling'i küçük örneklerle ölç; model adı config olsun.
+- [x] AI-01 — Donanıma uygun local Qwen modelini seç. Türkçe, structured output ve tool calling'i küçük örneklerle ölç; model adı config olsun. Sonuç (16 Ekim 2026, docs/local-ai.md): Ollama 0.40.5, modeller harici SSD'de; `ai/model_check/` (yalnız standart kütüphane): sabit 20 vaka (12 tool seçimi: 6 tool + transfer/fıkra kapsam dışı; 5 structured output `format` şemasıyla; 3 açıklama) ve deterministik puanlama (`scoring.py`: tek çağrı + birebir argüman, söylenmemiş argüman hata; JSON alan/değer; açıklamada verilmeyen sayı ve zorunlu metin). Thinking kapalı, temperature 0 (iki koşu birebir aynı): `qwen3.5:4b` tool 11/12 (söylenmemiş `limit=5`), JSON 5/5, açıklama 2/3 (`%57,14` yazılmadı), 3,1/1,3/5,0 sn, 4–7 GB; `qwen3.5:9b` 12/12, 5/5, 3/3, 4,6/2,6/8,3 sn, 8–10 GB (swap 11,4 GB'a çıktı). Kullanıcı kararı: **varsayılan `qwen3.5:4b`** (`BANKINGAI_LLM_MODEL`), 9b yedek; MCP-12/14'te gerçek tool listesiyle yeniden ölçülür, 4b %90'ın altına düşerse 9b. Bulgular: structured output'ta değerler prompt'a da yazılmalı (`format` modele göstermez; ilk koşu 1/5); thinking + temperature 0 sonsuz düşünme, önerilen sampling'le bile "Merhaba" 50 sn → thinking kapalı; 9b'nin E02'si sayı kontrolünü geçti ama yönü ters (AI-10/11 gerekçesi). Testler: Python `unittest` 21 (puanlama; Ollama gerektirmez). Sınır: 20 vaka, anlam hatası ve yazıyla sayı puanlanmaz, ölçüm bellek baskısı altında.
 - [ ] AI-02 — Ollama bağlantısını doğrula. Yerel model yanıtı, timeout ve model bulunamadı senaryosunu kontrol et; ücretli API kullanma.
 - [ ] AI-03 — Küçük FastAPI servisini oluştur. Sağlık kontrolü ve typed giriş/çıkış modeli ekle; finansal sorgu/hesap koyma.
 - [ ] AI-04 — LangChain ChatOllama ile basit invoke kur. Agent gerekmiyorsa oluşturma; önce backend'in hazır sonucunu Türkçe açıklat.
@@ -408,7 +408,7 @@ iş kendi dalında yapılır ve PR ile (squash) `main`'e girer (CLAUDE.md "Git a
 
 Sıradaki adaylar (kullanıcı seçer; müşteri her zaman `User.GetCustomerId()` ile token'dan gelir):
 
-- Bölüm 11 (API) tamam. Sırada RULE.md §21 sırasıyla local AI (bölüm 15) ve read-only MCP (bölüm 16).
+- Bölüm 11 (API) tamam. Local AI (bölüm 15) başladı: AI-01 tamam (varsayılan `qwen3.5:4b`, docs/local-ai.md); sırada AI-02 (Ollama bağlantısı: yanıt, timeout, model bulunamadı), sonra AI-03 (FastAPI) ve read-only MCP (bölüm 16).
 
 Sonra RULE.md §21 sırasıyla local AI (bölüm 15) ve read-only MCP (bölüm 16); SwiftUI (bölüm 14) çalışan
 endpoint'ler üzerine küçük ekranlarla ilerler. 13 Ekim 2026 kullanıcı kararıyla iki genişletme eklendi:

@@ -1,0 +1,143 @@
+{
+  "tool_system_prompt": "Sen bir bankacılık harcama asistanısın. Kullanıcının sorusunu cevaplamak için uygun aracı seç ve yalnız kullanıcının söylediği bilgilerle parametreleri doldur. Kullanıcının söylemediği bir parametreyi uydurma. Sorunun cevabı araçlarla bulunamıyorsa ya da kullanıcı para transferi gibi bir işlem istiyorsa araç çağırma, kısaca Türkçe cevap ver.",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "get_spending_summary",
+        "description": "Bir dönemdeki toplam harcamayı para birimi başına döndürür.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "period": {"type": "string", "enum": ["ThisMonth", "LastMonth", "Last3Months", "Last6Months"], "description": "Dönem"}
+          },
+          "required": ["period"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_category_breakdown",
+        "description": "Bir dönemdeki harcamanın kategorilere dağılımını, en büyükten başlayarak döndürür.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "period": {"type": "string", "enum": ["ThisMonth", "LastMonth", "Last3Months", "Last6Months"], "description": "Dönem"}
+          },
+          "required": ["period"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_merchant_spending",
+        "description": "Bir dönemde tek bir işyerine (merchant) yapılan harcamayı döndürür.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "merchant": {"type": "string", "description": "Kullanıcının söylediği işyeri adı"},
+            "period": {"type": "string", "enum": ["ThisMonth", "LastMonth", "Last3Months", "Last6Months"], "description": "Dönem"}
+          },
+          "required": ["merchant", "period"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "compare_spending_periods",
+        "description": "İki dönemin harcamasını karşılaştırır. PreviousFullMonth: son tam ay ile ondan önceki ay ('geçen aya göre'). MonthToDate: bu ayın geçen günleri ile geçen ayın aynı günleri.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "comparison": {"type": "string", "enum": ["PreviousFullMonth", "MonthToDate"], "description": "Karşılaştırma türü"}
+          },
+          "required": ["comparison"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_highest_transactions",
+        "description": "Bir dönemdeki en yüksek tutarlı harcamaları döndürür.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "period": {"type": "string", "enum": ["ThisMonth", "LastMonth", "Last3Months", "Last6Months"], "description": "Dönem"},
+            "limit": {"type": "integer", "description": "Kaç işlem (kullanıcı söylemezse verme; varsayılan 5)"}
+          },
+          "required": ["period"]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "check_budget",
+        "description": "Bu ayın harcamasını kullanıcının söylediği bütçeyle karşılaştırır.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "amount": {"type": "number", "description": "Bütçe tutarı"},
+            "currencyCode": {"type": "string", "enum": ["TRY", "USD", "EUR"], "description": "Bütçenin para birimi"}
+          },
+          "required": ["amount", "currencyCode"]
+        }
+      }
+    }
+  ],
+  "tool_cases": [
+    {"id": "T01", "question": "Bu ay ne kadar harcadım?", "expected": {"tool": "get_spending_summary", "args": {"period": "ThisMonth"}}},
+    {"id": "T02", "question": "Geçen ay en çok hangi kategoriye para harcadım?", "expected": {"tool": "get_category_breakdown", "args": {"period": "LastMonth"}}},
+    {"id": "T03", "question": "Geçen ay Aile Marketi'ne ne kadar verdim?", "expected": {"tool": "get_merchant_spending", "args": {"merchant": "Aile Marketi", "period": "LastMonth"}}},
+    {"id": "T04", "question": "Son 3 ayda Starbucks harcamam ne kadar tuttu?", "expected": {"tool": "get_merchant_spending", "args": {"merchant": "Starbucks", "period": "Last3Months"}}},
+    {"id": "T05", "question": "Geçen aya göre harcamam arttı mı?", "expected": {"tool": "compare_spending_periods", "args": {"comparison": "PreviousFullMonth"}}},
+    {"id": "T06", "question": "Bu ay şu ana kadar, geçen ayın aynı dönemine göre daha mı çok harcıyorum?", "expected": {"tool": "compare_spending_periods", "args": {"comparison": "MonthToDate"}}},
+    {"id": "T07", "question": "Son 6 aydaki en büyük 3 harcamamı göster.", "expected": {"tool": "get_highest_transactions", "args": {"period": "Last6Months", "limit": 3}}},
+    {"id": "T08", "question": "Geçen ayın en pahalı alışverişleri neler?", "expected": {"tool": "get_highest_transactions", "args": {"period": "LastMonth"}}},
+    {"id": "T09", "question": "Bu ay için 5.000 TL bütçem var, aşar mıyım?", "expected": {"tool": "check_budget", "args": {"amount": 5000, "currencyCode": "TRY"}}},
+    {"id": "T10", "question": "Son üç ayda harcamalarım kategorilere nasıl dağılmış?", "expected": {"tool": "get_category_breakdown", "args": {"period": "Last3Months"}}},
+    {"id": "T11", "question": "Hesabımdan Deniz'e 500 TL gönder.", "expected": {"tool": null}},
+    {"id": "T12", "question": "Bana bir fıkra anlatır mısın?", "expected": {"tool": null}}
+  ],
+  "structured_system_prompt": "Kullanıcının bankacılık sorusunu sınıflandır ve yalnız {\"intent\": ..., \"period\": ...} JSON nesnesini döndür.\nintent değerleri: spending_summary (toplam harcama), category_breakdown (kategorilere dağılım), merchant_spending (tek bir işyerine harcama), period_comparison (iki dönemi karşılaştırma), highest_transactions (en yüksek/pahalı harcamalar), recurring_payments (düzenli ödemeler, abonelikler), budget_check (bütçe kontrolü), out_of_scope (harcama analiziyle ilgisiz soru).\nperiod değerleri: ThisMonth (bu ay), LastMonth (geçen ay), Last3Months (son 3 ay), Last6Months (son 6 ay), NotSpecified (soruda dönem yok).",
+  "structured_schema": {
+    "type": "object",
+    "properties": {
+      "intent": {"type": "string", "enum": ["spending_summary", "category_breakdown", "merchant_spending", "period_comparison", "highest_transactions", "recurring_payments", "budget_check", "out_of_scope"]},
+      "period": {"type": "string", "enum": ["ThisMonth", "LastMonth", "Last3Months", "Last6Months", "NotSpecified"]}
+    },
+    "required": ["intent", "period"]
+  },
+  "structured_cases": [
+    {"id": "S01", "question": "Geçen ay Starbucks'a ne kadar harcadım?", "expected": {"intent": "merchant_spending", "period": "LastMonth"}},
+    {"id": "S02", "question": "Bu ay toplam ne kadar harcadım?", "expected": {"intent": "spending_summary", "period": "ThisMonth"}},
+    {"id": "S03", "question": "Son 6 ayın en pahalı alışverişi neydi?", "expected": {"intent": "highest_transactions", "period": "Last6Months"}},
+    {"id": "S04", "question": "Düzenli ödediğim abonelikler neler?", "expected": {"intent": "recurring_payments", "period": "NotSpecified"}},
+    {"id": "S05", "question": "Yarın İstanbul'da hava nasıl olacak?", "expected": {"intent": "out_of_scope", "period": "NotSpecified"}}
+  ],
+  "explanation_system_prompt": "Sen bir bankacılık harcama asistanısın. Sana backend'in hesapladığı hazır sonuç verilecek. Bunu kullanıcıya 2-3 cümlelik sade Türkçe ile açıkla. Kurallar: Yalnız verilen rakamları kullan ve onları verildiği yazımla aynen yaz. Yeni rakam hesaplama, toplama, yuvarlama veya tahmin etme. Veride olmayan bir bilgi ekleme.",
+  "explanation_cases": [
+    {
+      "id": "E01",
+      "question": "Bu ay ne kadar harcadım?",
+      "data": "Dönem: 1-10 Ekim 2026. Toplam harcama: 735,00 TL. Sınıflandırılmamış harcama: 145,00 TL.",
+      "must_include": ["735,00 TL"]
+    },
+    {
+      "id": "E02",
+      "question": "Geçen aya göre harcamam arttı mı?",
+      "data": "Eylül 2026 harcaması: 1.840,00 TL. Ağustos 2026 harcaması: 1.425,00 TL. Değişim: +415,00 TL (%29,12 artış). En çok artan kategori: Market (+300,00 TL).",
+      "must_include": ["1.840,00 TL", "1.425,00 TL", "%29,12"]
+    },
+    {
+      "id": "E03",
+      "question": "Bu ay paramı nereye harcadım?",
+      "data": "Dönem: 1-10 Ekim 2026. Market: 420,00 TL (%57,14). Kafe: 210,00 TL (%28,57). Ulaşım: 105,00 TL (%14,29). Toplam: 735,00 TL.",
+      "must_include": ["420,00 TL", "%57,14"]
+    }
+  ]
+}
