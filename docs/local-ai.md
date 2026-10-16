@@ -85,3 +85,53 @@ python3 -m unittest discover -s ai/model_check                       # puanlama 
 python3 ai/model_check/run.py --model qwen3.5:4b --model qwen3.5:9b   # iki modeli karşılaştır
 python3 ai/model_check/run.py --only tool                            # BANKINGAI_LLM_MODEL ile tek grup
 ```
+
+# Ollama bağlantısı (AI-02)
+
+16 Ekim 2026. `ai/service/ollama_client.py`, AI servisinin Ollama'yla konuştuğu tek yerdir (yalnız standart kütüphane;
+AI-03'ün FastAPI'si aynı klasöre gelir). Amaç: Ollama'yla ilgili her sorun adı konmuş bir hataya dönüşsün, servis çökmesin
+ve ileride kullanıcıya "asistan şu an kullanılamıyor" denebilsin (AI-07: AI kapalıyken deterministik sonuç yine gösterilir).
+
+## Ayarlar
+
+| Değişken | Kural |
+| --- | --- |
+| `BANKINGAI_LLM_MODEL` | Zorunlu; boşsa açılışta hata |
+| `BANKINGAI_OLLAMA_URL` | Boşsa `http://127.0.0.1:11434`; sondaki `/` atılır |
+| `BANKINGAI_LLM_TIMEOUT_SECONDS` | Varsayılan 30; pozitif, sonlu sayı (`abc`, `0`, `-5`, `inf`, `nan` reddedilir) |
+
+30 sn: ölçülen en kötü durum soğuk yükleme ~6 sn + en uzun cevap ~8 sn ≈ 14 sn; bellek baskısı için yaklaşık iki kat pay.
+Sağlık kontrolü en fazla 3 sn bekler.
+
+## Hata türleri (ölçülen Ollama davranışıyla)
+
+| Durum | Ollama | Tür |
+| --- | --- | --- |
+| Sunucu kapalı | Bağlantı reddedildi, anında | `OllamaUnavailable` |
+| Sunucu tarafı hata (ör. bellek yetmedi) | HTTP 5xx | `OllamaUnavailable` |
+| Model indirilmemiş / harici disk takılı değil | HTTP 404 `model '…' not found` | `ModelNotFound` (ayardaki adla) |
+| Süre doldu | — | `OllamaTimeout` |
+| Hatalı istek (ör. boş model adı) | HTTP 400 `model is required` | `OllamaBadResponse` |
+| JSON değil ya da mesaj metni yok | — | `OllamaBadResponse` |
+
+İstemci zaman aşımıyla bağlantıyı bırakınca Ollama işi durdurur (günlükte "context canceled"): 2 sn'de kesilen uzun bir
+üretimden hemen sonraki istek 0,3 sn'de cevaplandı. Yani zaman aşımı kuyrukta asılı iş bırakmaz.
+
+## Sağlık kontrolü
+
+`check_ready()` yalnız `/api/tags` sorar (modeli yüklemez): `READY`, `SERVER_UNAVAILABLE` (bağlantı yok, 5xx, JSON değil) ya da
+`MODEL_MISSING` (model listede yok; Ollama'nın kuralıyla etiketsiz ad `:latest` sayılır). Harici disk takılmadan açılan Ollama
+boş liste döner → `MODEL_MISSING`. Elle deneme:
+
+```sh
+python3 ai/service/ollama_client.py
+```
+
+Hazırsa kısa bir deneme sorusu sorar ve cevabı süreleriyle yazar; değilse ne yapılacağını Türkçe söyler (çıkış kodu 0/1/2).
+
+## Sınırlar
+
+- `stream: false`: cevap tek parça gelir; akan cevap (AI-08) gelirse süre sınırının anlamı değişir.
+- Hata mesajları İngilizce; kullanıcıya giden Türkçe metinler AI-07/AI-08'de.
+- Boş cevap metni geçerli sayılır; boş/uyuşmayan cevap AI-06'nın işi.
+- Model bellekte Ollama varsayılanı kadar (5 dk) kalır; boşta kaldıktan sonraki ilk soru ~5 sn daha uzun sürer.

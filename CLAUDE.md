@@ -97,7 +97,13 @@ olmadan Ollama modelleri bulamaz). Thinking modunda temperature 0 sonsuz düşü
 ```sh
 python3 -m unittest discover -s ai/model_check                       # puanlama testleri, Ollama gerekmez
 python3 ai/model_check/run.py --model qwen3.5:4b --model qwen3.5:9b   # yoksa BANKINGAI_LLM_MODEL
+python3 -m unittest discover -s ai/service                           # Ollama bağlantısı; Ollama kapalıysa 3 test atlanır
+python3 ai/service/ollama_client.py                                  # elle kontrol (BANKINGAI_LLM_MODEL gerekir)
 ```
+
+`ai/service/ollama_client.py` (AI-02) Ollama'yla tek konuşma yeridir: her hata dört türden birine çevrilir (`OllamaUnavailable`,
+`ModelNotFound`, `OllamaTimeout`, `OllamaBadResponse`); `check_ready()` modeli yüklemez. Testler gerçek Ollama yerine sahte HTTP
+sunucusu kullanır; gerçek Ollama testleri Ollama kapalıysa atlanır.
 
 Migration:
 
@@ -307,7 +313,7 @@ işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu test
 ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi), API-09 (hesabın işlem listesi), API-10 (tek işlem), API-11 (işlem ekleme), API-12 (Idempotency-Key), API-13 (ortak hata cevabı), ANA-09 (analytics endpoint'leri + `GET /api/transactions` arama), ANA-10–14 (yeni soru
 tipleri: kavramsal merchant, tutar filtresi, yaklaşan ödemeler, bütçe, tasarruf), API-14 (endpoint taraması, kalıcılık).
 API-15 (OpenAPI sözleşmesi, Scalar, örnekler). API bölümü tamam. AI-01 (local model: `qwen3.5:4b` varsayılan, thinking kapalı;
-`ai/model_check` ölçümü, docs/local-ai.md); sıradaki: AI-02 (Ollama bağlantısı), sonra FastAPI ve MCP.
+`ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`); sıradaki: AI-03 (FastAPI), sonra LangChain ve MCP.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11).
 Güncel ayrıntı her zaman `todo.md`'dedir.
