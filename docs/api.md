@@ -19,6 +19,7 @@ Yerel adres `http://localhost:5248`; OpenAPI `/openapi/v1.json` (geliştirme). G
 | `GET /api/analytics/spending-summary`, `category-breakdown`, `merchant-breakdown`, `merchant-spending` | evet | uygulandı | ANA-09 (1. parça) |
 | `GET /api/analytics/period-comparison`, `monthly-trend`, `highest-transactions`, `recurring-payments` | evet | uygulandı | ANA-09 (2. parça) |
 | `GET /api/analytics/upcoming-payments` | evet | uygulandı | ANA-12 |
+| `GET /api/analytics/budget-check` | evet | uygulandı | ANA-13 |
 | `GET /api/transactions` (bütün hesaplarda filtreli arama) | evet | uygulandı | ANA-09 (3. parça) |
 
 Ortak davranış: müşteri yalnız token'dan gelir (istekte müşteri parametresi yoktur); başka müşterinin
@@ -565,3 +566,23 @@ tutarı; ikisi de **tahmindir**, `pattern` kanıtıdır. `totals` para birimi ba
 
 `days=5` → yalnız Netflix (`to` 2026-10-15). `days` 0, 32 veya `abc` → 400 `errors.days`. Token yoksa 401, başkasının
 hesabı 404, işletme hesabı 400 (`errors.accountId`). Deniz ve Ege: boş listeler.
+
+### `GET /api/analytics/budget-check?amount=…&currencyCode=…[&categoryCode=… | &merchant=…][&accountId=…]` (ANA-13)
+
+Kullanıcının söylediği bütçeye göre **bu ayın** durumu; bütçe saklanmaz. `amount` zorunlu (tutar yazımı aramadaki gibi katı:
+yalnız rakam ve nokta), `currencyCode` zorunlu. `categoryCode` ve `merchant` verilmezse bütçe toplam harcama içindir;
+ikisi birlikte 400 `errors.merchant`. Merchant eşleşmezse `figures: null` ve `merchantMatch` nedenini söyler.
+
+```json
+{ "period": { "kind": "ThisMonth", "startDate": "2026-10-01", "endDate": "2026-10-10", "…": "…" },
+  "currencyCode": "TRY", "budgetAmount": 1000, "categoryCode": "FOOD", "categoryDisplayName": "Yeme & İçme",
+  "merchantMatch": null,
+  "figures": { "spentAmount": 590.00, "transactionCount": 4, "remainingAmount": 410.00, "overAmount": 0,
+               "isOverBudget": false, "elapsedDays": 10, "daysInMonth": 31, "dailyAverage": 59.00,
+               "projectedMonthEnd": 1829.00, "projectedOverAmount": 829.00, "willExceed": true,
+               "projectionMethod": "LinearDailyAverage" } }
+```
+
+Hatalar (400): `amount` yok ("Bütçe tutarı zorunlu."), `1000,50`, `0`; `currencyCode` yok ("Bütçenin para birimi
+(currencyCode) verilmeli.") veya `try`; kategori + merchant; tanımsız kategori (`errors.categoryCode`). Token yoksa 401,
+başkasının hesabı 404, işletme hesabı 400 (`errors.accountId`).

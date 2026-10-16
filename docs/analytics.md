@@ -378,6 +378,40 @@ merchant; toplam para birimi başına `EstimatedAmount` toplamı; ödeme yoksa i
 Sınırlar: yalnız aylık kalıp tanınır (yıllık abonelik, düzensiz fatura, 3 ödemesi olmayan yeni abonelik görünmez);
 tutar tahmini yaklaşan bir fiyat değişikliğini bilemez.
 
+## ANA-13 — Bütçe kontrolü (`BudgetCheckService`, 16 Ekim 2026)
+
+Bütçe kullanıcının sorusundan argüman olarak gelir ve **saklanmaz** (tablo yok). Harcanan tutar mevcut analizlerden
+alınır: toplam için `SpendingSummaryService`, kategori için `CategoryBreakdownService`, merchant için
+`MerchantSpendingService` (eşleştirme dahil). Böylece bütçedeki "harcanan" bu analizlerin aynı soruya verdiği rakamla
+her zaman aynıdır (testle korunur); servis yalnız bütçe aritmetiğini ekler. Kategori kodu kontrolü ortak
+`CategoryLookup`'tadır (aylık seri ve arama da kullanır; bu adımda iki kopyadan birleştirildi).
+
+Kullanıcı kararları:
+
+- **K1-A — hedef:** toplam (kategori ve merchant verilmezse), kategori **ya da** merchant; ikisi birlikte `ArgumentException`.
+- **K2-A — yalnız bu ay** (müşterinin saat dilimine göre devam eden ay).
+- **K3-A — ortalama bugün dahil:** `DailyAverage` = harcanan / geçen gün (`ElapsedDays` = bugünün günü; ayın 1'inde 1).
+  `ProjectedMonthEnd` = harcanan × ay gün sayısı / geçen gün, yuvarlanmış ortalamadan değil tam orandan
+  (`ProjectionMethod = "LinearDailyAverage"`).
+- **K4-A — para birimi zorunlu:** harcanan yalnız o para biriminde; bütçe para birimleri arasında karşılaştırılmaz.
+
+`RemainingAmount` = max(0, bütçe − harcanan), `OverAmount` = max(0, harcanan − bütçe), `ProjectedOverAmount` =
+max(0, tahmin − bütçe); tutarlar 2 ondalık, `AwayFromZero`. Harcama yoksa **gerçek 0** döner (soru bir bütçe hakkında;
+uydurma satır değil). Merchant eşleşmezse `Figures = null`, `MerchantMatch` nedenini söyler.
+
+| İstek (10 Ekim; 10/31 gün) | Harcanan | Kalan / aşım | Ort. | Ay sonu | Tahmini aşım |
+| --- | --- | --- | --- | --- | --- |
+| Ada, FOOD, 1.000 TRY | 590 (4) | 410 / 0 | 59 | 1.829 | 829 |
+| Ada, toplam, 1.000 TRY | 735 (5) | 265 / 0 | 73,50 | 2.278,50 | 1.278,50 |
+| Ada, "starbucks", 300 TRY | 375 (2) | 0 / 75 | 37,50 | 1.162,50 | 862,50 |
+| Ada, TRANSPORTATION, 500 TRY · Ada, toplam, 100 USD | 0 | bütçenin tamamı / 0 | 0 | 0 | 0 |
+| Deniz, GROCERY, 10.000 TRY | 9.500 (1) | 500 / 0 | 950 | 29.450 | 19.450 |
+| Ada, FOOD, 1.000 TRY, bugün 31 Ekim | 590 | 410 / 0 | 19,03 | 590 (tam orandan; 19,03 × 31 = 589,93 değil) | 0 |
+| Ege, "şehir" | — | — | — | — | `Ambiguous`, rakam yok |
+
+Sınırlar: tahmin doğrusaldır, ay içi düzensizliği (maaş günü, ay sonu faturası) bilmez ve ayın başında çok oynaktır;
+"kalan günlerde günde en fazla X" alanı yok (istenirse eklenir); bütçe kalıcı değil (ayrı karar).
+
 ## ANA-08 — Kenar durumları (`AnalyticsEdgeCaseTests`)
 
 Geçici kayıtlar testin kendi DB transaction'ında eklenir ve rollback edilir; demo verisi 116
