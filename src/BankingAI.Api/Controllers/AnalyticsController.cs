@@ -15,7 +15,7 @@ namespace BankingAI.Api.Controllers;
 public sealed class AnalyticsController(
     SpendingSummaryService summaries, CategoryBreakdownService categories, MerchantSpendingService merchants,
     SpendingComparisonService comparisons, HighestTransactionsService highest, RecurringPaymentService recurring,
-    UpcomingPaymentService upcoming)
+    UpcomingPaymentService upcoming, BudgetCheckService budgets)
     : ControllerBase
 {
     /// <summary>
@@ -119,6 +119,21 @@ public sealed class AnalyticsController(
         [FromQuery] int? days, [FromQuery] Guid? accountId, CancellationToken cancellationToken) =>
         Ok(await upcoming.GetAsync(
             new UpcomingPaymentQuery(User.GetCustomerId(), days ?? UpcomingPaymentService.DefaultDays, accountId), cancellationToken));
+
+    /// <summary>
+    /// <c>GET /api/analytics/budget-check</c>: this month's spending against a budget given by the user (never stored):
+    /// spent, remaining or over, daily average and a linear month-end projection whose method is named in the answer.
+    /// Without <c>categoryCode</c> and <c>merchant</c> the budget covers total spending; <c>currencyCode</c> is required
+    /// (ANA-13).
+    /// </summary>
+    [HttpGet("budget-check")]
+    public async Task<ActionResult<BudgetCheck>> BudgetCheckAsync(
+        [FromQuery] string? amount, [FromQuery] string? currencyCode, [FromQuery] string? categoryCode, [FromQuery] string? merchant,
+        [FromQuery] Guid? accountId, CancellationToken cancellationToken) =>
+        Ok(await budgets.CheckAsync(
+            new BudgetCheckQuery(User.GetCustomerId(), AmountParameter.Required(amount, nameof(amount), "Bütçe tutarı zorunlu."),
+                currencyCode, categoryCode, merchant, accountId),
+            cancellationToken));
 
     // The customer comes from the token only; the period is required (no fallback).
     private SpendingQuery Spending(string? period, DateOnly? from, DateOnly? to, Guid? accountId) =>

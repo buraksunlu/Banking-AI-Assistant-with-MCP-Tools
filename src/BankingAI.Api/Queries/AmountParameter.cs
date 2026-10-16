@@ -22,4 +22,9 @@ public static class AmountParameter
             throw new ArgumentException($"'{value}' geçerli bir değer değil.", field);
         return amount;
     }
+
+    /// <summary>A required amount, read the same strict way.</summary>
+    /// <exception cref="ArgumentException">The amount is missing or not a plain decimal number.</exception>
+    public static decimal Required(string? value, string field, string missingMessage) =>
+        Parse(value, field) ?? throw new ArgumentException(missingMessage, field);
 }

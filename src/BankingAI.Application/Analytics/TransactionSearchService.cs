@@ -54,11 +54,7 @@ public sealed class TransactionSearchService(BankingDbContext db, PeriodResolver
         transactions = AmountFilter.Apply(transactions, query.MinAmount, query.MaxAmount, query.CurrencyCode);
         if (query.CategoryCode is { } code)
         {
-            var categoryId = await db.TransactionCategories.AsNoTracking()
-                .Where(c => c.Code == code)
-                .Select(c => (short?)c.Id)
-                .SingleOrDefaultAsync(cancellationToken)
-                ?? throw new ArgumentException("Tanımlı bir kategori kodu olmalı.", nameof(query.CategoryCode));
+            var categoryId = (await CategoryLookup.FindAsync(db, code, cancellationToken)).Id;
             transactions = transactions.Where(t => t.CategoryId == categoryId);
         }
 

@@ -524,4 +524,67 @@ public sealed class AnalyticsEndpointTests
         await AssertInvalidAsync($"/api/analytics/upcoming-payments?accountId={DenizShopAccount}", Deniz,
             "accountId", "Harcama analizi yalnızca şahsi hesaplar içindir.");
     }
+
+    // ---- budget-check (ANA-13)
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Budget_check_reports_the_month_so_far_and_its_projection()
+    {
+        var body = Ok(await GetAsync("/api/analytics/budget-check?amount=1000&currencyCode=TRY&categoryCode=FOOD", Ada));
+
+        Assert.Equal(["period", "currencyCode", "budgetAmount", "categoryCode", "categoryDisplayName", "merchantMatch", "figures"],
+            body.AsObject().Select(p => p.Key));
+        Assert.Equal(("ThisMonth", "Yeme & İçme"), (body["period"]!["kind"]!.GetValue<string>(), body["categoryDisplayName"]!.GetValue<string>()));
+        var f = body["figures"]!;
+        // 590 spent, 410 left; 59 a day → 1.829 by 31 October, 829 over the budget.
+        Assert.Equal((590m, 410m, 0m, false, 59m, 1829m, 829m, true),
+            (Amount(f["spentAmount"]), Amount(f["remainingAmount"]), Amount(f["overAmount"]), f["isOverBudget"]!.GetValue<bool>(),
+             Amount(f["dailyAverage"]), Amount(f["projectedMonthEnd"]), Amount(f["projectedOverAmount"]), f["willExceed"]!.GetValue<bool>()));
+        Assert.Equal((10, 31, "LinearDailyAverage"),
+            (f["elapsedDays"]!.GetValue<int>(), f["daysInMonth"]!.GetValue<int>(), f["projectionMethod"]!.GetValue<string>()));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Merchant_budget_is_matched_without_guessing()
+    {
+        var starbucks = Ok(await GetAsync("/api/analytics/budget-check?amount=300&currencyCode=TRY&merchant=starbucks", Ada));
+        var ambiguous = Ok(await GetAsync("/api/analytics/budget-check?amount=500&currencyCode=TRY&merchant=şehir", Ege));
+
+        Assert.Equal(("Matched", 375m, 75m, true),
+            (starbucks["merchantMatch"]!["status"]!.GetValue<string>(), Amount(starbucks["figures"]!["spentAmount"]),
+             Amount(starbucks["figures"]!["overAmount"]), starbucks["figures"]!["isOverBudget"]!.GetValue<bool>()));
+        Assert.Equal("Ambiguous", ambiguous["merchantMatch"]!["status"]!.GetValue<string>());
+        Assert.True(ambiguous.AsObject().ContainsKey("figures"));
+        Assert.Null(ambiguous["figures"]);
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("currencyCode=TRY", "amount", "Bütçe tutarı zorunlu.")]
+    [InlineData("amount=1000,50&currencyCode=TRY", "amount", "'1000,50' geçerli bir değer değil.")]
+    [InlineData("amount=0&currencyCode=TRY", "amount", "Tutar 0.01 ile parasal üst sınır arasında olmalı.")]
+    [InlineData("amount=1000", "currencyCode", "Bütçenin para birimi (currencyCode) verilmeli.")]
+    [InlineData("amount=1000&currencyCode=try", "currencyCode", "TRY/USD/EUR/GBP olmalı.")]
+    [InlineData("amount=1000&currencyCode=TRY&categoryCode=FOOD&merchant=Starbucks", "merchant", "Kategori ve merchant filtresi birlikte kullanılamaz.")]
+    [InlineData("amount=1000&currencyCode=TRY&categoryCode=YEMEK", "categoryCode", "Tanımlı bir kategori kodu olmalı.")]
+    public async Task Budget_check_parameters_are_checked(string query, string field, string message) =>
+        await AssertInvalidAsync($"/api/analytics/budget-check?{query}", Ada, field, message);
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Budget_check_applies_the_token_and_account_rules()
+    {
+        var path = "/api/analytics/budget-check?amount=1000&currencyCode=TRY";
+
+        var noToken = await GetAsync(path, null);
+        var own = Ok(await GetAsync($"{path}&accountId={AdaTryAccount}", Ada));
+        var foreign = await GetAsync($"{path}&accountId={DenizTryAccount}", Ada);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, noToken.Status);
+        Assert.Equal(735m, Amount(own["figures"]!["spentAmount"]));
+        Assert.Equal(HttpStatusCode.NotFound, foreign.Status);
+        await AssertInvalidAsync($"{path}&accountId={DenizShopAccount}", Deniz, "accountId", "Harcama analizi yalnızca şahsi hesaplar içindir.");
+    }
 }
