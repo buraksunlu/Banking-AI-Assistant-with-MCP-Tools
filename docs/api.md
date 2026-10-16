@@ -20,6 +20,7 @@ Yerel adres `http://localhost:5248`; OpenAPI `/openapi/v1.json` (geliştirme). G
 | `GET /api/analytics/period-comparison`, `monthly-trend`, `highest-transactions`, `recurring-payments` | evet | uygulandı | ANA-09 (2. parça) |
 | `GET /api/analytics/upcoming-payments` | evet | uygulandı | ANA-12 |
 | `GET /api/analytics/budget-check` | evet | uygulandı | ANA-13 |
+| `GET /api/analytics/savings-simulation` | evet | uygulandı | ANA-14 |
 | `GET /api/transactions` (bütün hesaplarda filtreli arama) | evet | uygulandı | ANA-09 (3. parça) |
 
 Ortak davranış: müşteri yalnız token'dan gelir (istekte müşteri parametresi yoktur); başka müşterinin
@@ -586,3 +587,21 @@ ikisi birlikte 400 `errors.merchant`. Merchant eşleşmezse `figures: null` ve `
 Hatalar (400): `amount` yok ("Bütçe tutarı zorunlu."), `1000,50`, `0`; `currencyCode` yok ("Bütçenin para birimi
 (currencyCode) verilmeli.") veya `try`; kategori + merchant; tanımsız kategori (`errors.categoryCode`). Token yoksa 401,
 başkasının hesabı 404, işletme hesabı 400 (`errors.accountId`).
+
+### `GET /api/analytics/savings-simulation?reductionPercent=…[&categoryCode=… | &merchant=…][&months=…][&accountId=…]` (ANA-14)
+
+"Şunu %N azaltsam ne kazanırım?": son `months` tam ayın (varsayılan 6, 1–24; harcamasız aylar dahil) aylık ortalaması ×
+oran, aylık ve yıllık. `reductionPercent` zorunlu, tam sayı 1–100. Kategori ve merchant verilmezse toplam harcama. Para
+birimi başına satır; harcama yoksa ya da merchant eşleşmezse `currencies: []`. Yatırım getirisi değildir; varsayım
+`method` alanında yazılıdır.
+
+```json
+{ "from": "2026-04-01", "to": "2026-09-30", "months": 6, "reductionPercent": 50, "categoryCode": null,
+  "merchantMatch": { "status": "Matched", "merchant": "Starbucks", "…": "…" },
+  "method": "FullMonthAverageTimesReduction",
+  "currencies": [ { "currencyCode": "TRY", "totalSpent": 1110.00, "monthlyAverage": 185.00, "monthlySaving": 92.50,
+                    "annualSaving": 1110.00, "monthlyAmounts": [ { "year": 2026, "month": 4, "isPartial": false, "amount": 185.00, "transactionCount": 1 }, "…" ] } ] }
+```
+
+Hatalar (400): oran yok ("Azaltma oranı zorunlu."), `0`/`101` ("1 ile 100 arasında olmalı."), `abc`; `months=25`; kategori +
+merchant; tanımsız kategori. Token yoksa 401, başkasının hesabı 404, işletme hesabı 400 (`errors.accountId`).
