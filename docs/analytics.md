@@ -345,6 +345,39 @@ Demo sonucu (10 Ekim 2026):
 
 Ada'nın aylık toplamı: TRY 329,98.
 
+## ANA-12 — Yaklaşan ödemeler (`UpcomingPaymentService`, 16 Ekim 2026)
+
+Düzenli ödeme kuralının (REC-01) tahmini sonraki tarihlerinden önümüzdeki `Days` günü listeler. Kendi sorgusu
+yoktur: `RecurringPaymentService`'i çağırır, hangi ödemenin düzenli olduğuna yine yalnız `RecurringPaymentDetector`
+karar verir. "Bugün", düzenli ödeme sonucunun dönem sonudur (`Period.EndDate`, müşterinin saat dilimi); saat dilimi
+mantığı tekrarlanmaz. Kapsam düzenli ödemelerle aynı (şahsi hesaplar, harcama, isteğe bağlı `AccountId`).
+
+Kullanıcı kararları:
+
+- **K1-A — gecikmişler listede:** tahmini tarihi geçmiş ama ödemesi henüz görünmeyen kalem `IsOverdue = true` ve
+  negatif `DaysUntil` ile kalır (kayıt gecikebilir). Sonsuza kadar kalmaz: son ödeme 35 günden eskiyse kural onu
+  iptal sayar ve listeden düşer.
+- **K2-A — ufuk 1–31 gün:** aylık bir ödeme pencerede en fazla bir kez görünür; "son ödeme + 1 ay" tahmini daha
+  ileri taşınmaz.
+- **K3-A — `Days` isteğe bağlı, varsayılan 30:** cevap penceresini (`From` = bugün, `To` = bugün + gün, dahil) söyler.
+
+Tahmin olduğu alan adlarında açıktır: `EstimatedDate` (kuralın `NextExpectedDate`'i) ve `EstimatedAmount` (son
+ödemenin tutarı; fiyat artışı varsa yeni fiyat). Her kalem kanıtını (`Pattern`) taşır. Sıra tahmini tarih, eşitse
+merchant; toplam para birimi başına `EstimatedAmount` toplamı; ödeme yoksa iki liste de boş.
+
+| İstek | Sonuç |
+| --- | --- |
+| Ada, varsayılan (10 Eki) | 10 Eki – 9 Kas: Netflix 12 Eki 229,99 (+2), Spotify 18 Eki 99,99 (+8); toplam 329,98 TRY |
+| Ada, 5 / 2 / 1 gün | Netflix / Netflix (12 Eki = bugün + 2, sınır dahil) / boş |
+| Deniz, Ege | boş |
+| Ada, bugün 14 Eki | Netflix 12 Eki gecikmiş (−2), Spotify 18 Eki (+4); toplam 329,98 |
+| Ada, bugün 20 Eki | Netflix yok (son ödeme 38 gün önce), Spotify 18 Eki gecikmiş (−2); toplam 99,99 |
+| Ada + geçici abonelik 100, 100, 105 (25 Tem–25 Eyl) | 25 Eki tahmini 105 (son tutar; en küçük 100 değil); toplam 434,98 |
+| `Days` 0 / 32; Deniz'in dükkân hesabı; Ada + Deniz'in hesabı | `ArgumentException` (`Days`); `ArgumentException`; `KeyNotFoundException` |
+
+Sınırlar: yalnız aylık kalıp tanınır (yıllık abonelik, düzensiz fatura, 3 ödemesi olmayan yeni abonelik görünmez);
+tutar tahmini yaklaşan bir fiyat değişikliğini bilemez.
+
 ## ANA-08 — Kenar durumları (`AnalyticsEdgeCaseTests`)
 
 Geçici kayıtlar testin kendi DB transaction'ında eklenir ve rollback edilir; demo verisi 116

@@ -1402,12 +1402,15 @@ COMPLETED
 - Tutar filtresi (ANA-11, 16 Ekim 2026): arama ve en yüksek işlemlerde dahil minAmount/maxAmount; verilirse currencyCode
   zorunlu (eşik para birimleri arasında karşılaştırılmaz); ortak AmountFilter, InputRules.Currency; API'de tutar katı
   okunur (AmountParameter: ASP.NET "500,50"yi binlik ayırıcıyla 50050 okurdu).
+- Yaklaşan ödemeler (ANA-12, 16 Ekim 2026): GET /api/analytics/upcoming-payments; UpcomingPaymentService düzenli ödeme
+  sonucundan önümüzdeki 1–31 günü (varsayılan 30) süzer, kendi sorgusu yok; gecikmişler IsOverdue ile listede; tarih ve
+  tutar tahmindir (EstimatedDate/EstimatedAmount = son tutar) ve kanıt (Pattern) ile döner.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Kullanıcının seçtiği ANA-10/12–14 ya da API-14/15 maddesi (her biri kendi dalında, PR ile); ardından local AI (todo bölüm 15) ve read-only
+- Kullanıcının seçtiği ANA-10/13/14 ya da API-14/15 maddesi (her biri kendi dalında, PR ile); ardından local AI (todo bölüm 15) ve read-only
   MCP (bölüm 16). Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14, MCP-15–18) ANA-09'dan
   sonra; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
@@ -1428,7 +1431,7 @@ TECHNICAL DEBT
 - OpenAPI belgesi yalnız 200 cevaplarını gösteriyor (API-15).
 
 TEST STATUS
-- Tam paket yeşil (16 Ekim 2026, ANA-11 sonrası; 3 koşu): Data 63, Application 210, Api 261. fix/seeder-test-lock sonrası
+- Tam paket yeşil (16 Ekim 2026, ANA-12 sonrası; 3 koşu): Data 63, Application 225, Api 267. fix/seeder-test-lock sonrası
   art arda 10 koşu yeşildi.
   SyntheticAccountSeederTests'in ara sıra kırmızısı giderildi: test bütün Accounts tablosunu karşılaştırdığı hâlde
   CommittedRowsLock.ExclusiveAsync() almıyordu; yarış bekleme + eşzamanlı ekleme deneyiyle önce kırmızı, kilitle yeşil
