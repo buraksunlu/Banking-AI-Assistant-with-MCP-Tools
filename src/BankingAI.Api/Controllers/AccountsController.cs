@@ -69,6 +69,8 @@ public sealed class AccountsController(IAccountReadService accounts, IAccountWri
     /// its <c>Location</c> and the account exactly as <c>GET /api/accounts/{id}</c> returns it.
     /// </summary>
     [HttpPost]
+    [ProducesResponseType<AccountDto>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status409Conflict, Description = "The Idempotency-Key was already used for a different account (idempotency_conflict).")]
     public async Task<ActionResult<AccountDto>> CreateAsync(CreateAccountRequest request,
         [FromHeader(Name = ApiProblems.IdempotencyKeyHeader)] string? idempotencyKey, CancellationToken cancellationToken)
     {

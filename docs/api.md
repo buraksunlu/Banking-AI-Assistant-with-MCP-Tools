@@ -5,6 +5,8 @@ Yerel adres `http://localhost:5248`; OpenAPI `/openapi/v1.json` (geliştirme). G
 
 ## Endpoint özeti (16 Ekim 2026)
 
+Makine okunur sözleşme: `docs/openapi/v1.json`; tarayıcıda `http://localhost:5248/scalar` (geliştirmede).
+
 | Endpoint | Token | Durum | Madde |
 |---|---|---|---|
 | `GET /api/health` | hayır | uygulandı | API-01b |
@@ -27,6 +29,24 @@ Yerel adres `http://localhost:5248`; OpenAPI `/openapi/v1.json` (geliştirme). G
 Ortak davranış: müşteri yalnız token'dan gelir (istekte müşteri parametresi yoktur); başka müşterinin
 kaynağı olmayan kaynakla birebir aynı `404`'ü alır; GUID olmayan kimlik `400`'dür.
 
+## OpenAPI sözleşmesi ve örnekler (API-15, 16 Ekim 2026)
+
+- **Sözleşme:** geliştirmede `GET /openapi/v1.json` (token gerekmez); commit'lenmiş kopyası `docs/openapi/v1.json`.
+  `OpenApiContractTests` üretilen belgeyi bu dosyayla birebir karşılaştırır: sözleşmeyi değiştiren her değişiklik
+  testi kırmızı yapar; bilerek değiştirildiyse dosya `BANKINGAI_UPDATE_OPENAPI=1 dotnet test tests/BankingAI.Api.Tests
+  --filter "FullyQualifiedName~The_document_is_the_same"` ile yenilenir ve PR'da diff olarak görünür.
+- **Belgenin doğruluğu** (`Api/OpenApi/ApiDocument` transformer'ları): enum'lar tam adlarıyla `string` (üretici
+  `integer` yazıyordu), para `number` + `format: decimal` (üretici `number|string` + `double` yazıyordu), 21 korumalı
+  işlemde `Bearer` güvenlik şeması, her hata cevabı `application/problem+json` + `Problem` şeması; ortak cevaplar kurala
+  göre (500 her işleme, 401 korumalılara, 400 girdisi olanlara, 404 `id`/`accountId` parametresi olanlara), işleme
+  özgü olanlar `[ProducesResponseType]` ile (201, 409, 429, 503). Yalnız `application/json` listelenir. Açıklamalar
+  koddaki `/// <summary>`'den gelir (İngilizce; başlık ilk cümle, tam metin açıklama). Not: XML yorum üreticisi yalnız
+  `AddOpenApi(options => …)` lambda biçimini yakalar; metot adıyla verilirse açıklamalar sessizce kaybolur.
+- **Tarayıcı:** geliştirmede `http://localhost:5248/scalar` (Scalar, `Scalar.AspNetCore` 2.17.13): endpoint'ler,
+  şemalar, örnek istekler; "Authentication" kutusuna login'den gelen token girilip denenebilir.
+- **Çalıştırılabilir örnekler:** repo kökünde `api-examples.http` (VS Code "REST Client"): login → token → 26 GET örneği
+  ve hata örnekleri; şifre `.env`'den (`$dotenv`) okunur. Yazma örnekleri demo verisini bozmamak için yorum satırıdır.
+
 ## Test kapsamı ve endpoint taraması (API-14, 16 Ekim 2026)
 
 `tests/BankingAI.Api.Tests/EndpointSweepTests.cs` API'nin gerçek route tablosunu (`EndpointDataSource`) okur ve her korumalı
@@ -45,7 +65,9 @@ bir API örneği aynı veriyi okur).
 - **Enum'lar yazıyla taşınır:** `"accountType": "Personal"`, `"kind": "Purchase"`. Girdi olarak yalnız
   **tam ad** kabul edilir; `2` gibi bir sayı ve `"purchase"` gibi farklı harf büyüklüğü 400'dür (API-13, kullanıcı
   kararı 4-A; `?period=lastmonth` da). Gerekçe: insanlar ve LLM için okunur; sessiz dönüşüm yok.
-- **Para JSON sayısıdır:** `"balance": 577490.18`. `decimal` birebir yazılır (`2595.00` → `2595.00`).
+- **Para JSON sayısıdır:** `"balance": 577490.18`. `decimal` birebir yazılır (`2595.00` → `2595.00`). Okuma katıdır
+  (API-15, karar K1-A): tırnaklı tutar (`"amount":"100"`) 400 `errors.amount` "Geçersiz değer."; web varsayılanı bunu
+  sessizce sayı sayardı.
   Bütün hesaplar backend'de yapılır; istemciler tutarı yalnız gösterir. Swift'in varsayılan JSON okuyucusu
   `Decimal`'i `double` üzerinden okuyabildiği için SwiftUI adımında tutar dikkatli çözülecek.
 - **Yazma isteklerinde tanınmayan alan 400'dür** (`[JsonUnmappedMemberHandling(Disallow)]`). Örneğin hesap

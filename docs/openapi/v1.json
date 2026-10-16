@@ -1,0 +1,3841 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "BankingAI API",
+    "description": "Spending assistant backend on synthetic bank data. Every figure is computed here; a model only chooses tools and explains results. All endpoints except health and login need a bearer token.",
+    "version": "v1"
+  },
+  "paths": {
+    "/api/accounts": {
+      "get": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Every account of the customer as a plain array, oldest first",
+        "description": "`GET /api/accounts`: every account of the customer as a plain array, oldest first; `[]` when\nthere are none. No paging: a customer has only a handful of accounts.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AccountDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Opens a personal, zero-balance account for the customer and answers 201 with its…",
+        "description": "`POST /api/accounts`: opens a personal, zero-balance account for the customer and answers 201 with\nits `Location` and the account exactly as `GET /api/accounts/{id}` returns it.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccountRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The Idempotency-Key was already used for a different account (idempotency_conflict).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/accounts/{id}": {
+      "get": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "One account of the customer",
+        "description": "`GET /api/accounts/{id}`: one account of the customer. Another customer's account gets exactly the\n404 of a missing one, so guessing ids reveals nothing. An id that is not a GUID is a 400.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/analytics/spending-summary": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Spending (purchases only) per currency, with the unclassified part",
+        "description": "`GET /api/analytics/spending-summary`: spending (purchases only) per currency, with the unclassified part.",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendingSummary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/analytics/category-breakdown": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Spending per category and currency, largest first",
+        "description": "`GET /api/analytics/category-breakdown`: spending per category and currency, largest first.",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryBreakdown"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/analytics/merchant-breakdown": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Spending per merchant and currency, largest first",
+        "description": "`GET /api/analytics/merchant-breakdown`: spending per merchant and currency, largest first.",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantBreakdown"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/analytics/merchant-spending": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Spending at one merchant",
+        "description": "`GET /api/analytics/merchant-spending`: spending at one merchant. The text is matched against the\ncustomer's own merchants; an ambiguous or unknown name returns the match without amounts, never a guess.",
+        "parameters": [
+          {
+            "name": "merchant",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantSpendingResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/analytics/period-comparison": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Spending of two periods per currency, with the change and the categories that…",
+        "description": "`GET /api/analytics/period-comparison`: spending of two periods per currency, with the change and the\ncategories that caused it (largest first). The comparison is required: `PreviousFullMonth` (last complete\nmonth against the month before), `MonthToDate`, or two explicit ranges given by four dates.",
+        "parameters": [
+          {
+            "name": "comparison",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "currentFrom",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "currentTo",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "previousFrom",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "previousTo",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendingComparison"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/analytics/monthly-trend": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Spending per calendar month for the last `months` complete months plus the…",
+        "description": "`GET /api/analytics/monthly-trend`: spending per calendar month for the last `months` complete months\nplus the running month; a month without spending is 0. Optionally narrowed to one category or one merchant.",
+        "parameters": [
+          {
+            "name": "months",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "categoryCode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "merchant",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendingTrend"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/analytics/highest-transactions": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "The largest purchases per currency (5 by default, at most 100)",
+        "description": "`GET /api/analytics/highest-transactions`: the largest purchases per currency (5 by default, at most 100).\n`includeAllTransactions=true` widens it to every kind on every account of the customer. An optional inclusive\namount range needs `currencyCode` (ANA-11).",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "includeAllTransactions",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "minAmount",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "maxAmount",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "currencyCode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HighestTransactions"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/analytics/recurring-payments": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "The monthly payments found in the last six months and what they add up to per…",
+        "description": "`GET /api/analytics/recurring-payments`: the monthly payments found in the last six months and what they\nadd up to per month. The six months are the rule itself, so this endpoint takes no period (decision K3-A).",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecurringPayments"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/analytics/upcoming-payments": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "The recurring payments expected in the next `days` days (1–31, default 30",
+        "description": "`GET /api/analytics/upcoming-payments`: the recurring payments expected in the next `days` days (1–31,\ndefault 30; decision K3-A), earliest first, with overdue ones flagged and an estimated total per currency. Dates\nand amounts are estimates from the recurring rule, never promises (ANA-12).",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpcomingPayments"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/analytics/budget-check": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "This month's spending against a budget given by the user (never stored)",
+        "description": "`GET /api/analytics/budget-check`: this month's spending against a budget given by the user (never stored):\nspent, remaining or over, daily average and a linear month-end projection whose method is named in the answer.\nWithout `categoryCode` and `merchant` the budget covers total spending; `currencyCode` is required\n(ANA-13).",
+        "parameters": [
+          {
+            "name": "amount",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "currencyCode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoryCode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "merchant",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BudgetCheck"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/analytics/savings-simulation": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "\"what if I cut it by N %?\"",
+        "description": "`GET /api/analytics/savings-simulation`: \"what if I cut it by N %?\". The average of the last `months`\ncomplete months (default 6, months without spending included) times the rate, per month and per year, one row per\ncurrency; the assumption is named in `method`. Not investment advice: no return, interest or inflation (ANA-14).",
+        "parameters": [
+          {
+            "name": "reductionPercent",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "categoryCode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "merchant",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "months",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavingsSimulation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/analytics/merchants": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Every merchant the customer has bought from on personal accounts, all time, with…",
+        "description": "`GET /api/analytics/merchants`: every merchant the customer has bought from on personal accounts, all time,\nwith the latest category and purchase date (ANA-10). This is the closed set a model chooses names from.",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantList"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/analytics/merchant-group-spending": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Spending at 1–20 merchants chosen from `/merchants` (\"kahve\" → Starbucks and…",
+        "description": "`GET /api/analytics/merchant-group-spending?merchants=…&amp;merchants=…`: spending at 1–20 merchants chosen from\n`/merchants` (\"kahve\" → Starbucks and Kahve Durağı), per currency and per merchant (ANA-10). Each name must be\nanother spelling of one of the customer's merchants; anything else is a 400, never completed or guessed.",
+        "parameters": [
+          {
+            "name": "merchants",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MerchantGroupSpending"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Returns 200 with a token for the right credentials",
+        "description": "Returns 200 with a token for the right credentials. A wrong password and an unknown username get the\nsame 401, so the response never reveals which usernames exist.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Wrong username or password; both get the same answer.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than five attempts a minute from one address.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Returns 200 when the database is reachable and 503 when it is not",
+        "description": "Returns 200 when the database is reachable and 503 when it is not.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The database cannot be reached.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/me": {
+      "get": {
+        "tags": [
+          "Me"
+        ],
+        "summary": "Returns the logged-in customer",
+        "description": "Returns the logged-in customer. A valid token whose login no longer exists is a 401.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/accounts/{accountId}/transactions": {
+      "get": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "A page of the account's transactions, newest first",
+        "description": "`GET /api/accounts/{accountId}/transactions`: a page of the account's transactions, newest first.\nEither a symbolic period or both from and to\n(local dates, inclusive); neither means the last three months. Another customer's account is a 404.",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Adds a synthetic Purchase or Salary to one of the customer's accounts and…",
+        "description": "`POST /api/accounts/{accountId}/transactions`: adds a synthetic Purchase or Salary to one of the\ncustomer's accounts and answers 201 with its `Location` and the transaction exactly as\n`GET /api/transactions/{id}` returns it. Needs an `Idempotency-Key`: the same key again returns\nthe first answer. A balance that would leave its range, or a key reused for another request, is a 409;\nanother customer's account is a 404.",
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTransactionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionItem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The balance would leave its range (balance_limit) or the key was used for another request (idempotency_conflict).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/transactions": {
+      "get": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "Searches all of the customer's accounts (a Business shop account included) like…",
+        "description": "`GET /api/transactions`: searches all of the customer's accounts (a Business shop account included) like a\nstatement, newest first, with optional filters: kind, direction, category or only unclassified purchases, merchant\n(matched against the customer's own merchants, never guessed), one account, a currency and an inclusive amount\nrange in it (ANA-11). Without a period the last three months are searched, like an account's list (decision\nK1-B); the answer names its period.",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoryCode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "onlyUnclassified",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "merchant",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 20
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "minAmount",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "maxAmount",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "currencyCode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionSearchResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/transactions/{id}": {
+      "get": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "One transaction of the customer, of any kind and on any of their accounts,…",
+        "description": "`GET /api/transactions/{id}`: one transaction of the customer, of any kind and on any of their accounts,\nwithout a period limit. Another customer's transaction gets exactly the 404 of a missing one; an id that is\nnot a GUID is a 400.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionItem"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccountDto": {
+        "required": [
+          "id",
+          "accountName",
+          "accountNumber",
+          "currencyCode",
+          "accountType",
+          "balance",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accountName": {
+            "type": "string"
+          },
+          "accountNumber": {
+            "type": "string"
+          },
+          "currencyCode": {
+            "type": "string"
+          },
+          "accountType": {
+            "$ref": "#/components/schemas/AccountType"
+          },
+          "balance": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "An account as clients see it. The owner is deliberately absent: it is always the caller (taken from the\ntoken), so it is never sent and clients are never tempted to send it back."
+      },
+      "AccountType": {
+        "enum": [
+          "Personal",
+          "Business"
+        ],
+        "type": "string"
+      },
+      "BudgetCheck": {
+        "required": [
+          "period",
+          "currencyCode",
+          "budgetAmount",
+          "categoryCode",
+          "categoryDisplayName",
+          "merchantMatch",
+          "figures"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "currencyCode": {
+            "type": "string"
+          },
+          "budgetAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "categoryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "categoryDisplayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "merchantMatch": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MerchantMatch"
+              }
+            ]
+          },
+          "figures": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BudgetFigures"
+              }
+            ]
+          }
+        },
+        "description": "Result of BudgetCheckService. `Figures` is null only when a merchant text did not match exactly one\nof the customer's merchants; `MerchantMatch` then says why. No spending is a real 0, not a missing answer."
+      },
+      "BudgetFigures": {
+        "required": [
+          "spentAmount",
+          "transactionCount",
+          "remainingAmount",
+          "overAmount",
+          "isOverBudget",
+          "elapsedDays",
+          "daysInMonth",
+          "dailyAverage",
+          "projectedMonthEnd",
+          "projectedOverAmount",
+          "willExceed",
+          "projectionMethod"
+        ],
+        "type": "object",
+        "properties": {
+          "spentAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "transactionCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "remainingAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "overAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "isOverBudget": {
+            "type": "boolean"
+          },
+          "elapsedDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "daysInMonth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "dailyAverage": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "projectedMonthEnd": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "projectedOverAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "willExceed": {
+            "type": "boolean"
+          },
+          "projectionMethod": {
+            "type": "string"
+          }
+        },
+        "description": "The budget arithmetic for the running month. `DailyAverage` = spent / elapsed days (today included);\n`ProjectedMonthEnd` = spent × days in month / elapsed days (string BudgetCheckService.ProjectionMethod),\ncomputed from the exact ratio, not the rounded average. All amounts are rounded to two decimals, away from zero."
+      },
+      "CategoryBreakdown": {
+        "required": [
+          "period",
+          "currencies"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurrencyCategoryBreakdown"
+            }
+          }
+        }
+      },
+      "CategoryChange": {
+        "required": [
+          "categoryCode",
+          "displayName",
+          "currentAmount",
+          "previousAmount",
+          "change"
+        ],
+        "type": "object",
+        "properties": {
+          "categoryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "currentAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "previousAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "change": {
+            "type": "number",
+            "format": "decimal"
+          }
+        }
+      },
+      "CategorySpending": {
+        "required": [
+          "categoryCode",
+          "displayName",
+          "amount",
+          "transactionCount",
+          "percentage"
+        ],
+        "type": "object",
+        "properties": {
+          "categoryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "transactionCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "percentage": {
+            "type": "number",
+            "format": "decimal"
+          }
+        }
+      },
+      "CreateAccountRequest": {
+        "required": [
+          "accountName",
+          "currencyCode"
+        ],
+        "type": "object",
+        "properties": {
+          "accountName": {
+            "type": "string",
+            "description": "1–100 characters, not only whitespace (same rule as the database)."
+          },
+          "currencyCode": {
+            "type": "string",
+            "description": "Exactly one of the account currencies the database accepts; \"try\" is not corrected."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Body of `POST /api/accounts` (API-07). Holds only what the client may choose; owner, number, type\n(always Personal), balance (always 0), id and creation time are set by the backend. Any other field in\nthe JSON is a 400 instead of being silently ignored."
+      },
+      "CreateTransactionRequest": {
+        "required": [
+          "kind",
+          "amount",
+          "description"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "`Purchase` (money out) or `Salary` (money in, so new zero-balance accounts can be used).\nTwo-legged kinds (Transfer, Sale) and OpeningFunding are not accepted.",
+                "$ref": "#/components/schemas/TransactionKind"
+              }
+            ]
+          },
+          "amount": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "description": "Positive, at most two decimals, within the money ceiling; never rounded.",
+            "format": "decimal"
+          },
+          "description": {
+            "type": "string",
+            "description": "The raw statement text, 1–500 characters, not only whitespace."
+          },
+          "merchant": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Optional shop name, part of the event like on a card statement (1–150 characters). The category, the\nbank's interpretation, is never taken from the client."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Body of `POST /api/accounts/{accountId}/transactions` (API-11): only the event itself. The backend\nderives direction from the kind and currency from the account, takes the account from the URL and the time\nfrom its own clock, and owns every category field; any of those in the JSON is a 400."
+      },
+      "CurrencyCategoryBreakdown": {
+        "required": [
+          "currencyCode",
+          "totalAmount",
+          "categories"
+        ],
+        "type": "object",
+        "properties": {
+          "currencyCode": {
+            "type": "string"
+          },
+          "totalAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategorySpending"
+            }
+          }
+        }
+      },
+      "CurrencyComparison": {
+        "required": [
+          "currencyCode",
+          "currentAmount",
+          "currentCount",
+          "previousAmount",
+          "previousCount",
+          "change",
+          "percentageChange",
+          "categories"
+        ],
+        "type": "object",
+        "properties": {
+          "currencyCode": {
+            "type": "string"
+          },
+          "currentAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "currentCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "previousAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "previousCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "change": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "percentageChange": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryChange"
+            }
+          }
+        }
+      },
+      "CurrencyHighestTransactions": {
+        "required": [
+          "currencyCode",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "currencyCode": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransactionItem"
+            }
+          }
+        }
+      },
+      "CurrencyMerchantBreakdown": {
+        "required": [
+          "currencyCode",
+          "totalAmount",
+          "merchants"
+        ],
+        "type": "object",
+        "properties": {
+          "currencyCode": {
+            "type": "string"
+          },
+          "totalAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "merchants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MerchantSpending"
+            }
+          }
+        }
+      },
+      "CurrencyRecurringTotal": {
+        "required": [
+          "currencyCode",
+          "monthlyTotal"
+        ],
+        "type": "object",
+        "properties": {
+          "currencyCode": {
+            "type": "string"
+          },
+          "monthlyTotal": {
+            "type": "number",
+            "format": "decimal"
+          }
+        },
+        "description": "Sum of the latest amounts: what the customer currently pays per month in one currency."
+      },
+      "CurrencySavings": {
+        "required": [
+          "currencyCode",
+          "totalSpent",
+          "monthlyAverage",
+          "monthlySaving",
+          "annualSaving",
+          "monthlyAmounts"
+        ],
+        "type": "object",
+        "properties": {
+          "currencyCode": {
+            "type": "string"
+          },
+          "totalSpent": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "monthlyAverage": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "monthlySaving": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "annualSaving": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "monthlyAmounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MonthlySpending"
+            }
+          }
+        },
+        "description": "One currency's simulation. `MonthlyAverage` = `TotalSpent` / months, months without spending included;\nthe savings are computed from the exact total, not from the rounded average. `MonthlyAmounts` is the evidence:\nevery complete month used, in order."
+      },
+      "CurrencySpending": {
+        "required": [
+          "currencyCode",
+          "totalAmount",
+          "transactionCount",
+          "uncategorizedAmount",
+          "uncategorizedCount"
+        ],
+        "type": "object",
+        "properties": {
+          "currencyCode": {
+            "type": "string"
+          },
+          "totalAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "transactionCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "uncategorizedAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "uncategorizedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "CurrencyTrend": {
+        "required": [
+          "currencyCode",
+          "months"
+        ],
+        "type": "object",
+        "properties": {
+          "currencyCode": {
+            "type": "string"
+          },
+          "months": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MonthlySpending"
+            }
+          }
+        }
+      },
+      "CurrencyUpcomingTotal": {
+        "required": [
+          "currencyCode",
+          "estimatedTotal"
+        ],
+        "type": "object",
+        "properties": {
+          "currencyCode": {
+            "type": "string"
+          },
+          "estimatedTotal": {
+            "type": "number",
+            "format": "decimal"
+          }
+        },
+        "description": "Sum of the estimated amounts in one currency."
+      },
+      "HealthResponse": {
+        "required": [
+          "status",
+          "database"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "`ok` when the database is reachable, otherwise `unavailable`."
+          },
+          "database": {
+            "type": "boolean",
+            "description": "Whether a connection to PostgreSQL could be opened."
+          }
+        },
+        "description": "Liveness and database reachability of the API."
+      },
+      "HighestTransactions": {
+        "required": [
+          "period",
+          "currencies"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurrencyHighestTransactions"
+            }
+          }
+        }
+      },
+      "KnownMerchant": {
+        "required": [
+          "merchant",
+          "categoryCode",
+          "categoryDisplayName",
+          "lastPurchaseDate",
+          "transactionCount"
+        ],
+        "type": "object",
+        "properties": {
+          "merchant": {
+            "type": "string"
+          },
+          "categoryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "categoryDisplayName": {
+            "type": "string"
+          },
+          "lastPurchaseDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "transactionCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "LoginRequest": {
+        "required": [
+          "username",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "description": "Body of `POST /api/auth/login`. Both fields are required; a missing or blank one is a 400."
+      },
+      "LoginResponse": {
+        "required": [
+          "token",
+          "expiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "A successful login: the bearer token and the moment it stops being accepted."
+      },
+      "MerchantBreakdown": {
+        "required": [
+          "period",
+          "currencies"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurrencyMerchantBreakdown"
+            }
+          }
+        }
+      },
+      "MerchantCurrencyTotal": {
+        "required": [
+          "currencyCode",
+          "totalAmount",
+          "transactionCount"
+        ],
+        "type": "object",
+        "properties": {
+          "currencyCode": {
+            "type": "string"
+          },
+          "totalAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "transactionCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "MerchantGroupSpending": {
+        "required": [
+          "period",
+          "merchants",
+          "currencies"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "merchants": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurrencyMerchantBreakdown"
+            }
+          }
+        }
+      },
+      "MerchantList": {
+        "required": [
+          "merchants"
+        ],
+        "type": "object",
+        "properties": {
+          "merchants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/KnownMerchant"
+            }
+          }
+        }
+      },
+      "MerchantMatch": {
+        "required": [
+          "status",
+          "merchant",
+          "isPartialMatch",
+          "candidates"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/MerchantMatchStatus"
+          },
+          "merchant": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isPartialMatch": {
+            "type": "boolean"
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MerchantMatchStatus": {
+        "enum": [
+          "Matched",
+          "Ambiguous",
+          "NotFound"
+        ],
+        "type": "string"
+      },
+      "MerchantSpending": {
+        "required": [
+          "merchant",
+          "displayName",
+          "amount",
+          "transactionCount",
+          "percentage"
+        ],
+        "type": "object",
+        "properties": {
+          "merchant": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "transactionCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "percentage": {
+            "type": "number",
+            "format": "decimal"
+          }
+        }
+      },
+      "MerchantSpendingResult": {
+        "required": [
+          "period",
+          "match",
+          "currencies"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "match": {
+            "$ref": "#/components/schemas/MerchantMatch"
+          },
+          "currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MerchantCurrencyTotal"
+            }
+          }
+        }
+      },
+      "MeResponse": {
+        "required": [
+          "username",
+          "customerNumber",
+          "firstName",
+          "lastName",
+          "preferredCurrency",
+          "timeZone"
+        ],
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "customerNumber": {
+            "type": "string"
+          },
+          "firstName": {
+            "type": "string"
+          },
+          "lastName": {
+            "type": "string"
+          },
+          "preferredCurrency": {
+            "type": "string"
+          },
+          "timeZone": {
+            "type": "string"
+          }
+        },
+        "description": "`GET /api/me`: who the token belongs to. The internal customer id is deliberately left out; clients\nnever need it because every request is scoped by the token."
+      },
+      "MonthlySpending": {
+        "required": [
+          "year",
+          "month",
+          "isPartial",
+          "amount",
+          "transactionCount"
+        ],
+        "type": "object",
+        "properties": {
+          "year": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "month": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "isPartial": {
+            "type": "boolean"
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "transactionCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "MonthWindow": {
+        "required": [
+          "year",
+          "month",
+          "isPartial",
+          "period"
+        ],
+        "type": "object",
+        "properties": {
+          "year": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "month": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "isPartial": {
+            "type": "boolean"
+          },
+          "period": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          }
+        }
+      },
+      "PeriodKind": {
+        "enum": [
+          "ThisMonth",
+          "LastMonth",
+          "Last3Months",
+          "Last6Months",
+          "Custom"
+        ],
+        "type": "string"
+      },
+      "Problem": {
+        "required": [
+          "title",
+          "status",
+          "code",
+          "traceId"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string",
+            "description": "Turkish, for people."
+          },
+          "status": {
+            "type": "integer"
+          },
+          "code": {
+            "type": "string",
+            "description": "Fixed machine code, e.g. validation_failed, session_invalid."
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Only on validation_failed: client field name → Turkish messages."
+          }
+        },
+        "description": "Every error answer (API-13): a Turkish title, a fixed machine code and a trace id; never internals."
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RecurringPattern": {
+        "required": [
+          "occurrenceCount",
+          "latestAmount",
+          "minAmount",
+          "maxAmount",
+          "firstDate",
+          "lastDate",
+          "minIntervalDays",
+          "maxIntervalDays",
+          "nextExpectedDate"
+        ],
+        "type": "object",
+        "properties": {
+          "occurrenceCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "latestAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "minAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "maxAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "firstDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "lastDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "minIntervalDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "maxIntervalDays": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "nextExpectedDate": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "description": "Why a group counts as recurring: how many payments, their amount range and day gaps.\n`NextExpectedDate` is an estimate (last payment + one month), never a promise."
+      },
+      "RecurringPayment": {
+        "required": [
+          "merchant",
+          "categoryCode",
+          "categoryDisplayName",
+          "accountName",
+          "currencyCode",
+          "pattern"
+        ],
+        "type": "object",
+        "properties": {
+          "merchant": {
+            "type": "string"
+          },
+          "categoryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "categoryDisplayName": {
+            "type": "string"
+          },
+          "accountName": {
+            "type": "string"
+          },
+          "currencyCode": {
+            "type": "string"
+          },
+          "pattern": {
+            "$ref": "#/components/schemas/RecurringPattern"
+          }
+        },
+        "description": "One recurring payment. The category comes from the group's latest payment;\n`Pattern` explains why it counts as recurring."
+      },
+      "RecurringPayments": {
+        "required": [
+          "period",
+          "payments",
+          "monthlyTotals"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "payments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecurringPayment"
+            }
+          },
+          "monthlyTotals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurrencyRecurringTotal"
+            }
+          }
+        },
+        "description": "Result of RecurringPaymentService: the examined period, the recurring payments\n(largest latest amount first) and the monthly total per currency."
+      },
+      "ResolvedPeriod": {
+        "required": [
+          "kind",
+          "startUtc",
+          "endUtc",
+          "startDate",
+          "endDate"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/PeriodKind"
+          },
+          "startUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "SavingsSimulation": {
+        "required": [
+          "from",
+          "to",
+          "months",
+          "reductionPercent",
+          "categoryCode",
+          "merchantMatch",
+          "method",
+          "currencies"
+        ],
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "months": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reductionPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "categoryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "merchantMatch": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MerchantMatch"
+              }
+            ]
+          },
+          "method": {
+            "type": "string"
+          },
+          "currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurrencySavings"
+            }
+          }
+        },
+        "description": "Result of SavingsSimulationService: the complete months used (`From`–`To`), the assumption in\n`Method` and one row per currency with spending in those months (none: empty list). A merchant text that does not\nmatch exactly one of the customer's merchants gives no rows; `MerchantMatch` says why."
+      },
+      "SpendingComparison": {
+        "required": [
+          "current",
+          "previous",
+          "currencies"
+        ],
+        "type": "object",
+        "properties": {
+          "current": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "previous": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurrencyComparison"
+            }
+          }
+        }
+      },
+      "SpendingSummary": {
+        "required": [
+          "period",
+          "currencies"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurrencySpending"
+            }
+          }
+        }
+      },
+      "SpendingTrend": {
+        "required": [
+          "months",
+          "merchantMatch",
+          "currencies"
+        ],
+        "type": "object",
+        "properties": {
+          "months": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MonthWindow"
+            }
+          },
+          "merchantMatch": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MerchantMatch"
+              }
+            ]
+          },
+          "currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurrencyTrend"
+            }
+          }
+        }
+      },
+      "TransactionDirection": {
+        "enum": [
+          "Debit",
+          "Credit"
+        ],
+        "type": "string"
+      },
+      "TransactionItem": {
+        "required": [
+          "id",
+          "accountId",
+          "accountName",
+          "occurredAtUtc",
+          "localDate",
+          "kind",
+          "direction",
+          "amount",
+          "currencyCode",
+          "merchant",
+          "categoryCode",
+          "categoryDisplayName",
+          "rawDescription",
+          "counterparty",
+          "counterpartyIsOwnAccount"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accountId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "accountName": {
+            "type": "string"
+          },
+          "occurredAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "localDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/TransactionDirection"
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "currencyCode": {
+            "type": "string"
+          },
+          "merchant": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "categoryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "categoryDisplayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rawDescription": {
+            "type": "string"
+          },
+          "counterparty": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "counterpartyIsOwnAccount": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TransactionKind": {
+        "enum": [
+          "Purchase",
+          "Sale",
+          "Transfer",
+          "Salary",
+          "OpeningFunding"
+        ],
+        "type": "string"
+      },
+      "TransactionPage": {
+        "required": [
+          "period",
+          "totalCount",
+          "hasMore",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransactionItem"
+            }
+          }
+        },
+        "description": "One page of an account's transactions: the resolved period, how many transactions it holds, whether more\npages follow, and the items (the shared TransactionItem, newest first)."
+      },
+      "TransactionSearchResult": {
+        "required": [
+          "period",
+          "merchantMatch",
+          "totalCount",
+          "hasMore",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "merchantMatch": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MerchantMatch"
+              }
+            ]
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TransactionItem"
+            }
+          }
+        }
+      },
+      "UpcomingPayment": {
+        "required": [
+          "merchant",
+          "categoryCode",
+          "categoryDisplayName",
+          "accountName",
+          "currencyCode",
+          "estimatedDate",
+          "estimatedAmount",
+          "daysUntil",
+          "isOverdue",
+          "pattern"
+        ],
+        "type": "object",
+        "properties": {
+          "merchant": {
+            "type": "string"
+          },
+          "categoryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "categoryDisplayName": {
+            "type": "string"
+          },
+          "accountName": {
+            "type": "string"
+          },
+          "currencyCode": {
+            "type": "string"
+          },
+          "estimatedDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "estimatedAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "daysUntil": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "isOverdue": {
+            "type": "boolean"
+          },
+          "pattern": {
+            "$ref": "#/components/schemas/RecurringPattern"
+          }
+        },
+        "description": "One expected payment. Date and amount are estimates: the date is the recurring rule's next expected date (last\npayment + one month on its usual day) and the amount is the latest payment's. `IsOverdue` marks an expected\ndate that has passed without a payment yet; `DaysUntil` is then negative. `Pattern` is the evidence."
+      },
+      "UpcomingPayments": {
+        "required": [
+          "from",
+          "to",
+          "payments",
+          "totals"
+        ],
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "payments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UpcomingPayment"
+            }
+          },
+          "totals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurrencyUpcomingTotal"
+            }
+          }
+        },
+        "description": "Result of UpcomingPaymentService: the window `From` (today) – `To` (today + days, inclusive),\nthe expected payments (earliest first, overdue ones included) and the estimated total per currency."
+      }
+    },
+    "securitySchemes": {
+      "Bearer": {
+        "type": "http",
+        "description": "The token from POST /api/auth/login (60 minutes).",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Accounts"
+    },
+    {
+      "name": "Analytics"
+    },
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Health"
+    },
+    {
+      "name": "Me"
+    },
+    {
+      "name": "Transactions"
+    }
+  ]
+}

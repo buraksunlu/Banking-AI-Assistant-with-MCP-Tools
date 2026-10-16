@@ -41,8 +41,13 @@ public sealed class EndpointSweepTests
         ["GET api/analytics/savings-simulation"] = ("/api/analytics/savings-simulation?reductionPercent=10", null),
     };
 
-    // The only endpoints a client may call without a token.
-    private static readonly string[] Anonymous = ["GET api/health", "POST api/auth/login", "GET openapi/{documentName}.json"];
+    // The only endpoints a client may call without a token: health, login, and in development the OpenAPI contract with
+    // the Scalar page that browses it (API-15) and its static files.
+    private static readonly string[] Anonymous =
+    [
+        "GET api/health", "POST api/auth/login", "GET openapi/{documentName}.json",
+        "GET scalar/{documentName?}", "GET scalar/scalar.js", "GET scalar/scalar.aspnetcore.js", "GET scalar/favicon.svg"
+    ];
 
     public static TheoryData<string> ProtectedEndpoints => new(Protected.Keys);
 
@@ -91,7 +96,7 @@ public sealed class EndpointSweepTests
 
     [Fact]
     [Trait("Category", "PostgreSQL")]
-    public async Task Only_health_login_and_openapi_are_open_without_a_token()
+    public async Task Only_health_login_and_the_development_docs_are_open_without_a_token()
     {
         var open = (await RouteTableAsync()).Where(e => e.Anonymous).Select(e => e.Endpoint).Order(StringComparer.Ordinal);
 

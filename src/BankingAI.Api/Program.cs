@@ -1,6 +1,8 @@
+using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using BankingAI.Api.Controllers;
 using BankingAI.Api.Errors;
+using BankingAI.Api.OpenApi;
 using BankingAI.Api.Security;
 using BankingAI.Api.Time;
 using BankingAI.Application.Accounts;
@@ -10,7 +12,7 @@ using BankingAI.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
-
+using Scalar.AspNetCore;
 const string ConnectionStringKey = "BANKINGAI_CONNECTION_STRING";
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,9 +25,16 @@ builder.Services.AddControllers(options =>
         options.SuppressAsyncSuffixInActionNames = false;
         ApiValidation.UseTurkishMessages(options.ModelBindingMessageProvider);
     })
-    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new StrictEnumConverter()))
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(new StrictEnumConverter());
+        // Money is a JSON number, as the contract says (API-15, decision K1-A); the web defaults would also read "100".
+        options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+    })
     .ConfigureApiBehaviorOptions(options => options.InvalidModelStateResponseFactory = ApiValidation.InvalidModelState);
-builder.Services.AddOpenApi();
+// A lambda, not the method group: the XML-comment source generator only intercepts this form, and without it every
+// summary silently disappears from the document.
+builder.Services.AddOpenApi(options => ApiDocument.Configure(options));
 
 // Every error is a ProblemDetails body with a Turkish title, a machine code and a traceId (API-13). Exceptions
 // from services are mapped in one place, so controllers carry no try/catch.
@@ -96,8 +105,12 @@ if (string.IsNullOrWhiteSpace(app.Configuration[ConnectionStringKey]))
 app.Services.GetRequiredService<JwtSettings>();
 app.Services.GetRequiredService<BusinessClock>();
 
+// The contract and a page to browse and try it (/scalar), for development only (API-15, decision K4-A).
 if (app.Environment.IsDevelopment())
+{
     app.MapOpenApi().AllowAnonymous();
+    app.MapScalarApiReference().AllowAnonymous();
+}
 
 // First in the pipeline, so every later failure reaches it. The same generic 500 in every environment: the
 // details of an unexpected error stay in the server log (decision 5-A), never in the response.

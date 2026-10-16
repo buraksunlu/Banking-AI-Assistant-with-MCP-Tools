@@ -109,6 +109,9 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
     /// another customer's account is a 404.
     /// </summary>
     [HttpPost("api/accounts/{accountId}/transactions")]
+    [ProducesResponseType<TransactionItem>(StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status409Conflict,
+        Description = "The balance would leave its range (balance_limit) or the key was used for another request (idempotency_conflict).")]
     public async Task<ActionResult<TransactionItem>> CreateAsync(
         Guid accountId, CreateTransactionRequest request,
         [FromHeader(Name = ApiProblems.IdempotencyKeyHeader)] string? idempotencyKey,

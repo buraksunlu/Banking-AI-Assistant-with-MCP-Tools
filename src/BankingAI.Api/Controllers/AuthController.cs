@@ -35,6 +35,9 @@ public sealed class AuthController(BankingDbContext db, TokenIssuer tokenIssuer)
     /// same 401, so the response never reveals which usernames exist.
     /// </summary>
     [HttpPost("login")]
+    [ProducesResponseType<LoginResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized, Description = "Wrong username or password; both get the same answer.")]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests, Description = "More than five attempts a minute from one address.")]
     [AllowAnonymous]
     [EnableRateLimiting(LoginRateLimitPolicy)]
     public async Task<ActionResult<LoginResponse>> LoginAsync(LoginRequest request, CancellationToken cancellationToken)

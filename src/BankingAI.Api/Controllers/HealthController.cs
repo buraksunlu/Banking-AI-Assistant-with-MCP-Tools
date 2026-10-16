@@ -23,6 +23,8 @@ public sealed class HealthController(BankingDbContext db) : ControllerBase
     /// Returns 200 when the database is reachable and 503 when it is not.
     /// </summary>
     [HttpGet]
+    [ProducesResponseType<HealthResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable, Description = "The database cannot be reached.")]
     public async Task<ActionResult<HealthResponse>> GetAsync(CancellationToken cancellationToken)
     {
         // CanConnectAsync returns false instead of throwing when the database is down.
