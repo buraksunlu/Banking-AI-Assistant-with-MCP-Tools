@@ -18,6 +18,7 @@ Yerel adres `http://localhost:5248`; OpenAPI `/openapi/v1.json` (geliştirme). G
 | `POST /api/accounts/{accountId}/transactions` | evet | uygulandı | API-11 |
 | `GET /api/analytics/spending-summary`, `category-breakdown`, `merchant-breakdown`, `merchant-spending` | evet | uygulandı | ANA-09 (1. parça) |
 | `GET /api/analytics/period-comparison`, `monthly-trend`, `highest-transactions`, `recurring-payments` | evet | uygulandı | ANA-09 (2. parça) |
+| `GET /api/analytics/upcoming-payments` | evet | uygulandı | ANA-12 |
 | `GET /api/transactions` (bütün hesaplarda filtreli arama) | evet | uygulandı | ANA-09 (3. parça) |
 
 Ortak davranış: müşteri yalnız token'dan gelir (istekte müşteri parametresi yoktur); başka müşterinin
@@ -545,3 +546,22 @@ Spotify 99,99 (18 Ekim), toplam 329,98 TRY. Deniz ve Ege: boş liste (market tut
 
 Dört endpoint'te de: token yoksa 401, başkasının hesabı 404, harcama analizinde işletme hesabı 400 (`errors.accountId`;
 yalnız `includeAllTransactions=true` ile en yüksek işlemlerde kabul edilir).
+
+### `GET /api/analytics/upcoming-payments[?days=…][&accountId=…]` (ANA-12)
+
+Düzenli ödemelerin önümüzdeki `days` gün içindeki **tahmini** tarihleri; `days` 1–31, verilmezse 30 (karar K3-A). Pencere
+`from` (bugün) – `to` (bugün + gün, dahil). Tahmini tarihi geçmiş ama henüz ödenmemiş kalem `isOverdue: true` ve negatif
+`daysUntil` ile listelenir (K1-A). `estimatedDate` = son ödeme + 1 ay (her zamanki günü), `estimatedAmount` = son ödemenin
+tutarı; ikisi de **tahmindir**, `pattern` kanıtıdır. `totals` para birimi başına `estimatedTotal`.
+
+```json
+{ "from": "2026-10-10", "to": "2026-11-09",
+  "payments": [ { "merchant": "Netflix", "categoryCode": "SUBSCRIPTION", "categoryDisplayName": "Abonelik",
+                  "accountName": "Ada günlük TRY", "currencyCode": "TRY", "estimatedDate": "2026-10-12",
+                  "estimatedAmount": 229.99, "daysUntil": 2, "isOverdue": false, "pattern": { "occurrenceCount": 6, "…": "…" } },
+                { "merchant": "Spotify", "estimatedDate": "2026-10-18", "estimatedAmount": 99.99, "daysUntil": 8, "…": "…" } ],
+  "totals": [ { "currencyCode": "TRY", "estimatedTotal": 329.98 } ] }
+```
+
+`days=5` → yalnız Netflix (`to` 2026-10-15). `days` 0, 32 veya `abc` → 400 `errors.days`. Token yoksa 401, başkasının
+hesabı 404, işletme hesabı 400 (`errors.accountId`). Deniz ve Ege: boş listeler.

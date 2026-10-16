@@ -468,4 +468,60 @@ public sealed class AnalyticsEndpointTests
         await AssertInvalidAsync($"{path}{separator}accountId={DenizShopAccount}", Deniz,
             "accountId", "Harcama analizi yalnızca şahsi hesaplar içindir.");
     }
+
+    // ---- upcoming-payments (ANA-12)
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Upcoming_payments_list_the_estimated_dates_of_the_next_thirty_days()
+    {
+        var body = Ok(await GetAsync("/api/analytics/upcoming-payments", Ada));
+
+        Assert.Equal(["from", "to", "payments", "totals"], body.AsObject().Select(p => p.Key));
+        // Decision K3-A: 30 days by default, and the answer names its window.
+        Assert.Equal(("2026-10-10", "2026-11-09"), (body["from"]!.GetValue<string>(), body["to"]!.GetValue<string>()));
+        var payments = body["payments"]!.AsArray();
+        Assert.Equal([("Netflix", "2026-10-12", 229.99m, 2, false), ("Spotify", "2026-10-18", 99.99m, 8, false)],
+            payments.Select(p => (p!["merchant"]!.GetValue<string>(), p["estimatedDate"]!.GetValue<string>(), Amount(p["estimatedAmount"]),
+                p["daysUntil"]!.GetValue<int>(), p["isOverdue"]!.GetValue<bool>())));
+        // The evidence travels with every estimate.
+        Assert.Equal(6, payments[0]!["pattern"]!["occurrenceCount"]!.GetValue<int>());
+        Assert.Equal([("TRY", 329.98m)],
+            body["totals"]!.AsArray().Select(t => (t!["currencyCode"]!.GetValue<string>(), Amount(t["estimatedTotal"]))));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Upcoming_payments_follow_the_requested_window()
+    {
+        var body = Ok(await GetAsync("/api/analytics/upcoming-payments?days=5", Ada));
+
+        Assert.Equal("2026-10-15", body["to"]!.GetValue<string>());
+        Assert.Equal(["Netflix"], body["payments"]!.AsArray().Select(p => p!["merchant"]!.GetValue<string>()));
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("days=0", "1 ile 31 arasında olmalı.")]
+    [InlineData("days=32", "1 ile 31 arasında olmalı.")]
+    [InlineData("days=abc", "'abc' geçerli bir değer değil.")]
+    public async Task Upcoming_payment_days_are_checked(string query, string message) =>
+        await AssertInvalidAsync($"/api/analytics/upcoming-payments?{query}", Ada, "days", message);
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Upcoming_payments_apply_the_token_and_account_rules()
+    {
+        var noToken = await GetAsync("/api/analytics/upcoming-payments", null);
+        var own = Ok(await GetAsync($"/api/analytics/upcoming-payments?accountId={AdaTryAccount}", Ada));
+        var usd = Ok(await GetAsync($"/api/analytics/upcoming-payments?accountId={AdaUsdAccount}", Ada));
+        var foreign = await GetAsync($"/api/analytics/upcoming-payments?accountId={DenizTryAccount}", Ada);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, noToken.Status);
+        Assert.Equal(2, own["payments"]!.AsArray().Count);
+        Assert.Empty(usd["payments"]!.AsArray());
+        Assert.Equal(HttpStatusCode.NotFound, foreign.Status);
+        await AssertInvalidAsync($"/api/analytics/upcoming-payments?accountId={DenizShopAccount}", Deniz,
+            "accountId", "Harcama analizi yalnızca şahsi hesaplar içindir.");
+    }
 }

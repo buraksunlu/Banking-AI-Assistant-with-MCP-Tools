@@ -62,7 +62,7 @@ PostgreSQL kontrolüne dayanır. Silinen eski uygulamanın testleri buna dahil d
 | Hesap bakiyeleri | Ada TRY 577490.18; Ada USD 500; Deniz TRY 522900; Kahve Durağı 2595; Ege EUR 1000; Ege TRY 273380; boş TRY 0 |
 | Market tabloları | MarketAssets mevcut ve üç seed kaydı var; DailyMarketPrices henüz boş |
 | Bakiye güncelleme akışı | `Writing/TransactionWriter` (tek kayıt) ve `Writing/PairedTransactionWriter` (iki kayıt) insert ile atomik bakiye delta'sını aynı DB transaction'ında yazar; sınır dışı bakiye `BalanceLimitException`. Seed'ler ve API-11 kullanır |
-| Otomatik testler | Data 63, Application 210, Api 261. PostgreSQL testleri seed edilmiş demo DB'yi kullanır; rollback veya geçici kayıtla çalışır (ayrı test DB'si DB-01'de açık) |
+| Otomatik testler | Data 63, Application 225, Api 267. PostgreSQL testleri seed edilmiş demo DB'yi kullanır; rollback veya geçici kayıtla çalışır (ayrı test DB'si DB-01'de açık) |
 | API | BankingAI.Api: health, login/JWT, /api/me, hesap listesi/tek hesap/hesap açma, hesabın işlem listesi, tek işlem, işlem ekleme (docs/api.md) |
 | SwiftUI / AI / MCP | Henüz yok |
 
@@ -247,7 +247,7 @@ Her madde sırasıyla: saf C#/servis + elle hesaplanmış testler → ANA-09 kal
 
 - [ ] ANA-10 — Kavramsal merchant harcaması (kapalı küme). "Kahveye ne kadar harcadım?" gibi kavramlarda backend müşterinin kendi merchant listesini verir; model bu listeden alt küme seçer, yeni ad üretemez. Backend her adı kanonik listeyle doğrular (liste dışı ad hata; sessiz düzeltme yok), toplamı `PurchaseScope` kapsamında hesaplar ve dahil edilen merchant'ları döndürür; cevap bunları söyler. Embedding/RAG gerekmez. Örnek: Ada, bu ay, {Starbucks, Kahve Durağı} → 375 + 215 = 590 TRY.
 - [x] ANA-11 — Tutar filtresi. `TransactionSearchService` ve `HighestTransactionsService`'e isteğe bağlı en az/en çok tutar ("500 TL üstü market harcamalarım"); tutarlar `InputRules.Money` kuralıyla, en az ≤ en çok. (16 Ekim 2026, dal `ana-11-amount-filter`. Kullanıcı kararları: K1-A sınırlar dahil; K2-A tutar verilirse `currencyCode` zorunlu, para birimi tek başına da filtre; K3-A kod birebir (önerilen varsayılanla). Ortak `Analytics/AmountFilter` (doğrulama + WHERE), `InputRules.Currency` (entity doğrulaması da kullanır; refactor). Endpoint: `GET /api/transactions` ve `/api/analytics/highest-transactions`'a `minAmount`, `maxAmount`, `currencyCode`. Bulunan: ASP.NET'in decimal bağlaması binlik ayırıcıya izin verdiği için `500,50` sessizce 50050 okunuyordu; tutarlar `Api/Queries/AmountParameter` ile katı (rakam + nokta) okunur. Testler Application +18 (arama 5 + 7 hatalı, en yüksek 3 + 3), Api +14 (2 test + 12 hatalı parametre vakası). 6 kasıtlı bozma yakalandı (sınır hariç, para birimi zorunlu değil, para birimi uygulanmaz, min≤max yok, controller maxAmount'u iletmez, binlik ayırıcıya izin). Build 0 uyarı; Application 210, Data 63, Api 261 (3 tam koşu yeşil). Gerçek API'de deniz ile denendi.)
-- [ ] ANA-12 — Yaklaşan ödemeler. `RecurringPaymentDetector`'ın tahmini sonraki ödeme tarihinden önümüzdeki N gün (varsayılan 30) listesi ve para birimi başına toplam; çıktı bunun tahmin olduğunu açıkça taşır. Örnek: Ada → Netflix 229,99 (12 Eki), Spotify 99,99 (18 Eki), toplam 329,98 TRY; Deniz ve Ege boş.
+- [x] ANA-12 — Yaklaşan ödemeler. `RecurringPaymentDetector`'ın tahmini sonraki ödeme tarihinden önümüzdeki N gün (varsayılan 30) listesi ve para birimi başına toplam; çıktı bunun tahmin olduğunu açıkça taşır. Örnek: Ada → Netflix 229,99 (12 Eki), Spotify 99,99 (18 Eki), toplam 329,98 TRY; Deniz ve Ege boş. (16 Ekim 2026, dal `ana-12-upcoming-payments`. Kullanıcı kararları: K1-A gecikmiş kalem `IsOverdue` ile listede, 35 gün kuralıyla kendiliğinden düşer; K2-A ufuk 1–31 gün, her ödeme bir kez; K3-A `days` isteğe bağlı, varsayılan 30. `UpcomingPaymentService` kendi sorgusu olmadan `RecurringPaymentService`'i kullanır; bugün = düzenli ödeme döneminin sonu. Alanlar `EstimatedDate`/`EstimatedAmount` (son tutar) + `Pattern`; `GET /api/analytics/upcoming-payments`. Testler Application +15 (varsayılan, kanıt, 3 pencere sınırı, toplam, boş müşteriler, 14 Eki gecikmiş, 20 Eki düşmüş, fiyat artışı, hesap, gün sınırı, kapsam), Api +6. 7 kasıtlı bozma yakalandı; ilk turda "toplam en küçük tutarla" bozması yakalanmadı (demo aboneliklerinin tutarı hiç değişmiyor) — fiyat artışı testi eklendi. Build 0 uyarı; Application 225, Data 63, Api 267 (3 tam koşu yeşil). Gerçek API'de ada ile denendi.)
 - [ ] ANA-13 — Bütçe kontrolü (tablosuz). Bütçe tutarı kullanıcının sorusundan argüman olarak gelir; backend kategori veya merchant için bu ay harcananı, kalanı ya da aşımı, günlük ortalamayı ve "bu hızla ay sonu" tahminini hesaplar; tahmin yöntemi çıktıda yazılıdır. Örnek: Ada, FOOD, 1.000 TL → harcanan 590, kalan 410, 10 günde günlük ortalama 59, bu hızla ay sonu 1.829 (bütçe aşılır). Kalıcı bütçe tablosu ayrı kullanıcı kararıdır.
 - [ ] ANA-14 — Tasarruf simülasyonu ("ne olur?"). Kategori veya merchant için son N tam ayın (varsayılan 6) aylık ortalaması × azaltma oranı (%1–100) → aylık ve yıllık tahmini tasarruf; ortalama, ay sayısı ve varsayım çıktıda. Yatırım tavsiyesi veya getiri hesabı değildir (o, opportunity-cost kolu). Örnek: Ada, Starbucks, %50 → Nisan–Eylül 2026 ortalaması 185 → ayda 92,50, yılda 1.110 TRY.
 
@@ -402,14 +402,14 @@ Güncelleme: 16 Ekim 2026.
 
 Tamamlanan bloklar: banking foundation (DOC-09; SYN-01–14, KIND-01–05), deterministik analytics
 (ANA-01–09, REC-01–03), API temeli ve güvenlik (API-01a/01b, API-02–13, SEC-01a/01b). Testler:
-Data 63, Application 210, Api 261, hepsi yeşil (ANA-11 sonrası; art arda 10 koşu: `SyntheticAccountSeederTests` kararsızlığı 16 Ekim 2026'da
+Data 63, Application 225, Api 267, hepsi yeşil (ANA-12 sonrası; art arda 10 koşu: `SyntheticAccountSeederTests` kararsızlığı 16 Ekim 2026'da
 `fix/seeder-test-lock` ile giderildi: tabloyu bütün olarak karşılaştıran test özel kilit almıyordu). 16 Ekim 2026'dan beri her
 iş kendi dalında yapılır ve PR ile (squash) `main`'e girer (CLAUDE.md "Git akışı").
 
 Sıradaki adaylar (kullanıcı seçer; müşteri her zaman `User.GetCustomerId()` ile token'dan gelir):
 
 - API-14/15 — kalan HTTP testleri, OpenAPI ve örnekler.
-- ANA-10, ANA-12–14 — kalan yeni soru tipleri (bölüm 12b; ANA-11 tamam). Önerilen sıra ANA-12 → 13 → 14 → 10.
+- ANA-10, ANA-13, ANA-14 — kalan yeni soru tipleri (bölüm 12b; ANA-11 ve ANA-12 tamam). Önerilen sıra ANA-13 → 14 → 10.
 
 Sonra RULE.md §21 sırasıyla local AI (bölüm 15) ve read-only MCP (bölüm 16); SwiftUI (bölüm 14) çalışan
 endpoint'ler üzerine küçük ekranlarla ilerler. 13 Ekim 2026 kullanıcı kararıyla iki genişletme eklendi:

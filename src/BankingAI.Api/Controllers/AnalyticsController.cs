@@ -14,7 +14,8 @@ namespace BankingAI.Api.Controllers;
 [Route("api/analytics")]
 public sealed class AnalyticsController(
     SpendingSummaryService summaries, CategoryBreakdownService categories, MerchantSpendingService merchants,
-    SpendingComparisonService comparisons, HighestTransactionsService highest, RecurringPaymentService recurring)
+    SpendingComparisonService comparisons, HighestTransactionsService highest, RecurringPaymentService recurring,
+    UpcomingPaymentService upcoming)
     : ControllerBase
 {
     /// <summary>
@@ -107,6 +108,17 @@ public sealed class AnalyticsController(
     public async Task<ActionResult<RecurringPayments>> RecurringPaymentsAsync(
         [FromQuery] Guid? accountId, CancellationToken cancellationToken) =>
         Ok(await recurring.GetAsync(new RecurringPaymentQuery(User.GetCustomerId(), accountId), cancellationToken));
+
+    /// <summary>
+    /// <c>GET /api/analytics/upcoming-payments</c>: the recurring payments expected in the next <c>days</c> days (1–31,
+    /// default 30; decision K3-A), earliest first, with overdue ones flagged and an estimated total per currency. Dates
+    /// and amounts are estimates from the recurring rule, never promises (ANA-12).
+    /// </summary>
+    [HttpGet("upcoming-payments")]
+    public async Task<ActionResult<UpcomingPayments>> UpcomingPaymentsAsync(
+        [FromQuery] int? days, [FromQuery] Guid? accountId, CancellationToken cancellationToken) =>
+        Ok(await upcoming.GetAsync(
+            new UpcomingPaymentQuery(User.GetCustomerId(), days ?? UpcomingPaymentService.DefaultDays, accountId), cancellationToken));
 
     // The customer comes from the token only; the period is required (no fallback).
     private SpendingQuery Spending(string? period, DateOnly? from, DateOnly? to, Guid? accountId) =>
