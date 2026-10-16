@@ -5,3 +5,6 @@
 
 # Downloaded market source responses (local only)
 /data/raw/market/
+
+# Python bytecode (ai/)
+__pycache__/

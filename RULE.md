@@ -1420,13 +1420,17 @@ COMPLETED
 - OpenAPI sözleşmesi (API-15, 16 Ekim 2026): Api/OpenApi/ApiDocument transformer'ları (enum adları, decimal para, Bearer,
   Problem şeması, gerçek cevap kodları, yalnız JSON); commit'lenmiş docs/openapi/v1.json ile birebir karşılaştırma testi;
   katı sayı okuma (tırnaklı tutar 400); Scalar /scalar (geliştirmede); api-examples.http. API bölümü (todo 11) tamamlandı.
+- Local model seçimi (AI-01, 16 Ekim 2026): Ollama 0.40.5 (modeller harici SSD'de); ai/model_check (Python, yalnız standart
+  kütüphane): 20 sabit vaka (tool seçimi, structured output, açıklama) + deterministik puanlama, 21 unittest. Varsayılan
+  qwen3.5:4b (BANKINGAI_LLM_MODEL), yedek qwen3.5:9b; thinking kapalı, temperature 0; MCP-12/14'te gerçek tool listesiyle
+  yeniden ölçülür. Ayrıntı ve gerekçe docs/local-ai.md.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Kullanıcının seçtiği API-15 maddesi (her biri kendi dalında, PR ile); ardından local AI (todo bölüm 15) ve read-only
-  MCP (bölüm 16). Ayrıntı todo.md "Şu anki sonraki adım".
+- Local AI (todo bölüm 15): AI-02 (Ollama bağlantısı, timeout, model bulunamadı), sonra AI-03 (FastAPI); ardından read-only
+  MCP (bölüm 16). Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 
 KNOWN ISSUES
