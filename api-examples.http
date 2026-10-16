@@ -1,0 +1,147 @@
+# BankingAI API — çalıştırılabilir örnekler (API-15)
+#
+# VS Code: "REST Client" eklentisi (Huachao Mao) ile her isteğin üstündeki "Send Request"e basın.
+# Önce API'yi demo anıyla başlatın; rakamlar docs/api.md ve docs/analytics.md ile aynı çıkar:
+#   BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z dotnet run --project src/BankingAI.Api --launch-profile http
+# Şifre bu dosyaya yazılmaz: $dotenv aynı klasördeki .env'den okur (BANKINGAI_DEMO_PASSWORD_ADA).
+# Tarayıcıda gezmek ve denemek için: http://localhost:5248/scalar  ·  sözleşme: http://localhost:5248/openapi/v1.json
+#
+# DİKKAT: Yazma örnekleri (POST) en altta ve yorum satırı hâlinde. Demo kullanıcısıyla çalıştırmayın: demo verisine
+# kalıcı hesap/işlem ekler ve elle hesaplanmış test rakamlarını bozar. Önce kendinize bir test kullanıcısı açın
+# (dotnet run --project src/BankingAI.Cli -- users set-password <ad> --customer <yeni-müşteri-id>).
+
+@baseUrl = http://localhost:5248
+@adaTry = 20000000-0000-0000-0000-000000000001
+@denizTry = 20000000-0000-0000-0000-000000000003
+
+### Sağlık (token gerekmez) — beklenen: 200
+GET {{baseUrl}}/api/health
+
+### Giriş (token gerekmez) — beklenen: 200 { token, expiresAt }
+# @name login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{ "username": "ada", "password": "{{$dotenv BANKINGAI_DEMO_PASSWORD_ADA}}" }
+
+###
+@token = {{login.response.body.token}}
+
+### Giriş yapan müşteri — beklenen: 200
+GET {{baseUrl}}/api/me
+Authorization: Bearer {{token}}
+
+### Hesaplar — beklenen: 200 (Ada'nın demo hesapları)
+GET {{baseUrl}}/api/accounts
+Authorization: Bearer {{token}}
+
+### Tek hesap — beklenen: 200
+GET {{baseUrl}}/api/accounts/{{adaTry}}
+Authorization: Bearer {{token}}
+
+### Hesabın işlemleri, bu ay — beklenen: 200, 8 işlem (maaş, transferler ve harcamalar)
+GET {{baseUrl}}/api/accounts/{{adaTry}}/transactions?period=ThisMonth
+Authorization: Bearer {{token}}
+
+### Tek işlem — beklenen: 200 (Starbucks 210)
+GET {{baseUrl}}/api/transactions/30000000-0000-0000-0000-000000000602
+Authorization: Bearer {{token}}
+
+### Bütün hesaplarda arama: bu ay giden transferler — beklenen: 200, 1.500 "Deniz M***"
+GET {{baseUrl}}/api/transactions?period=ThisMonth&kind=Transfer&direction=Debit
+Authorization: Bearer {{token}}
+
+### Arama: tutar aralığı (dahil sınırlar, para birimi zorunlu) — beklenen: 200, 145 ve 165
+GET {{baseUrl}}/api/transactions?period=ThisMonth&currencyCode=TRY&minAmount=145&maxAmount=165
+Authorization: Bearer {{token}}
+
+### Harcama özeti, bu ay — beklenen: 200, 735 TRY (1.500 transfer harcama değil)
+GET {{baseUrl}}/api/analytics/spending-summary?period=ThisMonth
+Authorization: Bearer {{token}}
+
+### Kategori dağılımı — beklenen: 200, FOOD 590 (%80,27), Sınıflandırılmamış 145
+GET {{baseUrl}}/api/analytics/category-breakdown?period=ThisMonth
+Authorization: Bearer {{token}}
+
+### Merchant dağılımı — beklenen: 200, Starbucks 375, Kahve Durağı 215
+GET {{baseUrl}}/api/analytics/merchant-breakdown?period=ThisMonth
+Authorization: Bearer {{token}}
+
+### Tek merchant (kısmi ad kabul edilir, cevap söyler) — beklenen: 200, Starbucks 930, son 3 ay
+GET {{baseUrl}}/api/analytics/merchant-spending?merchant=starbuck&period=Last3Months
+Authorization: Bearer {{token}}
+
+### Müşterinin merchant listesi (kavram sorularının kapalı kümesi) — beklenen: 200, 5 merchant
+GET {{baseUrl}}/api/analytics/merchants
+Authorization: Bearer {{token}}
+
+### "Kahveye ne kadar harcadım?" — beklenen: 200, 590 TRY
+GET {{baseUrl}}/api/analytics/merchant-group-spending?merchants=Starbucks&merchants=Kahve%20Durağı&period=ThisMonth
+Authorization: Bearer {{token}}
+
+### Geçen aya göre (son tam ay vs önceki ay) — beklenen: 200, 624,98 vs 514,98
+GET {{baseUrl}}/api/analytics/period-comparison?comparison=PreviousFullMonth
+Authorization: Bearer {{token}}
+
+### Aylık seri, Starbucks — beklenen: 200, 6 ay 185, Ekim (devam eden) 375
+GET {{baseUrl}}/api/analytics/monthly-trend?months=6&merchant=starbucks
+Authorization: Bearer {{token}}
+
+### En yüksek 3 harcama — beklenen: 200, 210, 165, 145
+GET {{baseUrl}}/api/analytics/highest-transactions?period=ThisMonth&limit=3
+Authorization: Bearer {{token}}
+
+### Düzenli ödemeler — beklenen: 200, Netflix ve Spotify, aylık 329,98
+GET {{baseUrl}}/api/analytics/recurring-payments
+Authorization: Bearer {{token}}
+
+### Yaklaşan ödemeler (tahmin) — beklenen: 200, Netflix 12 Eki, Spotify 18 Eki
+GET {{baseUrl}}/api/analytics/upcoming-payments?days=30
+Authorization: Bearer {{token}}
+
+### Bütçe kontrolü: yemeğe 1.000 TL — beklenen: 200, harcanan 590, ay sonu tahmini 1.829
+GET {{baseUrl}}/api/analytics/budget-check?amount=1000&currencyCode=TRY&categoryCode=FOOD
+Authorization: Bearer {{token}}
+
+### Tasarruf simülasyonu: Starbucks %50 — beklenen: 200, ayda 92,50, yılda 1.110
+GET {{baseUrl}}/api/analytics/savings-simulation?reductionPercent=50&merchant=starbucks
+Authorization: Bearer {{token}}
+
+### ---- Hata örnekleri (hepsi ProblemDetails: Türkçe title, code, traceId)
+
+### Token yok — beklenen: 401 unauthorized
+GET {{baseUrl}}/api/accounts
+
+### Bilinmeyen dönem adı — beklenen: 400 validation_failed, errors.period
+GET {{baseUrl}}/api/analytics/spending-summary?period=lastmonth
+Authorization: Bearer {{token}}
+
+### Türkçe ondalık yazımı (500,50) — beklenen: 400, errors.minAmount (sessizce 50050 okunmaz)
+GET {{baseUrl}}/api/transactions?period=ThisMonth&currencyCode=TRY&minAmount=500,50
+Authorization: Bearer {{token}}
+
+### Başka müşterinin hesabı — beklenen: 404 not_found (olmayan hesapla aynı cevap)
+GET {{baseUrl}}/api/accounts/{{denizTry}}
+Authorization: Bearer {{token}}
+
+### Listede olmayan merchant — beklenen: 400, errors.merchants
+GET {{baseUrl}}/api/analytics/merchant-group-spending?merchants=Starbuck&period=ThisMonth
+Authorization: Bearer {{token}}
+
+### ---- Yazma örnekleri: YALNIZ test kullanıcısıyla (yukarıdaki DİKKAT notu). Satır başındaki "# " işaretlerini kaldırın.
+
+# ### Hesap aç — beklenen: 201 + Location (anahtar isteğe bağlı; aynı anahtarla tekrar aynı hesabı döner)
+# POST {{baseUrl}}/api/accounts
+# Authorization: Bearer {{token}}
+# Content-Type: application/json
+# Idempotency-Key: hesap-tatil-1
+#
+# { "accountName": "Tatil", "currencyCode": "TRY" }
+#
+# ### İşlem ekle — beklenen: 201; yetersiz bakiye 409 balance_limit; Idempotency-Key zorunlu; tutar JSON sayısı
+# POST {{baseUrl}}/api/accounts/<yeni-hesap-id>/transactions
+# Authorization: Bearer {{token}}
+# Content-Type: application/json
+# Idempotency-Key: maas-ekim-1
+#
+# { "kind": "Salary", "amount": 1000.00, "description": "Ekim maaşı" }

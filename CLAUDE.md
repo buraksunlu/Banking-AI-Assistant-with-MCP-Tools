@@ -74,7 +74,7 @@ dotnet test tests/BankingAI.Application.Tests --filter "FullyQualifiedName~Merch
 dotnet build tests/BankingAI.Data.Tests --no-incremental                        # uyarı sayısı kontrolü
 ```
 
-API (yerel, http://localhost:5248; `GET /api/health`, OpenAPI `/openapi/v1.json`):
+API (yerel, http://localhost:5248; `GET /api/health`, OpenAPI `/openapi/v1.json`, Scalar `/scalar`, örnekler `api-examples.http`):
 
 ```sh
 dotnet run --project src/BankingAI.Api --launch-profile http
@@ -253,6 +253,11 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
 - **Yeni endpoint eklenince** `tests/BankingAI.Api.Tests/EndpointSweepTests.cs`'teki örnek istek tablosuna geçerli bir
   istek eklenir (API-14); eklenmezse kapsam bekçisi kırmızı olur. Tablo token zorunluluğunu ve var olmayan müşteride
   `session_invalid`'i bütün korumalı endpoint'lerde tarar; yazma örnekleri yalnız var olmayan müşteri için gönderilir.
+- **Sözleşme (API-15):** `docs/openapi/v1.json` commit'lenmiş OpenAPI belgesidir; `OpenApiContractTests` üretilenle birebir
+  karşılaştırır. Endpoint, DTO, parametre ya da cevap kodu değişince test kırmızı olur; bilerek değiştiyse
+  `BANKINGAI_UPDATE_OPENAPI=1 dotnet test tests/BankingAI.Api.Tests --filter "FullyQualifiedName~The_document_is_the_same"`
+  ile yenile ve dosyayı commit'e ekle. Belge kuralları `Api/OpenApi/ApiDocument`'ta; `AddOpenApi` lambda biçiminde kalmalı
+  (XML yorum üreticisi metot adını yakalamaz). Para JSON sayısıdır (`JsonNumberHandling.Strict`; tırnaklı tutar 400).
 - `BankingAI.Api.Tests`: `DemoData.cs` Application.Tests'ten link'lenir (kopyalanmaz); `TestApi.JsonOptions` (API'nin JSON ayarları, DB'siz); `TestApi.Create(...)` (WebApplicationFactory + ayar ezme), `TestTokens` (sahte/süresi
   geçmiş token), `TestUser` (commit edilen geçici "Test Api" müşterisi + `apitest.*` girişi, dispose'da silinir,
   10 dk'dan eski kalıntılar temizlenir; silme sırası işlemler → hesaplar → giriş → müşteri, müşterinin bütün hesapları
@@ -293,7 +298,7 @@ yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, 
 işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu testleri), REC-01–03 (düzenli
 ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi), API-09 (hesabın işlem listesi), API-10 (tek işlem), API-11 (işlem ekleme), API-12 (Idempotency-Key), API-13 (ortak hata cevabı), ANA-09 (analytics endpoint'leri + `GET /api/transactions` arama), ANA-10–14 (yeni soru
 tipleri: kavramsal merchant, tutar filtresi, yaklaşan ödemeler, bütçe, tasarruf), API-14 (endpoint taraması, kalıcılık).
-Sıradaki: API-15 (OpenAPI ve örnekler); sonra AI, MCP.
+API-15 (OpenAPI sözleşmesi, Scalar, örnekler). API bölümü tamam; sıradaki: local AI, sonra MCP.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11).
 Güncel ayrıntı her zaman `todo.md`'dedir.

@@ -1417,6 +1417,9 @@ COMPLETED
 - HTTP testleri (API-14, 16 Ekim 2026): EndpointSweepTests route tablosunu okur; her korumalı endpoint'in örnek isteği
   olmalı (yeni endpoint örneksiz testleri geçemez), token'sız 401 ve var olmayan müşteride session_invalid tarar; null
   gövde, eşzamanlı hesap açma ve veritabanından kalıcılık testleri. Üretim kodu değişmedi.
+- OpenAPI sözleşmesi (API-15, 16 Ekim 2026): Api/OpenApi/ApiDocument transformer'ları (enum adları, decimal para, Bearer,
+  Problem şeması, gerçek cevap kodları, yalnız JSON); commit'lenmiş docs/openapi/v1.json ile birebir karşılaştırma testi;
+  katı sayı okuma (tırnaklı tutar 400); Scalar /scalar (geliştirmede); api-examples.http. API bölümü (todo 11) tamamlandı.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
@@ -1439,10 +1442,9 @@ TECHNICAL DEBT
 - Hesap sayısı sınırı ertelendi (ACC-LIMIT); anahtarsız hesap açma isteği iki kez gönderilirse iki hesap açılır.
 - Aylık seri satırları C#'ta aylara dağıtıyor (PERF-02'de ölçülecek).
 - Logout/token iptali, refresh token ve hesap kilitleme yok; HTTPS ve proxy IP kararları OPS-04'te.
-- OpenAPI belgesi yalnız 200 cevaplarını gösteriyor (API-15).
 
 TEST STATUS
-- Tam paket yeşil (16 Ekim 2026, API-14 sonrası; 3 koşu): Data 63, Application 277, Api 350. fix/seeder-test-lock sonrası
+- Tam paket yeşil (16 Ekim 2026, API-15 sonrası; 3 koşu): Data 63, Application 277, Api 371. fix/seeder-test-lock sonrası
   art arda 10 koşu yeşildi.
   SyntheticAccountSeederTests'in ara sıra kırmızısı giderildi: test bütün Accounts tablosunu karşılaştırdığı hâlde
   CommittedRowsLock.ExclusiveAsync() almıyordu; yarış bekleme + eşzamanlı ekleme deneyiyle önce kırmızı, kilitle yeşil

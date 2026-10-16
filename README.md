@@ -7,7 +7,7 @@ Temel ilke: **LLM yorumlar ve tool seçer; .NET backend hesaplar, filtreler, yet
 source of truth'tur.** LLM'e SQL, veritabanı erişimi, para hesabı veya yazma yetkisi verilmez; MCP tool'ları
 read-only olacaktır. Her şey ücretsiz ve yereldir (local Qwen + Ollama). Gerçek banka/müşteri verisi kullanılmaz.
 
-## Durum (13 Ekim 2026)
+## Durum (16 Ekim 2026)
 
 | Katman | Durum |
 | --- | --- |
@@ -111,40 +111,46 @@ dotnet run --project src/BankingAI.Cli -- users set-password ada --customer 1000
 ## API
 
 ```sh
-dotnet run --project src/BankingAI.Api --launch-profile http
+BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z dotnet run --project src/BankingAI.Api --launch-profile http
 ```
 
-Adres `http://localhost:5248`; geliştirmede OpenAPI belgesi `/openapi/v1.json`. Health, login ve OpenAPI
-dışındaki **her endpoint token ister**. Müşteri kimliği istekte parametre olarak alınmaz, token'dan gelir.
+Adres `http://localhost:5248`. `BANKINGAI_DEMO_NOW` isteğe bağlıdır; verilirse "bu ay" gibi dönemler demo anına göre
+hesaplanır ve rakamlar belgelerdekiyle aynı çıkar. Health, login ve geliştirme belgeleri dışındaki **her endpoint token
+ister**; müşteri kimliği istekte parametre olarak alınmaz, token'dan gelir.
 
-```http
-POST /api/auth/login
-{ "username": "ada", "password": "<.env'deki BANKINGAI_DEMO_PASSWORD_ADA>" }
+- **Tarayıcıda gez ve dene:** `http://localhost:5248/scalar` (yalnız geliştirmede)
+- **Sözleşme (OpenAPI 3.1):** `http://localhost:5248/openapi/v1.json`; commit'lenmiş kopyası [docs/openapi/v1.json](docs/openapi/v1.json)
+- **Çalıştırılabilir örnekler:** [api-examples.http](api-examples.http) (VS Code "REST Client" eklentisi; şifre `.env`'den okunur)
 
-200 { "token": "…", "expiresAt": "…" }
+Hızlı başlangıç (`curl`):
 
-GET /api/accounts
-Authorization: Bearer <token>
+```sh
+set -a; source .env; set +a
+TOKEN=$(curl -s -X POST localhost:5248/api/auth/login -H 'Content-Type: application/json' \
+  -d "{\"username\":\"ada\",\"password\":\"$BANKINGAI_DEMO_PASSWORD_ADA\"}" | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+curl -s "localhost:5248/api/analytics/spending-summary?period=ThisMonth" -H "Authorization: Bearer $TOKEN"
 ```
 
 | Endpoint | Ne döner | Madde |
 | --- | --- | --- |
 | `GET /api/health` | `{ status, database }`; DB yoksa 503 (açık) | API-01b |
 | `POST /api/auth/login` | 60 dakikalık JWT; IP başına dakikada 5 deneme (açık) | SEC-01b |
-| `GET /api/me` | Giriş yapan müşterinin bilgileri (iç kimlik olmadan) | SEC-01b |
-| `GET /api/accounts` | Müşterinin hesapları | API-05 |
-| `GET /api/accounts/{id}` | Tek hesap; başkasının hesabı = olmayan hesap (404) | API-06 |
-| `POST /api/accounts` | Yeni şahsi hesap (bakiye 0, numara `ACC-n`) | API-07 |
+| `GET /api/me` | Giriş yapan müşteri (iç kimlik olmadan) | SEC-01b |
+| `GET /api/accounts`, `GET /api/accounts/{id}` | Müşterinin hesapları; başkasının hesabı = olmayan hesap (404) | API-05, API-06 |
+| `POST /api/accounts` | Yeni şahsi hesap (bakiye 0, numara `ACC-n`); 201 | API-07 |
 | `GET /api/accounts/{accountId}/transactions` | Hesabın işlemleri, sayfalı; varsayılan son 3 ay | API-09 |
-| `GET /api/transactions/{id}` | Tek işlem; başkasının işlemi = olmayan işlem (404) | API-10 |
-| `POST /api/accounts/{accountId}/transactions` | Sentetik Purchase/Salary ekler, bakiyeyi atomik değiştirir; yetersiz bakiye 409; `Idempotency-Key` zorunlu (tekrar ikinci kez yazmaz) | API-11, API-12 |
-| `GET /api/analytics/spending-summary`, `category-breakdown`, `merchant-breakdown`, `merchant-spending` | Harcama özeti, kategori/merchant dağılımı, tek merchant; dönem zorunlu | ANA-09 |
-| `GET /api/analytics/…` (diğerleri), `GET /api/transactions` | *Planlı:* karşılaştırma, aylık seri, en yüksek işlemler, düzenli ödemeler, arama | ANA-09 |
+| `GET /api/transactions` | Bütün hesaplarda arama: tür, yön, kategori, merchant, tutar aralığı | ANA-09, ANA-11 |
+| `GET /api/transactions/{id}` | Tek işlem | API-10 |
+| `POST /api/accounts/{accountId}/transactions` | Sentetik Purchase/Salary; atomik bakiye; yetersiz bakiye 409; `Idempotency-Key` zorunlu | API-11, API-12 |
+| `GET /api/analytics/spending-summary`, `category-breakdown`, `merchant-breakdown`, `merchant-spending` | Harcama özeti, kategori ve merchant dağılımı, tek merchant | ANA-09 |
+| `GET /api/analytics/period-comparison`, `monthly-trend` | "Geçen aya göre" karşılaştırma, aylık seri | ANA-09 |
+| `GET /api/analytics/highest-transactions`, `recurring-payments`, `upcoming-payments` | En büyük işlemler, düzenli ve yaklaşan ödemeler | ANA-09, ANA-12 |
+| `GET /api/analytics/budget-check`, `savings-simulation` | Bütçe durumu ve ay sonu tahmini; "%N azaltsam" | ANA-13, ANA-14 |
+| `GET /api/analytics/merchants`, `merchant-group-spending` | Merchant listesi (kapalı küme) ve "kahveye ne kadar?" | ANA-10 |
 
-JSON kuralları: enum'lar yazıyla ve tam adla, para JSON sayısı (`577490.18`), yazma isteğinde tanınmayan alan 400.
-Her hata ProblemDetails biçimindedir: Türkçe `title`, makine kodu `code` (ör. `validation_failed`, `session_invalid`,
-`balance_limit`) ve `traceId`.
-Ayrıntılar [docs/api.md](docs/api.md) içindedir.
+JSON kuralları: enum'lar yazıyla ve tam adla, para JSON sayısı (`577490.18`; tırnaklı tutar 400), yazma isteğinde
+tanınmayan alan 400. Her hata ProblemDetails biçimindedir: Türkçe `title`, makine kodu `code` (ör. `validation_failed`,
+`session_invalid`, `balance_limit`) ve `traceId`. Ayrıntılar [docs/api.md](docs/api.md) içindedir.
 
 ## Testler
 

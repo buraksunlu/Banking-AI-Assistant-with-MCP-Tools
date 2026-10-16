@@ -130,6 +130,19 @@ public sealed class ErrorResponseTests
         Assert.Equal(new Dictionary<string, string[]> { [field] = [message] }, Errors(problem));
     }
 
+    // API-15 (decision K1-A): money is a JSON number, like the contract says; a quoted amount is a client bug, not a number.
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("\"100\"")]
+    [InlineData("\"100.50\"")]
+    public async Task A_quoted_amount_is_400(string amount)
+    {
+        var problem = AssertProblem(await SendAsync(HttpMethod.Post, $"/api/accounts/{Guid.NewGuid()}/transactions", Ghost(),
+            $$"""{"kind":"Salary","amount":{{amount}},"description":"Maaş"}"""), HttpStatusCode.BadRequest, "validation_failed");
+
+        Assert.Equal(new Dictionary<string, string[]> { ["amount"] = ["Geçersiz değer."] }, Errors(problem));
+    }
+
     // API-14: an empty body and the JSON literal null are both "no request". Neither may reach a controller, where a null
     // request would be dereferenced; the writes are sent for a customer that does not exist anyway.
     [Theory]
