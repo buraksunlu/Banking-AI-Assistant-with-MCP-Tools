@@ -1415,9 +1415,6 @@ KNOWN ISSUES
 - Offset sayfalamasında araya yeni işlem girerse sayfa kenarında bir işlem tekrar görülebilir.
 - İş saati varsayılan olarak gerçek saattir; demo için BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z verilmeli (ANA-09). Ayar açıkken
   eklenen işlemler aynı ana düşer.
-- Tam pakette SyntheticAccountSeederTests ara sıra kırmızı oluyor. Kök neden bulundu (16 Ekim 2026): test bütün Accounts
-  tablosunu müşteri ayırmadan okuyup karşılaştırıyor ama CommittedRowsLock.ExclusiveAsync() almıyor; paralel Api/Application
-  testlerinin geçici hesabı araya girince fazladan bir kimlik görülüyor. Düzeltme (özel kilit) kullanıcı onayı bekliyor.
 - Tek komutluk seed synthetic ve market fiyatı import'u yok.
 
 TECHNICAL DEBT
@@ -1428,8 +1425,10 @@ TECHNICAL DEBT
 - OpenAPI belgesi yalnız 200 cevaplarını gösteriyor (API-15).
 
 TEST STATUS
-- Tam paket (16 Ekim 2026, ANA-09 3. parça sonrası): Data 63, Application 192, Api 247 yeşil (5 koşudan ikisinde
-  yalnız yukarıdaki SyntheticAccountSeederTests kırmızı); dotnet build
+- Tam paket yeşil (16 Ekim 2026, fix/seeder-test-lock sonrası; art arda 10 koşu): Data 63, Application 192, Api 247.
+  SyntheticAccountSeederTests'in ara sıra kırmızısı giderildi: test bütün Accounts tablosunu karşılaştırdığı hâlde
+  CommittedRowsLock.ExclusiveAsync() almıyordu; yarış bekleme + eşzamanlı ekleme deneyiyle önce kırmızı, kilitle yeşil
+  gösterildi. dotnet build
   --no-incremental 0 uyarı.
 - PostgreSQL testleri seed edilmiş demo DB üzerinde çalışır: rollback ya da geçici DUMMY-*TEST-*
   hesap / "Test Api" müşterisi açıp silme. Test projeleri paralel koşar; commit eden ve satır sayan
