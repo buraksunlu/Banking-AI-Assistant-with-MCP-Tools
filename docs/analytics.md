@@ -131,7 +131,8 @@ Kullanıcı kararları: dönem zorunlu (tarihsiz arama yok), sayfa varsayılan 2
 maskeleme "Deniz M***", serbest metin araması yok.
 
 Girdi `TransactionSearchQuery`: müşteri, dönem, isteğe bağlı hesap, `Kind`, `Direction`,
-`CategoryCode`, `OnlyUnclassified`, `Merchant`, `Limit` (1–50), `Offset` (0–10.000).
+`CategoryCode`, `OnlyUnclassified`, `Merchant`, `Limit` (1–50), `Offset` (0–10.000) ve ANA-11'den beri
+`MinAmount`/`MaxAmount`/`CurrencyCode` (aşağıda).
 Bütün girdi kontrolleri DB'den önce yapılır.
 
 | Kural | Davranış |
@@ -189,7 +190,7 @@ SQL: saat dilimi + tek join'li okuma (2 komut, yakalanarak doğrulandı).
 ## ANA-06 — En yüksek işlemler (`HighestTransactionsService`)
 
 Girdi `HighestTransactionsQuery(CustomerId, Period, From?, To?, AccountId?, Limit = 5,
-IncludeAllTransactions = false)`. Çıktı para birimi başına sıralı `TransactionItem` listesi.
+IncludeAllTransactions = false, MinAmount?, MaxAmount?, CurrencyCode?)` (tutar alanları ANA-11). Çıktı para birimi başına sıralı `TransactionItem` listesi.
 
 Kullanıcı kararları:
 
@@ -214,6 +215,38 @@ edildi; sorgu sayısı satıra değil para birimi whitelist'ine (en fazla 4) ba�
 | Ada, bu ay, hepsi | Maaş 45.000; giden 1.500 (Deniz M***); gelen 300; 210; 165 |
 | Deniz, bu ay, hepsi, 10 | 55.000; 9.500; 1.850; 1.500; dükkân satışları 140, 120, 95 |
 | Ada + geçici 10 USD, 2 | TRY: 210, 165; USD: 10 |
+
+## ANA-11 — Tutar filtresi (arama ve en yüksek işlemler, 16 Ekim 2026)
+
+`TransactionSearchQuery` ve `HighestTransactionsQuery`'nin sonuna isteğe bağlı `MinAmount`, `MaxAmount` ve
+`CurrencyCode` eklendi. Doğrulama ve `WHERE` koşulu iki serviste ortak `AmountFilter` (internal) içindedir; mevcut
+sorguya koşul olarak eklenir (yeni SQL komutu yok). Kullanıcı kararları:
+
+- **K1-A — sınırlar dahil:** `MinAmount ≤ Amount ≤ MaxAmount`; `min = max` tam tutar araması olur.
+- **K2-A — tutar verilirse para birimi zorunlu:** eşik başka para birimindeki işlemle karşılaştırılmaz (500 TRY ≠ 500
+  USD). `CurrencyCode` tek başına da filtredir ("dolar işlemlerim").
+- **K3-A — para birimi kodu birebir:** `TRY/USD/EUR/GBP`; `try`, `JPY` reddedilir (`InputRules.Currency`, entity
+  doğrulamasıyla aynı kural ve mesaj).
+
+| Kural | Davranış (`ArgumentException`, alan) |
+| --- | --- |
+| Sınır 0,01'den küçük, üst sınırdan büyük ya da 2'den fazla ondalık | `InputRules.Money` (`MinAmount`/`MaxAmount`) |
+| Sınır var, para birimi yok | `CurrencyCode`: "Tutar filtresi için para birimi (currencyCode) verilmeli." |
+| `MinAmount > MaxAmount` | `MinAmount`: "En az tutar en çok tutardan büyük olamaz." |
+
+Arama ekstre kapsamında kaldığı için tutar filtresi bütün türlere uygulanır (maaş, transfer dahil); en yüksek
+işlemlerde varsayılan yine harcamadır ve `Limit` filtreden **sonra** uygulanır.
+
+| İstek | Sonuç |
+| --- | --- |
+| Arama: Ada, bu ay, TRY, 145–165 | 145 (9 Eki), 165 (8 Eki): iki sınır dahil |
+| Arama: Ada, bu ay, TRY, en az 150 | 300, 165, 210, 45.000, 1.500 (5 kayıt; transferler ve maaş dahil) |
+| Arama: Ada, bu ay, TRY, en çok 150 | 145, 95, 120 |
+| Arama: Deniz, son 6 ay, GROCERY, TRY, en az 20.000 | 31.000 (Eyl), 24.000 (Ağu) |
+| Arama: Ada + geçici 300 USD, en az 200 | TRY: 300, 210, 45.000, 1.500 (USD yok); USD: yalnız 300 |
+| En yüksek: Ada, bu ay, TRY, en çok 150 | 145, 120, 95 |
+| En yüksek: Ada, bu ay, hepsi, TRY, en az 1.000 | maaş 45.000, transfer 1.500 |
+| En yüksek: Deniz, son 6 ay, 3, TRY, en çok 20.000 | 18.000, 16.000, 14.000 |
 
 ## ANA-07 — Dönem karşılaştırması ve aylık seri (`SpendingComparisonService`)
 

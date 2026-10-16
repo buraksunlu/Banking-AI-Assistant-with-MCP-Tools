@@ -302,6 +302,12 @@ hesabı `400` almaz.
 | `onlyUnclassified` | `true` → yalnız kategorisiz harcamalar; `categoryCode` ile birlikte `400` |
 | `merchant` | isteğe bağlı; müşterinin kendi merchant'larıyla eşleştirilir (`MerchantMatcher`), tahmin yok |
 | `limit` / `offset` | 1–50 (varsayılan 20) / 0–10.000 |
+| `currencyCode` | isteğe bağlı, birebir `TRY`/`USD`/`EUR`/`GBP` (`try`, `JPY` → `400`) |
+| `minAmount` / `maxAmount` | isteğe bağlı, **dahil** sınırlar (ANA-11); verilirse `currencyCode` zorunlu (eşik para birimleri arasında karşılaştırılmaz); `min ≤ max`; 0,01–üst sınır, en fazla 2 ondalık |
+
+**Tutar yazımı:** yalnız rakam ve nokta (`500`, `500.50`). Virgül, binlik ayırıcı, işaret ve boşluk `400` alır
+(`'500,50' geçerli bir değer değil.`). Neden: ASP.NET'in kendi decimal bağlaması binlik ayırıcıya izin verir ve `500,50`'yi
+sessizce **50050** okurdu; tutarlar bu yüzden `Api/Queries/AmountParameter` ile katı okunur (ANA-11'de testle yakalandı).
 
 Kategori filtreleri yalnız harcamaya uygulanır: `kind=Transfer&categoryCode=FOOD` boş sonuç değil `400` `errors.kind`.
 Enum parametreleri `Api/Queries/ExactEnum` ile tam adla okunur (dönem ve karşılaştırma adları da aynı yardımcıyı kullanır).
@@ -520,12 +526,14 @@ ikisi birlikte 400 `errors.merchant`. Tanımsız kategori kodu 400 `errors.categ
 `currencies[].months[]` (`year`, `month`, `isPartial`, `amount`, `transactionCount`).
 Deniz `months=6`: 12.000, 14.000, 16.000, 18.000, 24.000, 31.000, 11.350 (Ekim kısmi); Ege TRAVEL: yalnız Ağustos 1.200.
 
-### `GET /api/analytics/highest-transactions?period=…[&limit=…][&includeAllTransactions=true]`
+### `GET /api/analytics/highest-transactions?period=…[&limit=…][&includeAllTransactions=true][&currencyCode=…&minAmount=…&maxAmount=…]`
 
 Para birimi başına en büyük işlemler (`TransactionItem`), tutar büyükten küçüğe, eşitse yeni olan önce. Dönem zorunlu;
 `limit` 1–100, varsayılan 5. Varsayılan kapsam harcamadır (şahsi hesap + `Purchase`); `includeAllTransactions=true`
 maaş, transfer ve işletme hesabının satışlarını da katar (ekstre kapsamı; işletme hesabı `accountId` ile seçilebilir).
 Ada bu ay: 210, 165, 145, 120, 95; tüm işlemlerle: maaş 45.000, transfer 1.500 ("Deniz M***"), transfer 300, 210, 165.
+Tutar aralığı (ANA-11) aramadakiyle aynı kurallar ve aynı katı yazımla: dahil sınırlar, `currencyCode` zorunlu, `limit` filtreden
+sonra. Ada, TRY, `maxAmount=150` → 145, 120, 95; Deniz, son 6 ay, `limit=3`, TRY, `maxAmount=20000` → 18.000, 16.000, 14.000.
 
 ### `GET /api/analytics/recurring-payments`
 

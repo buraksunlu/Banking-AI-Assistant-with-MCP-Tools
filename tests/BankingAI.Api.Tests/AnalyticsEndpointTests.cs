@@ -367,12 +367,29 @@ public sealed class AnalyticsEndpointTests
             shop["currencies"]![0]!["items"]!.AsArray().Select(i => (i!["kind"]!.GetValue<string>(), Amount(i["amount"]))));
     }
 
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Highest_transactions_within_an_amount_range()
+    {
+        var purchases = Ok(await GetAsync("/api/analytics/highest-transactions?period=ThisMonth&currencyCode=TRY&maxAmount=150", Ada));
+        var all = Ok(await GetAsync(
+            "/api/analytics/highest-transactions?period=ThisMonth&includeAllTransactions=true&currencyCode=TRY&minAmount=1000", Ada));
+
+        // ANA-11: the 210 and 165 purchases are above the maximum; only salary and the sent transfer reach 1.000.
+        Assert.Equal([145m, 120m, 95m], purchases["currencies"]![0]!["items"]!.AsArray().Select(i => Amount(i!["amount"])));
+        Assert.Equal([("Salary", 45000m), ("Transfer", 1500m)],
+            all["currencies"]![0]!["items"]!.AsArray().Select(i => (i!["kind"]!.GetValue<string>(), Amount(i["amount"]))));
+    }
+
     [Theory]
     [Trait("Category", "PostgreSQL")]
     [InlineData("", "period", "Dönem zorunlu: period ya da from ile to verilmeli.")]
     [InlineData("period=ThisMonth&limit=0", "limit", "1 ile 100 arasında olmalı.")]
     [InlineData("period=ThisMonth&limit=101", "limit", "1 ile 100 arasında olmalı.")]
     [InlineData("period=ThisMonth&includeAllTransactions=evet", "includeAllTransactions", "'evet' geçerli bir değer değil.")]
+    [InlineData("period=ThisMonth&minAmount=100", "currencyCode", "Tutar filtresi için para birimi (currencyCode) verilmeli.")]
+    [InlineData("period=ThisMonth&maxAmount=500,50&currencyCode=TRY", "maxAmount", "'500,50' geçerli bir değer değil.")]
+    [InlineData("period=ThisMonth&minAmount=200&maxAmount=100&currencyCode=TRY", "minAmount", "En az tutar en çok tutardan büyük olamaz.")]
     public async Task Highest_transaction_parameters_are_checked(string query, string field, string message) =>
         await AssertInvalidAsync($"/api/analytics/highest-transactions?{query}", Ada, field, message);
 

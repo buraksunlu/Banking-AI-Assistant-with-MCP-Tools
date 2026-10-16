@@ -7,10 +7,12 @@ namespace BankingAI.Application.Analytics;
 
 // Default: the largest purchases on personal accounts (spending). IncludeAllTransactions widens it,
 // on the user's explicit request, to every kind on every account of the customer (the statement
-// scope of TransactionSearchService). Limit defaults to 5 and may be raised up to 100.
+// scope of TransactionSearchService). Limit defaults to 5 and may be raised up to 100. The amount
+// range is inclusive and needs CurrencyCode, like the search's (ANA-11).
 public sealed record HighestTransactionsQuery(
     Guid CustomerId, PeriodKind Period, DateOnly? From = null, DateOnly? To = null, Guid? AccountId = null,
-    int Limit = 5, bool IncludeAllTransactions = false);
+    int Limit = 5, bool IncludeAllTransactions = false,
+    decimal? MinAmount = null, decimal? MaxAmount = null, string? CurrencyCode = null);
 
 // Amounts in different currencies are never compared: each currency has its own ranked list.
 public sealed record CurrencyHighestTransactions(string CurrencyCode, IReadOnlyList<TransactionItem> Items);
@@ -30,6 +32,7 @@ public sealed class HighestTransactionsService(BankingDbContext db, PeriodResolv
     {
         ArgumentNullException.ThrowIfNull(query);
         InputRules.Require(query.Limit is >= 1 and <= MaximumLimit, nameof(query.Limit), $"1 ile {MaximumLimit} arasında olmalı.");
+        AmountFilter.Validate(query.MinAmount, query.MaxAmount, query.CurrencyCode);
 
         ResolvedPeriod period;
         string timeZoneId;
@@ -48,6 +51,7 @@ public sealed class HighestTransactionsService(BankingDbContext db, PeriodResolv
                 new SpendingQuery(query.CustomerId, query.Period, query.From, query.To, query.AccountId), cancellationToken);
             (period, source, timeZoneId) = (scoped.Period, scoped.Purchases, scoped.TimeZone);
         }
+        source = AmountFilter.Apply(source, query.MinAmount, query.MaxAmount, query.CurrencyCode);
 
         // Top-N per currency without a window function: one query for the currencies present, then
         // one ranked query per currency. The count is bounded by the currency whitelist (at most 4),

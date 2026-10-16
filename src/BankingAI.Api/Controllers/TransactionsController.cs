@@ -61,8 +61,9 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
     /// <summary>
     /// <c>GET /api/transactions</c>: searches all of the customer's accounts (a Business shop account included) like a
     /// statement, newest first, with optional filters: kind, direction, category or only unclassified purchases, merchant
-    /// (matched against the customer's own merchants, never guessed) and one account. Without a period the last three
-    /// months are searched, like an account's list (decision K1-B); the answer names its period.
+    /// (matched against the customer's own merchants, never guessed), one account, a currency and an inclusive amount
+    /// range in it (ANA-11). Without a period the last three months are searched, like an account's list (decision
+    /// K1-B); the answer names its period.
     /// </summary>
     [HttpGet("api/transactions")]
     public async Task<ActionResult<TransactionSearchResult>> SearchAsync(
@@ -77,6 +78,9 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
         [FromQuery] string? merchant = null,
         [FromQuery] int limit = TransactionSearchService.DefaultLimit,
         [FromQuery] int offset = 0,
+        [FromQuery] string? minAmount = null,
+        [FromQuery] string? maxAmount = null,
+        [FromQuery] string? currencyCode = null,
         CancellationToken cancellationToken = default) =>
         // Filter combinations, paging bounds and account ownership are the service's rules.
         Ok(await search.SearchAsync(
@@ -84,7 +88,8 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
                 from, to, accountId,
                 ExactEnum.Parse<TransactionKind>(kind, nameof(kind), "Purchase, Sale, Transfer, Salary veya OpeningFunding olmalı."),
                 ExactEnum.Parse<TransactionDirection>(direction, nameof(direction), "Debit veya Credit olmalı."),
-                categoryCode, onlyUnclassified, merchant, limit, offset),
+                categoryCode, onlyUnclassified, merchant, limit, offset,
+                AmountParameter.Parse(minAmount, nameof(minAmount)), AmountParameter.Parse(maxAmount, nameof(maxAmount)), currencyCode),
             cancellationToken));
 
     /// <summary>

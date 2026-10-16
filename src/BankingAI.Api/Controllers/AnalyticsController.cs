@@ -83,15 +83,20 @@ public sealed class AnalyticsController(
 
     /// <summary>
     /// <c>GET /api/analytics/highest-transactions</c>: the largest purchases per currency (5 by default, at most 100).
-    /// <c>includeAllTransactions=true</c> widens it to every kind on every account of the customer.
+    /// <c>includeAllTransactions=true</c> widens it to every kind on every account of the customer. An optional inclusive
+    /// amount range needs <c>currencyCode</c> (ANA-11).
     /// </summary>
     [HttpGet("highest-transactions")]
     public async Task<ActionResult<HighestTransactions>> HighestTransactionsAsync(
         [FromQuery] string? period, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] Guid? accountId,
-        [FromQuery] int? limit, [FromQuery] bool? includeAllTransactions, CancellationToken cancellationToken) =>
+        [FromQuery] int? limit, [FromQuery] bool? includeAllTransactions,
+        [FromQuery] string? minAmount, [FromQuery] string? maxAmount, [FromQuery] string? currencyCode,
+        CancellationToken cancellationToken) =>
         Ok(await highest.GetAsync(
             new HighestTransactionsQuery(User.GetCustomerId(), PeriodParameters.Resolve(period, from, to, fallback: null),
-                from, to, accountId, limit ?? HighestTransactionsService.DefaultLimit, includeAllTransactions ?? false),
+                from, to, accountId, limit ?? HighestTransactionsService.DefaultLimit, includeAllTransactions ?? false,
+                AmountParameter.Parse(minAmount, nameof(minAmount)), AmountParameter.Parse(maxAmount, nameof(maxAmount)),
+                currencyCode),
             cancellationToken));
 
     /// <summary>
