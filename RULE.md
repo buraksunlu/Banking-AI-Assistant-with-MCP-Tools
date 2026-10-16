@@ -1424,12 +1424,16 @@ COMPLETED
   kütüphane): 20 sabit vaka (tool seçimi, structured output, açıklama) + deterministik puanlama, 21 unittest. Varsayılan
   qwen3.5:4b (BANKINGAI_LLM_MODEL), yedek qwen3.5:9b; thinking kapalı, temperature 0; MCP-12/14'te gerçek tool listesiyle
   yeniden ölçülür. Ayrıntı ve gerekçe docs/local-ai.md.
+- Ollama bağlantısı (AI-02, 16 Ekim 2026): ai/service/ollama_client.py (standart kütüphane); OllamaSettings.from_env
+  (BANKINGAI_LLM_MODEL zorunlu, BANKINGAI_OLLAMA_URL, BANKINGAI_LLM_TIMEOUT_SECONDS varsayılan 30); dört hata türü
+  (OllamaUnavailable, ModelNotFound, OllamaTimeout, OllamaBadResponse); check_ready() modeli yüklemeden ≤3 sn; chat() stream
+  yok, thinking kapalı, temperature 0. İstemci zaman aşımında Ollama işi durdurur. 21 Python testi (3'ü gerçek Ollama).
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Local AI (todo bölüm 15): AI-02 (Ollama bağlantısı, timeout, model bulunamadı), sonra AI-03 (FastAPI); ardından read-only
+- Local AI (todo bölüm 15): AI-03 (FastAPI servisi; ollama_client'ı kullanır), sonra AI-04 (LangChain); ardından read-only
   MCP (bölüm 16). Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 

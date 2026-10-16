@@ -67,6 +67,7 @@ BankingAI.Cli ──────────────────────
 | `BANKINGAI_DEMO_NOW` | İsteğe bağlı: iş saatini demo anına sabitler (ör. `2026-10-10T12:00:00Z`); token'lar gerçek saatte kalır |
 | `BANKINGAI_LLM_MODEL` | Local model adı (Ollama), varsayılan önerisi `qwen3.5:4b` |
 | `BANKINGAI_OLLAMA_URL` | İsteğe bağlı Ollama adresi (boşsa `http://127.0.0.1:11434`) |
+| `BANKINGAI_LLM_TIMEOUT_SECONDS` | İsteğe bağlı: model cevabı için süre sınırı, saniye (varsayılan 30) |
 
 Uygulama `.env`'yi kendiliğinden okumaz; her yeni terminalde:
 
@@ -172,6 +173,8 @@ Local model ölçümü (Python 3, yalnız standart kütüphane; ayrıntı [docs/
 ```sh
 python3 -m unittest discover -s ai/model_check                       # puanlama testleri (Ollama gerekmez)
 python3 ai/model_check/run.py --model qwen3.5:4b --model qwen3.5:9b   # modelleri karşılaştır (Ollama açık olmalı)
+python3 -m unittest discover -s ai/service                           # Ollama bağlantısı (Ollama kapalıysa 3 test atlanır)
+python3 ai/service/ollama_client.py                                  # elle kontrol: Ollama ve model hazır mı?
 ```
 
 ## Veri modeli
