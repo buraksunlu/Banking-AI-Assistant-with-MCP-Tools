@@ -1414,12 +1414,15 @@ COMPLETED
 - Kavramsal merchant harcaması (ANA-10, 16 Ekim 2026): GET /api/analytics/merchants (kapalı küme: müşterinin tüm zamanlardaki
   merchant'ları) ve merchant-group-spending (listeden seçilen 1–20 ad; MerchantMatcher.MatchExact ile harf/Türkçe işaret
   toleranslı tam eşleşme, kısmi yok; liste dışı ad 400). Yeni soru tipleri (todo 12b) tamamlandı.
+- HTTP testleri (API-14, 16 Ekim 2026): EndpointSweepTests route tablosunu okur; her korumalı endpoint'in örnek isteği
+  olmalı (yeni endpoint örneksiz testleri geçemez), token'sız 401 ve var olmayan müşteride session_invalid tarar; null
+  gövde, eşzamanlı hesap açma ve veritabanından kalıcılık testleri. Üretim kodu değişmedi.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Kullanıcının seçtiği API-14/15 maddesi (her biri kendi dalında, PR ile); ardından local AI (todo bölüm 15) ve read-only
+- Kullanıcının seçtiği API-15 maddesi (her biri kendi dalında, PR ile); ardından local AI (todo bölüm 15) ve read-only
   MCP (bölüm 16). Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 
@@ -1439,7 +1442,7 @@ TECHNICAL DEBT
 - OpenAPI belgesi yalnız 200 cevaplarını gösteriyor (API-15).
 
 TEST STATUS
-- Tam paket yeşil (16 Ekim 2026, ANA-10 sonrası; 3 koşu): Data 63, Application 277, Api 295. fix/seeder-test-lock sonrası
+- Tam paket yeşil (16 Ekim 2026, API-14 sonrası; 3 koşu): Data 63, Application 277, Api 350. fix/seeder-test-lock sonrası
   art arda 10 koşu yeşildi.
   SyntheticAccountSeederTests'in ara sıra kırmızısı giderildi: test bütün Accounts tablosunu karşılaştırdığı hâlde
   CommittedRowsLock.ExclusiveAsync() almıyordu; yarış bekleme + eşzamanlı ekleme deneyiyle önce kırmızı, kilitle yeşil

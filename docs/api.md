@@ -27,6 +27,19 @@ Yerel adres `http://localhost:5248`; OpenAPI `/openapi/v1.json` (geliştirme). G
 Ortak davranış: müşteri yalnız token'dan gelir (istekte müşteri parametresi yoktur); başka müşterinin
 kaynağı olmayan kaynakla birebir aynı `404`'ü alır; GUID olmayan kimlik `400`'dür.
 
+## Test kapsamı ve endpoint taraması (API-14, 16 Ekim 2026)
+
+`tests/BankingAI.Api.Tests/EndpointSweepTests.cs` API'nin gerçek route tablosunu (`EndpointDataSource`) okur ve her korumalı
+endpoint için tuttuğu geçerli örnek istekle karşılaştırır. **Yeni bir endpoint, tabloya örnek eklenmeden testleri geçemez.**
+Tablo üç kuralı denetler: (1) token istemeyen endpoint'ler tam olarak `GET /api/health`, `POST /api/auth/login` ve
+`GET /openapi/v1.json`'dır; (2) 21 korumalı endpoint'in hepsi token'sız 401 `unauthorized`; (3) hepsi var olmayan müşterinin
+token'ına 401 `session_invalid` verir (örnek geçerli olduğu için 400 değil). Yazma örnekleri yalnız var olmayan müşteri için
+gönderilir; demo verisine yazılmaz. Diğer API-14 testleri: boş ve `null` gövde üç yazma endpoint'inde 400 "İstek gövdesi
+zorunlu." (ASP.NET'in iki bağımsız koruması: gövde bağlayıcısı ve örtük zorunlu parametre; ikisi birlikte kapanınca test
+kırmızı); eşzamanlı hesap açma (anahtarsız iki farklı `ACC-n`, aynı anahtarla tek hesap); kalıcılık (yazılan hesap ve
+işlemin satırı doğrudan veritabanından okunur: sahibi token'ın müşterisi, yön/para birimi/zaman/kategori backend'in; yeni
+bir API örneği aynı veriyi okur).
+
 ## Genel JSON kuralları (API-03, 12 Ekim 2026, kullanıcı kararları)
 
 - **Enum'lar yazıyla taşınır:** `"accountType": "Personal"`, `"kind": "Purchase"`. Girdi olarak yalnız

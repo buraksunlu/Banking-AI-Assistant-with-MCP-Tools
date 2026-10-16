@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using BankingAI.Data;
 using System.Net;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -151,5 +153,52 @@ public sealed class IdempotencyEndpointTests
         Assert.True(Replayed(retry));
         Assert.Equal(await first.Content.ReadAsStringAsync(), await retry.Content.ReadAsStringAsync());
         Assert.Single(JsonNode.Parse(await client.GetStringAsync("/api/accounts"))!.AsArray());
+    }
+
+    // ---- API-14: unique races when accounts are opened at the same time
+
+    private static async Task<int> AccountCountAsync(Guid customerId)
+    {
+        await using var db = new BankingDbContext();
+        return await db.Accounts.CountAsync(a => a.CustomerId == customerId);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Accounts_opened_at_the_same_time_get_distinct_numbers()
+    {
+        await using var user = await TestUser.CreateAsync();
+        await using var api = TestApi.Create();
+        using var client = api.CreateClient().WithToken(TestTokens.Create(user.CustomerId));
+        const string body = """{"accountName":"Yarış","currencyCode":"TRY"}""";
+
+        var responses = await Task.WhenAll(PostAsync(client, "/api/accounts", body, null), PostAsync(client, "/api/accounts", body, null));
+
+        // Without a key these are two requests for two accounts; the number sequence keeps them unique, never a 500.
+        Assert.All(responses, r => Assert.Equal(HttpStatusCode.Created, r.StatusCode));
+        var accounts = await Task.WhenAll(responses.Select(async r => JsonNode.Parse(await r.Content.ReadAsStringAsync())!));
+        Assert.NotEqual(accounts[0]["id"]!.GetValue<Guid>(), accounts[1]["id"]!.GetValue<Guid>());
+        Assert.NotEqual(accounts[0]["accountNumber"]!.GetValue<string>(), accounts[1]["accountNumber"]!.GetValue<string>());
+        Assert.All(accounts, a => Assert.StartsWith("ACC-", a["accountNumber"]!.GetValue<string>()));
+        Assert.Equal(2, await AccountCountAsync(user.CustomerId));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Concurrent_account_openings_with_the_same_key_open_one_account()
+    {
+        await using var user = await TestUser.CreateAsync();
+        await using var api = TestApi.Create();
+        using var client = api.CreateClient().WithToken(TestTokens.Create(user.CustomerId));
+        const string body = """{"accountName":"Yarış","currencyCode":"TRY"}""";
+
+        var responses = await Task.WhenAll(
+            PostAsync(client, "/api/accounts", body, "hesap-yaris"), PostAsync(client, "/api/accounts", body, "hesap-yaris"));
+
+        // The key derives the account id, so the second insert meets the first one's primary key and replays it.
+        Assert.All(responses, r => Assert.Equal(HttpStatusCode.Created, r.StatusCode));
+        var ids = await Task.WhenAll(responses.Select(async r => JsonNode.Parse(await r.Content.ReadAsStringAsync())!["id"]!.GetValue<Guid>()));
+        Assert.Equal(ids[0], ids[1]);
+        Assert.Equal(1, await AccountCountAsync(user.CustomerId));
     }
 }
