@@ -78,6 +78,8 @@ karakterleri için aynı olduğu varsayılmamalı; VAL-07 testleri bu sınırı 
 | Customer.PreferredCurrency | TRY, USD, EUR | GBP, TL, try reddedilir; DB CHECK var. Entity varsayılanı TRY |
 | Account.CurrencyCode | TRY, USD, EUR, GBP | TL, US, usd reddedilir; DB CHECK var |
 | Transaction.CurrencyCode | TRY, USD, EUR, GBP; hesabıyla aynı olmalı | TRY hesabına USD işlem reddedilir; CHECK + AccountId/CurrencyCode birleşik FK var |
+| Arama/en yüksek işlemler filtresi `CurrencyCode` (ANA-11) | TRY, USD, EUR, GBP, birebir | `try`, `JPY` reddedilir; kural `InputRules.Currency` (entity doğrulaması da onu kullanır) |
+| Tutar filtresi `MinAmount`/`MaxAmount` (ANA-11) | `InputRules.Money` (0,01–üst sınır, en fazla 2 ondalık), `min ≤ max`, para birimi zorunlu | API'de yalnız rakam + nokta: `500,50` ve `45,000` reddedilir (ASP.NET bunları binlik ayırıcıyla 50050/45000 okurdu) |
 | Transaction.Direction | Debit=1, Credit=2 | 0, 3, -1 reddedilir; C# enum tek başına bunu engellemez, DB CHECK var |
 | Transaction.CategorizationSource | null, Rule=1, Llm=2, Manual=3 | 0 veya 4 reddedilir; DB CHECK var. Diğer kategori alanlarıyla uyum VAL-04'te |
 | MarketAsset.AssetType | Currency, Commodity | Stock, Bond, currency reddedilir; DB CHECK var |

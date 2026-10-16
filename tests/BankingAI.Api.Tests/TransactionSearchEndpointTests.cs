@@ -150,6 +150,17 @@ public sealed class TransactionSearchEndpointTests
 
     [Fact]
     [Trait("Category", "PostgreSQL")]
+    public async Task Amount_range_is_inclusive_and_in_one_currency()
+    {
+        var body = Ok(await GetAsync("?period=ThisMonth&currencyCode=TRY&minAmount=145&maxAmount=165.00", Ada));
+
+        // ANA-11: both bounds included, the decimal point is the query string's separator.
+        Assert.Equal([("2026-10-09", 145m), ("2026-10-08", 165m)],
+            Items(body).Select(i => (i!["localDate"]!.GetValue<string>(), Amount(i["amount"]))));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
     public async Task Search_needs_a_token_and_an_own_account()
     {
         var noToken = await GetAsync("?period=ThisMonth", null);
@@ -176,6 +187,15 @@ public sealed class TransactionSearchEndpointTests
     [InlineData("offset=10001", "offset", "0 ile 10000 arasında olmalı.")]
     [InlineData("onlyUnclassified=evet", "onlyUnclassified", "'evet' geçerli bir değer değil.")]
     [InlineData("from=2026-10-01&to=2026-10-10", "period", "Dönem adı ile tarih aralığı birlikte verilemez.")]
+    [InlineData("minAmount=0&currencyCode=TRY", "minAmount", "Tutar 0.01 ile parasal üst sınır arasında olmalı.")]
+    [InlineData("maxAmount=1.005&currencyCode=TRY", "maxAmount", "En fazla iki anlamlı ondalık basamak kullanılabilir.")]
+    [InlineData("minAmount=500,50&currencyCode=TRY", "minAmount", "'500,50' geçerli bir değer değil.")] // not 50050
+    [InlineData("minAmount=45,000&currencyCode=TRY", "minAmount", "'45,000' geçerli bir değer değil.")] // no thousands separator
+    [InlineData("maxAmount=-5&currencyCode=TRY", "maxAmount", "'-5' geçerli bir değer değil.")]
+    [InlineData("minAmount=200&maxAmount=100&currencyCode=TRY", "minAmount", "En az tutar en çok tutardan büyük olamaz.")]
+    [InlineData("minAmount=100", "currencyCode", "Tutar filtresi için para birimi (currencyCode) verilmeli.")]
+    [InlineData("currencyCode=JPY", "currencyCode", "TRY/USD/EUR/GBP olmalı.")]
+    [InlineData("currencyCode=try", "currencyCode", "TRY/USD/EUR/GBP olmalı.")]
     public async Task Search_parameters_are_checked(string query, string field, string message)
     {
         var response = await GetAsync($"?period=ThisMonth&{query}", Ada);

@@ -91,6 +91,5 @@ public static class EntityValidation
     private static void Positive(short value, string field) =>
         InputRules.Require(value > 0, field, "Kimlik pozitif olmalı.");
 
-    private static void Currency(string value) =>
-        InputRules.Require(value is "TRY" or "USD" or "EUR" or "GBP", "CurrencyCode", "TRY/USD/EUR/GBP olmalı.");
+    private static void Currency(string value) => InputRules.Currency(value, "CurrencyCode");
 }

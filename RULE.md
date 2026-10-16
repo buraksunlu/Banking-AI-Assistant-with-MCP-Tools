@@ -1399,12 +1399,15 @@ COMPLETED
   tam ad ya da dört tarih), monthly-trend (months zorunlu), highest-transactions (limit, includeAllTransactions),
   recurring-payments (dönem parametresi yok, kural 6 ay); GET /api/transactions (bütün hesaplarda filtreli arama:
   kind/direction/categoryCode/onlyUnclassified/merchant/accountId; dönem verilmezse son 3 ay).
+- Tutar filtresi (ANA-11, 16 Ekim 2026): arama ve en yüksek işlemlerde dahil minAmount/maxAmount; verilirse currencyCode
+  zorunlu (eşik para birimleri arasında karşılaştırılmaz); ortak AmountFilter, InputRules.Currency; API'de tutar katı
+  okunur (AmountParameter: ASP.NET "500,50"yi binlik ayırıcıyla 50050 okurdu).
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Kullanıcının seçtiği API-14/15 ya da ANA-10–14 maddesi; ardından local AI (todo bölüm 15) ve read-only
+- Kullanıcının seçtiği ANA-10/12–14 ya da API-14/15 maddesi (her biri kendi dalında, PR ile); ardından local AI (todo bölüm 15) ve read-only
   MCP (bölüm 16). Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14, MCP-15–18) ANA-09'dan
   sonra; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
@@ -1425,7 +1428,8 @@ TECHNICAL DEBT
 - OpenAPI belgesi yalnız 200 cevaplarını gösteriyor (API-15).
 
 TEST STATUS
-- Tam paket yeşil (16 Ekim 2026, fix/seeder-test-lock sonrası; art arda 10 koşu): Data 63, Application 192, Api 247.
+- Tam paket yeşil (16 Ekim 2026, ANA-11 sonrası; 3 koşu): Data 63, Application 210, Api 261. fix/seeder-test-lock sonrası
+  art arda 10 koşu yeşildi.
   SyntheticAccountSeederTests'in ara sıra kırmızısı giderildi: test bütün Accounts tablosunu karşılaştırdığı hâlde
   CommittedRowsLock.ExclusiveAsync() almıyordu; yarış bekleme + eşzamanlı ekleme deneyiyle önce kırmızı, kilitle yeşil
   gösterildi. dotnet build

@@ -7,12 +7,14 @@ namespace BankingAI.Application.Analytics;
 
 // A statement-like search: every kind (salary, transfers, sales, purchases) and, by default, all of
 // the customer's accounts including a Business shop account. The period is mandatory so a query
-// is always bounded; there is deliberately no free-text search.
+// is always bounded; there is deliberately no free-text search. MinAmount/MaxAmount are inclusive
+// and need CurrencyCode (ANA-11): a threshold is never compared across currencies.
 public sealed record TransactionSearchQuery(
     Guid CustomerId, PeriodKind Period, DateOnly? From = null, DateOnly? To = null, Guid? AccountId = null,
     TransactionKind? Kind = null, TransactionDirection? Direction = null,
     string? CategoryCode = null, bool OnlyUnclassified = false, string? Merchant = null,
-    int Limit = 20, int Offset = 0);
+    int Limit = 20, int Offset = 0,
+    decimal? MinAmount = null, decimal? MaxAmount = null, string? CurrencyCode = null);
 
 // A DTO, never the entity. Counterparty is a masked person ("Deniz M***"), a shop's account name,
 // or the customer's own account name (CounterpartyIsOwnAccount); full names never leave the service.
@@ -49,6 +51,7 @@ public sealed class TransactionSearchService(BankingDbContext db, PeriodResolver
             transactions = transactions.Where(t => t.Direction == direction);
         if (query.OnlyUnclassified)
             transactions = transactions.Where(t => t.Kind == TransactionKind.Purchase && t.CategoryId == null);
+        transactions = AmountFilter.Apply(transactions, query.MinAmount, query.MaxAmount, query.CurrencyCode);
         if (query.CategoryCode is { } code)
         {
             var categoryId = await db.TransactionCategories.AsNoTracking()
@@ -122,5 +125,6 @@ public sealed class TransactionSearchService(BankingDbContext db, PeriodResolver
             InputRules.Text(query.CategoryCode, 50, nameof(query.CategoryCode));
         if (query.Merchant is not null)
             InputRules.Text(query.Merchant, MerchantMatcher.MaximumLength, nameof(query.Merchant));
+        AmountFilter.Validate(query.MinAmount, query.MaxAmount, query.CurrencyCode);
     }
 }

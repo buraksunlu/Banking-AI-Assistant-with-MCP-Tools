@@ -1,3 +1,4 @@
+using System.Globalization;
 using BankingAI.Application.Analytics;
 using BankingAI.Data;
 using BankingAI.Data.Enums;
@@ -167,5 +168,52 @@ public sealed class HighestTransactionsServiceTests
         await Assert.ThrowsAsync<KeyNotFoundException>(() => GetAsync(new(Ada, PeriodKind.ThisMonth, AccountId: DenizTryAccount)));
         await Assert.ThrowsAsync<KeyNotFoundException>(
             () => GetAsync(new(Ada, PeriodKind.ThisMonth, AccountId: DenizTryAccount, IncludeAllTransactions: true)));
+    }
+
+    // ---- ANA-11: amount range (inclusive) in one currency
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Largest_purchases_below_a_maximum()
+    {
+        var result = await GetAsync(new(Ada, PeriodKind.ThisMonth, MaxAmount: 150m, CurrencyCode: "TRY"));
+
+        Assert.Equal(new[] { 145m, 120m, 95m }, Assert.Single(result.Currencies).Items.Select(i => i.Amount));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task All_transactions_above_a_minimum()
+    {
+        var result = await GetAsync(new(Ada, PeriodKind.ThisMonth, IncludeAllTransactions: true, MinAmount: 1000m, CurrencyCode: "TRY"));
+
+        Assert.Equal(new (TransactionKind, decimal)[] { (TransactionKind.Salary, 45000m), (TransactionKind.Transfer, 1500m) },
+            Assert.Single(result.Currencies).Items.Select(i => (i.Kind, i.Amount)).ToArray());
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Limit_applies_after_the_amount_range()
+    {
+        // 24.000 and 31.000 are above the maximum, so the next three monthly market purchases are the largest.
+        var result = await GetAsync(new(Deniz, PeriodKind.Last6Months, Limit: 3, MaxAmount: 20000m, CurrencyCode: "TRY"));
+
+        Assert.Equal(new[] { 18000m, 16000m, 14000m }, Assert.Single(result.Currencies).Items.Select(i => i.Amount));
+    }
+
+    // Exact decimals from text: a double literal such as 1.005 would not survive the conversion unchanged.
+    private static decimal? Amount(string? value) => value is null ? null : decimal.Parse(value, CultureInfo.InvariantCulture);
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("200", "100", "TRY", "MinAmount")]
+    [InlineData("100", null, null, "CurrencyCode")]
+    [InlineData(null, null, "JPY", "CurrencyCode")]
+    public async Task Amount_filters_follow_the_search_rules(string? min, string? max, string? currency, string field)
+    {
+        var error = await Assert.ThrowsAsync<ArgumentException>(() => GetAsync(new(Ada, PeriodKind.ThisMonth,
+            MinAmount: Amount(min), MaxAmount: Amount(max), CurrencyCode: currency)));
+
+        Assert.Equal(field, error.ParamName);
     }
 }

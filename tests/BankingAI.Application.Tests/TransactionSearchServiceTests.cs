@@ -1,7 +1,9 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using BankingAI.Application.Analytics;
 using BankingAI.Data;
 using BankingAI.Data.Enums;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 using static BankingAI.Application.Tests.DemoData;
 
@@ -296,5 +298,101 @@ public sealed class TransactionSearchServiceTests
         // Only purchases carry categories; a category filter on transfers is a contradiction, not an empty result.
         await Assert.ThrowsAsync<ArgumentException>(() => SearchAsync(new(Ada, PeriodKind.ThisMonth, Kind: TransactionKind.Transfer, CategoryCode: "FOOD")));
         await Assert.ThrowsAsync<ArgumentException>(() => SearchAsync(new(Ada, PeriodKind.ThisMonth, Merchant: "   ")));
+    }
+
+    // ---- ANA-11: amount range (inclusive) in one currency
+
+    private static (DateOnly, decimal)[] DatedAmounts(TransactionSearchResult result) =>
+        result.Items.Select(i => (i.LocalDate, i.Amount)).ToArray();
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Amount_range_includes_both_bounds()
+    {
+        var result = await SearchAsync(new(Ada, PeriodKind.ThisMonth, MinAmount: 145m, MaxAmount: 165m, CurrencyCode: "TRY"));
+
+        // 145 and 165 sit exactly on the bounds; 120, 210 and the rest fall outside.
+        Assert.Equal(new (DateOnly, decimal)[] { (new(2026, 10, 9), 145m), (new(2026, 10, 8), 165m) }, DatedAmounts(result));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Minimum_alone_keeps_every_kind_above_it()
+    {
+        var result = await SearchAsync(new(Ada, PeriodKind.ThisMonth, MinAmount: 150m, CurrencyCode: "TRY"));
+
+        // A statement filter: the received transfer, the salary and the sent transfer count too.
+        Assert.Equal(5, result.TotalCount);
+        Assert.Equal(new (DateOnly, decimal)[]
+        {
+            (new(2026, 10, 8), 300m), (new(2026, 10, 8), 165m), (new(2026, 10, 6), 210m),
+            (new(2026, 10, 5), 45000m), (new(2026, 10, 3), 1500m)
+        }, DatedAmounts(result));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Maximum_alone_keeps_the_small_ones()
+    {
+        var result = await SearchAsync(new(Ada, PeriodKind.ThisMonth, MaxAmount: 150m, CurrencyCode: "TRY"));
+
+        Assert.Equal(new[] { 145m, 95m, 120m }, result.Items.Select(i => i.Amount));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Amount_combines_with_category_for_large_grocery_purchases()
+    {
+        // "20.000 TL üstü market harcamalarım": Deniz's monthly market purchase grew from 12.000 to 31.000.
+        var result = await SearchAsync(new(Deniz, PeriodKind.Last6Months, CategoryCode: "GROCERY", MinAmount: 20000m, CurrencyCode: "TRY"));
+
+        Assert.Equal(new (int, decimal)[] { (9, 31000m), (8, 24000m) }, result.Items.Select(i => (i.LocalDate.Month, i.Amount)).ToArray());
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task A_threshold_never_compares_amounts_across_currencies()
+    {
+        Assert.False(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BANKINGAI_CONNECTION_STRING")),
+            "PostgreSQL testi için önce .env ortam değişkenlerini yükleyin.");
+        await using var db = new BankingDbContext();
+        await using var scope = await db.Database.BeginTransactionAsync();
+        // A temporary 300 USD purchase visible only inside this transaction; rolled back below.
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO "Transactions" ("Id", "AccountId", "Amount", "Direction", "Kind", "CurrencyCode", "RawDescription", "OccurredAt", "CreatedAt")
+            VALUES ({Guid.NewGuid()}, {AdaUsdAccount}, 300.00, 1, 1, 'USD', 'ANA-11 USD test', '2026-10-05T10:00:00Z', now())
+            """);
+        var service = new TransactionSearchService(db, new PeriodResolver(new FixedTimeProvider(DemoNowUtc)));
+
+        var lira = await service.SearchAsync(new(Ada, PeriodKind.ThisMonth, MinAmount: 200m, CurrencyCode: "TRY"));
+        var dollars = await service.SearchAsync(new(Ada, PeriodKind.ThisMonth, MinAmount: 200m, CurrencyCode: "USD"));
+        var dollarsOnly = await service.SearchAsync(new(Ada, PeriodKind.ThisMonth, CurrencyCode: "USD"));
+        await scope.RollbackAsync();
+
+        // 300 USD is not "above 200 TL"; the TRY 300 transfer is.
+        Assert.Equal(new[] { 300m, 210m, 45000m, 1500m }, lira.Items.Select(i => i.Amount));
+        Assert.All(lira.Items, i => Assert.Equal("TRY", i.CurrencyCode));
+        Assert.Equal(("USD", 300m), (Assert.Single(dollars.Items).CurrencyCode, dollars.Items[0].Amount));
+        Assert.Equal("USD", Assert.Single(dollarsOnly.Items).CurrencyCode);
+    }
+
+    // Exact decimals from text: a double literal such as 1.005 would not survive the conversion unchanged.
+    private static decimal? Amount(string? value) => value is null ? null : decimal.Parse(value, CultureInfo.InvariantCulture);
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("0", null, "TRY", "MinAmount")]         // below 0.01
+    [InlineData(null, "1.005", "TRY", "MaxAmount")]     // three decimals
+    [InlineData("200", "100", "TRY", "MinAmount")]      // minimum above maximum
+    [InlineData("100", null, null, "CurrencyCode")]     // a threshold needs a currency
+    [InlineData(null, "100", null, "CurrencyCode")]
+    [InlineData(null, null, "JPY", "CurrencyCode")]     // not a supported currency
+    [InlineData(null, null, "try", "CurrencyCode")]     // exact code only
+    public async Task Invalid_amount_filters_name_their_field(string? min, string? max, string? currency, string field)
+    {
+        var error = await Assert.ThrowsAsync<ArgumentException>(() => SearchAsync(new(Ada, PeriodKind.ThisMonth,
+            MinAmount: Amount(min), MaxAmount: Amount(max), CurrencyCode: currency)));
+
+        Assert.Equal(field, error.ParamName);
     }
 }

@@ -14,6 +14,10 @@ public static class InputRules
             throw new ArgumentException(reason, field);
     }
 
+    // The supported currencies, by exact code (the Accounts/Transactions CHECK constraints hold the same list).
+    public static void Currency(string? value, string field) =>
+        Require(value is "TRY" or "USD" or "EUR" or "GBP", field, "TRY/USD/EUR/GBP olmalı.");
+
     public static void Money(decimal value, string field, bool positive)
     {
         Require(value >= (positive ? 0.01m : 0m) && value <= MaximumMoney,
