@@ -18,7 +18,8 @@ namespace BankingAI.Api.Controllers;
 public sealed record TransactionPage(ResolvedPeriod Period, int TotalCount, bool HasMore, IReadOnlyList<TransactionItem> Items);
 
 /// <summary>
-/// The logged-in customer's transactions: an account's list, single transactions and adding a synthetic one.
+/// The logged-in customer's transactions: an account's list, the search over all accounts, single transactions and
+/// adding a synthetic one.
 /// Listing, filtering and ownership are done by <see cref="TransactionSearchService"/>, writing by
 /// <see cref="ITransactionWriteService"/>; this controller only translates HTTP.
 /// </summary>
@@ -56,6 +57,35 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
             cancellationToken);
         return Ok(new TransactionPage(result.Period, result.TotalCount, result.HasMore, result.Items));
     }
+
+    /// <summary>
+    /// <c>GET /api/transactions</c>: searches all of the customer's accounts (a Business shop account included) like a
+    /// statement, newest first, with optional filters: kind, direction, category or only unclassified purchases, merchant
+    /// (matched against the customer's own merchants, never guessed) and one account. Without a period the last three
+    /// months are searched, like an account's list (decision K1-B); the answer names its period.
+    /// </summary>
+    [HttpGet("api/transactions")]
+    public async Task<ActionResult<TransactionSearchResult>> SearchAsync(
+        [FromQuery] string? period,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        [FromQuery] Guid? accountId,
+        [FromQuery] string? kind,
+        [FromQuery] string? direction,
+        [FromQuery] string? categoryCode,
+        [FromQuery] bool onlyUnclassified = false,
+        [FromQuery] string? merchant = null,
+        [FromQuery] int limit = TransactionSearchService.DefaultLimit,
+        [FromQuery] int offset = 0,
+        CancellationToken cancellationToken = default) =>
+        // Filter combinations, paging bounds and account ownership are the service's rules.
+        Ok(await search.SearchAsync(
+            new TransactionSearchQuery(User.GetCustomerId(), PeriodParameters.Resolve(period, from, to, DefaultPeriod),
+                from, to, accountId,
+                ExactEnum.Parse<TransactionKind>(kind, nameof(kind), "Purchase, Sale, Transfer, Salary veya OpeningFunding olmalı."),
+                ExactEnum.Parse<TransactionDirection>(direction, nameof(direction), "Debit veya Credit olmalı."),
+                categoryCode, onlyUnclassified, merchant, limit, offset),
+            cancellationToken));
 
     /// <summary>
     /// <c>GET /api/transactions/{id}</c>: one transaction of the customer, of any kind and on any of their accounts,

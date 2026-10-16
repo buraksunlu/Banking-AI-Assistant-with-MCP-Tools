@@ -1393,17 +1393,18 @@ COMPLETED
 - Tekrar gönderilen istek (API-12): Idempotency-Key (işlemde zorunlu, hesapta isteğe bağlı); kayıt kimliği
   müşteri + tür + anahtardan türetilir (migration yok); aynı istek → aynı 201 + Idempotent-Replayed, farklı → 409
   idempotency_conflict; yazıcılar aynı kimlik / PairId tekrarında WriteOutcome.AlreadyExisted döner.
+- Analytics ve arama endpoint'leri (ANA-09, 13–16 Ekim 2026): ortak dönem okuma (PeriodParameters) ve tam adla enum
+  okuma (ExactEnum), iş saati (isteğe bağlı BANKINGAI_DEMO_NOW; token gerçek saatte); /api/analytics/ spending-summary,
+  category-breakdown, merchant-breakdown, merchant-spending (dönem zorunlu), period-comparison (karşılaştırma zorunlu:
+  tam ad ya da dört tarih), monthly-trend (months zorunlu), highest-transactions (limit, includeAllTransactions),
+  recurring-payments (dönem parametresi yok, kural 6 ay); GET /api/transactions (bütün hesaplarda filtreli arama:
+  kind/direction/categoryCode/onlyUnclassified/merchant/accountId; dönem verilmezse son 3 ay).
 
 IN PROGRESS
-- ANA-09 (analytics endpoint'leri): 1. parça tamam — ortak dönem okuma, iş saati (isteğe bağlı BANKINGAI_DEMO_NOW;
-  token gerçek saatte), spending-summary / category-breakdown / merchant-breakdown / merchant-spending. 2. parça tamam
-  (16 Ekim 2026) — period-comparison (karşılaştırma zorunlu: tam ad ya da dört tarih), monthly-trend (months zorunlu),
-  highest-transactions (limit, includeAllTransactions), recurring-payments (dönem parametresi yok, kural 6 ay). Sırada
-  3. parça: GET /api/transactions arama. Ardından API-14/15.
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Kullanıcının seçtiği ANA-09 / API-14/15 maddesi; ardından local AI (todo bölüm 15) ve read-only
+- Kullanıcının seçtiği API-14/15 ya da ANA-10–14 maddesi; ardından local AI (todo bölüm 15) ve read-only
   MCP (bölüm 16). Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14, MCP-15–18) ANA-09'dan
   sonra; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
@@ -1414,7 +1415,9 @@ KNOWN ISSUES
 - Offset sayfalamasında araya yeni işlem girerse sayfa kenarında bir işlem tekrar görülebilir.
 - İş saati varsayılan olarak gerçek saattir; demo için BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z verilmeli (ANA-09). Ayar açıkken
   eklenen işlemler aynı ana düşer.
-- Tam pakette SyntheticAccountSeederTests bir kez açıklanamayan biçimde kırmızı oldu (14 tekrarda yeşil; inceleme bekliyor).
+- Tam pakette SyntheticAccountSeederTests ara sıra kırmızı oluyor. Kök neden bulundu (16 Ekim 2026): test bütün Accounts
+  tablosunu müşteri ayırmadan okuyup karşılaştırıyor ama CommittedRowsLock.ExclusiveAsync() almıyor; paralel Api/Application
+  testlerinin geçici hesabı araya girince fazladan bir kimlik görülüyor. Düzeltme (özel kilit) kullanıcı onayı bekliyor.
 - Tek komutluk seed synthetic ve market fiyatı import'u yok.
 
 TECHNICAL DEBT
@@ -1425,7 +1428,8 @@ TECHNICAL DEBT
 - OpenAPI belgesi yalnız 200 cevaplarını gösteriyor (API-15).
 
 TEST STATUS
-- Tam paket yeşil (16 Ekim 2026, ANA-09 2. parça sonrası): Data 63, Application 192, Api 225; dotnet build
+- Tam paket (16 Ekim 2026, ANA-09 3. parça sonrası): Data 63, Application 192, Api 247 yeşil (5 koşudan ikisinde
+  yalnız yukarıdaki SyntheticAccountSeederTests kırmızı); dotnet build
   --no-incremental 0 uyarı.
 - PostgreSQL testleri seed edilmiş demo DB üzerinde çalışır: rollback ya da geçici DUMMY-*TEST-*
   hesap / "Test Api" müşterisi açıp silme. Test projeleri paralel koşar; commit eden ve satır sayan

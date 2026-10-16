@@ -28,7 +28,9 @@ public static class PeriodParameters
         if (period is null)
             return fallback ?? throw new ArgumentException("Dönem zorunlu: period ya da from ile to verilmeli.", nameof(period));
 
-        return ExactName(period, PeriodKind.Custom, nameof(period), "ThisMonth, LastMonth, Last3Months veya Last6Months olmalı.");
+        // Exact names only. Refusing every value with a digit refused "Last3Months" too (a bug from API-09). A custom
+        // range comes from dates only.
+        return ExactEnum.Parse<PeriodKind>(period, nameof(period), "ThisMonth, LastMonth, Last3Months veya Last6Months olmalı.", PeriodKind.Custom)!.Value;
     }
 
     /// <summary>
@@ -54,7 +56,7 @@ public static class PeriodParameters
                 "Karşılaştırma zorunlu: comparison ya da currentFrom, currentTo, previousFrom ve previousTo verilmeli.",
                 nameof(comparison));
 
-        return ExactName(comparison, ComparisonKind.Custom, nameof(comparison), "PreviousFullMonth veya MonthToDate olmalı.");
+        return ExactEnum.Parse<ComparisonKind>(comparison, nameof(comparison), "PreviousFullMonth veya MonthToDate olmalı.", ComparisonKind.Custom)!.Value;
     }
 
     /// <summary>
@@ -64,13 +66,4 @@ public static class PeriodParameters
     public static int TrendMonths(int? months) =>
         months ?? throw new ArgumentException(
             $"Ay sayısı zorunlu: months 1 ile {PeriodResolver.MaximumTrendMonths} arasında verilmeli.", nameof(months));
-
-    // Exact names only, like enums in JSON. Enum.TryParse would also accept "2" or "lastmonth", and refusing every
-    // value with a digit refused "Last3Months" too (a bug from API-09). A custom range comes from dates only.
-    private static TEnum ExactName<TEnum>(string value, TEnum custom, string field, string message) where TEnum : struct, Enum
-    {
-        if (!Enum.GetNames<TEnum>().Contains(value) || value == custom.ToString())
-            throw new ArgumentException(message, field);
-        return Enum.Parse<TEnum>(value);
-    }
 }

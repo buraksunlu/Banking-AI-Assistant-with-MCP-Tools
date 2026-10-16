@@ -3,7 +3,7 @@
 Yerel adres `http://localhost:5248`; OpenAPI `/openapi/v1.json` (geliştirme). Giriş ve token kuralları
 `docs/security.md`'dedir. Bu belge API-15'te örnek istek/cevaplarla genişletilecek.
 
-## Endpoint özeti (13 Ekim 2026)
+## Endpoint özeti (16 Ekim 2026)
 
 | Endpoint | Token | Durum | Madde |
 |---|---|---|---|
@@ -18,7 +18,7 @@ Yerel adres `http://localhost:5248`; OpenAPI `/openapi/v1.json` (geliştirme). G
 | `POST /api/accounts/{accountId}/transactions` | evet | uygulandı | API-11 |
 | `GET /api/analytics/spending-summary`, `category-breakdown`, `merchant-breakdown`, `merchant-spending` | evet | uygulandı | ANA-09 (1. parça) |
 | `GET /api/analytics/period-comparison`, `monthly-trend`, `highest-transactions`, `recurring-payments` | evet | uygulandı | ANA-09 (2. parça) |
-| `GET /api/transactions` arama | evet | planlı | ANA-09 (3. parça) |
+| `GET /api/transactions` (bütün hesaplarda filtreli arama) | evet | uygulandı | ANA-09 (3. parça) |
 
 Ortak davranış: müşteri yalnız token'dan gelir (istekte müşteri parametresi yoktur); başka müşterinin
 kaynağı olmayan kaynakla birebir aynı `404`'ü alır; GUID olmayan kimlik `400`'dür.
@@ -261,7 +261,8 @@ ve Business hesaplar dahildir.
 | `limit` | 1–50, varsayılan 20 |
 | `offset` | 0–10.000, varsayılan 0 |
 
-Tür/yön/kategori/merchant filtreleri bu endpoint'te yoktur (kullanıcı kararı; ANA-09'da).
+Tür/yön/kategori/merchant filtreleri bu endpoint'te yoktur (kullanıcı kararı); filtreli arama `GET /api/transactions`'tadır,
+tek hesap için `accountId` ile (ANA-09 3. parça, karar K2-A).
 
 ```json
 {
@@ -283,6 +284,40 @@ Tür/yön/kategori/merchant filtreleri bu endpoint'te yoktur (kullanıcı karar�
 Bilinen sınırlar: offset sayfalamasında liste gezilirken araya yeni işlem girerse sayfa kenarında bir
 işlem tekrar görünebilir (istemci kimliğe göre ayıklamalı); dönem "bugün"ü iş saatine göredir (`BANKINGAI_DEMO_NOW`, ANA-09);
 silinmiş müşterinin token'ı `401` `session_invalid` (API-13).
+
+## `GET /api/transactions` — filtreli arama (ANA-09 3. parça, 16 Ekim 2026)
+
+Token gerekir. Müşterinin **bütün hesaplarında** (Business dükkân dahil) ekstre gibi arama: bütün türler, en yeniden
+eskiye (eşitse kimliğe göre), karşı taraf maskeli. Hesap ve arama `TransactionSearchService.SearchAsync`'tedir (ANA-05);
+controller yalnız parametreleri okur. Analytics'ten farkı: harcama analizi değil işlem listesidir, bu yüzden işletme
+hesabı `400` almaz.
+
+| Parametre | Kural |
+|---|---|
+| `period` / `from` + `to` | `GET /api/accounts/{accountId}/transactions` ile aynı; **ikisi de yoksa son 3 ay** (karar K1-B: liste, rakam değil; cevap dönemini söyler) |
+| `accountId` | isteğe bağlı; yalnız kendi hesabı (başkasınınki `404`), Business da olur |
+| `kind` | isteğe bağlı, tam adla: `Purchase`, `Sale`, `Transfer`, `Salary`, `OpeningFunding` (`purchase`, `1` → `400`) |
+| `direction` | isteğe bağlı, tam adla: `Debit`, `Credit` |
+| `categoryCode` | isteğe bağlı, tanımlı kod (ör. `FOOD`; bilinmeyen kod `400` `errors.categoryCode`: "yok" ile "bu kategoride işlem yok" ayrılır) |
+| `onlyUnclassified` | `true` → yalnız kategorisiz harcamalar; `categoryCode` ile birlikte `400` |
+| `merchant` | isteğe bağlı; müşterinin kendi merchant'larıyla eşleştirilir (`MerchantMatcher`), tahmin yok |
+| `limit` / `offset` | 1–50 (varsayılan 20) / 0–10.000 |
+
+Kategori filtreleri yalnız harcamaya uygulanır: `kind=Transfer&categoryCode=FOOD` boş sonuç değil `400` `errors.kind`.
+Enum parametreleri `Api/Queries/ExactEnum` ile tam adla okunur (dönem ve karşılaştırma adları da aynı yardımcıyı kullanır).
+
+```json
+{ "period": { "kind": "Last3Months", "startDate": "2026-07-10", "endDate": "2026-10-10", "…": "…" },
+  "merchantMatch": { "status": "Matched", "merchant": "Starbucks", "isPartialMatch": true, "candidates": [] },
+  "totalCount": 5, "hasMore": true,
+  "items": [ { "localDate": "2026-10-08", "kind": "Purchase", "amount": 165.00, "merchant": "Starbucks", "…": "…" } ] }
+```
+
+`merchantMatch` yalnız `merchant` verilince doludur; `Ambiguous`/`NotFound` durumunda `totalCount: 0`, `items: []` ve
+`candidates` nedenini söyler. Ada bu ay: 8 işlem (maaş 45.000, transferler 1.500 "Deniz M***" ve 300 "Ege Y***",
+5 harcama); `kind=Transfer&direction=Debit` → 1.500; `onlyUnclassified=true` → 145; `categoryCode=FOOD` → 165, 95, 210,
+120. Deniz bu ay: 7 işlem (dükkân satışları dahil). Bilinen sınırlar: offset kayması (yukarıdaki liste gibi), tutar
+filtresi yok (ANA-11), serbest metin araması yok (ANA-05 kararı).
 
 ## `GET /api/transactions/{id}` (API-10)
 

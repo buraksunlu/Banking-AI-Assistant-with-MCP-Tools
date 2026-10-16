@@ -142,12 +142,13 @@ configuration'lardaki DB CHECK/unique/FK kısıtları. Yeni kural eklerken dört
   (Purchase/Salary, tutar, açıklama, isteğe bağlı merchant); yön, para birimi, hesap, zaman ve kategori backend'indir.
   Request'lerde tutar ve metin kuralları `InputRules.Money`/`InputRules.Text` çağrılarak `ApiValidation.Rule` ile yeniden
   kullanılır (kopyalanmaz); `[StringLength]` yerine (DB gibi karakter sayar, NUL'u istemcinin alanında yakalar).
-  Analytics servisleri controller'a doğrudan (somut sınıf, Scoped) verilir; `TransactionsController` işlem listesini
-  ve tek işlemi (`GetAsync`, API-10) `TransactionSearchService` ile döndürür (yeni sorgu yazma), işlem eklemeyi
+  Analytics servisleri controller'a doğrudan (somut sınıf, Scoped) verilir; `TransactionsController` işlem listesini,
+  bütün hesaplarda filtreli aramayı (`SearchAsync`, `GET /api/transactions`, ANA-09) ve tek işlemi (`GetAsync`, API-10)
+  `TransactionSearchService` ile döndürür (yeni sorgu yazma), işlem eklemeyi
   (`CreateAsync`, API-11, `POST /api/accounts/{accountId}/transactions` → 201 + Location `/api/transactions/{id}`)
   `ITransactionWriteService` ile yapar; route'lar farklı köklerde olduğu için sınıfta `[Route]` yok, her action tam
   route'unu taşır. Dönem parametreleri her endpoint'te `Api/Queries/PeriodParameters` ile okunur (hata → `ArgumentException`
-  → 400). `AnalyticsController` (`/api/analytics/...`, ANA-09) analytics servislerini (Scoped, somut sınıf) çağırır; dönem
+  → 400); query'deki enum'lar `Api/Queries/ExactEnum` ile yalnız tam adla. `AnalyticsController` (`/api/analytics/...`, ANA-09) analytics servislerini (Scoped, somut sınıf) çağırır; dönem
   zorunlu. İş saati (`Api/Time/BusinessClock`): `BANKINGAI_DEMO_NOW` verilirse analytics dönemleri ve yeni işlem zamanı o
   ana sabitlenir; `PeriodResolver` ve `TransactionWriteService` bunu kullanır, `TokenIssuer`/JWT gerçek `TimeProvider`'da
   kalır. Analytics API testleri `TestApi.Create((BusinessClock.DemoNowKey, BusinessClockTests.DemoNow))` ile sembolik
@@ -280,8 +281,8 @@ ayrı ve engellemeyen bir koldur, altın kaynağı (SRC-02) dış yanıt bekliyo
 ANA-01 (dönem), SYN-14 (müşteri bazlı demo veri), KIND-01–05 (Kind/PairId/AccountType, çift
 yazıcı, dükkân ve transfer seed'i), ANA-02–06 (özet, kategori, merchant, arama, en yüksek
 işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu testleri), REC-01–03 (düzenli
-ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi), API-09 (hesabın işlem listesi), API-10 (tek işlem), API-11 (işlem ekleme), API-12 (Idempotency-Key), API-13 (ortak hata cevabı). Sıradaki: ANA-09,
-API-14/15; sonra AI, MCP.
+ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi), API-09 (hesabın işlem listesi), API-10 (tek işlem), API-11 (işlem ekleme), API-12 (Idempotency-Key), API-13 (ortak hata cevabı), ANA-09 (analytics endpoint'leri + `GET /api/transactions` arama). Sıradaki:
+API-14/15 ya da ANA-10–14; sonra AI, MCP.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11).
 Güncel ayrıntı her zaman `todo.md`'dedir.
