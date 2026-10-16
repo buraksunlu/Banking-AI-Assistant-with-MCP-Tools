@@ -21,6 +21,7 @@ Yerel adres `http://localhost:5248`; OpenAPI `/openapi/v1.json` (geliştirme). G
 | `GET /api/analytics/upcoming-payments` | evet | uygulandı | ANA-12 |
 | `GET /api/analytics/budget-check` | evet | uygulandı | ANA-13 |
 | `GET /api/analytics/savings-simulation` | evet | uygulandı | ANA-14 |
+| `GET /api/analytics/merchants`, `merchant-group-spending` | evet | uygulandı | ANA-10 |
 | `GET /api/transactions` (bütün hesaplarda filtreli arama) | evet | uygulandı | ANA-09 (3. parça) |
 
 Ortak davranış: müşteri yalnız token'dan gelir (istekte müşteri parametresi yoktur); başka müşterinin
@@ -485,6 +486,25 @@ Para birimi başına kategoriler, büyükten küçüğe; yüzde backend'de (2 on
 
 Merchant başına harcama; merchant'sız grup `merchant: null`. Ada bu ay: Starbucks 375 (%51,02), Kahve Durağı 215
 (%29,25), Sınıflandırılmamış 145 (%19,73).
+
+### `GET /api/analytics/merchants[?accountId=…]` ve `GET /api/analytics/merchant-group-spending?merchants=…&merchants=…&period=…` (ANA-10)
+
+Kavramsal sorular için kapalı küme ("kahveye ne kadar harcadım?"). `merchants`: müşterinin şahsi hesaplarında bugüne kadar
+alışveriş yaptığı merchant'lar (kanonik ad, son kategori, son alışveriş günü, işlem sayısı). `merchant-group-spending`:
+bu listeden seçilen 1–20 ad (tekrarlı `merchants` parametresi), dönem zorunlu. Ad büyük/küçük harf ve Türkçe işaret
+farkıyla kabul edilir, cevapta kanonik adla döner; **kısmi ad kabul edilmez**, liste dışı ad 400 `errors.merchants`.
+
+```json
+{ "period": { "kind": "ThisMonth", "…": "…" },
+  "merchants": ["Starbucks", "Kahve Durağı"],
+  "currencies": [ { "currencyCode": "TRY", "totalAmount": 590.00,
+                    "merchants": [ { "merchant": "Starbucks", "displayName": "Starbucks", "amount": 375.00, "transactionCount": 2, "percentage": 63.56 },
+                                   { "merchant": "Kahve Durağı", "displayName": "Kahve Durağı", "amount": 215.00, "transactionCount": 2, "percentage": 36.44 } ] } ] }
+```
+
+Dönemde harcaması olmayan seçilmiş merchant `merchants` listesinde görünür, dökümde satırı olmaz. Hatalar (400): ad yok
+("1 ile 20 arasında merchant verilmeli."), `Starbuck` ("'Starbuck' müşterinin merchant listesinde yok."), başka müşterinin
+merchant'ı, dönem yok. Token yoksa 401, başkasının hesabı 404, işletme hesabı 400.
 
 ### `GET /api/analytics/merchant-spending?merchant=…&period=…`
 

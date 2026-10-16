@@ -53,19 +53,32 @@ public static class MerchantMatcher
         return builder.ToString();
     }
 
-    public static MerchantMatch Match(string requested, IEnumerable<string> knownMerchants)
+    // Only the exact folded step of Match: no partial guess. For names a model copied from the customer's own merchant
+    // list (ANA-10), where a name that is not on the list is an error rather than something to complete.
+    public static MerchantMatch MatchExact(string requested, IEnumerable<string> knownMerchants)
     {
         InputRules.Text(requested, MaximumLength, "Merchant");
         ArgumentNullException.ThrowIfNull(knownMerchants);
 
         var target = Fold(requested);
-        var known = knownMerchants.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+        var exact = knownMerchants.Distinct(StringComparer.Ordinal).Where(m => Fold(m) == target).Order(StringComparer.Ordinal).ToList();
+        return exact.Count switch
+        {
+            1 => new(MerchantMatchStatus.Matched, exact[0], false, []),
+            > 1 => new(MerchantMatchStatus.Ambiguous, null, false, exact),
+            _ => new(MerchantMatchStatus.NotFound, null, false, [])
+        };
+    }
 
-        var exact = known.Where(m => Fold(m) == target).ToList();
-        if (exact.Count == 1)
-            return new(MerchantMatchStatus.Matched, exact[0], false, []);
-        if (exact.Count > 1)
-            return new(MerchantMatchStatus.Ambiguous, null, false, exact);
+    public static MerchantMatch Match(string requested, IEnumerable<string> knownMerchants)
+    {
+        var known = (knownMerchants ?? throw new ArgumentNullException(nameof(knownMerchants)))
+            .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+        var exact = MatchExact(requested, known);
+        if (exact.Status != MerchantMatchStatus.NotFound)
+            return exact;
+
+        var target = Fold(requested);
 
         // Very short text would "match" almost anything, so it never produces a partial guess.
         if (target.Length < MinimumPartialLength)

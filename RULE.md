@@ -1411,15 +1411,17 @@ COMPLETED
 - Tasarruf simülasyonu (ANA-14, 16 Ekim 2026): GET /api/analytics/savings-simulation; son N tam ayın (varsayılan 6,
   harcamasız aylar dahil) ortalaması × oran (1–100), aylık ve yıllık, para birimi başına; aylık seriyi kullanır, tasarruf
   tam toplamdan; yatırım getirisi değil, varsayım Method alanında.
+- Kavramsal merchant harcaması (ANA-10, 16 Ekim 2026): GET /api/analytics/merchants (kapalı küme: müşterinin tüm zamanlardaki
+  merchant'ları) ve merchant-group-spending (listeden seçilen 1–20 ad; MerchantMatcher.MatchExact ile harf/Türkçe işaret
+  toleranslı tam eşleşme, kısmi yok; liste dışı ad 400). Yeni soru tipleri (todo 12b) tamamlandı.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Kullanıcının seçtiği ANA-10 ya da API-14/15 maddesi (her biri kendi dalında, PR ile); ardından local AI (todo bölüm 15) ve read-only
+- Kullanıcının seçtiği API-14/15 maddesi (her biri kendi dalında, PR ile); ardından local AI (todo bölüm 15) ve read-only
   MCP (bölüm 16). Ayrıntı todo.md "Şu anki sonraki adım".
-- 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14, MCP-15–18) ANA-09'dan
-  sonra; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
+- 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 
 KNOWN ISSUES
 - Servislerden gelen her ArgumentException 400 sayılıyor; bir programlama hatasından doğan ArgumentException da
@@ -1437,7 +1439,7 @@ TECHNICAL DEBT
 - OpenAPI belgesi yalnız 200 cevaplarını gösteriyor (API-15).
 
 TEST STATUS
-- Tam paket yeşil (16 Ekim 2026, ANA-14 sonrası; 3 koşu): Data 63, Application 255, Api 286. fix/seeder-test-lock sonrası
+- Tam paket yeşil (16 Ekim 2026, ANA-10 sonrası; 3 koşu): Data 63, Application 277, Api 295. fix/seeder-test-lock sonrası
   art arda 10 koşu yeşildi.
   SyntheticAccountSeederTests'in ara sıra kırmızısı giderildi: test bütün Accounts tablosunu karşılaştırdığı hâlde
   CommittedRowsLock.ExclusiveAsync() almıyordu; yarış bekleme + eşzamanlı ekleme deneyiyle önce kırmızı, kilitle yeşil

@@ -150,4 +150,154 @@ public sealed class MerchantSpendingServiceTests
             }
         }
     }
+
+    // ---- ANA-10: the closed merchant list and spending at a chosen group of merchants
+
+    private static async Task<MerchantList> ListAsync(MerchantListQuery query)
+    {
+        await using var db = Db();
+        return await new MerchantSpendingService(db, Periods()).ListAsync(query);
+    }
+
+    private static async Task<MerchantGroupSpending> GroupAsync(SpendingQuery query, params string[] merchants)
+    {
+        await using var db = Db();
+        return await new MerchantSpendingService(db, Periods()).GetGroupSpendingAsync(query, merchants);
+    }
+
+    private static (string?, decimal, int, decimal)[] Rows(MerchantGroupSpending result) =>
+        Assert.Single(result.Currencies).Merchants.Select(m => (m.Merchant, m.Amount, m.TransactionCount, m.Percentage)).ToArray();
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Merchant_list_is_every_merchant_the_customer_ever_bought_from()
+    {
+        var result = await ListAsync(new(Ada));
+
+        // All time: the 2025 hobby shop purchase is still on the list (decision K3-A).
+        Assert.Equal(new (string, string?, string, DateOnly, int)[]
+        {
+            ("Hobi Dükkânı", "OTHER", "Diğer", new(2025, 6, 22), 1),
+            ("Kahve Durağı", "FOOD", "Yeme & İçme", new(2026, 10, 7), 3),
+            ("Netflix", "SUBSCRIPTION", "Abonelik", new(2026, 9, 12), 9),
+            ("Spotify", "SUBSCRIPTION", "Abonelik", new(2026, 9, 18), 9),
+            ("Starbucks", "FOOD", "Yeme & İçme", new(2026, 10, 8), 9)
+        }, result.Merchants.Select(m => (m.Merchant, m.CategoryCode, m.CategoryDisplayName, m.LastPurchaseDate, m.TransactionCount)).ToArray());
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Merchant_list_holds_only_the_customers_own_purchases()
+    {
+        var deniz = await ListAsync(new(Deniz));
+        var dollars = await ListAsync(new(Ada, AdaUsdAccount));
+
+        // Ordinal order puts Ç and Ş after the Latin letters. No Ada merchant, and not the shop's own sales.
+        Assert.Equal(["Aile Marketi", "Akaryakıt İstasyonu", "Elektrik Faturası", "Çocuk Giyim", "Şehir Ulaşım"],
+            deniz.Merchants.Select(m => m.Merchant));
+        Assert.Empty(dollars.Merchants);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task A_concept_is_the_sum_of_the_chosen_merchants()
+    {
+        var result = await GroupAsync(new(Ada, PeriodKind.ThisMonth), "Starbucks", "Kahve Durağı");
+
+        // "Kahveye ne kadar harcadım?": 375 + 215 = 590.
+        Assert.Equal(["Starbucks", "Kahve Durağı"], result.Merchants);
+        Assert.Equal(("TRY", 590m), (result.Currencies[0].CurrencyCode, result.Currencies[0].TotalAmount));
+        Assert.Equal(new (string?, decimal, int, decimal)[] { ("Starbucks", 375m, 2, 63.56m), ("Kahve Durağı", 215m, 2, 36.44m) }, Rows(result));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task The_period_decides_which_purchases_count()
+    {
+        var result = await GroupAsync(new(Ada, PeriodKind.Last3Months), "Starbucks", "Kahve Durağı");
+
+        Assert.Equal(1255m, result.Currencies[0].TotalAmount);
+        Assert.Equal(new (string?, decimal, int, decimal)[] { ("Starbucks", 930m, 5, 74.10m), ("Kahve Durağı", 325m, 3, 25.90m) }, Rows(result));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task A_chosen_merchant_without_spending_is_included_but_has_no_row()
+    {
+        var result = await GroupAsync(new(Ada, PeriodKind.ThisMonth), "Netflix", "Starbucks");
+
+        // Netflix's October payment has not come yet.
+        Assert.Equal(["Netflix", "Starbucks"], result.Merchants);
+        Assert.Equal(new (string?, decimal, int, decimal)[] { ("Starbucks", 375m, 2, 100m) }, Rows(result));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Other_spellings_are_named_canonically_and_repeats_count_once()
+    {
+        var spelled = await GroupAsync(new(Ada, PeriodKind.ThisMonth), "starbucks", "kahve duragi");
+        var repeated = await GroupAsync(new(Ada, PeriodKind.ThisMonth), "Starbucks", "starbucks");
+
+        Assert.Equal(["Starbucks", "Kahve Durağı"], spelled.Merchants);
+        Assert.Equal(590m, spelled.Currencies[0].TotalAmount);
+        Assert.Equal(["Starbucks"], repeated.Merchants);
+        Assert.Equal(375m, repeated.Currencies[0].TotalAmount);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Names_resolve_what_a_single_merchant_text_could_not()
+    {
+        // "şehir" alone is ambiguous; the two names chosen explicitly are not.
+        var result = await GroupAsync(new(Ege, PeriodKind.Last6Months), "Şehir Ulaşım", "Şehirlerarası Otobüs");
+
+        Assert.Equal(6800m, result.Currencies[0].TotalAmount);
+        Assert.Equal(new (string?, decimal, int, decimal)[] { ("Şehir Ulaşım", 5600m, 13, 82.35m), ("Şehirlerarası Otobüs", 1200m, 1, 17.65m) }, Rows(result));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task One_merchant_group_equals_the_single_merchant_spending()
+    {
+        var group = await GroupAsync(new(Ada, PeriodKind.Last3Months), "Starbucks");
+        var single = await SpendingAsync(new(Ada, PeriodKind.Last3Months), "Starbucks");
+
+        Assert.Equal(Assert.Single(single.Currencies).TotalAmount, Assert.Single(group.Currencies).TotalAmount);
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("Starbuck", "'Starbuck' müşterinin merchant listesinde yok.")]         // no partial completion
+    [InlineData("Aile Marketi", "'Aile Marketi' müşterinin merchant listesinde yok.")] // Deniz's merchant
+    [InlineData("   ", "Metin null, boş veya yalnızca whitespace olamaz.")]
+    public async Task A_name_that_is_not_on_the_list_is_an_error(string name, string message)
+    {
+        var error = await Assert.ThrowsAsync<ArgumentException>(() => GroupAsync(new(Ada, PeriodKind.ThisMonth), "Starbucks", name));
+
+        Assert.Equal("Merchants", error.ParamName);
+        Assert.StartsWith(message, error.Message);
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData(0)]
+    [InlineData(21)]
+    public async Task A_group_has_one_to_twenty_names(int count)
+    {
+        var names = Enumerable.Repeat("Starbucks", count).ToArray();
+
+        var error = await Assert.ThrowsAsync<ArgumentException>(() => GroupAsync(new(Ada, PeriodKind.ThisMonth), names));
+
+        Assert.Equal("Merchants", error.ParamName);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Scope_rules_match_the_other_spending_analyses()
+    {
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => ListAsync(new(Ada, DenizTryAccount)));
+        await Assert.ThrowsAsync<ArgumentException>(() => ListAsync(new(Deniz, DenizShopAccount)));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => GroupAsync(new(Ada, PeriodKind.ThisMonth, AccountId: DenizTryAccount), "Starbucks"));
+        await Assert.ThrowsAsync<ArgumentException>(() => GroupAsync(new(Deniz, PeriodKind.ThisMonth, AccountId: DenizShopAccount), "Aile Marketi"));
+    }
 }
