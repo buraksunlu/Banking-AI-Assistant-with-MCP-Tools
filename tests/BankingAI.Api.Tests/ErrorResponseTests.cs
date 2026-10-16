@@ -130,6 +130,23 @@ public sealed class ErrorResponseTests
         Assert.Equal(new Dictionary<string, string[]> { [field] = [message] }, Errors(problem));
     }
 
+    // API-14: an empty body and the JSON literal null are both "no request". Neither may reach a controller, where a null
+    // request would be dereferenced; the writes are sent for a customer that does not exist anyway.
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("/api/accounts", "")]
+    [InlineData("/api/accounts", "null")]
+    [InlineData("/api/accounts/20000000-0000-0000-0000-000000000099/transactions", "")]
+    [InlineData("/api/accounts/20000000-0000-0000-0000-000000000099/transactions", "null")]
+    [InlineData("/api/auth/login", "")]
+    [InlineData("/api/auth/login", "null")]
+    public async Task An_empty_or_null_body_is_a_400_on_every_write(string path, string body)
+    {
+        var problem = AssertProblem(await SendAsync(HttpMethod.Post, path, Ghost(), body), HttpStatusCode.BadRequest, "validation_failed");
+
+        Assert.Equal(new Dictionary<string, string[]> { ["body"] = ["İstek gövdesi zorunlu."] }, Errors(problem));
+    }
+
     [Fact]
     [Trait("Category", "PostgreSQL")]
     public async Task Route_and_query_errors_are_turkish_and_names_are_exact()
