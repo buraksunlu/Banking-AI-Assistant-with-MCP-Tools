@@ -587,4 +587,63 @@ public sealed class AnalyticsEndpointTests
         Assert.Equal(HttpStatusCode.NotFound, foreign.Status);
         await AssertInvalidAsync($"{path}&accountId={DenizShopAccount}", Deniz, "accountId", "Harcama analizi yalnızca şahsi hesaplar içindir.");
     }
+
+    // ---- savings-simulation (ANA-14)
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Savings_simulation_states_its_months_assumption_and_result()
+    {
+        var body = Ok(await GetAsync("/api/analytics/savings-simulation?reductionPercent=50&merchant=starbucks", Ada));
+
+        Assert.Equal(["from", "to", "months", "reductionPercent", "categoryCode", "merchantMatch", "method", "currencies"],
+            body.AsObject().Select(p => p.Key));
+        // Decision K3-A: six complete months by default; the running October is not averaged.
+        Assert.Equal(("2026-04-01", "2026-09-30", 6, "FullMonthAverageTimesReduction"),
+            (body["from"]!.GetValue<string>(), body["to"]!.GetValue<string>(), body["months"]!.GetValue<int>(), body["method"]!.GetValue<string>()));
+        var tl = Assert.Single(body["currencies"]!.AsArray())!;
+        Assert.Equal(("TRY", 1110m, 185m, 92.50m, 1110m),
+            (tl["currencyCode"]!.GetValue<string>(), Amount(tl["totalSpent"]), Amount(tl["monthlyAverage"]),
+             Amount(tl["monthlySaving"]), Amount(tl["annualSaving"])));
+        Assert.Equal(6, tl["monthlyAmounts"]!.AsArray().Count);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Savings_simulation_follows_the_requested_months_and_category()
+    {
+        var body = Ok(await GetAsync("/api/analytics/savings-simulation?reductionPercent=20&categoryCode=GROCERY&months=3", Deniz));
+
+        Assert.Equal(("2026-07-01", "GROCERY"), (body["from"]!.GetValue<string>(), body["categoryCode"]!.GetValue<string>()));
+        Assert.Equal((24333.33m, 4866.67m, 58400m),
+            (Amount(body["currencies"]![0]!["monthlyAverage"]), Amount(body["currencies"]![0]!["monthlySaving"]),
+             Amount(body["currencies"]![0]!["annualSaving"])));
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("", "reductionPercent", "Azaltma oranı zorunlu.")]
+    [InlineData("reductionPercent=0", "reductionPercent", "1 ile 100 arasında olmalı.")]
+    [InlineData("reductionPercent=abc", "reductionPercent", "'abc' geçerli bir değer değil.")]
+    [InlineData("reductionPercent=50&months=25", "months", "1 ile 24 arasında olmalı.")]
+    [InlineData("reductionPercent=50&categoryCode=FOOD&merchant=Starbucks", "merchant", "Kategori ve merchant filtresi birlikte kullanılamaz.")]
+    [InlineData("reductionPercent=50&categoryCode=YEMEK", "categoryCode", "Tanımlı bir kategori kodu olmalı.")]
+    public async Task Savings_simulation_parameters_are_checked(string query, string field, string message) =>
+        await AssertInvalidAsync($"/api/analytics/savings-simulation?{query}", Ada, field, message);
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Savings_simulation_applies_the_token_and_account_rules()
+    {
+        var path = "/api/analytics/savings-simulation?reductionPercent=10";
+
+        var noToken = await GetAsync(path, null);
+        var own = Ok(await GetAsync($"{path}&accountId={AdaTryAccount}", Ada));
+        var foreign = await GetAsync($"{path}&accountId={DenizTryAccount}", Ada);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, noToken.Status);
+        Assert.Equal(3199.88m, Amount(own["currencies"]![0]!["totalSpent"]));
+        Assert.Equal(HttpStatusCode.NotFound, foreign.Status);
+        await AssertInvalidAsync($"{path}&accountId={DenizShopAccount}", Deniz, "accountId", "Harcama analizi yalnızca şahsi hesaplar içindir.");
+    }
 }

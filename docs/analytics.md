@@ -412,6 +412,39 @@ uydurma satır değil). Merchant eşleşmezse `Figures = null`, `MerchantMatch` 
 Sınırlar: tahmin doğrusaldır, ay içi düzensizliği (maaş günü, ay sonu faturası) bilmez ve ayın başında çok oynaktır;
 "kalan günlerde günde en fazla X" alanı yok (istenirse eklenir); bütçe kalıcı değil (ayrı karar).
 
+## ANA-14 — Tasarruf simülasyonu (`SavingsSimulationService`, 16 Ekim 2026)
+
+"Starbucks'ı yarıya indirsem ne kazanırım?": son N tam ayın aylık ortalaması × azaltma oranı → aylık ve yıllık tahmini
+tasarruf. **Yatırım tavsiyesi ya da getiri hesabı değildir**: faiz, enflasyon, yatırım yok (o, fırsat maliyeti kolu);
+tek varsayım geçmiş ortalamanın sürmesidir ve cevapta adıyla yazılıdır (`Method = "FullMonthAverageTimesReduction"`).
+Aylık tutarlar `SpendingComparisonService.GetMonthlyTrendAsync`'ten gelir (aylık seriyle her zaman aynı); ay sınırı,
+kategori kodu, kategori+merchant yasağı, merchant eşleştirme ve hesap kapsamı onun kurallarıdır. Servisin tek yeni kuralı
+azaltma oranıdır (tam sayı, 1–100).
+
+Kullanıcı kararları:
+
+- **K1-A — hedef:** toplam (kategori ve merchant verilmezse), kategori ya da merchant (ANA-13 ile aynı).
+- **K2-A — boş aylar ortalamada:** ortalama = toplam / N; tek seferlik bir harcama her aya yayılmış sayılmaz.
+- **K3-A — ay sayısı isteğe bağlı, varsayılan 6** (aylık serinin sınırı 1–24). Devam eden ay hiç ortalamaya girmez;
+  `From`–`To` kullanılan tam ayları, `MonthlyAmounts` ay ay tutarları gösterir.
+- **K4-A — para birimi başına satır, parametre yok:** kullanıcı tutar değil oran verdiği için karşılaştırılacak bir eşik
+  yok; analizlerin genel kuralı geçerli. Seçilen aylarda harcaması olmayan para birimi listelenmez (uydurma 0 yok).
+
+Tasarruflar yuvarlanmış ortalamadan değil tam toplamdan: aylık = toplam × oran / (100 × N), yıllık = toplam × oran × 12 /
+(100 × N); 2 ondalık, `AwayFromZero`.
+
+| İstek (10 Ekim; Nisan–Eylül) | Toplam | Aylık ort. | Aylık tasarruf | Yıllık |
+| --- | --- | --- | --- | --- |
+| Ada, Starbucks, %50 | 1.110 | 185 | 92,50 | 1.110 |
+| Ada, toplam, %10 | 3.199,88 | 533,31 | 53,33 | 639,98 |
+| Ege, TRAVEL, %50 (yalnız Ağu 1.200) | 1.200 | 200 | 100 | 1.200 |
+| Ege, TRANSPORTATION, %10 | 4.900 | 816,67 | 81,67 | 980 (81,67 × 12 = 980,04 değil) |
+| Deniz, GROCERY, %20, 3 ay (Tem–Eyl) | 73.000 | 24.333,33 | 4.866,67 | 58.400 |
+| Ada, Starbucks, %100, 1 ay (Eyl) | 185 | 185 | 185 | 2.220 |
+| Ada, CLOTHING · Ege, "şehir" | — | — | — | boş liste (`Ambiguous` için `MerchantMatch`) |
+
+Sınırlar: fiyat artışı, mevsimsellik ve davranış değişimi hesaba katılmaz; cevapta kategori adı değil kodu var.
+
 ## ANA-08 — Kenar durumları (`AnalyticsEdgeCaseTests`)
 
 Geçici kayıtlar testin kendi DB transaction'ında eklenir ve rollback edilir; demo verisi 116

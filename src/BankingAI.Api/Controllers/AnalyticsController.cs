@@ -15,7 +15,7 @@ namespace BankingAI.Api.Controllers;
 public sealed class AnalyticsController(
     SpendingSummaryService summaries, CategoryBreakdownService categories, MerchantSpendingService merchants,
     SpendingComparisonService comparisons, HighestTransactionsService highest, RecurringPaymentService recurring,
-    UpcomingPaymentService upcoming, BudgetCheckService budgets)
+    UpcomingPaymentService upcoming, BudgetCheckService budgets, SavingsSimulationService savings)
     : ControllerBase
 {
     /// <summary>
@@ -133,6 +133,21 @@ public sealed class AnalyticsController(
         Ok(await budgets.CheckAsync(
             new BudgetCheckQuery(User.GetCustomerId(), AmountParameter.Required(amount, nameof(amount), "Bütçe tutarı zorunlu."),
                 currencyCode, categoryCode, merchant, accountId),
+            cancellationToken));
+
+    /// <summary>
+    /// <c>GET /api/analytics/savings-simulation</c>: "what if I cut it by N %?". The average of the last <c>months</c>
+    /// complete months (default 6, months without spending included) times the rate, per month and per year, one row per
+    /// currency; the assumption is named in <c>method</c>. Not investment advice: no return, interest or inflation (ANA-14).
+    /// </summary>
+    [HttpGet("savings-simulation")]
+    public async Task<ActionResult<SavingsSimulation>> SavingsSimulationAsync(
+        [FromQuery] int? reductionPercent, [FromQuery] string? categoryCode, [FromQuery] string? merchant, [FromQuery] int? months,
+        [FromQuery] Guid? accountId, CancellationToken cancellationToken) =>
+        Ok(await savings.SimulateAsync(
+            new SavingsSimulationQuery(User.GetCustomerId(),
+                RequiredParameter.Value(reductionPercent, nameof(reductionPercent), "Azaltma oranı zorunlu."),
+                categoryCode, merchant, months ?? SavingsSimulationService.DefaultMonths, accountId),
             cancellationToken));
 
     // The customer comes from the token only; the period is required (no fallback).

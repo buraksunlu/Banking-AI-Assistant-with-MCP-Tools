@@ -62,6 +62,7 @@ builder.Services.AddScoped<HighestTransactionsService>();
 builder.Services.AddScoped<RecurringPaymentService>();
 builder.Services.AddScoped<UpcomingPaymentService>();
 builder.Services.AddScoped<BudgetCheckService>();
+builder.Services.AddScoped<SavingsSimulationService>();
 builder.Services.AddScoped<ITransactionWriteService>(services => new TransactionWriteService(
     services.GetRequiredService<BankingDbContext>(), services.GetRequiredService<PeriodResolver>(),
     services.GetRequiredService<BusinessClock>().Time, services.GetRequiredService<TransactionSearchService>()));
