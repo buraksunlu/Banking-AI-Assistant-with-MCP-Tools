@@ -42,8 +42,15 @@ controller API, Python FastAPI + LangChain + Ollama (local Qwen), .NET MCP serve
   değil ve kod okumayı öğreniyor. Yeni yazılan/değişen kodu dosya dosya, ne yaptığını ve ne ifade ettiğini akıcı, sade Türkçe ile anlat;
   gereken sözdizimini (`?`, `=>`, `new(...)` gibi) kısaca geç. Python karşılığı, uzun tablolar ve
   adım adım trace yok; uzatma, kafa karıştırma. Ayrı walkthrough dosyası oluşturulmaz.
-- **Commit'i kullanıcı atar.** Adım sonunda yalnız `git add <dosyalar> && git commit -m "<kısa,
-  küçük harfli İngilizce mesaj>"` öner; kullanıcı açıkça istemedikçe commit atma.
+- **Git akışı: her iş kendi dalında, PR ile (16 Ekim 2026 kullanıcı kararı).** `main`'e doğrudan commit yok. Depo:
+  private GitHub `buraksunlu/Banking-AI-Assistant-with-MCP-Tools` (`origin`, `gh` girişli). Bütün git komutlarını
+  **kullanıcı** çalıştırır (git'i öğrenmek istiyor); Claude komutları doğru anda verir, kendisi commit/push/merge yapmaz.
+  - Plan onaylanınca: `git switch main && git pull`, sonra `git switch -c <todo-id>-<kısa-ad>` (küçük harf, ör.
+    `api-14-http-tests`; todo maddesi olmayan düzeltmeler `fix/<kısa-ad>`). Bir dal = bir iş; PR birleşmeden yeni işe geçilmez.
+  - Adım sonunda: `git add <dosyalar> && git commit -m "<kısa, küçük harfli İngilizce mesaj>"`, `git push -u origin <dal>`
+    ve adım özetinden hazırlanmış açıklamalı `gh pr create --base main --title … --body …` öner.
+  - Kullanıcı GitHub'da "Files changed"i inceleyip **Squash and merge** yapar, dalı siler, `git switch main && git pull`.
+    `--force` önerilmez (yalnız ilk yükleme için gerekti).
 - Uygulanmış migration'ları değiştirme/silme, DB'yi resetleme, demo kayıtlarını silme.
 
 ## Komutlar

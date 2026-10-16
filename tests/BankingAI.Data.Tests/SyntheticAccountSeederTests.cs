@@ -1,6 +1,7 @@
 using BankingAI.Data;
 using BankingAI.Data.Enums;
 using BankingAI.Data.Seeding;
+using BankingAI.TestSupport;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Xunit;
@@ -14,6 +15,9 @@ public sealed class SyntheticAccountSeederTests
     [Trait("Category", "PostgreSQL")]
     public async Task Accounts_have_valid_ownership_repeat_safely_and_reject_conflicts()
     {
+        // The test compares the whole Accounts table at its start and end. Other test projects commit temporary
+        // accounts while running in parallel; holding this lock keeps them out until the last comparison.
+        await using var rowsLock = await CommittedRowsLock.ExclusiveAsync();
         await using var db = new BankingDbContext();
         await using var transaction = await db.Database.BeginTransactionAsync();
         // These fixtures depend on the explicit SYN-03 customer seed.

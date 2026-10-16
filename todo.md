@@ -402,13 +402,14 @@ Güncelleme: 16 Ekim 2026.
 
 Tamamlanan bloklar: banking foundation (DOC-09; SYN-01–14, KIND-01–05), deterministik analytics
 (ANA-01–09, REC-01–03), API temeli ve güvenlik (API-01a/01b, API-02–13, SEC-01a/01b). Testler:
-Data 63, Application 192, Api 247 (`SyntheticAccountSeederTests` ara sıra kırmızı; kök neden bulundu, düzeltme onay bekliyor).
+Data 63, Application 192, Api 247, hepsi yeşil (art arda 10 koşu; `SyntheticAccountSeederTests` kararsızlığı 16 Ekim 2026'da
+`fix/seeder-test-lock` ile giderildi: tabloyu bütün olarak karşılaştıran test özel kilit almıyordu). 16 Ekim 2026'dan beri her
+iş kendi dalında yapılır ve PR ile (squash) `main`'e girer (CLAUDE.md "Git akışı").
 
 Sıradaki adaylar (kullanıcı seçer; müşteri her zaman `User.GetCustomerId()` ile token'dan gelir):
 
 - API-14/15 — kalan HTTP testleri, OpenAPI ve örnekler.
 - ANA-10–14 — yeni soru tipleri (bölüm 12b; ANA-09 tamamlandığı için sırası geldi).
-- `SyntheticAccountSeederTests` kararsızlığı — kök neden bulundu (özel kilit almıyor); tek satırlık düzeltme onay bekliyor.
 
 Sonra RULE.md §21 sırasıyla local AI (bölüm 15) ve read-only MCP (bölüm 16); SwiftUI (bölüm 14) çalışan
 endpoint'ler üzerine küçük ekranlarla ilerler. 13 Ekim 2026 kullanıcı kararıyla iki genişletme eklendi:
