@@ -1436,6 +1436,10 @@ NEXT
 - Local AI (todo bölüm 15): AI-03 (FastAPI servisi; ollama_client'ı kullanır), sonra AI-04 (LangChain); ardından read-only
   MCP (bölüm 16). Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
+- 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,
+  geri soru, en fazla 3 tool'luk çok adımlı soru), yeni analizler (todo 12c: ANA-15–19, MCP-19–23) ve içgörü kartları
+  (todo 15d: INS-01–03, IOS-12; kartı ve sırasını backend seçer, LLM yalnız cümleyi kurar). Sıra: AI/MCP omurgası →
+  15c → 12c → 15d. Yeni tablo, LangGraph ve RAG yok.
 
 KNOWN ISSUES
 - Servislerden gelen her ArgumentException 400 sayılıyor; bir programlama hatasından doğan ArgumentException da

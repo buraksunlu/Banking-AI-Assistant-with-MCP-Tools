@@ -1,6 +1,6 @@
 # Proje TODO — AI-Powered Transaction Intelligence Platform
 
-Son güncelleme: 13 Ekim 2026.
+Son güncelleme: 17 Ekim 2026.
 
 Bu dosya projenin tek planıdır ve küçük, uygulanabilir işlerin listesidir.
 RULE.md çalışma kurallarını tutar. En son açık kullanıcı kararı, eski taslaklardan
@@ -251,6 +251,19 @@ Her madde sırasıyla: saf C#/servis + elle hesaplanmış testler → ANA-09 kal
 - [x] ANA-13 — Bütçe kontrolü (tablosuz). Bütçe tutarı kullanıcının sorusundan argüman olarak gelir; backend kategori veya merchant için bu ay harcananı, kalanı ya da aşımı, günlük ortalamayı ve "bu hızla ay sonu" tahminini hesaplar; tahmin yöntemi çıktıda yazılıdır. Örnek: Ada, FOOD, 1.000 TL → harcanan 590, kalan 410, 10 günde günlük ortalama 59, bu hızla ay sonu 1.829 (bütçe aşılır). Kalıcı bütçe tablosu ayrı kullanıcı kararıdır. (16 Ekim 2026, dal `ana-13-budget-check`. Kullanıcı kararları: K1-A toplam/kategori/merchant (ikisi birlikte değil); K2-A yalnız bu ay; K3-A ortalama bugün dahil, tahmin tam orandan, `ProjectionMethod = LinearDailyAverage`; K4-A para birimi zorunlu. `BudgetCheckService` harcananı özet/kategori/merchant servislerinden alır (rakamlar onlarla aynı, testli); `CategoryLookup` ortak kategori kodu kontrolü (aylık seri ve aramadaki iki kopya birleşti; mevcut testler değişmeden yeşil). `GET /api/analytics/budget-check`; `amount` katı ve zorunlu (`AmountParameter.Required`). Testler Application +16, Api +10. 7 kasıtlı bozma yakalandı (bugün hariç ortalama, yuvarlanmış ortalamadan tahmin, negatif aşım, para birimi zorunlu değil, kategori+merchant, accountId iletilmez, bilinmeyen kategori kabul — üç serviste de yakalandı). Build 0 uyarı; Application 241, Data 63, Api 277 (3 tam koşu). Gerçek API'de ada ile denendi.)
 - [x] ANA-14 — Tasarruf simülasyonu ("ne olur?"). Kategori veya merchant için son N tam ayın (varsayılan 6) aylık ortalaması × azaltma oranı (%1–100) → aylık ve yıllık tahmini tasarruf; ortalama, ay sayısı ve varsayım çıktıda. Yatırım tavsiyesi veya getiri hesabı değildir (o, opportunity-cost kolu). Örnek: Ada, Starbucks, %50 → Nisan–Eylül 2026 ortalaması 185 → ayda 92,50, yılda 1.110 TRY. (16 Ekim 2026, dal `ana-14-savings-simulation`. Kullanıcı kararları: K1-A toplam/kategori/merchant; K2-A harcamasız aylar ortalamada; K3-A ay sayısı isteğe bağlı, varsayılan 6 (aylık serinin 1–24 sınırı); K4-A para birimi başına satır, parametre yok. `SavingsSimulationService` aylık seriyi (`GetMonthlyTrendAsync`) kullanır, yalnız tam aylar; tasarruflar tam toplamdan; `Method = FullMonthAverageTimesReduction`; ay ay kanıt (`MonthlyAmounts`). `GET /api/analytics/savings-simulation`; `reductionPercent` zorunlu (`Api/Queries/RequiredParameter`). Testler Application +14, Api +9. 6 kasıtlı bozma yakalandı (yalnız harcamalı aylar, devam eden ay ortalamada, yıllık yuvarlanmış aylıktan, oran kontrolü yok, varsayılan ay 12, accountId iletilmez). Build 0 uyarı; Application 255, Data 63, Api 286 (3 tam koşu). Gerçek API'de ada ile denendi.)
 
+## 12c. Yeni analizler — kullanıcı kararı 17 Ekim 2026
+
+Amaç: asistanın cevaplayabildiği soru çeşidini artırmak; hesap yine backend'de. 12b ile aynı kalıp: saf C#/servis +
+elle hesaplanmış testler → ANA-09 kalıbıyla endpoint → MCP tool'u (bölüm 16, MCP-19–23). Yeni tablo yok; sonuçlar
+istekte hesaplanır. Sıra (kullanıcı kararı): yerel AI + MCP omurgası ve 15c'den sonra. Eşik, pencere ve tanım
+kararları her maddenin adım planında kullanıcıya sorulur; aşağıdaki örnekler fixture değildir.
+
+- [ ] ANA-15 — Olağandışı harcama. "Bu ay normalden fazla mı harcıyorum?": kategori başına bu ayın harcaması geçmiş aylarla karşılaştırılır; yarım ayı tam ay ortalamasıyla kıyaslamamak için yöntem (aynı gün sayısına göre hız mı, son tam ay mı) adım planında seçilir. Ayrıca merchant'ın kendi geçmişine göre alışılmadık büyüklükteki tek işlemler işaretlenir. Eşik ve yöntem çıktıda yazılıdır; "anormal" yargısı model metnine değil backend bayrağına dayanır. Az geçmişi olan kategori/merchant "yetersiz veri" döner.
+- [ ] ANA-16 — Abonelik özeti ve fiyat değişimi. `RecurringPaymentDetector` sonucundan abonelik sayısı, aylık ve yıllık toplam (yıllık = aylık × 12; varsayım çıktıda) ve son ödemelerde tutarı değişen abonelikler (eski → yeni tutar, tarih). Örnek: Ada → Netflix + Spotify, aylık 329,98, yıllık 3.959,76 TRY. "Kullanılmayan abonelik" çıkarımı yapılmaz (kullanım verisi yok).
+- [ ] ANA-17 — Ay sonu nakit görünümü. "Ay sonuna kadar param yeter mi?": şahsi hesap başına bugünkü bakiye − ay sonuna kadar beklenen düzenli ödemeler (ANA-12) + beklenen maaş (maaş örüntüsü kuralı adım planında) → tahmini ay sonu bakiyesi; para birimleri toplanmaz. Düzensiz harcamaların dahil edilip edilmeyeceği (ör. ANA-13'ün günlük ortalaması) adım planında karar; dahil edilen/edilmeyen her şey ve "tahmin" bilgisi çıktıda.
+- [ ] ANA-18 — Hedefe göre birikim. Hedef tutar, para birimi ve hedef tarih kullanıcıdan (ANA-13 kuralı: tutar verilirse para birimi zorunlu); kalan ay sayısı, aylık gereken birikim ve bunun son N tam ay ortalama harcamasına oranı. ANA-14'ün tersi; geçmiş ya da çok uzak tarih reddedilir; faiz/getiri yok, yatırım tavsiyesi dili yok.
+- [ ] ANA-19 — Harcama alışkanlıkları. Haftanın günü ve gün dilimine (sınırlar adım planında) göre harcama dağılımı, müşterinin saat diliminde; yüzdeler backend'de 2 ondalık. Npgsql saat dilimi dönüşümünü SQL'e çeviremediği için dönemle sınırlı satırlar bellekte gruplanır (satır üst sınırı adım planında). "Hafta sonu mu daha çok?" gibi sorular bu sonuçtan cevaplanır.
+
 ## 13. Opportunity-cost hesabı
 
 - [ ] OC-01 — Hesap sözleşmesini sabitle. TRY Debit, seçilen kategori/dönem, toplam harcamayla dönem başlangıcında tek alım ve değerleme tarihinde satış kullan; sağlayıcı satış/alış yönünü ve ek ücret/vergi/enflasyon kapsamını yaz.
@@ -277,6 +290,7 @@ Her madde sırasıyla: saf C#/servis + elle hesaplanmış testler → ANA-09 kal
 - [ ] IOS-09 — Dönem karşılaştırması ve opportunity-cost sonucunu sade göster. Varsayım, veri tarihi ve eksik veri durumu görünür olsun.
 - [ ] IOS-10 — Temel ViewModel/JSON/ağ hata testlerini yap. SwiftUI çalışıyor diye finansal hesapları mobilde yeniden yazma.
 - [ ] IOS-11 — AI cevabının altında açılır "Bu cevap nasıl hesaplandı?" paneli (AI-11): kullanılan araçlar, dönem ve kapsam notları sade Türkçeyle; ham JSON gösterilmez.
+- [ ] IOS-12 — Home ekranında içgörü kartları (INS-02/03): en fazla 4 kart, her kartta kanıt rakamları ve kaynağına giden bağlantı; AI kapalıyken şablon metin; kartlar boşsa bölüm gizlenir.
 
 ## 15. Local AI — önce hazır sonucu açıklama
 
@@ -303,6 +317,27 @@ veya sonrasında.
 - [ ] AI-12 — Kapsam koruması. Alan dışı sorular, yatırım tavsiyesi istekleri, para gönderme/kart kapatma gibi yazma talepleri ve başka müşterinin bilgisini isteme sabit Türkçe metinlerle reddedilir. Sınıflandırmayı model yapabilir, ret metni modelin serbest metnine bırakılmaz. EVAL-01'de ayrı kategori; SEC-03/04 ile birlikte test edilir.
 - [ ] AI-13 — Modele veri minimizasyonu. Prompt'a ve tool sonuçlarına yalnız cevap için gereken alanlar girer: tam müşteri adı, hesap numarası, iç kimlikler ve token girmez; karşı taraf yalnız maskeli adla. İşlem/hesap kimlikleri modele gerekiyorsa oturum içi kısa takma adlarla verilir (öneri: `t1`, `a2`; AI servisi geri çevirir), böylece model GUID kopyalamaz. Prompt içeriği testle kontrol edilir (ör. Ada'nın transfer sorusunda "Deniz M***" var, "Deniz Market" yok).
 
+## 15c. Sohbet yetenekleri — kullanıcı kararı 17 Ekim 2026
+
+Amaç: küçük yerel modelle (AI-01: `qwen3.5:4b`) daha çok tool ve daha doğal sohbet. Model yine hesap yapmaz; bu
+maddeler hangi tool'un, hangi argümanla, kaç kez çağrılacağını düzenler. Sıra (kullanıcı kararı): AI-03–07 ve
+MCP-01/02/05/12 omurgası çalıştıktan sonra, 12c ve 15d'den önce. LangGraph ve RAG yok (kapsam dışı).
+
+- [ ] CHAT-01 — Niyete göre tool daraltma. Önce structured output ile niyet sınıflanır (AI-01 kalıbı: değerler anlamlarıyla prompt'ta), sonra modele yalnız o niyetin 3–5 tool'u verilir; niyet → tool eşlemesi AI servisinde sabit tablo. Belirsiz niyet geri soruya (CHAT-03) gider. Ölçüm: tam tool listesi ile daraltılmış liste, `qwen3.5:4b` ve `qwen3.5:9b` (`ai/model_check` genişletilir); AI-01'in "MCP-12/14'te yeniden ölç, 4b %90 altına düşerse 9b" kararı bu maddede uygulanır.
+- [ ] CHAT-02 — Takip soruları. Oturum içi bağlam: son tool ve çözülmüş argümanlar AI servisinin belleğinde (tablo yok; süre ve oturum başına üst sınır adım planında). "Peki geçen ay?" → yalnız değişen argüman. Önceki cevabın sayıları yeni cevaba kaynak olmaz (AI-10 yalnız yeni tool sonucuna bakar). Oturum token'daki müşteriye bağlıdır; başka müşterinin oturumu kullanılamaz.
+- [ ] CHAT-03 — Belirsizlikte geri soru. `MerchantMatcher` Ambiguous/NotFound, eksik zorunlu argüman (bütçe tutarı, para birimi) ve belirsiz dönemde model tahmin etmez; adaylar backend'in kapalı kümesinden seçenek olarak sorulur ("Starbucks mı, Kahve Durağı mı, ikisi de mi?"), kullanıcının seçimi argümana döner. Tahminle cevap vermek değerlendirmede hata sayılır.
+- [ ] CHAT-04 — Çok adımlı sorular. "Bu ay ne harcadım ve en çok nereye?": tek mesajda en fazla 3 tool çağrısı (sınır backend/AI servisinde; MCP-12), sıralı basit döngü. Her sonuç ayrı doğrulanır, cevap her parçanın kaynağını AI-11 notlarında taşır; sınır aşılırsa kısmi cevap ve açık not.
+- [ ] CHAT-05 — Değerlendirme. EVAL-01 setine takip, geri soru, çok adımlı ve niyet daraltma vakaları eklenir; 12c'nin her yeni tool'u kendi vakalarıyla girer. Tool sayısı arttıkça isabet ve süre model/prompt sürümüyle raporlanır (EVAL-06).
+
+## 15d. İçgörü kartları — kullanıcı kararı 17 Ekim 2026
+
+Amaç: asistan soru beklemeden ana ekranda kısa, kanıtlı tespitler gösterir. Hangi kartın gösterileceğine ve
+sırasına backend karar verir; LLM yalnız cümleyi kurar. Sıra: 12c'den sonra (kartların çoğu 12c sonuçlarına dayanır).
+
+- [ ] INS-01 — Kart kuralları. Mevcut sonuçlardan aday kartlar: yaklaşan ödeme (ANA-12, ör. 3 gün içinde), bu ayın geçen ayın aynı günlerine göre farkı (`MonthToDate`), olağandışı kategori/işlem (ANA-15), aboneliğe zam (ANA-16), ay sonu bakiye uyarısı (ANA-17). Her kart: tür, sabit kurallı öncelik puanı, kanıt değerleri (AI-09 metinleriyle) ve kaynak tool. En fazla 4 kart, sıralama deterministik; tablo yok, istekte hesaplanır. Bütçe saklanmadığı için bütçe kartı yoktur.
+- [ ] INS-02 — `GET /api/insights` endpoint'i. Dönem parametresi yok (iş saatine göre; `BANKINGAI_DEMO_NOW`); EndpointSweepTests örneği ve OpenAPI sözleşmesi yenilenir. Kart yoksa boş liste.
+- [ ] INS-03 — Kart metni. LLM yalnız kartın kanıtlarından tek cümle kurar; AI-10 doğrulayıcısından geçmeyen ya da AI kapalıyken üretilemeyen metin yerine deterministik Türkçe şablon kullanılır. Kart kararı ve sırası modelden bağımsızdır. SwiftUI tarafı IOS-12.
+
 ## 16. Read-only MCP — her tool ayrı review
 
 - [ ] MCP-01 — MCP server/client sınırını tasarla. .NET mevcut hesaplama servislerini çağırır; Python istemci bağlanır. DB sorgusu veya finansal hesap LLM'ye verilmez.
@@ -323,6 +358,11 @@ veya sonrasında.
 - [ ] MCP-16 — get_upcoming_payments tool'unu ekle (ANA-12); sonucun tahmin olduğu bilgisi çıktıda korunur.
 - [ ] MCP-17 — check_budget tool'unu ekle (ANA-13); bütçe tutarı argümanı backend'de yeniden doğrulanır, model hesap yapmaz.
 - [ ] MCP-18 — simulate_savings tool'unu ekle (ANA-14); oran ve dönem sınırları backend'de, çıktı yatırım tavsiyesi dili taşımaz.
+- [ ] MCP-19 — detect_unusual_spending tool'unu ekle (ANA-15); yöntem ve eşik çıktıda, "yetersiz veri" durumu korunur.
+- [ ] MCP-20 — get_subscription_summary tool'unu ekle (ANA-16); yıllık toplamın varsayımı ve fiyat değişiminin kanıtı çıktıda.
+- [ ] MCP-21 — get_month_end_outlook tool'unu ekle (ANA-17); sonucun tahmin olduğu ve dahil edilmeyen kalemler çıktıda korunur.
+- [ ] MCP-22 — plan_savings_goal tool'unu ekle (ANA-18); hedef tutarı ve tarihi backend'de yeniden doğrulanır.
+- [ ] MCP-23 — get_spending_habits tool'unu ekle (ANA-19); gün ve gün dilimi sınırları çıktıda yazılıdır.
 
 ## 17. Merchant normalization ve kategorilendirme
 
@@ -409,6 +449,7 @@ iş kendi dalında yapılır ve PR ile (squash) `main`'e girer (CLAUDE.md "Git a
 Sıradaki adaylar (kullanıcı seçer; müşteri her zaman `User.GetCustomerId()` ile token'dan gelir):
 
 - Bölüm 11 (API) tamam. Local AI (bölüm 15) başladı: AI-01 (varsayılan `qwen3.5:4b`, docs/local-ai.md) ve AI-02 (`ai/service/ollama_client.py`: dört hata türü, sağlık kontrolü, 30 sn) tamam; sırada AI-03 (FastAPI servisi, venv ve bağımlılık kararları), sonra AI-04 (LangChain) ve read-only MCP (bölüm 16).
+- 17 Ekim 2026 kullanıcı kararı (genişletme): omurga (AI-03–07 + MCP-01/02/05/12) → 15c sohbet yetenekleri (CHAT-01–05) → 12c yeni analizler (ANA-15–19) + MCP-19–23 → 15d içgörü kartları (INS-01–03) + IOS-12.
 
 Sonra RULE.md §21 sırasıyla local AI (bölüm 15) ve read-only MCP (bölüm 16); SwiftUI (bölüm 14) çalışan
 endpoint'ler üzerine küçük ekranlarla ilerler. 13 Ekim 2026 kullanıcı kararıyla iki genişletme eklendi:
