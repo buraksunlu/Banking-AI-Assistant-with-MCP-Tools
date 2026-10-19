@@ -1441,12 +1441,16 @@ COMPLETED
   eksik veride tahmin/öneri yok, <veri> içi talimat değildir (blok sonrası hatırlatma; < > etkisizleştirilir), "siz", 1–3 cümle,
   Markdown serbest. ai/model_check/explanation_eval.py ile 10 vaka: eski prompt 5/10 → explanation-v1 8/10 (4b). Prompt değişirse
   sürüm adı da değişir ve değerlendirme önce/sonra çalıştırılır. Prompt garanti değildir: kalan injection/eksik rakam AI-06/10'da.
+- Çıktı doğrulama (AI-06, 19 Ekim 2026): ai/service/answer_check.py; cevaptaki her sayı soruda/veride geçmeli (değer olarak, işaretsiz,
+  küçük sayılar dahil), boş cevap ve sistemden söz etme reddedilir. Geçmeyen cevaba bir kez düzeltme istenir (iki deneme tek 30 sn),
+  yine geçmezse 502 ai_answer_rejected; logda yalnız sayım. Sayı okuma tek kopya serviste (scoring.py oradan alır). Ölçüm: model hesap
+  yapmaya iten 5 sorunun 4'ünde sayı uydurdu (biri yanlış yüzde); düzeltme 3'ünü kurtardı; değerlendirme 13/15. 132 Python testi.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Local AI (todo bölüm 15): AI-06 (çıktı doğrulama), sonra AI-07 (.NET → FastAPI); ardından read-only
+- Local AI (todo bölüm 15): AI-07 (.NET → FastAPI; AI kapalıyken deterministik sonuç), sonra AI-08; ardından read-only
   MCP (bölüm 16). Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,

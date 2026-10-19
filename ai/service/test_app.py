@@ -3,6 +3,7 @@ import re
 import pytest
 from fastapi.testclient import TestClient
 
+from answer_check import AnswerRejected
 from app import create_app, get_explainer, get_readiness
 from contracts import Fact
 from explainer import LangChainExplainer
@@ -159,6 +160,13 @@ def test_missing_body_is_400():
 def test_ollama_errors_map_to_problems(error, status, code, title):
     response = client(explainer=FakeExplainer(error=error)).post("/v1/explanations", json=body())
     assert_problem(response, status, code, title)
+
+
+def test_rejected_answer_is_502_and_says_nothing_of_the_answer():
+    fake = FakeExplainer(error=AnswerRejected("Rejected after one correction (empty: no, invented numbers: 1, forbidden mentions: 0)."))
+    response = client(explainer=fake).post("/v1/explanations", json=body())
+    assert_problem(response, 502, "ai_answer_rejected", "Asistan cevabı doğrulanamadı.")
+    assert "invented" not in response.text
 
 
 def test_unexpected_error_is_500_without_details():

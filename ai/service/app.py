@@ -17,6 +17,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
+from answer_check import AnswerRejected
 from contracts import ExplanationRequest, ExplanationResponse, HealthResponse
 from explainer import Explainer, LangChainExplainer
 from ollama_client import (
@@ -34,6 +35,7 @@ logger = logging.getLogger("bankingai.ai")
 
 AI_UNAVAILABLE = ("ai_unavailable", "Asistan şu an kullanılamıyor.")
 MODEL_MISSING = ("model_missing", "Asistan modeli bulunamadı.")
+ANSWER_REJECTED = ("ai_answer_rejected", "Asistan cevabı doğrulanamadı.")
 INTERNAL_ERROR = ("internal_error", "Beklenmeyen bir hata oluştu.")
 
 # Status → code and title, the same table as ApiProblems in the .NET API.
@@ -70,6 +72,7 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     app.add_exception_handler(RequestValidationError, _validation_failed)
     app.add_exception_handler(HTTPException, _http_error)
     app.add_exception_handler(OllamaError, _ollama_failed)
+    app.add_exception_handler(AnswerRejected, _answer_rejected)
     app.add_exception_handler(Exception, _unexpected)
 
     @app.get("/health/live", response_model=HealthResponse)
@@ -140,6 +143,13 @@ async def _ollama_failed(request: Request, exc: OllamaError) -> JSONResponse:
     # The error text names the model and address, never the question or the facts.
     logger.warning("Ollama call failed (%s): %s", code, exc)
     return problem(status, code, title)
+
+
+async def _answer_rejected(request: Request, exc: AnswerRejected) -> JSONResponse:
+    # A different code from ai_bad_response on purpose: the model answered properly, the answer failed our check.
+    # The message holds counts only (AnswerCheck.describe), never the answer or the numbers.
+    logger.warning("Answer rejected: %s", exc)
+    return problem(502, *ANSWER_REJECTED)
 
 
 async def _unexpected(request: Request, exc: Exception) -> JSONResponse:

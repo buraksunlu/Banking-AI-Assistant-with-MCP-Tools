@@ -1,5 +1,6 @@
+from answer_check import AnswerCheck
 from contracts import Fact
-from prompts import PROMPT_VERSION, SYSTEM_PROMPT, _REMINDER, build_messages
+from prompts import PROMPT_VERSION, SYSTEM_PROMPT, _REMINDER, build_messages, build_retry_messages
 
 QUESTION = "Bu ay ne kadar harcadım?"
 FACTS = [Fact(label="Dönem", text="1-10 Ekim 2026"), Fact(label="Toplam harcama", text="735,00 TL")]
@@ -59,3 +60,31 @@ def test_system_prompt_states_the_rules():
     # Anchors only: the wording may change between versions, these rules may not disappear.
     for rule in ("<veri>", "aynen", "toplama", "tahmin", "talimat", "siz", "en fazla 3"):
         assert rule in SYSTEM_PROMPT.lower(), rule
+
+
+# Correction after a rejected answer (AI-06)
+
+
+def test_retry_keeps_the_conversation_and_adds_the_rejected_answer_and_a_correction():
+    previous = "Günlük ortalama 73,50 TL harcıyorsunuz."
+    messages = build_retry_messages(QUESTION, FACTS, previous, AnswerCheck(invented_numbers=("73,50",)))
+    assert messages[:2] == build_messages(QUESTION, FACTS)
+    assert messages[2] == {"role": "assistant", "content": previous}
+    assert messages[3] == {"role": "user", "content": (
+        "Cevabında verideki bilgilerde olmayan sayılar var: 73,50. Hesap yapma; yalnızca verideki rakamları aynen "
+        "kullanarak yeniden cevapla. Cevap veride yoksa bunu kısaca söyle.")}
+    assert len(messages) == 4
+
+
+def test_correction_names_every_problem():
+    check = AnswerCheck(empty=False, invented_numbers=("410,00", "41"), forbidden_mentions=("backend",))
+    correction = build_retry_messages(QUESTION, FACTS, "x", check)[3]["content"]
+    assert correction == (
+        "Cevabında verideki bilgilerde olmayan sayılar var: 410,00, 41. Hesap yapma; yalnızca verideki rakamları aynen "
+        "kullanarak yeniden cevapla. Cevap veride yoksa bunu kısaca söyle.\n"
+        "Cevabında sistemden söz ettin. Yalnızca soruyu, verideki bilgilerle cevapla.")
+
+
+def test_correction_for_an_empty_answer():
+    correction = build_retry_messages(QUESTION, FACTS, "", AnswerCheck(empty=True))[3]["content"]
+    assert correction == "Cevabın boştu. Soruyu verideki bilgilerle yeniden cevapla."

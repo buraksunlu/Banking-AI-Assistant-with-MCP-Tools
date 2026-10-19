@@ -7,8 +7,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
+from answer_check import AnswerRejected, check_answer
 from contracts import Fact
 from explainer import MAX_ANSWER_TOKENS, LangChainExplainer, build_messages
+from prompts import build_retry_messages
 from ollama_client import (
     ModelNotFound,
     OllamaBadResponse,
@@ -159,6 +161,85 @@ def test_broken_stream_line_is_bad_response():
     with FakeOllamaStream([chunk("Bu ay "), b"{not json", final()]) as fake:
         with pytest.raises(OllamaBadResponse):
             explainer_for(fake.url).explain(QUESTION, FACTS)
+
+
+# Answer check and one correction (AI-06). The model is replaced by ScriptedModel, time by FakeClock.
+
+
+class FakeClock:
+    def __init__(self):
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+class ScriptedModel:
+    """Stands in for LangChainExplainer._ask: returns the given answers in order, each taking ``seconds``."""
+
+    def __init__(self, clock: FakeClock, answers: list[str], seconds: float = 2.0):
+        self.clock, self.answers, self.seconds = clock, list(answers), seconds
+        self.calls: list[tuple[list[dict], float]] = []
+
+    def __call__(self, messages: list[dict], deadline: float) -> str:
+        self.calls.append((messages, deadline))
+        self.clock.now += self.seconds
+        return self.answers.pop(0)
+
+
+GOOD = "1-10 Ekim 2026 döneminde toplam 735,00 TL harcadınız."
+COMPUTED = "Günlük ortalama 73,50 TL harcıyorsunuz."
+
+
+def scripted(answers: list[str], seconds: float = 2.0, timeout: float = 30.0) -> tuple[LangChainExplainer, ScriptedModel]:
+    explainer = explainer_for("http://127.0.0.1:1", timeout=timeout)
+    clock = FakeClock()
+    model = ScriptedModel(clock, answers, seconds)
+    explainer.clock = clock
+    explainer._ask = model
+    return explainer, model
+
+
+def test_valid_answer_is_returned_after_one_call():
+    explainer, model = scripted([GOOD])
+    assert explainer.explain(QUESTION, FACTS) == GOOD
+    assert len(model.calls) == 1
+    assert model.calls[0][0] == build_messages(QUESTION, FACTS)
+
+
+def test_rejected_answer_gets_one_correction():
+    explainer, model = scripted([COMPUTED, GOOD])
+    assert explainer.explain(QUESTION, FACTS) == GOOD
+    assert len(model.calls) == 2
+    assert model.calls[1][0] == build_retry_messages(QUESTION, FACTS, COMPUTED, check_answer(QUESTION, FACTS, COMPUTED))
+
+
+def test_both_attempts_share_one_deadline():
+    # K5-B: the user is promised one limit (30 s), not one per attempt.
+    explainer, model = scripted([COMPUTED, GOOD])
+    explainer.explain(QUESTION, FACTS)
+    assert [deadline for _, deadline in model.calls] == [30.0, 30.0]
+
+
+def test_answer_rejected_twice_is_refused():
+    explainer, model = scripted([COMPUTED, "Bütçenizden 410,00 TL kaldı."])
+    with pytest.raises(AnswerRejected, match="invented numbers: 1"):
+        explainer.explain(QUESTION, FACTS)
+    assert len(model.calls) == 2
+
+
+def test_no_correction_when_the_time_left_is_shorter_than_the_first_attempt():
+    # The first attempt took 20 s of 30; a second one would likely overrun, so the answer is refused at once.
+    explainer, model = scripted([COMPUTED], seconds=20.0)
+    with pytest.raises(AnswerRejected):
+        explainer.explain(QUESTION, FACTS)
+    assert len(model.calls) == 1
+
+
+def test_empty_answer_gets_a_correction_too():
+    explainer, model = scripted(["   ", GOOD])
+    assert explainer.explain(QUESTION, FACTS) == GOOD
+    assert model.calls[1][0][-1]["content"] == "Cevabın boştu. Soruyu verideki bilgilerle yeniden cevapla."
 
 
 def _real_settings(**changes) -> OllamaSettings:
