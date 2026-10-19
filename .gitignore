@@ -8,3 +8,6 @@
 
 # Python bytecode (ai/)
 __pycache__/
+
+# Python virtual environment (ai/)
+ai/.venv/

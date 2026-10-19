@@ -135,3 +135,85 @@ Hazırsa kısa bir deneme sorusu sorar ve cevabı süreleriyle yazar; değilse n
 - Hata mesajları İngilizce; kullanıcıya giden Türkçe metinler AI-07/AI-08'de.
 - Boş cevap metni geçerli sayılır; boş/uyuşmayan cevap AI-06'nın işi.
 - Model bellekte Ollama varsayılanı kadar (5 dk) kalır; boşta kaldıktan sonraki ilk soru ~5 sn daha uzun sürer.
+
+# AI servisi (AI-03)
+
+19 Ekim 2026. `ai/service/app.py`: .NET API'nin ileride (AI-07) çağıracağı FastAPI servisi. Veritabanına bağlanmaz, para
+hesaplamaz; backend'in hazır ve biçimlendirilmiş sonucunu modele iletir, modelin cevabını döner.
+
+```text
+.NET API ──HTTP──► FastAPI (ai/service/app.py) ──► Explainer ──► ollama_client ──► Ollama ──► qwen3.5:4b
+```
+
+## Endpoint'ler
+
+| Endpoint | Ne yapar | Cevap |
+| --- | --- | --- |
+| `GET /health/live` | Süreç ayakta mı? Ollama'ya sormaz | `200 {"status":"ok","model":null}` |
+| `GET /health/ready` | Ollama açık ve model kurulu mu? (`check_ready`, modeli yüklemez) | `200 {"status":"ready","model":"qwen3.5:4b"}` ya da 503 |
+| `POST /v1/explanations` | Soru + hazır sonuç → Türkçe açıklama | `200 {"answer":"…","model":"qwen3.5:4b"}` |
+
+İstek:
+
+```json
+{
+  "question": "Bu ay ne kadar harcadım?",
+  "facts": [
+    { "label": "Dönem", "text": "1-10 Ekim 2026" },
+    { "label": "Toplam harcama", "text": "735,00 TL" }
+  ]
+}
+```
+
+Kurallar: `question` 1–500, `facts` 1–30 kalem, `label` 1–100, `text` 1–200 karakter; yalnız boşluk olamaz. Tanınmayan alan
+(ör. `customerId`) ve tip dönüşümü (`123` → `"123"`) reddedilir. `facts` backend'in AI-09 kuralıyla biçimlendirdiği metindir:
+model ham sayı, GUID ya da hesap numarası görmez (AI-13).
+
+## Hatalar
+
+API ile aynı problem+json (`title`, `status`, `code`, `traceId`, doğrulamada `errors`):
+
+| Durum | HTTP | `code` | `title` |
+| --- | --- | --- | --- |
+| Geçersiz istek (FastAPI'nin 422'si) | 400 | `validation_failed` | İstek geçersiz. (`errors`: `{"facts[0].text": ["En az 1 karakter olmalı."]}`) |
+| Ollama kapalı / 5xx | 503 | `ai_unavailable` | Asistan şu an kullanılamıyor. |
+| Model yok | 503 | `model_missing` | Asistan modeli bulunamadı. |
+| Süre doldu | 504 | `ai_timeout` | Asistan zamanında cevap veremedi. |
+| Anlamsız Ollama cevabı | 502 | `ai_bad_response` | Asistan geçersiz cevap verdi. |
+| Bilinmeyen adres / yöntem | 404 / 405 | `not_found` / `method_not_allowed` | Bulunamadı. / Bu adres bu yöntemi desteklemiyor. |
+| Beklenmeyen | 500 | `internal_error` | Beklenmeyen bir hata oluştu. (ayrıntı yalnız logda) |
+
+Ollama hataları loglanır (model ve adresle; soru ve veri loglanmaz).
+
+## Yapı
+
+- `create_app()` fabrikası (`uvicorn --factory`): ayarlar açılışta okunur; `BANKINGAI_LLM_MODEL` yoksa servis açılmaz.
+- `Explainer` arayüzü (`explainer.py`): AI-03'te `ollama_client.chat` ile **geçici** bir prompt. AI-04 LangChain'e geçer, AI-05
+  asıl prompt'u yazar, AI-06 çıktıyı doğrular; endpoint ve testleri değişmez.
+- Endpoint'ler düz `def`: `ollama_client` bloklayan çağrı yapar, FastAPI düz fonksiyonları ayrı iş parçacığında çalıştırır.
+- Testler `app.dependency_overrides` ile sahte explainer ve hazırlık durumu verir; Ollama gerekmez.
+
+## Bağımlılıklar
+
+Python 3.14, `ai/.venv` (git'e girmez). `ai/requirements.in` doğrudan bağımlılıklar, `ai/requirements.txt` `pip freeze` kilidi.
+Kural: tam sabit sürüm, seçildiği gün **en az iki haftalık**. 19 Ekim 2026'da pip dolaylı olarak bir günlük Starlette 1.9.0'ı
+ve dört genç paketi seçti; hepsi `requirements.in`'de eski sürümlerle sabitlendi. Starlette'in `TestClient`'ı `httpx` yerine
+`httpx2` ister (eskisi uyarı verir).
+
+```sh
+/opt/homebrew/bin/python3.14 -m venv ai/.venv
+ai/.venv/bin/python -m pip install -r ai/requirements.txt
+ai/.venv/bin/python -m pytest ai
+ai/.venv/bin/uvicorn --app-dir ai/service --factory app:create_app --host 127.0.0.1 --port 8000
+```
+
+## Elle doğrulama (19 Ekim 2026)
+
+live 200; ready 200; gerçek açıklama 4,9 sn ("Bu ay (1-10 Ekim 2026) toplam **735,00 TL** harcamışsınız…"); `customerId`'li
+istek 400; Ollama'ya ulaşamayan örnekte ready ve açıklama 503 `ai_unavailable` + log; model ayarı olmadan açılış `ValueError`.
+
+## Sınırlar
+
+- Geçici prompt kalite iddiası taşımaz (AI-05/06/10). Model cevabında Markdown (`**`) olabilir; gösterim AI-08/IOS'ta.
+- Token ve müşteri bağlamı yok (AI-07); bu yüzden servis yalnız 127.0.0.1'de dinler. `/docs` açık (yalnız yerel).
+- Akan cevap yok (AI-08). Tek kullanıcılı demo için senkron çağrı yeterli.

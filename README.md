@@ -14,7 +14,7 @@ read-only olacaktır. Her şey ücretsiz ve yereldir (local Qwen + Ollama). Ger�
 | Veritabanı + synthetic demo veri | Tamam: 6 domain tablosu + giriş tablosu, 12 migration, 3 demo müşteri, 7 hesap, 116 işlem |
 | Deterministik analytics | Tamam: özet, kategori, merchant, arama, en yüksek işlemler, dönem karşılaştırması, aylık seri, düzenli ödemeler |
 | HTTP API | Tamam: giriş/JWT, hesaplar, işlemler, analytics endpoint'leri, ortak hata cevabı, OpenAPI + Scalar |
-| Local AI (FastAPI + LangChain + Qwen) | Başladı: model seçildi (`qwen3.5:4b`, Ollama; [docs/local-ai.md](docs/local-ai.md)) |
+| Local AI (FastAPI + LangChain + Qwen) | Sürüyor: model seçildi (`qwen3.5:4b`), Ollama bağlantısı ve FastAPI servisi hazır ([docs/local-ai.md](docs/local-ai.md)); LangChain sırada |
 | MCP, SwiftUI | Henüz başlamadı |
 | Market verisi (USDTRY/EURTRY/gram altın) | Ayrı kol; altın kaynağı dış yanıt bekliyor, import yok |
 
@@ -168,14 +168,19 @@ PostgreSQL testleri seed edilmiş demo veritabanını kullanır ve `.env` yükle
 verisini değiştirmez: ya kendi DB transaction'ında rollback yapar ya da geçici kayıt açıp siler. Beklenen
 değerler seeder'dan türetilmez, elle hesaplanmış fixture'lardır. Güncel test sayıları `todo.md` içindedir.
 
-Local model ölçümü (Python 3, yalnız standart kütüphane; ayrıntı [docs/local-ai.md](docs/local-ai.md)):
+AI servisi ve model ölçümü (Python 3.14; ayrıntı [docs/local-ai.md](docs/local-ai.md)):
 
 ```sh
-python3 -m unittest discover -s ai/model_check                       # puanlama testleri (Ollama gerekmez)
+/opt/homebrew/bin/python3.14 -m venv ai/.venv                         # bir kez
+ai/.venv/bin/python -m pip install -r ai/requirements.txt             # sabit sürümler
+ai/.venv/bin/python -m pytest ai                                      # bütün Python testleri (Ollama kapalıysa gerçek-Ollama testleri atlanır)
 python3 ai/model_check/run.py --model qwen3.5:4b --model qwen3.5:9b   # modelleri karşılaştır (Ollama açık olmalı)
-python3 -m unittest discover -s ai/service                           # Ollama bağlantısı (Ollama kapalıysa 3 test atlanır)
 python3 ai/service/ollama_client.py                                  # elle kontrol: Ollama ve model hazır mı?
+ai/.venv/bin/uvicorn --app-dir ai/service --factory app:create_app --host 127.0.0.1 --port 8000   # AI servisi
 ```
+
+AI servisi: `GET /health/live`, `GET /health/ready`, `POST /v1/explanations` (soru + backend'in biçimlendirdiği `facts`);
+etkileşimli belge `http://127.0.0.1:8000/docs`. Hatalar API'ninkiyle aynı biçimdedir (`title`, `status`, `code`, `traceId`).
 
 ## Veri modeli
 
@@ -228,7 +233,7 @@ dotnet tool run dotnet-ef migrations add <Name> --project src/BankingAI.Data --s
 | [docs/database-design.md](docs/database-design.md) | Tablolar, ilişkiler, seed/import sınırları |
 | [docs/input-validation.md](docs/input-validation.md) | Girdi kuralları (VAL), harcama tanımı, işlem türleri |
 | [docs/synthetic-seed.md](docs/synthetic-seed.md) | Demo veri ve beklenen rakamlar |
-| [docs/local-ai.md](docs/local-ai.md) | Local model seçimi: ölçüm yöntemi, sonuçlar, karar |
+| [docs/local-ai.md](docs/local-ai.md) | Local AI: model seçimi, Ollama bağlantısı, AI servisi sözleşmesi |
 | [docs/market-data-sources.md](docs/market-data-sources.md) | Döviz/altın fiyat kaynağı araştırması |
 | [docs/customer-review.md](docs/customer-review.md) | İlk modülün (Customer tablosu) tarihsel incelemesi |
 
