@@ -7,14 +7,14 @@ Temel ilke: **LLM yorumlar ve tool seçer; .NET backend hesaplar, filtreler, yet
 source of truth'tur.** LLM'e SQL, veritabanı erişimi, para hesabı veya yazma yetkisi verilmez; MCP tool'ları
 read-only olacaktır. Her şey ücretsiz ve yereldir (local Qwen + Ollama). Gerçek banka/müşteri verisi kullanılmaz.
 
-## Durum (16 Ekim 2026)
+## Durum (19 Ekim 2026)
 
 | Katman | Durum |
 | --- | --- |
 | Veritabanı + synthetic demo veri | Tamam: 6 domain tablosu + giriş tablosu, 12 migration, 3 demo müşteri, 7 hesap, 116 işlem |
 | Deterministik analytics | Tamam: özet, kategori, merchant, arama, en yüksek işlemler, dönem karşılaştırması, aylık seri, düzenli ödemeler |
 | HTTP API | Tamam: giriş/JWT, hesaplar, işlemler, analytics endpoint'leri, ortak hata cevabı, OpenAPI + Scalar |
-| Local AI (FastAPI + LangChain + Qwen) | Sürüyor: model seçildi (`qwen3.5:4b`), Ollama bağlantısı, FastAPI servisi LangChain (`ChatOllama`) açıklama prompt'u ve çıktı doğrulaması hazır ([docs/local-ai.md](docs/local-ai.md)); .NET bağlantısı sırada |
+| Local AI (FastAPI + LangChain + Qwen) | Sürüyor: model seçildi (`qwen3.5:4b`), Ollama bağlantısı, FastAPI servisi, LangChain (`ChatOllama`), açıklama prompt'u ve çıktı doğrulaması hazır ([docs/local-ai.md](docs/local-ai.md)); .NET bağlantısı sırada |
 | MCP, SwiftUI | Henüz başlamadı |
 | Market verisi (USDTRY/EURTRY/gram altın) | Ayrı kol; altın kaynağı dış yanıt bekliyor, import yok |
 

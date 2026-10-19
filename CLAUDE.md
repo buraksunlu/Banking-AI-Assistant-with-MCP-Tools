@@ -345,5 +345,7 @@ API-15 (OpenAPI sözleşmesi, Scalar, örnekler). API bölümü tamam. AI-01 (lo
 `ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`), AI-03 (FastAPI servisi `ai/service/app.py`), AI-04 (LangChain `ChatOllama`), AI-05 (prompt `explanation-v1`), AI-06 (çıktı doğrulama, değerlendirme 13/15); sıradaki: AI-07 (.NET → FastAPI), sonra MCP.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
-içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d.
+içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d. 19 Ekim 2026 todo taraması: AI-14 (uçtan uca
+sohbet uç noktası, AI-07 ile), IOS-13 (giriş ekranı), MCP-24–26, SEC-06, API-16/17, OPS-06 eklendi; öneriler ANA-20 (gün/hafta
+dönemleri), ANA-21 (tek çağrıda özet), CHAT-06/07 (önerilen sorular, ekrana bağlantı), 12d kalıcı bütçe/hedef (BUD-01–04).
 Güncel ayrıntı her zaman `todo.md`'dedir.
