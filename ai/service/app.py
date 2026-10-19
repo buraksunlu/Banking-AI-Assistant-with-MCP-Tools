@@ -18,7 +18,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
 from contracts import ExplanationRequest, ExplanationResponse, HealthResponse
-from explainer import Explainer, OllamaExplainer
+from explainer import Explainer, LangChainExplainer
 from ollama_client import (
     ModelNotFound,
     OllamaBadResponse,
@@ -53,14 +53,19 @@ _OLLAMA_ERRORS: dict[type[OllamaError], tuple[int, str, str]] = {
 
 _NOT_READY = {Readiness.SERVER_UNAVAILABLE: AI_UNAVAILABLE, Readiness.MODEL_MISSING: MODEL_MISSING}
 
+# LangChain sends every prompt to the LangSmith cloud when one of these is on; bank data must stay on this machine.
+_TRACING_SETTINGS = ("LANGSMITH_TRACING", "LANGSMITH_TRACING_V2", "LANGCHAIN_TRACING", "LANGCHAIN_TRACING_V2")
+
 
 def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
-    """Builds the service; fails at startup when the model setting is missing or invalid."""
-    settings = OllamaSettings.from_env(os.environ if env is None else env)
+    """Builds the service; fails at startup when the model setting is invalid or LangSmith tracing is on."""
+    env = os.environ if env is None else env
+    _refuse_cloud_tracing(env)
+    settings = OllamaSettings.from_env(env)
 
     app = FastAPI(title="BankingAI AI Service", version="0.1.0")
     app.state.settings = settings
-    app.state.explainer = OllamaExplainer(settings)
+    app.state.explainer = LangChainExplainer(settings)
 
     app.add_exception_handler(RequestValidationError, _validation_failed)
     app.add_exception_handler(HTTPException, _http_error)
@@ -89,6 +94,13 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         return ExplanationResponse(answer=answer, model=request.app.state.settings.model)
 
     return app
+
+
+def _refuse_cloud_tracing(env: Mapping[str, str]) -> None:
+    for name in _TRACING_SETTINGS:
+        # Anything but an explicit "off" counts as on: a typo must not let data leave the machine.
+        if env.get(name, "").strip().lower() not in ("", "false", "0", "no"):
+            raise ValueError(f"{name} must be off: the AI service never sends prompts to LangSmith.")
 
 
 def get_explainer(request: Request) -> Explainer:

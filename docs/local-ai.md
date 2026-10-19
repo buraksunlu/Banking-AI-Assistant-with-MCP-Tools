@@ -217,3 +217,94 @@ istek 400; Ollama'ya ulaşamayan örnekte ready ve açıklama 503 `ai_unavailabl
 - Geçici prompt kalite iddiası taşımaz (AI-05/06/10). Model cevabında Markdown (`**`) olabilir; gösterim AI-08/IOS'ta.
 - Token ve müşteri bağlamı yok (AI-07); bu yüzden servis yalnız 127.0.0.1'de dinler. `/docs` açık (yalnız yerel).
 - Akan cevap yok (AI-08). Tek kullanıcılı demo için senkron çağrı yeterli.
+
+# LangChain (AI-04)
+
+19 Ekim 2026. Açıklama artık LangChain'in `ChatOllama`'sı üzerinden üretiliyor (`explainer.py`, `LangChainExplainer`). Neden:
+ileride tool seçimi, tool sonucunu modele geri verme ve structured output (MCP-12, CHAT) LangChain'in hazır parçalarıyla
+yapılacak. AI-04 bu geçişin en küçük adımı: **agent yok, tool yok**, aynı açıklama LangChain üzerinden.
+
+```text
+Önce:  /v1/explanations → OllamaExplainer   → ollama_client.chat → Ollama
+Sonra: /v1/explanations → LangChainExplainer → ChatOllama (stream) → Ollama
+```
+
+Endpoint, sözleşme, hata kodları ve AI-03'ün endpoint testleri değişmedi. Prompt hâlâ AI-03'ün geçici prompt'u (AI-05).
+
+## ChatOllama ayarları
+
+| Ayar | Değer | Neden |
+| --- | --- | --- |
+| `reasoning` | `False` | Ollama'ya `think: false` gider (AI-01: thinking bu makinede çok yavaş) |
+| `temperature` | `0` | Aynı soru, aynı cevap |
+| `num_predict` | `400` | 2–3 cümle ~150–200 token; kaçak cevap ~17 sn'de durur |
+| `client_kwargs.timeout` | `BANKINGAI_LLM_TIMEOUT_SECONDS` | Yalnız hiç parça gelmezse (ör. model yüklenirken) |
+
+## Ölçülen davranış (19 Ekim 2026)
+
+| Konu | Sonuç |
+| --- | --- |
+| ChatOllama ne gönderiyor? | `/api/chat`, `think: false`, `temperature: 0`, **`stream: true`** (`invoke`'ta bile) |
+| Olmayan model | `ollama.ResponseError`, `status_code=404` |
+| Kapalı sunucu | `httpx.ConnectError` |
+| `timeout=0,5` ile uzun cevap | **Kesilmedi, 88 sn sürdü**: timeout iki parça arası beklemeyi sınırlıyor |
+| Parçaları okuyup 2 sn'de akışı kapatmak | 2,0 sn'de durdu; sonraki istek 0,5 sn (Ollama işi bıraktı) |
+| `num_predict=60` | 2,2 sn, `done_reason: "length"` (cevap yarım) |
+| Bozuk akış satırı | `json.JSONDecodeError` |
+| LangSmith izleme | Varsayılan kapalı; açılırsa prompt'lar buluta gider |
+
+## Toplam süre sınırı
+
+ChatOllama cevabı parça parça aldığı için AI-02'nin "30 sn'de kes" kuralı LangChain'de kendiliğinden çalışmıyor. Bu yüzden
+`LangChainExplainer` cevabı `llm.stream()` ile parça parça okur, her parçada saate bakar ve süre dolunca akışı kapatıp
+`OllamaTimeout` (504) fırlatır. Akış kapanınca bağlantı kapanır, Ollama da işi bırakır. Sınır en fazla bir parça arası kadar
+aşılabilir; hiç parça gelmezse `client_kwargs` timeout'u devreye girer (en kötü durumda yaklaşık iki katı).
+
+## Hata çevirisi
+
+| LangChain / Ollama / httpx | Servis hatası | HTTP |
+| --- | --- | --- |
+| `ResponseError` 404 | `ModelNotFound` | 503 |
+| `ResponseError` 5xx, `httpx.TransportError`, `ConnectionError` | `OllamaUnavailable` | 503 |
+| `httpx.TimeoutException`, toplam süre doldu | `OllamaTimeout` | 504 |
+| `ResponseError` diğer 4xx, `json.JSONDecodeError`, `done_reason: "length"` | `OllamaBadResponse` | 502 |
+| Diğer her şey | çevrilmez (gerçek hata) | 500 |
+
+## LangSmith koruması
+
+`create_app` ortamda `LANGSMITH_TRACING`, `LANGSMITH_TRACING_V2`, `LANGCHAIN_TRACING` ya da `LANGCHAIN_TRACING_V2` açıksa (boş,
+`false`, `0`, `no` dışındaki her değer) açılmaz. Banka verisi makineden çıkmamalı; kontrol kazara yapılmış bir ayara karşıdır.
+
+## Bağımlılıklar
+
+`langchain-ollama 1.1.0`, `langchain-core 1.6.6` (en yenisi 3 günlüktü), `ollama 0.6.3`. LangChain yaklaşık 20 paket daha getirdi
+(langsmith, httpx, requests, orjson…); iki haftadan genç olanlar (`langsmith`, `jsonpatch`, `jsonpointer`, `orjson`, `tenacity`,
+`xxhash`) eski sürümlere sabitlendi. Kilitte 45 paket var.
+
+## Elle doğrulama (19 Ekim 2026)
+
+uvicorn + curl: cevap AI-03'tekiyle kelimesi kelimesine aynı; model sıcakken 2,1–2,3 sn (AI-03'teki 4,9 sn yüklemeyi de içeriyordu);
+Ollama'ya ulaşamayan örnekte 503 `ai_unavailable`; `LANGSMITH_TRACING=true` ile servis açılmıyor.
+
+## Yanıt süresi ve mimari kararı (19 Ekim 2026)
+
+Soru: LangChain ve FastAPI katmanları cevabı yavaşlatıyor mu; Ollama'yı doğrudan .NET'e bağlamak daha mı mantıklı?
+Ölçüm (aynı soru, model bellekte, her yoldan beşer kez):
+
+| Yol | Ortalama | Fark |
+| --- | --- | --- |
+| Doğrudan Ollama (`ollama_client.chat`) | 2,03 sn | — |
+| LangChain (`LangChainExplainer`) | 2,07 sn | +0,04 sn |
+| FastAPI servisinin tamamı (HTTP + doğrulama + LangChain) | 2,13 sn | +0,10 sn |
+
+Ollama'nın kendi ölçümü de 2,03 sn: sürenin neredeyse tamamı modelin kelime üretmesi. **Kullanıcı kararı: A, mevcut yapı
+(.NET → FastAPI/LangChain → Ollama) korunur.** Doğrudan .NET bağlantısı (B) ya da LangChain'siz servis (C) en fazla ~0,1 sn
+kazandırır, buna karşılık tool döngüsünü ve MCP istemcisini yeniden yazmayı gerektirir.
+
+**Not (D): yanıt süresi sorun olursa başvurulacak ayarlar.** Şimdilik uygulanmadı:
+
+- **Model bellekte daha uzun kalsın** (Ollama `keep_alive`, ör. 30 dk) ya da servis açılırken model ısıtılsın. 5 dk boşta
+  kaldıktan sonraki ilk sorudaki ~5 sn yükleme kalkar; bedeli, modelin 4–7 GB belleği sürekli tutması.
+- **Cevap akarak gösterilsin** (AI-08): ilk kelimeler ~0,3 sn'de görünür, bekleme hissi azalır.
+- **Daha az model turu:** niyete göre tool daraltma (CHAT-01) ve tek mesajda en fazla 3 tool (CHAT-04). Her tool turu bir model turu daha demek.
+- **Daha kısa cevap / daha küçük model:** süre cevap uzunluğuyla doğru orantılı (~24 token/sn); 9b aynı cevapta yaklaşık 2 kat yavaş.

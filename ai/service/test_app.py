@@ -3,19 +3,15 @@ import re
 import pytest
 from fastapi.testclient import TestClient
 
-import explainer as explainer_module
 from app import create_app, get_explainer, get_readiness
 from contracts import Fact
-from explainer import TEMPORARY_SYSTEM_PROMPT, OllamaExplainer, build_messages
+from explainer import TEMPORARY_SYSTEM_PROMPT, LangChainExplainer, build_messages
 from ollama_client import (
-    ChatReply,
     ModelNotFound,
     OllamaBadResponse,
-    OllamaSettings,
     OllamaTimeout,
     OllamaUnavailable,
     Readiness,
-    check_ready,
 )
 
 ENV = {"BANKINGAI_LLM_MODEL": "qwen3.5:4b"}
@@ -190,11 +186,25 @@ def test_each_error_gets_its_own_trace_id():
 
 @pytest.mark.parametrize(
     ("env", "setting"),
-    [({}, "BANKINGAI_LLM_MODEL"), ({**ENV, "BANKINGAI_LLM_TIMEOUT_SECONDS": "abc"}, "BANKINGAI_LLM_TIMEOUT_SECONDS")],
+    [
+        ({}, "BANKINGAI_LLM_MODEL"),
+        ({**ENV, "BANKINGAI_LLM_TIMEOUT_SECONDS": "abc"}, "BANKINGAI_LLM_TIMEOUT_SECONDS"),
+        # LangSmith would send questions and facts to a cloud service; bank data must stay on this machine.
+        ({**ENV, "LANGSMITH_TRACING": "true"}, "LANGSMITH_TRACING"),
+        ({**ENV, "LANGCHAIN_TRACING_V2": "1"}, "LANGCHAIN_TRACING_V2"),
+    ],
 )
 def test_service_does_not_start_with_bad_settings(env, setting):
     with pytest.raises(ValueError, match=setting):
         create_app(env)
+
+
+def test_tracing_switched_off_explicitly_is_allowed():
+    create_app({**ENV, "LANGSMITH_TRACING": "false", "LANGCHAIN_TRACING_V2": ""})
+
+
+def test_service_explains_through_langchain():
+    assert isinstance(create_app(ENV).state.explainer, LangChainExplainer)
 
 
 # Explainer
@@ -207,37 +217,3 @@ def test_messages_carry_the_question_and_facts_as_given():
         {"role": "user", "content": "Soru: Bu ay ne kadar harcadım?\nVeri:\n- Dönem: 1-10 Ekim 2026\n- Toplam harcama: 735,00 TL"},
     ]
     assert TEMPORARY_SYSTEM_PROMPT.strip()
-
-
-def test_ollama_explainer_sends_the_messages_and_trims_the_answer(monkeypatch):
-    sent = []
-
-    def fake_chat(settings, messages):
-        sent.append((settings, messages))
-        return ChatReply("  Cevap metni.\n", 0.0, 1.0)
-
-    monkeypatch.setattr(explainer_module, "chat", fake_chat)
-    settings = OllamaSettings("http://127.0.0.1:11434", "qwen3.5:4b", 30.0)
-    facts = [Fact(**f) for f in FACTS]
-
-    assert OllamaExplainer(settings).explain(QUESTION, facts) == "Cevap metni."
-    assert sent == [(settings, build_messages(QUESTION, facts))]
-
-
-def _real_settings() -> OllamaSettings:
-    import os
-
-    return OllamaSettings.from_env({**ENV, **os.environ})
-
-
-def _real_ollama_ready() -> bool:
-    try:
-        return check_ready(_real_settings()) == Readiness.READY
-    except Exception:
-        return False
-
-
-@pytest.mark.skipif(not _real_ollama_ready(), reason="Ollama is not running or the model is not installed")
-def test_real_model_explains_in_turkish():
-    answer = OllamaExplainer(_real_settings()).explain(QUESTION, [Fact(**f) for f in FACTS])
-    assert answer.strip()

@@ -14,7 +14,7 @@ read-only olacaktır. Her şey ücretsiz ve yereldir (local Qwen + Ollama). Ger�
 | Veritabanı + synthetic demo veri | Tamam: 6 domain tablosu + giriş tablosu, 12 migration, 3 demo müşteri, 7 hesap, 116 işlem |
 | Deterministik analytics | Tamam: özet, kategori, merchant, arama, en yüksek işlemler, dönem karşılaştırması, aylık seri, düzenli ödemeler |
 | HTTP API | Tamam: giriş/JWT, hesaplar, işlemler, analytics endpoint'leri, ortak hata cevabı, OpenAPI + Scalar |
-| Local AI (FastAPI + LangChain + Qwen) | Sürüyor: model seçildi (`qwen3.5:4b`), Ollama bağlantısı ve FastAPI servisi hazır ([docs/local-ai.md](docs/local-ai.md)); LangChain sırada |
+| Local AI (FastAPI + LangChain + Qwen) | Sürüyor: model seçildi (`qwen3.5:4b`), Ollama bağlantısı, FastAPI servisi ve LangChain (`ChatOllama`) hazır ([docs/local-ai.md](docs/local-ai.md)); açıklama prompt'u sırada |
 | MCP, SwiftUI | Henüz başlamadı |
 | Market verisi (USDTRY/EURTRY/gram altın) | Ayrı kol; altın kaynağı dış yanıt bekliyor, import yok |
 
