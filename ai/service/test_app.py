@@ -4,9 +4,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from answer_check import AnswerRejected
-from app import create_app, get_explainer, get_readiness
+from app import create_app, get_chat_service, get_explainer, get_readiness
+from chat import ChatReply, ChatService, LangChainToolSelector, ToolCall
 from contracts import Fact
 from explainer import LangChainExplainer
+from tools import BackendTimeout, BackendUnavailable, RestToolGateway, SessionInvalid, ToolCallRejected
 from ollama_client import (
     ModelNotFound,
     OllamaBadResponse,
@@ -213,3 +215,92 @@ def test_tracing_switched_off_explicitly_is_allowed():
 
 def test_service_explains_through_langchain():
     assert isinstance(create_app(ENV).state.explainer, LangChainExplainer)
+
+
+# Chat (AI-14a)
+
+
+class FakeChat:
+    def __init__(self, reply=None, error=None):
+        self.reply, self.error, self.calls = reply, error, []
+
+    def answer(self, message, token):
+        self.calls.append((message, token))
+        if self.error:
+            raise self.error
+        return self.reply
+
+
+CHAT_REPLY = ChatReply("answer", "9 Ekim 2026'da toplam 145,00 TL harcadınız.",
+                       [ToolCall("get_spending_summary", {"period": "Yesterday"})],
+                       [Fact(label="Dönem", text="9 Ekim 2026"), Fact(label="Toplam harcama", text="145,00 TL")])
+
+
+def chat_client(fake) -> TestClient:
+    app = create_app(ENV)
+    app.dependency_overrides[get_chat_service] = lambda: fake
+    return TestClient(app)
+
+
+def test_chat_returns_the_reply_in_the_agreed_shape():
+    fake = FakeChat(CHAT_REPLY)
+    response = chat_client(fake).post("/v1/chat", json={"message": "Dün ne harcadım?"},
+                                      headers={"Authorization": "Bearer abc"})
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "type": "answer",
+        "answer": "9 Ekim 2026'da toplam 145,00 TL harcadınız.",
+        "toolCalls": [{"tool": "get_spending_summary", "arguments": {"period": "Yesterday"}}],
+        "facts": [{"label": "Dönem", "text": "9 Ekim 2026"}, {"label": "Toplam harcama", "text": "145,00 TL"}],
+        "model": "qwen3.5:4b",
+    }
+    assert fake.calls == [("Dün ne harcadım?", "abc")]
+
+
+@pytest.mark.parametrize("header", [None, "Basic abc", "Bearer ", "Bearer   "])
+def test_chat_needs_a_bearer_token(header):
+    fake = FakeChat(CHAT_REPLY)
+    headers = {} if header is None else {"Authorization": header}
+    response = chat_client(fake).post("/v1/chat", json={"message": "Dün ne harcadım?"}, headers=headers)
+    assert_problem(response, 401, "unauthorized", "Giriş gerekli.")
+    assert fake.calls == []
+
+
+@pytest.mark.parametrize(
+    ("payload", "field", "message"),
+    [
+        ({"message": ""}, "message", "En az 1 karakter olmalı."),
+        ({"message": "   "}, "message", "Boş olamaz."),
+        ({"message": "a" * 501}, "message", "En fazla 500 karakter olmalı."),
+        ({"message": "Dün?", "customerId": "1"}, "customerId", "Tanınmayan alan."),
+        ({}, "message", "Zorunlu alan."),
+    ],
+)
+def test_chat_request_is_validated(payload, field, message):
+    response = chat_client(FakeChat(CHAT_REPLY)).post("/v1/chat", json=payload, headers={"Authorization": "Bearer abc"})
+    problem = assert_problem(response, 400, "validation_failed", "İstek geçersiz.")
+    assert problem["errors"] == {field: [message]}
+
+
+@pytest.mark.parametrize(
+    ("error", "status", "code", "title"),
+    [
+        (SessionInvalid("expired"), 401, "session_invalid", "Oturum geçersiz; yeniden giriş yapın."),
+        (BackendUnavailable("down"), 503, "backend_unavailable", "Banka servisine şu an ulaşılamıyor."),
+        (ToolCallRejected("400"), 502, "ai_bad_tool_call", "Asistan geçersiz bir sorgu üretti."),
+        (BackendTimeout("slow"), 504, "ai_timeout", "Asistan zamanında cevap veremedi."),
+    ],
+)
+def test_bridge_errors_map_to_problems(error, status, code, title):
+    response = chat_client(FakeChat(error=error)).post("/v1/chat", json={"message": "Dün?"},
+                                                       headers={"Authorization": "Bearer abc"})
+    assert_problem(response, status, code, title)
+
+
+def test_service_wires_the_real_chat_parts():
+    service = create_app({**ENV, "BANKINGAI_API_URL": "http://api.test:8080/"}).state.chat_service
+    assert isinstance(service, ChatService)
+    assert isinstance(service.selector, LangChainToolSelector)
+    assert isinstance(service.gateway, RestToolGateway)
+    assert service.gateway.settings.base_url == "http://api.test:8080"

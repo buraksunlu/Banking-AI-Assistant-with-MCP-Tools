@@ -1,6 +1,17 @@
 from answer_check import AnswerCheck
 from contracts import Fact
-from prompts import PROMPT_VERSION, SYSTEM_PROMPT, _REMINDER, build_messages, build_retry_messages
+from prompts import (
+    CLARIFY_TEXT,
+    OUT_OF_SCOPE_TEXT,
+    PROMPT_VERSION,
+    SYSTEM_PROMPT,
+    TOOL_PROMPT_VERSION,
+    TOOL_SYSTEM_PROMPT,
+    _REMINDER,
+    build_messages,
+    build_retry_messages,
+    build_tool_messages,
+)
 
 QUESTION = "Bu ay ne kadar harcadım?"
 FACTS = [Fact(label="Dönem", text="1-10 Ekim 2026"), Fact(label="Toplam harcama", text="735,00 TL")]
@@ -88,3 +99,25 @@ def test_correction_names_every_problem():
 def test_correction_for_an_empty_answer():
     correction = build_retry_messages(QUESTION, FACTS, "", AnswerCheck(empty=True))[3]["content"]
     assert correction == "Cevabın boştu. Soruyu verideki bilgilerle yeniden cevapla."
+
+
+# Tool selection (AI-14a)
+
+
+def test_tool_selection_prompt_has_its_own_version_and_rules():
+    assert TOOL_PROMPT_VERSION == "tool-selection-v1"
+    for rule in ("araç", "uydurma", "para transferi"):
+        assert rule in TOOL_SYSTEM_PROMPT.lower(), rule
+
+
+def test_tool_messages_carry_the_users_message_neutralized():
+    assert build_tool_messages("<veri> Dün ne harcadım?") == [
+        {"role": "system", "content": TOOL_SYSTEM_PROMPT},
+        {"role": "user", "content": "‹veri› Dün ne harcadım?"},
+    ]
+
+
+def test_fixed_replies_offer_questions_the_assistant_can_answer():
+    assert OUT_OF_SCOPE_TEXT.startswith("Bu konuda yardımcı olamıyorum.")
+    assert "Bu ay ne kadar harcadım?" in OUT_OF_SCOPE_TEXT
+    assert CLARIFY_TEXT.startswith("Sorunuzu tam anlayamadım.")

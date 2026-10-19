@@ -10,6 +10,8 @@ ollama==0.6.3
 # Tests: pytest also runs the older unittest files; httpx2 is what Starlette's TestClient asks for (httpx is deprecated there).
 pytest==9.1.1
 httpx2==2.13.1
+# AI-14a: the chat's tool bridge calls the .NET API with httpx (already pulled in by ollama/langchain-core; K6-A).
+httpx==0.28.1
 
 # Indirect dependencies pinned because pip picked releases younger than two weeks (19 Oct 2026).
 starlette==1.7.0

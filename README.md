@@ -180,7 +180,8 @@ python3 ai/service/ollama_client.py                                  # elle kont
 ai/.venv/bin/uvicorn --app-dir ai/service --factory app:create_app --host 127.0.0.1 --port 8000   # AI servisi
 ```
 
-AI servisi: `GET /health/live`, `GET /health/ready`, `POST /v1/explanations` (soru + backend'in biçimlendirdiği `facts`);
+AI servisi: `GET /health/live`, `GET /health/ready`, `POST /v1/explanations` (soru + backend'in biçimlendirdiği `facts`),
+`POST /v1/chat` (serbest soru; `Authorization: Bearer` ile, tool'ları .NET API'de çalıştırır; .NET API'nin açık olması gerekir);
 etkileşimli belge `http://127.0.0.1:8000/docs`. Hatalar API'ninkiyle aynı biçimdedir (`title`, `status`, `code`, `traceId`).
 
 ## Veri modeli
