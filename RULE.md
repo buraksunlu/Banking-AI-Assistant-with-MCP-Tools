@@ -1357,7 +1357,7 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   kullanıcıyla netleşir; açıkça istenen varlık korunur. Eksik veride kazanan uydurulmaz.
 
 ==================================================
-29. MEVCUT PROJE DURUMU — 13 EKİM 2026
+29. MEVCUT PROJE DURUMU — 19 EKİM 2026
 ==================================================
 
 COMPLETED
@@ -1450,13 +1450,19 @@ IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Local AI (todo bölüm 15): AI-07 (.NET → FastAPI; AI kapalıyken deterministik sonuç), sonra AI-08; ardından read-only
-  MCP (bölüm 16). Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
+- Local AI (todo bölüm 15): AI-07 (.NET → FastAPI; AI kapalıyken deterministik sonuç) ve AI-14 (uçtan uca sohbet uç
+  noktası; sözleşme ve "model kapalıyken sohbet" kararı AI-07'den önce), ardından read-only MCP (bölüm 16; AI-09'un yeri
+  MCP-01'de). Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,
   geri soru, en fazla 3 tool'luk çok adımlı soru), yeni analizler (todo 12c: ANA-15–19, MCP-19–23) ve içgörü kartları
   (todo 15d: INS-01–03, IOS-12; kartı ve sırasını backend seçer, LLM yalnız cümleyi kurar). Sıra: AI/MCP omurgası →
   15c → 12c → 15d. Yeni tablo, LangGraph ve RAG yok.
+- 19 Ekim 2026 todo taraması ve kullanıcı kararı: eksik maddeler eklendi (AI-14 sohbet uç noktası, IOS-13 giriş ekranı,
+  MCP-24/25 eksik tool'lar, SEC-06 sohbet hız sınırı, API-16 OpenAPI parametreleri, API-17 sayfalama kayması, OPS-06
+  isteğe bağlı CI) ve öneriler: ANA-20 gün/hafta dönemleri, ANA-21 + MCP-26 tek çağrıda özet, CHAT-06 önerilen sorular,
+  CHAT-07 cevaptan ekrana bağlantı, 12d kalıcı bütçe ve hedef (BUD-01–04; yeni tablo migration onayıyla, LLM yazamaz).
+  Karar bekleyen: SRC-02 (altın kaynağı).
 
 KNOWN ISSUES
 - Servislerden gelen her ArgumentException 400 sayılıyor; bir programlama hatasından doğan ArgumentException da
