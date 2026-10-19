@@ -102,3 +102,37 @@ def _normalize(value):
         except InvalidOperation:
             return str(value).strip()
     return value
+
+
+def count_sentences(text: str) -> int:
+    """Counts sentences by their ending punctuation; "12.345,67" is not a sentence end."""
+    text = text.strip()
+    if not text:
+        return 0
+    # A run of . ! ? … counts once, and only when followed by whitespace or the end ("12.345" has a digit after the dot).
+    ends = len(re.findall(r"[.!?…]+(?=\s|$)", text))
+    return ends if re.search(r"[.!?…]$", text) else ends + 1
+
+
+def score_text_rules(content: str, must_include_any: list[str], must_not_include: list[str], max_sentences: int) -> Score:
+    """Passes when one of ``must_include_any`` appears, none of ``must_not_include`` does, and the answer is short enough.
+
+    Text is compared with Turkish casing folded, so "TALIMAT", "TALİMAT" and "talımat" all match "talimat".
+    """
+    folded = _fold(content)
+    problems = []
+    if must_include_any and not any(_fold(text) in folded for text in must_include_any):
+        problems.append(f"none of: {', '.join(must_include_any)}")
+    forbidden = [text for text in must_not_include if _fold(text) in folded]
+    if forbidden:
+        problems.append(f"forbidden: {', '.join(forbidden)}")
+    sentences = count_sentences(content)
+    if sentences > max_sentences:
+        problems.append(f"{sentences} sentences (max {max_sentences})")
+    return Score(not problems, "; ".join(problems))
+
+
+def _fold(text: str) -> str:
+    # Models also write Turkish words in ASCII ("TALIMAT"); fold every i-like letter to "i". "İ" goes first because
+    # str.lower() would turn it into "i" plus a combining dot; "I" already lowers to "i".
+    return text.replace("İ", "i").lower().replace("ı", "i")

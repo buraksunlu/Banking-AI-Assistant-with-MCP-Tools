@@ -14,7 +14,7 @@ read-only olacaktır. Her şey ücretsiz ve yereldir (local Qwen + Ollama). Ger�
 | Veritabanı + synthetic demo veri | Tamam: 6 domain tablosu + giriş tablosu, 12 migration, 3 demo müşteri, 7 hesap, 116 işlem |
 | Deterministik analytics | Tamam: özet, kategori, merchant, arama, en yüksek işlemler, dönem karşılaştırması, aylık seri, düzenli ödemeler |
 | HTTP API | Tamam: giriş/JWT, hesaplar, işlemler, analytics endpoint'leri, ortak hata cevabı, OpenAPI + Scalar |
-| Local AI (FastAPI + LangChain + Qwen) | Sürüyor: model seçildi (`qwen3.5:4b`), Ollama bağlantısı, FastAPI servisi ve LangChain (`ChatOllama`) hazır ([docs/local-ai.md](docs/local-ai.md)); açıklama prompt'u sırada |
+| Local AI (FastAPI + LangChain + Qwen) | Sürüyor: model seçildi (`qwen3.5:4b`), Ollama bağlantısı, FastAPI servisi LangChain (`ChatOllama`) ve açıklama prompt'u hazır ([docs/local-ai.md](docs/local-ai.md)); çıktı doğrulaması sırada |
 | MCP, SwiftUI | Henüz başlamadı |
 | Market verisi (USDTRY/EURTRY/gram altın) | Ayrı kol; altın kaynağı dış yanıt bekliyor, import yok |
 
@@ -175,6 +175,7 @@ AI servisi ve model ölçümü (Python 3.14; ayrıntı [docs/local-ai.md](docs/l
 ai/.venv/bin/python -m pip install -r ai/requirements.txt             # sabit sürümler
 ai/.venv/bin/python -m pytest ai                                      # bütün Python testleri (Ollama kapalıysa gerçek-Ollama testleri atlanır)
 python3 ai/model_check/run.py --model qwen3.5:4b --model qwen3.5:9b   # modelleri karşılaştır (Ollama açık olmalı)
+ai/.venv/bin/python ai/model_check/explanation_eval.py              # açıklama prompt'unu 10 vakada değerlendir
 python3 ai/service/ollama_client.py                                  # elle kontrol: Ollama ve model hazır mı?
 ai/.venv/bin/uvicorn --app-dir ai/service --factory app:create_app --host 127.0.0.1 --port 8000   # AI servisi
 ```

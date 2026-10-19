@@ -183,10 +183,11 @@ def test_real_model_explains_in_turkish():
 
 @real_ollama
 def test_real_timeout_leaves_the_server_free():
-    long_task = [Fact(label="Görev", text="1'den 500'e kadar bütün sayıları tek tek yaz.")]
     LangChainExplainer(_real_settings()).explain(QUESTION, FACTS)  # load the model first
+    # A normal answer takes ~2 s; cutting it at 0.5 s does not depend on what the prompt lets the model write.
+    # (Until AI-05 this used a "write 1 to 500" fact; the AI-05 prompt rightly treats that as data, not a task.)
     with pytest.raises(OllamaTimeout):
-        LangChainExplainer(_real_settings(timeout_seconds=2.0)).explain("Görevi yap.", long_task)
+        LangChainExplainer(_real_settings(timeout_seconds=0.5)).explain(QUESTION, FACTS)
     # If Ollama kept generating, this call would queue behind it.
     started = time.monotonic()
     LangChainExplainer(_real_settings()).explain(QUESTION, FACTS)

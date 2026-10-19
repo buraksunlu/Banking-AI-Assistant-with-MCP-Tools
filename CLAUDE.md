@@ -98,6 +98,7 @@ olmadan Ollama modelleri bulamaz). Thinking modunda temperature 0 sonsuz düşü
 /opt/homebrew/bin/python3.14 -m venv ai/.venv && ai/.venv/bin/python -m pip install -r ai/requirements.txt   # bir kez
 ai/.venv/bin/python -m pytest ai                                      # bütün Python testleri; Ollama kapalıysa gerçek-Ollama testleri atlanır
 python3 ai/model_check/run.py --model qwen3.5:4b --model qwen3.5:9b   # model ölçümü (yalnız standart kütüphane)
+ai/.venv/bin/python ai/model_check/explanation_eval.py              # açıklama prompt'u değerlendirmesi (AI-05, Ollama açık)
 python3 ai/service/ollama_client.py                                  # elle kontrol (BANKINGAI_LLM_MODEL gerekir)
 ai/.venv/bin/uvicorn --app-dir ai/service --factory app:create_app --host 127.0.0.1 --port 8000   # AI servisi (AI-03)
 ```
@@ -122,6 +123,11 @@ LangChain (AI-04): `LangChainExplainer` `ChatOllama` kullanır (`reasoning=False
 kontrol edilir ve süre dolunca akış kapatılır (Ollama da işi bırakır). LangChain/Ollama/httpx hataları `_translate` ile dört türe çevrilir;
 yalnız `json.JSONDecodeError` yakalanır (geniş `ValueError` gerçek hatayı gizlerdi). `LANGSMITH_TRACING`/`LANGCHAIN_TRACING_V2` açıksa
 servis açılmaz (veri buluta gitmesin). Testler Ollama'nın satır satır JSON akışını taklit eden sahte sunucu kullanır (`test_explainer.py`).
+
+Prompt (AI-05): `ai/service/prompts.py`, `PROMPT_VERSION` ile. Prompt metni değişince sürüm adı da değişir ve
+`ai/.venv/bin/python ai/model_check/explanation_eval.py` (10 vaka, gerçek model; `pytest`'e dahil değil) önce ve sonra çalıştırılır.
+Soru ve kalemlerdeki `<`/`>` `‹`/`›` olur (etiketle bloktan kaçılamaz); kural hatırlatması veri bloğundan sonra gelir (4b son talimata uyuyor).
+Değerlendirmede yasak metin Türkçe harf katlanarak aranır ("TALIMAT" = "talimat"). Prompt kural koyar ama garanti vermez: kod kontrolü AI-06/10.
 
 Migration:
 
@@ -331,7 +337,7 @@ işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu test
 ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi), API-09 (hesabın işlem listesi), API-10 (tek işlem), API-11 (işlem ekleme), API-12 (Idempotency-Key), API-13 (ortak hata cevabı), ANA-09 (analytics endpoint'leri + `GET /api/transactions` arama), ANA-10–14 (yeni soru
 tipleri: kavramsal merchant, tutar filtresi, yaklaşan ödemeler, bütçe, tasarruf), API-14 (endpoint taraması, kalıcılık).
 API-15 (OpenAPI sözleşmesi, Scalar, örnekler). API bölümü tamam. AI-01 (local model: `qwen3.5:4b` varsayılan, thinking kapalı;
-`ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`), AI-03 (FastAPI servisi `ai/service/app.py`), AI-04 (LangChain `ChatOllama`); sıradaki: AI-05 (prompt), AI-06, sonra MCP.
+`ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`), AI-03 (FastAPI servisi `ai/service/app.py`), AI-04 (LangChain `ChatOllama`), AI-05 (prompt `explanation-v1`, değerlendirme 8/10); sıradaki: AI-06 (çıktı doğrulama), AI-07, sonra MCP.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
 içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d.
