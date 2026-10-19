@@ -1463,6 +1463,11 @@ NEXT
   isteğe bağlı CI) ve öneriler: ANA-20 gün/hafta dönemleri, ANA-21 + MCP-26 tek çağrıda özet, CHAT-06 önerilen sorular,
   CHAT-07 cevaptan ekrana bağlantı, 12d kalıcı bütçe ve hedef (BUD-01–04; yeni tablo migration onayıyla, LLM yazamaz).
   Karar bekleyen: SRC-02 (altın kaynağı).
+- Gün/hafta dönemleri (ANA-20, 19 Ekim 2026): PeriodKind'e Today, Yesterday, ThisWeek, LastWeek, Last7Days, Last30Days,
+  ThisYear eklendi; hafta pazartesi başlar, "son N gün" bugün dahil tam N gündür ("son N ay" eski kuralıyla korunur). Dönem
+  alan bütün endpoint'ler kabul eder. AI-14 kararları: K1-B (önce FastAPI /v1/chat, sonra .NET + AI-07), K2-A (MCP'ye kadar
+  geçici REST köprüsü), K3-A (biçimlendirme AI servisinde), K4-C (model kapalıyken 503 + sohbet açılışında hazır olma kontrolü),
+  K5-A (tool seçilmezse sabit metin), K6-A (ANA-20 önce).
 
 KNOWN ISSUES
 - Servislerden gelen her ArgumentException 400 sayılıyor; bir programlama hatasından doğan ArgumentException da

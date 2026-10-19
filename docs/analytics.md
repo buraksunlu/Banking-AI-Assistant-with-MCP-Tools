@@ -6,9 +6,26 @@ filtreleme, yetki ve dönem çözümü backend'de yapılır (RULE.md §2, VAL-05
 
 ## Ortak kurallar
 
-- **Dönem:** `PeriodResolver` (ANA-01). Sembolik dönem (ThisMonth, LastMonth,
-  Last3Months, Last6Months, Custom) müşterinin `Customers.TimeZone` değerine göre
-  `[StartUtc, EndUtc)` aralığına çevrilir. Sonuçta yerel `StartDate`/`EndDate` döner.
+- **Dönem:** `PeriodResolver` (ANA-01, ANA-20). Sembolik dönem müşterinin `Customers.TimeZone` değerine göre
+  `[StartUtc, EndUtc)` aralığına çevrilir. Sonuçta yerel `StartDate`/`EndDate` döner. Model yalnız adı seçer; tarihi
+  her zaman backend hesaplar (AI-14 denemesinde gün dönemi yokken "Dün ne harcadım?" sessizce "geçen ay" olmuştu).
+
+  | Dönem | Anlamı (dahil günler) | Demo (Cumartesi 10 Ekim 2026) |
+  | --- | --- | --- |
+  | `ThisMonth` | ay başı – bugün | 1–10 Eki |
+  | `LastMonth` | önceki tam ay | 1–30 Eyl |
+  | `Last3Months` / `Last6Months` | 3/6 ay önceki **aynı gün** – bugün (iki uç dahil) | 10 Tem – 10 Eki / 10 Nis – 10 Eki |
+  | `Today` | bugün | 10 Eki |
+  | `Yesterday` | dün | 9 Eki |
+  | `ThisWeek` | bu haftanın **pazartesisi** – bugün (K2-A) | 5–10 Eki |
+  | `LastWeek` | geçen haftanın pazartesisi – pazarı | 28 Eyl – 4 Eki |
+  | `Last7Days` / `Last30Days` | **bugün dahil** 7/30 gün (K3-A) | 4–10 Eki / 11 Eyl – 10 Eki |
+  | `ThisYear` | 1 Ocak – bugün | 1 Oca – 10 Eki |
+  | `Custom` | `from`–`to` (en fazla 24 ay, gelecek yok) | — |
+
+  Dikkat: "son N gün" bugünü N günden biri sayar (tam N gün); "son N ay" N ay önceki aynı günden başlar (N ay + 1 gün).
+  Eski kural davranış değiştirmemek için korundu. Kabul örnekleri (Ada, harcama): dün 145, bu hafta 615, geçen hafta 120,
+  son 7 gün 615, son 30 gün 1.359,98, bu yıl 3.934,88 TRY; bugün harcama yok (boş liste).
 - **Saat:** `TimeProvider` ile verilir; testler ve demo sabit saat kullanabilir.
 - **Müşteri kimliği** güvenilir çağıran bağlamından gelir (API oturumu), model
   argümanından değil (SEC-01).

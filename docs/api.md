@@ -294,7 +294,7 @@ ve Business hesaplar dahildir.
 
 | Parametre | Kural |
 |---|---|
-| `period` | isteğe bağlı, yalnız adla: `ThisMonth`, `LastMonth`, `Last3Months`, `Last6Months` |
+| `period` | isteğe bağlı, yalnız adla: `ThisMonth`, `LastMonth`, `Last3Months`, `Last6Months`, `Today`, `Yesterday`, `ThisWeek`, `LastWeek`, `Last7Days`, `Last30Days`, `ThisYear` |
 | `from`, `to` | isteğe bağlı, `yyyy-MM-dd`, **birlikte** (yerel tarih, dahil; özel dönem en fazla 24 ay); `period` ile birlikte verilemez |
 | (ikisi de yoksa) | **son 3 ay** (kullanıcı kararı) |
 | `limit` | 1–50, varsayılan 20 |
@@ -487,7 +487,8 @@ yazıcıda reddedilir). Sınır: ayar açıkken eklenen bütün işlemler aynı 
 
 ## Dönem parametreleri (bütün endpoint'lerde aynı, `Api/Queries/PeriodParameters`)
 
-Ya `period` (tam adla: `ThisMonth`, `LastMonth`, `Last3Months`, `Last6Months`) ya da `from` + `to` (yerel tarih, dahil;
+Ya `period` (tam adla: `ThisMonth`, `LastMonth`, `Last3Months`, `Last6Months`, `Today`, `Yesterday`, `ThisWeek`, `LastWeek`,
+`Last7Days`, `Last30Days`, `ThisYear`; anlamları docs/analytics.md, ANA-20) ya da `from` + `to` (yerel tarih, dahil;
 en fazla 24 ay). İkisi birlikte, tek tarih, bilinmeyen ad, `Custom`, sayı (`2`) ya da farklı harf büyüklüğü → 400.
 Hesabın işlem listesinde dönem verilmezse son 3 ay; **analytics'te dönem zorunludur** (karar 3-A; yoksa 400
 `errors.period`). Düzeltme (ANA-09): API-09'dan beri `Last3Months` ve `Last6Months` adları "içinde rakam var"

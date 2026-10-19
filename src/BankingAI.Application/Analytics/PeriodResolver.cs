@@ -40,6 +40,15 @@ public sealed class PeriodResolver(TimeProvider timeProvider)
             // DateOnly.AddMonths kısa ayda son güne sabitlenir: 31 Mayıs - 3 ay = 28 Şubat.
             PeriodKind.Last3Months => (today.AddMonths(-3), today),
             PeriodKind.Last6Months => (today.AddMonths(-6), today),
+            PeriodKind.Today => (today, today),
+            PeriodKind.Yesterday => (today.AddDays(-1), today.AddDays(-1)),
+            PeriodKind.ThisWeek => (WeekStart(today), today),
+            PeriodKind.LastWeek => (WeekStart(today).AddDays(-7), WeekStart(today).AddDays(-1)),
+            // "Son 7 gün" counts today as one of the seven (K3-A), unlike Last3Months, which starts on the same day
+            // three months back. Both rules are written down in docs/analytics.md.
+            PeriodKind.Last7Days => (today.AddDays(-6), today),
+            PeriodKind.Last30Days => (today.AddDays(-29), today),
+            PeriodKind.ThisYear => (new DateOnly(today.Year, 1, 1), today),
             _ => ValidateCustom(from, to, today)
         };
 
@@ -112,6 +121,9 @@ public sealed class PeriodResolver(TimeProvider timeProvider)
         windows.Add(new MonthWindow(monthStart.Year, monthStart.Month, true, Build(PeriodKind.ThisMonth, monthStart, today, timeZone)));
         return windows;
     }
+
+    // Weeks start on Monday (K2-A), as in Türkiye and ISO 8601; DayOfWeek counts Sunday as 0.
+    private static DateOnly WeekStart(DateOnly day) => day.AddDays(-(((int)day.DayOfWeek + 6) % 7));
 
     private DateOnly Today(TimeZoneInfo timeZone) =>
         // "Bugün" sunucu saatinden değil, müşterinin saat diliminden belirlenir.

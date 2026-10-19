@@ -3168,7 +3168,14 @@
           "LastMonth",
           "Last3Months",
           "Last6Months",
-          "Custom"
+          "Custom",
+          "Today",
+          "Yesterday",
+          "ThisWeek",
+          "LastWeek",
+          "Last7Days",
+          "Last30Days",
+          "ThisYear"
         ],
         "type": "string"
       },
