@@ -151,6 +151,7 @@ curl -s "localhost:5248/api/analytics/spending-summary?period=ThisMonth" -H "Aut
 | `GET /api/analytics/highest-transactions`, `recurring-payments`, `upcoming-payments` | En büyük işlemler, düzenli ve yaklaşan ödemeler | ANA-09, ANA-12 |
 | `GET /api/analytics/budget-check`, `savings-simulation` | Bütçe durumu ve ay sonu tahmini; "%N azaltsam" | ANA-13, ANA-14 |
 | `GET /api/analytics/merchants`, `merchant-group-spending` | Merchant listesi (kapalı küme) ve "kahveye ne kadar?" | ANA-10 |
+| `POST /api/assistant/messages`, `GET /api/assistant/status` | Sohbet asistanı: serbest Türkçe soru → cevap + kullanılan sorgu + rakamlar; asistan hazır mı (AI servisi ve Ollama açık olmalı; müşteri başına dakikada 10 mesaj) | AI-14b, AI-07 |
 
 JSON kuralları: enum'lar yazıyla ve tam adla, para JSON sayısı (`577490.18`; tırnaklı tutar 400), yazma isteğinde
 tanınmayan alan 400. Her hata ProblemDetails biçimindedir: Türkçe `title`, makine kodu `code` (ör. `validation_failed`,
@@ -182,7 +183,8 @@ ai/.venv/bin/uvicorn --app-dir ai/service --factory app:create_app --host 127.0.
 
 AI servisi: `GET /health/live`, `GET /health/ready`, `POST /v1/explanations` (soru + backend'in biçimlendirdiği `facts`),
 `POST /v1/chat` (serbest soru; `Authorization: Bearer` ile, tool'ları .NET API'de çalıştırır; .NET API'nin açık olması gerekir);
-etkileşimli belge `http://127.0.0.1:8000/docs`. Hatalar API'ninkiyle aynı biçimdedir (`title`, `status`, `code`, `traceId`).
+etkileşimli belge `http://127.0.0.1:8000/docs`. Uygulama AI servisini doğrudan değil, .NET'in `/api/assistant/...` uç noktaları üzerinden kullanır
+(adres `BANKINGAI_AI_URL`, yoksa `http://127.0.0.1:8000/`). Hatalar API'ninkiyle aynı biçimdedir (`title`, `status`, `code`, `traceId`).
 
 ## Veri modeli
 

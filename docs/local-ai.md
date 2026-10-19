@@ -517,4 +517,51 @@ Migros bulunamadı, transfer kapsam dışı, token yok/bozuk 401; 1,8–6,7 sn. 
 - Dönemsiz sorular ("Ne kadar harcadım?") kapsam dışı metne düşer; akıllı geri soru CHAT-03.
 - Tek tur, tek tool (CHAT-02, CHAT-04). Yalnız 3 tool; geri kalanı MCP bölümünde.
 - Uçtan uca için .NET API `BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z` ile açık olmalı.
-- .NET'in iPhone'a açacağı uç nokta (AI-14b + AI-07) ve sohbet açılışında hazır olma kontrolü (K4-C) henüz yok.
+- .NET'in iPhone'a açacağı uç nokta ve hazır olma kontrolü AI-14b'de eklendi (aşağıda).
+
+# Sohbet uç noktası — .NET yarısı (AI-14b + AI-07, 19 Ekim 2026)
+
+iPhone yalnız .NET'e konuşur: `POST /api/assistant/messages` ve `GET /api/assistant/status` (sözleşme ve hata tablosu
+docs/api.md "Sohbet asistanı"). .NET token'ı doğrular, müşterinin hâlâ var olduğunu kontrol eder (modeli boşuna
+çalıştırmamak için, K10-A), müşteri başına dakikada 10 mesaj sınırını uygular (SEC-06) ve mesajı **aynı**
+`Authorization` başlığıyla AI servisinin `/v1/chat`'ine iletir. Python tarafı değişmedi.
+
+## Kararlar (hepsi kullanıcı kararı, 19 Ekim 2026)
+
+K1-A `POST /api/assistant/messages` · K2-A .NET'in kendi DTO'su (`type` tam adla, `answer`, `toolCalls`, `facts`; `model`
+yalnız logda) · K3-A istemci `Api/Assistant/` klasöründe, controller arayüze bağlı · K4-B süre ayardan
+(`BANKINGAI_AI_TIMEOUT_SECONDS`, varsayılan 35 sn, 1–600) · K5-A üç hata kodu (`assistant_unavailable` 503,
+`assistant_timeout` 504, `assistant_failed` 502) · K6-A müşteri başına sabit pencere, dakikada 10 · K7-C adres yoksa
+`http://127.0.0.1:8000/`, açılışta logda · K8-A `status` her zaman 200 `{available}` · K9-A mesaj ve token loglanmaz ·
+K10-A `ICustomerCheck` (Application, `CustomerScope`'un müşteri kuralı).
+
+## Süre ve iptal
+
+`AssistantClient` `HttpClient.Timeout`'u kapatır ve her çağrıda kendi `CancellationTokenSource`'unu kurar (istemcinin
+iptaliyle bağlı). Böylece iki neden ayrılır: yalnız kendi süremiz 504 olur; istemci ayrılınca istek sessizce kesilir
+(`ApiExceptionHandler`'ın "istemci gitti" kuralı). Hazır olma kontrolü 5 sn (AI servisinin kendi kontrolü 3 sn).
+
+## Uçtan uca deneme (gerçek .NET + AI servisi + `qwen3.5:4b`, Ada, demo anı)
+
+| Soru | Sonuç |
+|---|---|
+| `status` | `{"available": true}` |
+| Dün ne harcadım? | `Answer`, **145,00 TL** (`get_spending_summary`, `Yesterday`), 13,4 sn (model soğuk) |
+| Bu hafta ne harcadım? | `Answer`, **615,00 TL** (`ThisWeek`), 10,1 sn |
+| Bu ay kategorilere göre? | `Answer`, 590,00 TL (%80,27) + 145,00 TL sınıflandırılmamış, 4,9 sn |
+| Son 3 ayda Starbucks? | `Answer`, **930,00 TL** (`Last3Months`), 4,6 sn |
+| Migros'a ne harcadım? | `Answer`, bulunamadı (modelsiz sabit metin), 1,8 sn |
+| Deniz'e 100 TL transfer yap | `OutOfScope`, 2,1 sn |
+| AI servisi açık, Ollama'ya ulaşamıyor | `status` `false`; mesaj 503 `assistant_unavailable` |
+| AI servisi kapalı | `status` `false`; mesaj 503 `assistant_unavailable` |
+
+.NET logunda mesaj metni ve token geçmedi; satırlar örneğin `Assistant reply Answer via [get_spending_summary] by
+qwen3.5:4b in 13330 ms for a 16-character message`.
+
+## Sınırlar
+
+- AI servisinin `/v1/chat`'i senkron: istemci ayrılınca .NET isteği keser, ama model turu bitirene kadar çalışır (en
+  fazla 30 sn).
+- Hız sınırı sayaçları bellekte (yeniden başlatmada sıfırlanır, tek sunucu); paralel gönderim tek pencerede 10'a kadar
+  geçer (müşteri başına eşzamanlılık sınırı yok, K6-B ileride).
+- .NET → AI servisi → .NET döngüsü MCP-12'ye kadar sürer.

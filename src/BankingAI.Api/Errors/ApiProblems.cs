@@ -19,6 +19,9 @@ public static class ApiProblems
     public const string UnsupportedMediaType = "unsupported_media_type";
     public const string TooManyRequests = "too_many_requests";
     public const string InternalError = "internal_error";
+    public const string AssistantUnavailable = "assistant_unavailable";
+    public const string AssistantTimeout = "assistant_timeout";
+    public const string AssistantFailed = "assistant_failed";
 
     /// <summary>Request header with the client's key for one write (API-12).</summary>
     public const string IdempotencyKeyHeader = "Idempotency-Key";

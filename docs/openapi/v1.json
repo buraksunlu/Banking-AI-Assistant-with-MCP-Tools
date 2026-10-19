@@ -1541,6 +1541,158 @@
         ]
       }
     },
+    "/api/assistant/messages": {
+      "post": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "Answers one question about the customer's own spending",
+        "description": "`POST /api/assistant/messages`: answers one question about the customer's own spending.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantMessageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantReply"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "More than ten messages a minute from one customer.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "No valid reply came out (assistant_failed); asking differently may work.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The assistant is not running (assistant_unavailable).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "The assistant did not answer in time (assistant_timeout).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/assistant/status": {
+      "get": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "Whether the chat screen can take questions right now",
+        "description": "`GET /api/assistant/status`: whether the chat screen can take questions right now. Always 200; an\nunavailable assistant is a state, not an error (decision AI-14b K8-A).",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantStatus"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
     "/api/auth/login": {
       "post": {
         "tags": [
@@ -2234,6 +2386,108 @@
           "Business"
         ],
         "type": "string"
+      },
+      "AssistantFact": {
+        "required": [
+          "label",
+          "text"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "description": "One backend figure the answer is based on, already formatted for people (\"Toplam harcama\" / \"145,00 TL\")."
+      },
+      "AssistantMessageRequest": {
+        "required": [
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "1–500 characters, not only whitespace; the same limit as the AI service."
+          }
+        },
+        "additionalProperties": false,
+        "description": "Body of `POST /api/assistant/messages`: only the user's text. The customer comes from the token; any other\nfield (for example `customerId`) is a 400."
+      },
+      "AssistantReply": {
+        "required": [
+          "type",
+          "answer",
+          "toolCalls",
+          "facts"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/AssistantReplyType"
+          },
+          "answer": {
+            "type": "string"
+          },
+          "toolCalls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistantToolCall"
+            }
+          },
+          "facts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistantFact"
+            }
+          }
+        },
+        "description": "Reply of `POST /api/assistant/messages`. The figures in `answer` come from `facts`, which the\nbackend computed; the model only chose the tool and wrote the sentence."
+      },
+      "AssistantReplyType": {
+        "enum": [
+          "Answer",
+          "Clarification",
+          "OutOfScope"
+        ],
+        "type": "string",
+        "description": "What kind of reply the assistant gave to one message."
+      },
+      "AssistantStatus": {
+        "required": [
+          "available"
+        ],
+        "type": "object",
+        "properties": {
+          "available": {
+            "type": "boolean"
+          }
+        },
+        "description": "Reply of `GET /api/assistant/status`: whether the chat screen can take questions right now."
+      },
+      "AssistantToolCall": {
+        "required": [
+          "tool",
+          "arguments"
+        ],
+        "type": "object",
+        "properties": {
+          "tool": {
+            "type": "string",
+            "description": "The tool name, for example `get_spending_summary`."
+          },
+          "arguments": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The checked arguments, for example `period = Yesterday`."
+          }
+        },
+        "description": "A backend query the assistant ran for the answer, with the arguments it used, so the client can show how the\nanswer was found (AI-11) or link to the matching screen (CHAT-07)."
       },
       "BudgetCheck": {
         "required": [
@@ -3831,6 +4085,9 @@
     },
     {
       "name": "Analytics"
+    },
+    {
+      "name": "Assistant"
     },
     {
       "name": "Auth"

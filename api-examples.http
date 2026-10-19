@@ -107,6 +107,28 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/api/analytics/savings-simulation?reductionPercent=50&merchant=starbucks
 Authorization: Bearer {{token}}
 
+### ---- Sohbet asistanı (AI-14b): AI servisi ve Ollama da açık olmalı (docs/local-ai.md). Veri yazmaz.
+# AI servisi: ai/.venv/bin/uvicorn --app-dir ai/service --factory app:create_app --host 127.0.0.1 --port 8000
+# Kapalıysa status false, mesaj 503 assistant_unavailable döner. Müşteri başına dakikada 10 mesaj.
+
+### Asistan hazır mı? — beklenen: 200 { "available": true }
+GET {{baseUrl}}/api/assistant/status
+Authorization: Bearer {{token}}
+
+### "Dün ne harcadım?" — beklenen: 200, type Answer, 145,00 TL (get_spending_summary, Yesterday)
+POST {{baseUrl}}/api/assistant/messages
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "message": "Dün ne harcadım?" }
+
+### Kapsam dışı — beklenen: 200, type OutOfScope, örnek sorular
+POST {{baseUrl}}/api/assistant/messages
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "message": "Deniz'e 100 TL transfer yap" }
+
 ### ---- Hata örnekleri (hepsi ProblemDetails: Türkçe title, code, traceId)
 
 ### Token yok — beklenen: 401 unauthorized
@@ -127,6 +149,13 @@ Authorization: Bearer {{token}}
 ### Listede olmayan merchant — beklenen: 400, errors.merchants
 GET {{baseUrl}}/api/analytics/merchant-group-spending?merchants=Starbuck&period=ThisMonth
 Authorization: Bearer {{token}}
+
+### Asistana müşteri kimliği gönderme — beklenen: 400 validation_failed, errors.customerId (müşteri yalnız token'dan)
+POST {{baseUrl}}/api/assistant/messages
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "message": "Deniz'in harcamalarını göster", "customerId": "10000000-0000-0000-0000-000000000002" }
 
 ### ---- Yazma örnekleri: YALNIZ test kullanıcısıyla (yukarıdaki DİKKAT notu). Satır başındaki "# " işaretlerini kaldırın.
 

@@ -28,6 +28,15 @@ controller API, Python FastAPI + LangChain + Ollama (local Qwen), .NET MCP serve
 - Her adım: önce **detaylı plan** (ne, neden, hangi dosyalar, etkisi, kullanıcının vereceği
   kararlar, elle hesaplanmış beklenen test değerleri) → kullanıcı "okay" der → uygula → dur.
   Bir sonraki todo maddesine kendiliğinden geçme.
+- **Karar soruları (19 Ekim 2026 kullanıcı kararı):** Planda kullanıcının karar vereceği her noktada
+  olabildiğince çok gerçekçi seçenek ver (A/B/C/D…; iki seçenekte kalma: en basit, en sağlam, karma, ertele
+  gibi yolların hepsi). Her seçeneği ayrı ayrı detaylı anlat: ne demek (somut örnekle), seçilirse neyi
+  değiştirir, artısı/eksisi. Sonra önerini açıkça yaz ("Önerim: B, çünkü …") ve diğerlerini neden seçmediğini
+  söyle. Amaç geniş bir düşünme alanı. Kararlar PR'da K1-A gibi kaydedilir.
+- **Açıklamalar (19 Ekim 2026 kullanıcı kararı):** Kullanıcı bir şeyi açıklamanı istediğinde (kavram, mimari,
+  todo maddesi, bir parçanın görevi) anlaşılır, açıklayıcı ve detaylı anlat: önce büyük resim (tek cümle),
+  sonra benzetme, sonra gerçek bir örnek üzerinden numaralı adımlarla kim ne yapıyor, neden böyle, ve küçük
+  bir akış şemasıyla resimdeki yeri. Teknik terim ilk geçtiği yerde açıklanır; kısa/yoğun özet yetmez.
 - Migration: üretilen SQL'i (`migrations script`) göster, **DB'ye uygulamadan önce ikinci
   onay al**. Demo DB'ye kalıcı seed yazımı da onaylı plana bağlıdır.
 - TDD: önce test, kırmızının nedenini doğrula (NotImplemented/veri yok), sonra kod. Refactor'da
@@ -116,6 +125,14 @@ Sohbet (AI-14a): `POST /v1/chat` (Bearer zorunlu) → `chat.ChatService`: `LangC
 sayıları `Decimal`) → `facts.outcome_for` (`formatting.py` ile Türkçe metin; belirsiz/yok merchant modelsiz sabit cevap) → açıklama.
 Bütün tur tek süre; token yalnız köprüye gider (testte modele gitmediği doğrulanır). Uçtan uca deneme için .NET API
 `BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z` ile açık olmalı. Tool seçimi ve açıklama aynı `explainer.stream_message`'ı kullanır.
+
+Sohbet kapısı (AI-14b + AI-07, .NET): iPhone yalnız .NET'e konuşur. `POST /api/assistant/messages` → `ICustomerCheck` (silinmiş
+müşteri model çalışmadan 401) → `IAssistantClient` (`Api/Assistant/AssistantClient`, typed `HttpClient`) aynı `Authorization`
+başlığıyla `/v1/chat`'e → `AssistantReply`; `GET /api/assistant/status` hep 200 `{available}`. AI hataları `AssistantException`
+(`Unavailable`/`Timeout`/`Failed`) → `ApiExceptionHandler`'da 503/504/502. Ayarlar `BANKINGAI_AI_URL` (yoksa `http://127.0.0.1:8000/`),
+`BANKINGAI_AI_TIMEOUT_SECONDS` (35). Müşteri başına dakikada 10 mesaj: **`UseRateLimiter` `UseAuthorization`'dan sonra** gelmeli
+(anahtar token'daki müşteri; önce gelirse `GetCustomerId` patlar). Mesaj ve token loglanmaz. Testler gerçek model yerine
+`FakeAssistantService` (HttpMessageHandler, `ConfigureTestServices`) kullanır.
 
 AI servisi (AI-03, `ai/service/app.py`, FastAPI): `GET /health/live` (Ollama'ya sormaz), `GET /health/ready` (`check_ready`; değilse 503),
 `POST /v1/explanations` (`question` + `facts`: backend'in biçimlendirdiği etiket/metin listesi; tanınmayan alan 400, `strict`). Hatalar
@@ -349,7 +366,8 @@ işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu test
 ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi), API-09 (hesabın işlem listesi), API-10 (tek işlem), API-11 (işlem ekleme), API-12 (Idempotency-Key), API-13 (ortak hata cevabı), ANA-09 (analytics endpoint'leri + `GET /api/transactions` arama), ANA-10–14 (yeni soru
 tipleri: kavramsal merchant, tutar filtresi, yaklaşan ödemeler, bütçe, tasarruf), API-14 (endpoint taraması, kalıcılık).
 API-15 (OpenAPI sözleşmesi, Scalar, örnekler). API bölümü tamam. AI-01 (local model: `qwen3.5:4b` varsayılan, thinking kapalı;
-`ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`), AI-03 (FastAPI servisi `ai/service/app.py`), AI-04 (LangChain `ChatOllama`), AI-05 (prompt `explanation-v1`), AI-06 (çıktı doğrulama, değerlendirme 13/15); sıradaki: AI-07 (.NET → FastAPI), sonra MCP.
+`ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`), AI-03 (FastAPI servisi `ai/service/app.py`), AI-04 (LangChain `ChatOllama`), AI-05 (prompt `explanation-v1`), AI-06 (çıktı doğrulama, değerlendirme 13/15), ANA-20 (gün/hafta dönemleri), AI-14a/14b + AI-07 + SEC-06 (uçtan uca sohbet:
+FastAPI `/v1/chat` + .NET `POST /api/assistant/messages`); sıradaki: read-only MCP (MCP-01/02/05/12).
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
 içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d. 19 Ekim 2026 todo taraması: AI-14 (uçtan uca

@@ -25,6 +25,7 @@ Makine okunur sözleşme: `docs/openapi/v1.json`; tarayıcıda `http://localhost
 | `GET /api/analytics/savings-simulation` | evet | uygulandı | ANA-14 |
 | `GET /api/analytics/merchants`, `merchant-group-spending` | evet | uygulandı | ANA-10 |
 | `GET /api/transactions` (bütün hesaplarda filtreli arama) | evet | uygulandı | ANA-09 (3. parça) |
+| `POST /api/assistant/messages`, `GET /api/assistant/status` (sohbet asistanı) | evet | uygulandı | AI-14b + AI-07 |
 
 Ortak davranış: müşteri yalnız token'dan gelir (istekte müşteri parametresi yoktur); başka müşterinin
 kaynağı olmayan kaynakla birebir aynı `404`'ü alır; GUID olmayan kimlik `400`'dür.
@@ -95,7 +96,10 @@ başlığı ayrıştırmak yerine `code`'a bakar.
 | Bakiye sınırı (yetersiz bakiye, üst sınır) | 409 | `balance_limit` | Bakiye sınırı (+ `detail`) |
 | Aynı `Idempotency-Key` farklı bir istekle (API-12) | 409 | `idempotency_conflict` | Bu anahtar farklı bir istek için kullanılmış |
 | JSON olmayan gövde | 415 | `unsupported_media_type` | Desteklenmeyen içerik türü; JSON gönderin. |
-| Login deneme sınırı | 429 | `too_many_requests` | Çok fazla deneme; biraz sonra tekrar deneyin. |
+| Login deneme sınırı (IP başına dakikada 5); sohbet mesajı sınırı (müşteri başına dakikada 10); `Retry-After` başlığıyla | 429 | `too_many_requests` | Çok fazla deneme; biraz sonra tekrar deneyin. |
+| Asistan yanlış/eksik cevap üretti ya da AI servisiyle sözleşme uyuşmadı (AI-14b) | 502 | `assistant_failed` | Asistan bu soruya cevap üretemedi; farklı sormayı deneyin. |
+| AI servisi kapalı, modeli yok ya da banka servisine ulaşamıyor (AI-14b) | 503 | `assistant_unavailable` | Asistan şu an kullanılamıyor. |
+| Asistan zamanında cevap vermedi (AI-14b) | 504 | `assistant_timeout` | Asistan zamanında cevap veremedi; tekrar deneyin. |
 | Beklenmeyen hata | 500 | `internal_error` | Beklenmeyen bir hata oluştu. (ayrıntı yalnız sunucu logunda) |
 
 `errors` kuralları:
@@ -661,3 +665,58 @@ birimi başına satır; harcama yoksa ya da merchant eşleşmezse `currencies: [
 
 Hatalar (400): oran yok ("Azaltma oranı zorunlu."), `0`/`101` ("1 ile 100 arasında olmalı."), `abc`; `months=25`; kategori +
 merchant; tanımsız kategori. Token yoksa 401, başkasının hesabı 404, işletme hesabı 400 (`errors.accountId`).
+
+## Sohbet asistanı (AI-14b + AI-07, 19 Ekim 2026)
+
+iPhone yalnız .NET API ile konuşur; API token'ı, müşteriyi, hız sınırını ve mesajı kontrol edip mesajı aynı token'la
+AI servisine (`POST /v1/chat`, docs/local-ai.md) iletir. AI servisi yalnız `127.0.0.1`'de dinler.
+
+```text
+iPhone ──Bearer──► POST /api/assistant/messages ── token → müşteri var mı (K10-A) → hız sınırı → mesaj kuralı
+                         └── aynı Authorization başlığı ──► AI servisi /v1/chat ──► (köprü) /api/analytics/...
+```
+
+### `POST /api/assistant/messages`
+
+- İstek `{ "message": "Dün ne harcadım?" }`: 1–500 karakter (`InputRules.Text`, DB gibi sayar, NUL reddedilir), boşluk
+  olamaz, tanınmayan alan (ör. `customerId`) 400. Geçersiz mesaj AI servisine hiç gitmez.
+- Cevap `AssistantReply`: `type` (`Answer` / `Clarification` / `OutOfScope`, tam adla), `answer` (Türkçe, Markdown
+  olabilir), `toolCalls` (çalışan sorgu + kontrol edilmiş argümanlar; AI-11/CHAT-07 için) ve `facts` (cevabın dayandığı,
+  backend'in hesaplayıp biçimlendirdiği kalemler). Modelin adı dışarı verilmez, logda kalır (K2-A).
+- Müşteri **başına** dakikada 10 mesaj (SEC-06, K6-A); aşınca 429 + `Retry-After`. Sınır token'daki müşteriye
+  bakar; bu yüzden `UseRateLimiter` kimlik doğrulamanın **arkasındadır** (tokensız istek sayaca girmeden 401 alır).
+- Hata eşlemesi (K5-A; iPhone'un yapacağı şeye göre üç kod, AI servisinin kendi kodu yalnız logda):
+
+| AI servisinden gelen / olan | API'nin cevabı |
+|---|---|
+| 200 ve sözleşmeye uyan gövde | 200 `AssistantReply` |
+| 200 ama gövde bozuk, alan eksik ya da `type` tanınmıyor | 502 `assistant_failed` |
+| 401 (müşteri tur sırasında silinmiş) | 401 `session_invalid` |
+| 503 (`ai_unavailable`, `model_missing`, `backend_unavailable`) ya da bağlantı kurulamıyor | 503 `assistant_unavailable` |
+| 504 ya da API'nin kendi süresi doldu | 504 `assistant_timeout` |
+| 502 (`ai_answer_rejected`, `ai_bad_tool_call`, `ai_bad_response`), 400, 404, 500 ve diğerleri | 502 `assistant_failed` |
+| İstemci bağlantıyı kopardı | cevap yazılmaz; AI servisine giden istek iptal edilir |
+
+### `GET /api/assistant/status`
+
+Sohbet ekranı açılırken çağrılır (K4-C). Her zaman 200 `{ "available": true | false }` (K8-A): AI servisinin
+`/health/ready`'si 5 sn içinde 200 dönmezse `false`. Token AI servisine gitmez. Silinmiş müşteri burada da 401
+`session_invalid` alır.
+
+### Ayarlar (AI-07)
+
+| Ayar | Varsayılan | Kural |
+|---|---|---|
+| `BANKINGAI_AI_URL` | `http://127.0.0.1:8000/` (K7-C) | Mutlak http/https adres; sona `/` eklenir. Yanlış değer API'yi açtırmaz. |
+| `BANKINGAI_AI_TIMEOUT_SECONDS` | 35 (K4-B; AI servisinin 30 sn'sinin biraz üstü, onun hatası önce gelsin) | 1–600 tam saniye; başka değer API'yi açtırmaz. |
+
+Açılışta logda tek satır: `AI service: http://127.0.0.1:8000/ (chat timeout 35 s)`.
+
+### Kod
+
+`Api/Assistant/`: `AssistantSettings`, `IAssistantClient` + `AssistantClient` (typed `HttpClient`; kendi süresini
+`CancellationTokenSource` ile tutar, istemcinin iptalinden ayırır), `AssistantReply` (DTO'lar), `AssistantException`
+(`Unavailable` / `Timeout` / `Failed`; `ApiExceptionHandler` 503/504/502'ye çevirir). `Controllers/AssistantController`
+(`try/catch` yok), `Security/BearerTokenExtensions` (doğrulanmış token'ı başlıktan alır),
+`Application/Customers/ICustomerCheck` (K10-A; kural `CustomerScope`'ta tek yerde). Log (K9-A): mesaj metni ve token
+yazılmaz; yalnız tür, tool adları, model, süre, mesaj uzunluğu ve AI servisinin hata kodu.
