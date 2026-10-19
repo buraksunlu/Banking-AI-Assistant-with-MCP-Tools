@@ -3,8 +3,8 @@
 Usage (from the repository root, Ollama running):
     ai/.venv/bin/python ai/model_check/explanation_eval.py [--model qwen3.5:4b]
 
-It measures the prompt that is in ai/service right now, so running it before and after a prompt change gives the
-comparison. Every score is computed by code (scoring.py); the answers are printed for a human to read the Turkish.
+It measures the prompt and the answer check (AI-06) that are in ai/service right now, so running it before and after
+a change gives the comparison. A refused answer counts as passed only for cases marked allow_rejection. Every score is computed by code (scoring.py); the answers are printed for a human to read the Turkish.
 """
 
 import argparse
@@ -18,6 +18,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "service"))
 
 import explainer as explainer_module  # noqa: E402
 import prompts  # noqa: E402
+from answer_check import AnswerRejected  # noqa: E402
 from contracts import Fact  # noqa: E402
 from ollama_client import OllamaError, OllamaSettings  # noqa: E402
 from scoring import score_explanation, score_text_rules  # noqa: E402
@@ -40,12 +41,16 @@ def main() -> int:
     print("| Case | Result | Time (s) | Detail |")
     print("|---|---|---|---|")
 
-    answers, passed = [], 0
+    answers, passed, rejected = [], 0, 0
     for case in data["cases"]:
         facts = [Fact(label=label, text=text) for label, text in case["facts"]]
         started = time.monotonic()
         try:
             answer = explainer.explain(case["question"], facts)
+        except AnswerRejected as error:
+            rejected += 1
+            answer = "(reddedildi)"
+            problems = [] if case.get("allow_rejection") else [f"rejected: {error}"]
         except OllamaError as error:
             answer, problems = "", [f"{type(error).__name__}: {error}"]
         else:
@@ -63,7 +68,7 @@ def main() -> int:
         print(f"| {case['id']} {case['name']} | {'ok' if not problems else 'FAIL'} | {seconds:.1f} | {detail} |")
         answers.append(f"- {case['id']}: {' '.join(answer.split())}")
 
-    print(f"\n**{passed}/{len(data['cases'])} passed**\n")
+    print(f"\n**{passed}/{len(data['cases'])} passed** ({rejected} refused by the answer check)\n")
     print("\n".join(answers))
     return 0
 

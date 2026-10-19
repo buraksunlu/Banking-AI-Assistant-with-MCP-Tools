@@ -5,11 +5,14 @@ The model's output is never trusted: every score is computed here by plain code,
 
 import json
 import re
+import sys
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+from pathlib import Path
 
-# Thousands-separated form first; otherwise "1.840,00" would be read as 1 and 840,00.
-_TURKISH_NUMBER = re.compile(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?")
+# The service is the single home of number reading and Turkish folding (AI-06); measurements use the same code.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "service"))
+from answer_check import fold_turkish, parse_turkish_numbers  # noqa: E402
 
 
 @dataclass(frozen=True)
@@ -18,11 +21,6 @@ class Score:
 
     passed: bool
     detail: str = ""
-
-
-def parse_turkish_numbers(text: str) -> list[Decimal]:
-    """Returns every number written in Turkish format ("1.840,00", "%29,17", "2026") in order of appearance."""
-    return [Decimal(match.replace(".", "").replace(",", ".")) for match in _TURKISH_NUMBER.findall(text)]
 
 
 def score_tool_call(expected: dict, tool_calls: list[dict] | None) -> Score:
@@ -119,20 +117,14 @@ def score_text_rules(content: str, must_include_any: list[str], must_not_include
 
     Text is compared with Turkish casing folded, so "TALIMAT", "TALİMAT" and "talımat" all match "talimat".
     """
-    folded = _fold(content)
+    folded = fold_turkish(content)
     problems = []
-    if must_include_any and not any(_fold(text) in folded for text in must_include_any):
+    if must_include_any and not any(fold_turkish(text) in folded for text in must_include_any):
         problems.append(f"none of: {', '.join(must_include_any)}")
-    forbidden = [text for text in must_not_include if _fold(text) in folded]
+    forbidden = [text for text in must_not_include if fold_turkish(text) in folded]
     if forbidden:
         problems.append(f"forbidden: {', '.join(forbidden)}")
     sentences = count_sentences(content)
     if sentences > max_sentences:
         problems.append(f"{sentences} sentences (max {max_sentences})")
     return Score(not problems, "; ".join(problems))
-
-
-def _fold(text: str) -> str:
-    # Models also write Turkish words in ASCII ("TALIMAT"); fold every i-like letter to "i". "İ" goes first because
-    # str.lower() would turn it into "i" plus a combining dot; "I" already lowers to "i".
-    return text.replace("İ", "i").lower().replace("ı", "i")

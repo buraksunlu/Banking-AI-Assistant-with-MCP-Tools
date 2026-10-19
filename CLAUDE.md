@@ -129,6 +129,11 @@ Prompt (AI-05): `ai/service/prompts.py`, `PROMPT_VERSION` ile. Prompt metni değ
 Soru ve kalemlerdeki `<`/`>` `‹`/`›` olur (etiketle bloktan kaçılamaz); kural hatırlatması veri bloğundan sonra gelir (4b son talimata uyuyor).
 Değerlendirmede yasak metin Türkçe harf katlanarak aranır ("TALIMAT" = "talimat"). Prompt kural koyar ama garanti vermez: kod kontrolü AI-06/10.
 
+Çıktı doğrulama (AI-06): `answer_check.check_answer` her cevabı kalemlere karşı kontrol eder (her sayı soruda/veride geçmeli; boş cevap ve
+`<veri`/"backend" yasak). `LangChainExplainer.explain` geçmeyen cevaba bir kez düzeltme ister (`prompts.build_retry_messages`), iki deneme
+tek süreyi paylaşır; yine geçmezse `AnswerRejected` → 502 `ai_answer_rejected`. Sayı okuma/harf katlama yalnız `answer_check.py`'da
+(`scoring.py` oradan import eder; `answer_check` standart kütüphaneyle sınırlı kalmalı). Testlerde model `_ask`, saat `clock` ile değiştirilir.
+
 Migration:
 
 ```sh
@@ -337,7 +342,7 @@ işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu test
 ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi), API-09 (hesabın işlem listesi), API-10 (tek işlem), API-11 (işlem ekleme), API-12 (Idempotency-Key), API-13 (ortak hata cevabı), ANA-09 (analytics endpoint'leri + `GET /api/transactions` arama), ANA-10–14 (yeni soru
 tipleri: kavramsal merchant, tutar filtresi, yaklaşan ödemeler, bütçe, tasarruf), API-14 (endpoint taraması, kalıcılık).
 API-15 (OpenAPI sözleşmesi, Scalar, örnekler). API bölümü tamam. AI-01 (local model: `qwen3.5:4b` varsayılan, thinking kapalı;
-`ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`), AI-03 (FastAPI servisi `ai/service/app.py`), AI-04 (LangChain `ChatOllama`), AI-05 (prompt `explanation-v1`, değerlendirme 8/10); sıradaki: AI-06 (çıktı doğrulama), AI-07, sonra MCP.
+`ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`), AI-03 (FastAPI servisi `ai/service/app.py`), AI-04 (LangChain `ChatOllama`), AI-05 (prompt `explanation-v1`), AI-06 (çıktı doğrulama, değerlendirme 13/15); sıradaki: AI-07 (.NET → FastAPI), sonra MCP.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
 içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d.

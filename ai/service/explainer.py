@@ -1,10 +1,12 @@
 """Turns a question and backend facts into a Turkish explanation.
 
 AI-04: the call goes through LangChain's ChatOllama. AI-05: the prompt lives in prompts.py (versioned).
-AI-06 validates the output. The endpoint only depends on the ``Explainer`` protocol.
+AI-06: every answer is checked against the facts; a rejected answer gets one correction, then it is refused.
+The endpoint only depends on the ``Explainer`` protocol.
 """
 
 import json
+import logging
 import time
 from typing import Protocol
 
@@ -12,8 +14,9 @@ import httpx
 from langchain_ollama import ChatOllama
 from ollama import ResponseError
 
+from answer_check import AnswerRejected, check_answer
 from contracts import Fact
-from prompts import build_messages
+from prompts import build_messages, build_retry_messages
 from ollama_client import (
     ModelNotFound,
     OllamaBadResponse,
@@ -22,6 +25,8 @@ from ollama_client import (
     OllamaTimeout,
     OllamaUnavailable,
 )
+
+logger = logging.getLogger("bankingai.ai")
 
 # A 2-3 sentence Turkish answer is about 150-200 tokens; 400 leaves room and caps a runaway answer at ~17 s.
 MAX_ANSWER_TOKENS = 400
@@ -47,21 +52,48 @@ class LangChainExplainer:
             # Per read, not in total: it only fires when no part arrives at all (e.g. while the model loads).
             client_kwargs={"timeout": settings.timeout_seconds},
         )
+        # Replaceable in tests, so time limits can be checked without waiting.
+        self.clock = time.monotonic
 
     def explain(self, question: str, facts: list[Fact]) -> str:
-        """Returns the model's answer within the time limit; failures surface as ``OllamaError`` subclasses."""
+        """Returns a checked answer within the time limit.
+
+        Raises ``AnswerRejected`` when the answer fails the check twice (or once, with no time left to correct it),
+        and ``OllamaError`` subclasses when the model cannot be reached or does not answer in time.
+        """
+        started = self.clock()
+        # One limit for the whole explanation (K5-B): a correction uses what the first attempt left over.
+        deadline = started + self.settings.timeout_seconds
+
+        answer = self._ask(build_messages(question, facts), deadline)
+        check = check_answer(question, facts, answer)
+        if check.ok:
+            return answer
+
+        first_attempt = self.clock() - started
+        if deadline - self.clock() < first_attempt:
+            raise AnswerRejected(f"Rejected with no time left for a correction ({check.describe()}).")
+
+        corrected = self._ask(build_retry_messages(question, facts, answer, check), deadline)
+        second_check = check_answer(question, facts, corrected)
+        if second_check.ok:
+            logger.info("Answer accepted after one correction (first attempt: %s).", check.describe())
+            return corrected
+        raise AnswerRejected(f"Rejected after one correction ({second_check.describe()}).")
+
+    def _ask(self, messages: list[dict], deadline: float) -> str:
+        """Streams one answer and stops at ``deadline``; failures surface as ``OllamaError`` subclasses."""
         # ChatOllama always streams, so the client timeout never ends an answer that keeps coming.
         # Reading the parts ourselves and closing the stream at the deadline also makes Ollama stop (AI-02).
-        deadline = time.monotonic() + self.settings.timeout_seconds
         parts: list[str] = []
         done_reason = None
         try:
-            stream = self.llm.stream(build_messages(question, facts))
+            stream = self.llm.stream(messages)
             try:
                 for chunk in stream:
                     parts.append(chunk.content if isinstance(chunk.content, str) else "")
                     done_reason = chunk.response_metadata.get("done_reason") or done_reason
-                    if time.monotonic() > deadline:
+                    if self.clock() > deadline:
                         raise OllamaTimeout(f"No complete answer from Ollama within {self.settings.timeout_seconds:g} s.")
             finally:
                 stream.close()

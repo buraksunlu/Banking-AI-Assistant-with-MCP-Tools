@@ -5,6 +5,7 @@ Change SYSTEM_PROMPT only together with PROMPT_VERSION, and rerun ai/model_check
 
 from langchain_core.prompts import ChatPromptTemplate
 
+from answer_check import AnswerCheck
 from contracts import Fact
 
 PROMPT_VERSION = "explanation-v1"
@@ -41,3 +42,22 @@ def _neutralize(text: str) -> str:
     # Facts and the question come from outside (merchant names, raw descriptions, the user). Without "<" and ">"
     # they cannot write a tag, so they can never close the data block and pose as rules. Fact texts never need them.
     return text.replace("<", "‹").replace(">", "›")
+
+
+def build_retry_messages(question: str, facts: list[Fact], previous_answer: str, check: AnswerCheck) -> list[dict]:
+    """The same conversation plus the rejected answer and a correction saying what was wrong with it (AI-06)."""
+    problems = []
+    if check.empty:
+        problems.append("Cevabın boştu. Soruyu verideki bilgilerle yeniden cevapla.")
+    if check.invented_numbers:
+        # Quoting the numbers back works better than a general "do not calculate" (AI-06 probe: 3 of 4 corrected).
+        problems.append(
+            f"Cevabında verideki bilgilerde olmayan sayılar var: {', '.join(check.invented_numbers)}. Hesap yapma; "
+            "yalnızca verideki rakamları aynen kullanarak yeniden cevapla. Cevap veride yoksa bunu kısaca söyle.")
+    if check.forbidden_mentions:
+        problems.append("Cevabında sistemden söz ettin. Yalnızca soruyu, verideki bilgilerle cevapla.")
+    return [
+        *build_messages(question, facts),
+        {"role": "assistant", "content": previous_answer},
+        {"role": "user", "content": "\n".join(problems)},
+    ]

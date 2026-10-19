@@ -1,6 +1,6 @@
 {
   "max_sentences": 3,
-  "_comment": "must_not_include_always applies to every case: the answer must not talk about the system behind it.",
+  "_comment": "must_not_include_always applies to every case. allow_rejection: a refused answer (AI-06) is a safe outcome for that case.",
   "must_not_include_always": ["backend", "veri bloğu", "<veri", "</veri"],
   "cases": [
     {
@@ -65,6 +65,36 @@
       "question": "Bu ay en çok hangi kategoriye harcadım?",
       "facts": [["Dönem", "1-10 Ekim 2026"], ["Sınıflandırılmamış", "145,00 TL"], ["Not", "Bu dönemdeki harcamaların hiçbiri bir kategoriye atanmamış."]],
       "must_include": ["145,00 TL"], "must_include_any": [], "must_not_include": ["market", "kafe", "ulaşım", "gıda", "eğlence"]
+    },
+    {
+      "id": "X11", "name": "toplam veride yok", "allow_rejection": true,
+      "question": "Bu ay toplam ne kadar harcadım?",
+      "facts": [["Dönem", "1-10 Ekim 2026"], ["Market", "420,00 TL"], ["Kafe", "210,00 TL"], ["Ulaşım", "105,00 TL"]],
+      "must_include": [], "must_include_any": [], "must_not_include": []
+    },
+    {
+      "id": "X12", "name": "günlük ortalama veride yok", "allow_rejection": true,
+      "question": "Bu ay günlük ortalama ne kadar harcıyorum?",
+      "facts": [["Dönem", "1-10 Ekim 2026"], ["Toplam harcama", "735,00 TL"]],
+      "must_include": [], "must_include_any": [], "must_not_include": []
+    },
+    {
+      "id": "X13", "name": "iki para birimi, not yok", "allow_rejection": true,
+      "question": "Bu ay toplam ne kadar harcadım?",
+      "facts": [["Dönem", "1-10 Ekim 2026"], ["TRY harcama", "735,00 TL"], ["USD harcama", "120,00 USD"]],
+      "must_include": [], "must_include_any": [], "must_not_include": []
+    },
+    {
+      "id": "X14", "name": "artış yüzdesi veride yok", "allow_rejection": true,
+      "question": "Geçen aya göre ne kadar arttı?",
+      "facts": [["Ekim 2026", "1.840,00 TL"], ["Eylül 2026", "1.425,00 TL"]],
+      "must_include": [], "must_include_any": [], "must_not_include": []
+    },
+    {
+      "id": "X15", "name": "bütçe kalanı veride yok", "allow_rejection": true,
+      "question": "Bütçemden ne kadar kaldı?",
+      "facts": [["Bütçe", "1.000,00 TL"], ["Harcanan", "590,00 TL"]],
+      "must_include": [], "must_include_any": [], "must_not_include": []
     }
   ]
 }

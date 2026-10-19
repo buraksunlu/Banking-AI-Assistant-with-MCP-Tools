@@ -377,3 +377,73 @@ kelime farkı (temperature 0 bu makinede metni %100 aynı tutmuyor).
   sayı → yeniden üret, olmazsa şablon cevap) AI-06/AI-10'da; ham işlem açıklamasını modele hiç göndermemek AI-13'te.
 - 10 vaka küçük bir set; geniş değerlendirme EVAL-01.
 - Prompt değişince `PROMPT_VERSION` de değişir ve değerlendirme önce/sonra çalıştırılır.
+
+# Çıktı doğrulama (AI-06)
+
+19 Ekim 2026. Modelin cevabı artık kullanıcıya gitmeden kodla kontrol ediliyor (`ai/service/answer_check.py`).
+Modele "doğru mu?" diye sorulmuyor.
+
+```text
+Model cevabı → [Kontrol] → geçerli ─────────────────────────────→ 200, cevap
+                   │
+                   geçersiz → modele "şu sayılar veride yok, yeniden cevapla"
+                              → [Kontrol] → geçerli ──────────────→ 200, düzeltilmiş cevap
+                                    │
+                                    geçersiz (ya da süre yetmiyor) → 502 ai_answer_rejected
+```
+
+## Neden gerekli? (ölçüm)
+
+Prompt "hesap yapma" dediği halde, cevabı veride hazır olmayan 5 soruda model 4 kez hesap yaptı:
+
+| Soru (veride hazır değil) | İlk cevap | Düzeltmeden sonra |
+| --- | --- | --- |
+| Toplam ne kadar? (yalnız kategoriler) | "toplamda 735,00 TL… %57'si…" | kategorileri aynen sayıyor ✅ |
+| Günlük ortalama? | "73,50 TL" | "hesaplayamıyorum, veride yok" ✅ |
+| Toplam, iki para birimi | doğru (toplamadı) | — |
+| Ne kadar arttı? | "**%28,43**" (yanlış; doğrusu 415 / 1.425 = %29,12) | aynısında ısrar → **reddedildi** |
+| Bütçeden ne kaldı? | "410,00 TL… %41" | "Kalan tutar veride belirtilmemiştir" ✅ |
+
+Kural, toplanan 50 gerçek cevaba uygulandığında hiçbirini yanlışlıkla reddetmedi.
+
+## Kurallar (K2-B, K3-A)
+
+| Kontrol | Örnek | Sonuç |
+| --- | --- | --- |
+| Her sayı soruda ya da veride (etiket + metin) geçmeli | "73,50 TL" (veride yok) | ❌ |
+| Değer olarak karşılaştırılır | "735 TL" ↔ "735,00 TL" | ✅ |
+| İşaret yok sayılır | "415,00 TL azaldı" ↔ "-415,00 TL" | ✅ |
+| Küçük sayılar da kontrol edilir | "3 kategoride" (veride 3 yok) | ❌ |
+| Boş cevap | "" | ❌ |
+| Sistemden söz etme (`<veri`, `</veri`, "backend"; Türkçe harf katlanarak) | "backend tarafından hesaplanmış" | ❌ |
+
+## Düzeltme ve süre (K1-B, K5-B, K6-B)
+
+- Geçmeyen cevap, önceki cevap ve somut bir düzeltme isteğiyle bir kez daha sorulur ("Cevabında verideki bilgilerde olmayan
+  sayılar var: 73,50. Hesap yapma; …"). Sayıları geri söylemek, genel bir "hesap yapma"dan daha iyi çalıştı.
+- İki deneme **tek** 30 sn'yi paylaşır. Kalan süre ilk denemenin süresinden kısaysa düzeltme denenmez, cevap doğrudan reddedilir.
+- Yine geçmezse 502 `ai_answer_rejected`, "Asistan cevabı doğrulanamadı." (`ai_bad_response`'tan ayrı: model düzgün cevap verdi
+  ama kontrolden geçmedi). Logda yalnız sayım yazılır ("invented numbers: 1"); sayıların kendisi ve soru yazılmaz.
+
+## Kod yerleşimi (K4-B)
+
+Sayı okuma (`parse_turkish_numbers`) ve Türkçe harf katlama (`fold_turkish`) artık yalnız `answer_check.py`'da; ölçüm aracı
+`ai/model_check/scoring.py` oradan import ediyor. `answer_check.py` standart kütüphaneyle sınırlı (`Fact` yalnız tip ipucunda),
+böylece `run.py` venv'siz çalışmaya devam ediyor.
+
+## Değerlendirme
+
+15 vaka (AI-05'in 10'u + hesap yapmaya iten X11–X15; bu beşte "reddedildi" de güvenli sonuç sayılır): **13/15**. Yeni beşte
+uydurma sayı kullanıcıya ulaşmadı (3 düzeltildi, 1 ilk seferde doğru, X14 reddedildi). Kalan iki hata AI-05'teki gibi: X05
+(talimattan söz etme) ve X06 (eksik tutar); bu kontrolün kapsamında değiller.
+
+Elle (uvicorn + curl): normal soru 200 / 1,1 sn; bütçe kalanı düzeltilip 200 / 2,5 sn; artış yüzdesi 502 / 4,1 sn.
+
+## Sınırlar
+
+- Kontrol sayıların **varlığına** bakar, anlamına değil: "1.840'tan 1.425'e **yükseldi**" geçer. Kullanıcının rakamları kendisinin
+  görmesi AI-11'de ("nasıl hesaplandı").
+- Yazıyla sayılar ("yüzde elli") yakalanmaz.
+- X05 (talimattan söz etme) sayı ya da yasak kelime içermediği için geçer → ham metni modele göndermemek AI-13.
+- Düzeltme turu, olduğu durumlarda süreyi yaklaşık iki katına çıkarır.
+- Şablon cevap (reddedilince sabit bir Türkçe cümle) ve cevabın kaynağını söyleyen alan AI-10'da.
