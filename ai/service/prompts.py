@@ -61,3 +61,23 @@ def build_retry_messages(question: str, facts: list[Fact], previous_answer: str,
         {"role": "assistant", "content": previous_answer},
         {"role": "user", "content": "\n".join(problems)},
     ]
+
+
+TOOL_PROMPT_VERSION = "tool-selection-v1"
+
+# The AI-14 probe chose the right tool and period in 12 of 12 questions with these rules and the tool descriptions.
+TOOL_SYSTEM_PROMPT = ("Sen bir bankacılık harcama asistanısın. Kullanıcının sorusu için uygun aracı seç ve yalnız kullanıcının "
+                      "söylediği bilgilerle parametreleri doldur. Kullanıcının söylemediği bir parametreyi uydurma. Sorunun "
+                      "cevabı araçlarla bulunamıyorsa ya da kullanıcı para transferi gibi bir işlem istiyorsa araç çağırma.")
+
+# Fixed replies (K5-A, K2-A): when no tool fits, the model's own words are never shown, only these.
+OUT_OF_SCOPE_TEXT = ("Bu konuda yardımcı olamıyorum. Harcamalarınızla ilgili sorabilirsiniz, örneğin: "
+                     "“Bu ay ne kadar harcadım?”, “Geçen ay en çok hangi kategoriye harcadım?”, "
+                     "“Son 3 ayda Starbucks'a ne kadar verdim?”")
+CLARIFY_TEXT = ("Sorunuzu tam anlayamadım. Tek bir soru olarak ve dönemiyle sorabilir misiniz? "
+                "Örneğin: “Bu hafta ne kadar harcadım?”")
+
+
+def build_tool_messages(message: str) -> list[dict]:
+    """The chat messages for tool selection: the rules and the user's message (AI-14a)."""
+    return [{"role": "system", "content": TOOL_SYSTEM_PROMPT}, {"role": "user", "content": _neutralize(message)}]

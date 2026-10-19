@@ -236,6 +236,12 @@ def test_no_correction_when_the_time_left_is_shorter_than_the_first_attempt():
     assert len(model.calls) == 1
 
 
+def test_a_deadline_from_the_caller_replaces_the_own_limit():
+    # AI-14a: in a chat turn the explanation only gets what the tool selection and the API call left.
+    explainer, model = scripted([COMPUTED, GOOD])
+    explainer.explain(QUESTION, FACTS, deadline=12.0)
+    assert [deadline for _, deadline in model.calls] == [12.0, 12.0]
+
 def test_empty_answer_gets_a_correction_too():
     explainer, model = scripted(["   ", GOOD])
     assert explainer.explain(QUESTION, FACTS) == GOOD

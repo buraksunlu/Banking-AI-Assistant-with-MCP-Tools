@@ -111,6 +111,12 @@ sürümle eklenir. Starlette'in `TestClient`'ı `httpx` yerine `httpx2` ister.
 `ModelNotFound`, `OllamaTimeout`, `OllamaBadResponse`); `check_ready()` modeli yüklemez. Testler gerçek Ollama yerine sahte HTTP
 sunucusu kullanır; gerçek Ollama testleri Ollama kapalıysa atlanır.
 
+Sohbet (AI-14a): `POST /v1/chat` (Bearer zorunlu) → `chat.ChatService`: `LangChainToolSelector` (bind_tools, `tool-selection-v1`) →
+`tools.validate_arguments` → `tools.RestToolGateway` (geçici köprü: kullanıcının token'ıyla .NET analytics; `BANKINGAI_API_URL`; JSON
+sayıları `Decimal`) → `facts.outcome_for` (`formatting.py` ile Türkçe metin; belirsiz/yok merchant modelsiz sabit cevap) → açıklama.
+Bütün tur tek süre; token yalnız köprüye gider (testte modele gitmediği doğrulanır). Uçtan uca deneme için .NET API
+`BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z` ile açık olmalı. Tool seçimi ve açıklama aynı `explainer.stream_message`'ı kullanır.
+
 AI servisi (AI-03, `ai/service/app.py`, FastAPI): `GET /health/live` (Ollama'ya sormaz), `GET /health/ready` (`check_ready`; değilse 503),
 `POST /v1/explanations` (`question` + `facts`: backend'in biçimlendirdiği etiket/metin listesi; tanınmayan alan 400, `strict`). Hatalar
 API'ninkiyle aynı problem+json (`title`, `status`, `code`, `traceId`; 422 yerine 400). Ollama hataları: 503 `ai_unavailable`/`model_missing`,

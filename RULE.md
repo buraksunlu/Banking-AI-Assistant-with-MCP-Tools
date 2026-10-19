@@ -1450,9 +1450,8 @@ IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Local AI (todo bölüm 15): AI-07 (.NET → FastAPI; AI kapalıyken deterministik sonuç) ve AI-14 (uçtan uca sohbet uç
-  noktası; sözleşme ve "model kapalıyken sohbet" kararı AI-07'den önce), ardından read-only MCP (bölüm 16; AI-09'un yeri
-  MCP-01'de). Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
+- Local AI (todo bölüm 15): AI-14b + AI-07 (.NET POST /api/assistant/messages, token iletme, hazır olma kontrolü), ardından
+  read-only MCP (bölüm 16; geçici REST köprüsünün yerini alır). Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,
   geri soru, en fazla 3 tool'luk çok adımlı soru), yeni analizler (todo 12c: ANA-15–19, MCP-19–23) ve içgörü kartları
@@ -1468,6 +1467,10 @@ NEXT
   alan bütün endpoint'ler kabul eder. AI-14 kararları: K1-B (önce FastAPI /v1/chat, sonra .NET + AI-07), K2-A (MCP'ye kadar
   geçici REST köprüsü), K3-A (biçimlendirme AI servisinde), K4-C (model kapalıyken 503 + sohbet açılışında hazır olma kontrolü),
   K5-A (tool seçilmezse sabit metin), K6-A (ANA-20 önce).
+- Sohbet uç noktası, FastAPI yarısı (AI-14a, 19 Ekim 2026): POST /v1/chat (Bearer zorunlu) → tool seçimi (LangChain bind_tools,
+  tool-selection-v1) → argüman kontrolü → geçici REST köprüsü (kullanıcının token'ıyla .NET analytics endpoint'leri; JSON sayıları
+  Decimal) → kalemler (formatting.py: AI-09 bu tool'lar için) → açıklama + kontrol; tek 30 sn. Tool yoksa sabit kapsam dışı metni;
+  çoklu/geçersiz çağrı ve belirsiz merchant sabit geri soru. Token yalnız köprüye gider, modele ve loga girmez. 220 Python testi.
 
 KNOWN ISSUES
 - Servislerden gelen her ArgumentException 400 sayılıyor; bir programlama hatasından doğan ArgumentException da

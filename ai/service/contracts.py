@@ -53,3 +53,26 @@ class HealthResponse(BaseModel):
 
     status: str
     model: str | None = None
+
+
+class ChatRequest(_Request):
+    """One message of the user (AI-14a). The customer comes from the token, never from the body."""
+
+    message: Question
+
+
+class ToolCallOut(BaseModel):
+    """A tool the turn ran and its arguments."""
+
+    tool: str
+    arguments: dict[str, str]
+
+
+class ChatResponse(BaseModel):
+    """The reply of one chat turn; ``toolCalls`` and ``facts`` say what the answer is based on (AI-11, CHAT-07)."""
+
+    type: str
+    answer: str
+    tool_calls: list[ToolCallOut] = Field(serialization_alias="toolCalls")
+    facts: list[Fact]
+    model: str

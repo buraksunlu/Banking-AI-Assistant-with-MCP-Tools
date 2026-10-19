@@ -447,3 +447,74 @@ Elle (uvicorn + curl): normal soru 200 / 1,1 sn; bütçe kalanı düzeltilip 200
 - X05 (talimattan söz etme) sayı ya da yasak kelime içermediği için geçer → ham metni modele göndermemek AI-13.
 - Düzeltme turu, olduğu durumlarda süreyi yaklaşık iki katına çıkarır.
 - Şablon cevap (reddedilince sabit bir Türkçe cümle) ve cevabın kaynağını söyleyen alan AI-10'da.
+
+# Sohbet uç noktası — FastAPI yarısı (AI-14a)
+
+19 Ekim 2026. AI servisi artık serbest soru alıyor: `POST /v1/chat`. Model hangi tool'un hangi argümanla çağrılacağını
+seçer; rakamı .NET backend hesaplar; kod rakamları Türkçe metne çevirir; model açıklar; AI-06 kontrol eder.
+
+```text
+POST /v1/chat  { "message": "Dün ne harcadım?" }   + Authorization: Bearer <token>
+   1) Tool seçimi (model, tool-selection-v1)  → get_spending_summary(period=Yesterday)
+   2) Argüman kontrolü (kod)                  → tool var mı, dönem 11 addan biri mi, merchant 1–150 karakter mi
+   3) Tool çağrısı (geçici REST köprüsü)      → GET /api/analytics/spending-summary?period=Yesterday (kullanıcının token'ıyla)
+   4) Kalemler (kod, formatting.py)          → "Dönem: 9 Ekim 2026", "Toplam harcama: 145,00 TL", …
+   5) Açıklama (model, explanation-v1) + AI-06 kontrolü
+   → 200 { type, answer, toolCalls, facts, model }        (bütün tur tek 30 sn)
+```
+
+## Cevap
+
+```json
+{ "type": "answer",
+  "answer": "Dün 9 Ekim 2026 tarihinde toplam 145,00 TL harcadınız. Bu tutarın tamamı sınıflandırılmamış olarak kaydedilmiştir.",
+  "toolCalls": [ { "tool": "get_spending_summary", "arguments": { "period": "Yesterday" } } ],
+  "facts": [ { "label": "Dönem", "text": "9 Ekim 2026" }, { "label": "Toplam harcama", "text": "145,00 TL" }, … ],
+  "model": "qwen3.5:4b" }
+```
+
+| `type` | Ne zaman | Metni kim yazar |
+| --- | --- | --- |
+| `answer` | Tool çalıştı ve açıklandı; ya da merchant hiç yok ("‘Migros’ adında bir işyerinde harcamanız bulunmuyor.") | Model (AI-06 kontrollü) / sabit metin |
+| `clarification` | Birden çok ya da geçersiz tool çağrısı; merchant belirsiz ("Hangisini kastettiniz?") | Sabit metin |
+| `outOfScope` | Model tool seçmedi (transfer, sohbet, dönemsiz soru) | Sabit metin + örnek sorular |
+
+## Tool'lar ve köprü (K1-A, K6-A)
+
+Üç tool Python'da tanımlı (`tools.py`): `get_spending_summary`, `get_category_breakdown`, `get_merchant_spending`. Dönem argümanı
+11 addan biri (`Custom` yok; tarihi model seçmez), anlamları tool açıklamasında. `RestToolGateway` tool'u .NET API'de kullanıcının
+kendi token'ıyla çalıştırır (`BANKINGAI_API_URL`, varsayılan `http://127.0.0.1:5248`); API müşteriyi token'dan alır ve argümanı
+yeniden doğrular. JSON sayıları `Decimal` olarak okunur (float yok). Köprü geçicidir; MCP-12'de aynı `ToolGateway` arayüzünün MCP
+sürümü gelir.
+
+## Biçimlendirme (AI-09, K3-A)
+
+`formatting.py` makinenin dil ayarından bağımsızdır: `735,00 TL`, `12.345,67 TL`, `-415,00 TL`, `120,00 USD`, `%80,27`, `-%27,14`,
+`10 Ekim 2026`, dönem `9 Ekim 2026` / `1-10 Ekim 2026` / `28 Eylül - 4 Ekim 2026` / `28 Aralık 2026 - 3 Ocak 2027`. İkiden fazla
+ondalık ve float reddedilir (sessiz yuvarlama yok). Birden çok para birimi ayrı kalemlerdir ve "toplanmaz" notu eklenir; boş
+sonuç "Bu dönemde harcama bulunamadı." kalemiyle bildirilir.
+
+## Hatalar (K4-A)
+
+| Durum | HTTP | `code` |
+| --- | --- | --- |
+| `Authorization: Bearer` yok | 401 | `unauthorized` |
+| .NET token'ı reddetti | 401 | `session_invalid` |
+| .NET'e ulaşılamıyor / 5xx | 503 | `backend_unavailable` |
+| .NET argümanı reddetti (400/404) | 502 | `ai_bad_tool_call` |
+| Süre doldu (seçim, köprü ya da açıklama) | 504 | `ai_timeout` |
+| Model/açıklama hataları | AI-03/04/06'daki gibi | |
+
+## Ölçüm ve uçtan uca deneme (19 Ekim 2026)
+
+11 dönem adıyla tool seçimi 12/12 (dün, bugün, bu hafta, geçen hafta + Starbucks, son 30 gün kategoriler, bu yıl, son 7 gün +
+Kahve Durağı, bu ay, geçen ay kategoriler, son 3 ay + Starbucks; transfer ve fıkrada tool yok). Gerçek .NET API (demo anı) + model,
+Ada: dün **145,00 TL**, bu hafta **615,00 TL**, bu ay kategoriler 590,00 (%80,27) + 145,00 (%19,73), son 3 ay Starbucks **930,00 TL**,
+Migros bulunamadı, transfer kapsam dışı, token yok/bozuk 401; 1,8–6,7 sn. AI servisinin logunda token geçmiyor.
+
+## Sınırlar
+
+- Dönemsiz sorular ("Ne kadar harcadım?") kapsam dışı metne düşer; akıllı geri soru CHAT-03.
+- Tek tur, tek tool (CHAT-02, CHAT-04). Yalnız 3 tool; geri kalanı MCP bölümünde.
+- Uçtan uca için .NET API `BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z` ile açık olmalı.
+- .NET'in iPhone'a açacağı uç nokta (AI-14b + AI-07) ve sohbet açılışında hazır olma kontrolü (K4-C) henüz yok.

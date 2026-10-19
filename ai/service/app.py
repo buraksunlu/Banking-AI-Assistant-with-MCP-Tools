@@ -18,7 +18,8 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
 from answer_check import AnswerRejected
-from contracts import ExplanationRequest, ExplanationResponse, HealthResponse
+from contracts import ChatRequest, ChatResponse, ExplanationRequest, ExplanationResponse, HealthResponse, ToolCallOut
+from chat import ChatService, LangChainToolSelector
 from explainer import Explainer, LangChainExplainer
 from ollama_client import (
     ModelNotFound,
@@ -30,6 +31,7 @@ from ollama_client import (
     Readiness,
     check_ready,
 )
+from tools import ApiSettings, BackendTimeout, BackendUnavailable, RestToolGateway, SessionInvalid, ToolCallRejected
 
 logger = logging.getLogger("bankingai.ai")
 
@@ -41,6 +43,7 @@ INTERNAL_ERROR = ("internal_error", "Beklenmeyen bir hata oluştu.")
 # Status → code and title, the same table as ApiProblems in the .NET API.
 _BY_STATUS = {
     400: ("validation_failed", "İstek geçersiz."),
+    401: ("unauthorized", "Giriş gerekli."),
     404: ("not_found", "Bulunamadı."),
     405: ("method_not_allowed", "Bu adres bu yöntemi desteklemiyor."),
     500: INTERNAL_ERROR,
@@ -51,6 +54,14 @@ _OLLAMA_ERRORS: dict[type[OllamaError], tuple[int, str, str]] = {
     ModelNotFound: (503, *MODEL_MISSING),
     OllamaTimeout: (504, "ai_timeout", "Asistan zamanında cevap veremedi."),
     OllamaBadResponse: (502, "ai_bad_response", "Asistan geçersiz cevap verdi."),
+}
+
+# Errors of the tool bridge (AI-14a, K4-A): each tells the caller something different to do.
+_BRIDGE_ERRORS: dict[type[Exception], tuple[int, str, str]] = {
+    SessionInvalid: (401, "session_invalid", "Oturum geçersiz; yeniden giriş yapın."),
+    BackendUnavailable: (503, "backend_unavailable", "Banka servisine şu an ulaşılamıyor."),
+    ToolCallRejected: (502, "ai_bad_tool_call", "Asistan geçersiz bir sorgu üretti."),
+    BackendTimeout: (504, "ai_timeout", "Asistan zamanında cevap veremedi."),
 }
 
 _NOT_READY = {Readiness.SERVER_UNAVAILABLE: AI_UNAVAILABLE, Readiness.MODEL_MISSING: MODEL_MISSING}
@@ -68,11 +79,15 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     app = FastAPI(title="BankingAI AI Service", version="0.1.0")
     app.state.settings = settings
     app.state.explainer = LangChainExplainer(settings)
+    app.state.chat_service = ChatService(
+        LangChainToolSelector(settings), RestToolGateway(ApiSettings.from_env(env)), app.state.explainer, settings)
 
     app.add_exception_handler(RequestValidationError, _validation_failed)
     app.add_exception_handler(HTTPException, _http_error)
     app.add_exception_handler(OllamaError, _ollama_failed)
     app.add_exception_handler(AnswerRejected, _answer_rejected)
+    for bridge_error in _BRIDGE_ERRORS:
+        app.add_exception_handler(bridge_error, _bridge_failed)
     app.add_exception_handler(Exception, _unexpected)
 
     @app.get("/health/live", response_model=HealthResponse)
@@ -96,7 +111,27 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         answer = explainer.explain(body.question, body.facts)
         return ExplanationResponse(answer=answer, model=request.app.state.settings.model)
 
+    @app.post("/v1/chat", response_model=ChatResponse)
+    def chat(
+        body: ChatRequest, request: Request,
+        token: str = Depends(bearer_token), service: ChatService = Depends(get_chat_service),
+    ) -> ChatResponse:
+        """One chat turn: the model picks a tool, the .NET API computes, the model explains (AI-14a)."""
+        reply = service.answer(body.message, token)
+        return ChatResponse(
+            type=reply.type, answer=reply.answer,
+            tool_calls=[ToolCallOut(tool=c.tool, arguments=c.arguments) for c in reply.tool_calls],
+            facts=reply.facts, model=request.app.state.settings.model)
+
     return app
+
+
+def bearer_token(request: Request) -> str:
+    """Dependency: the caller's bearer token; it is passed to the .NET API and never to a model or a log."""
+    scheme, _, token = request.headers.get("Authorization", "").partition(" ")
+    if scheme != "Bearer" or not token.strip():
+        raise HTTPException(status_code=401)
+    return token.strip()
 
 
 def _refuse_cloud_tracing(env: Mapping[str, str]) -> None:
@@ -104,6 +139,11 @@ def _refuse_cloud_tracing(env: Mapping[str, str]) -> None:
         # Anything but an explicit "off" counts as on: a typo must not let data leave the machine.
         if env.get(name, "").strip().lower() not in ("", "false", "0", "no"):
             raise ValueError(f"{name} must be off: the AI service never sends prompts to LangSmith.")
+
+
+def get_chat_service(request: Request) -> ChatService:
+    """Dependency: the chat service the endpoint uses (tests replace it)."""
+    return request.app.state.chat_service
 
 
 def get_explainer(request: Request) -> Explainer:
@@ -150,6 +190,13 @@ async def _answer_rejected(request: Request, exc: AnswerRejected) -> JSONRespons
     # The message holds counts only (AnswerCheck.describe), never the answer or the numbers.
     logger.warning("Answer rejected: %s", exc)
     return problem(502, *ANSWER_REJECTED)
+
+
+async def _bridge_failed(request: Request, exc: Exception) -> JSONResponse:
+    status, code, title = _BRIDGE_ERRORS[type(exc)]
+    # The message names the tool and the status, never the token, the question or an amount.
+    logger.warning("Tool bridge failed (%s): %s", code, exc)
+    return problem(status, code, title)
 
 
 async def _unexpected(request: Request, exc: Exception) -> JSONResponse:
