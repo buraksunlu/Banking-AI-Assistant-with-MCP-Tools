@@ -1455,13 +1455,20 @@ COMPLETED
   assistant_failed 502. AssistantClient kendi süresini tutar (BANKINGAI_AI_TIMEOUT_SECONDS, varsayılan 35), adres
   BANKINGAI_AI_URL (varsayılan http://127.0.0.1:8000/). Mesaj ve token loglanmaz. UseRateLimiter kimlik doğrulamadan sonra.
   Testler: Application 306, Data 63, Api 445, Python 220 (docs/api.md "Sohbet asistanı", docs/local-ai.md).
+- Read-only MCP server — MCP-a (MCP-01/02 + MCP-05/07/25 server tarafı, 19 Ekim 2026, docs/mcp.md): BankingAI.McpServer ayrı süreç,
+  yalnız 127.0.0.1:5249/mcp, ModelContextProtocol.AspNetCore 2.2.0, durumsuz Streamable HTTP, aynı JWT zorunlu. Üç salt okunur araç
+  (get_spending_summary, get_category_breakdown, get_merchant_spending) Application servislerini doğrudan çağırır, REST ile aynı JSON
+  döner; müşteri/hesap/tarih argümanı yok, dönem 11 ad. Argümanlar ToolCallFilter'da yayınlanan şemaya göre uygulanır (SDK şemayı
+  uygulamaz); hatalar {code: invalid_arguments|session_invalid|internal_error, message}. Ortak kurulum BankingAI.Hosting (JWT, iş saati,
+  JSON kuralı, AddBankingCore yalnız okuma servisleri; yazma servisleri yalnız API'de). McpServer.Tests 40 (gerçek C# MCP istemcisi).
+  Python henüz REST köprüsünde (MCP-b).
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Read-only MCP (todo bölüm 16: MCP-01/02/05/12; geçici REST köprüsünün yerini alır); iPhone tarafında IOS-13 (giriş) ve AI-08
-  (sohbet ekranı). Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
+- MCP-b (todo MCP-12): AI servisi araçları MCP'den keşfedip çalıştırır (resmi Python `mcp` SDK + McpToolGateway), REST köprüsü silinir;
+  iPhone tarafında IOS-13 (giriş) ve AI-08 (sohbet ekranı). SEC-07: kısa ömürlü yalnız-MCP token'ı. Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,
   geri soru, en fazla 3 tool'luk çok adımlı soru), yeni analizler (todo 12c: ANA-15–19, MCP-19–23) ve içgörü kartları

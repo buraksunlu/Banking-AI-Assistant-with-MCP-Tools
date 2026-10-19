@@ -1,18 +1,15 @@
 using System.Net.Http.Headers;
-using System.Security.Claims;
-using System.Text;
 using System.Text.Json;
 using BankingAI.Api.Security;
-using BankingAI.Data;
 using BankingAI.Data.Entities;
 using BankingAI.Data.Security;
+using BankingAI.Data;
+using BankingAI.Hosting.Security;
 using BankingAI.TestSupport;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.JsonWebTokens;
-using Microsoft.IdentityModel.Tokens;
 using Xunit;
 
 namespace BankingAI.Api.Tests;
@@ -58,30 +55,6 @@ internal static class TestApi
     {
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         return client;
-    }
-}
-
-/// <summary>
-/// Signs tokens independently of the API's own issuer, so tests can forge expired or wrongly signed ones.
-/// </summary>
-internal static class TestTokens
-{
-    public static string Create(Guid customerId, string? signingKey = null, DateTime? expiresUtc = null)
-    {
-        var key = signingKey ?? Environment.GetEnvironmentVariable(JwtSettings.SigningKeyKey)!;
-        var expires = expiresUtc ?? DateTime.UtcNow.AddMinutes(10);
-        var issued = expires.AddMinutes(-60);
-        return new JsonWebTokenHandler().CreateToken(new SecurityTokenDescriptor
-        {
-            Issuer = JwtSettings.Issuer,
-            Audience = JwtSettings.Audience,
-            Subject = new ClaimsIdentity([new Claim(JwtRegisteredClaimNames.Sub, customerId.ToString())]),
-            IssuedAt = issued,
-            NotBefore = issued,
-            Expires = expires,
-            SigningCredentials = new SigningCredentials(
-                new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)), SecurityAlgorithms.HmacSha256)
-        });
     }
 }
 

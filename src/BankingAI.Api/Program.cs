@@ -1,22 +1,19 @@
 using System.Globalization;
-using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using BankingAI.Api.Assistant;
 using BankingAI.Api.Controllers;
 using BankingAI.Api.Errors;
 using BankingAI.Api.OpenApi;
 using BankingAI.Api.Security;
-using BankingAI.Api.Time;
 using BankingAI.Application.Accounts;
 using BankingAI.Application.Analytics;
-using BankingAI.Application.Customers;
 using BankingAI.Application.Transactions;
 using BankingAI.Data;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
+using BankingAI.Hosting;
+using BankingAI.Hosting.Json;
+using BankingAI.Hosting.Security;
+using BankingAI.Hosting.Time;
 using Scalar.AspNetCore;
-const string ConnectionStringKey = "BANKINGAI_CONNECTION_STRING";
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,12 +25,7 @@ builder.Services.AddControllers(options =>
         options.SuppressAsyncSuffixInActionNames = false;
         ApiValidation.UseTurkishMessages(options.ModelBindingMessageProvider);
     })
-    .AddJsonOptions(options =>
-    {
-        options.JsonSerializerOptions.Converters.Add(new StrictEnumConverter());
-        // Money is a JSON number, as the contract says (API-15, decision K1-A); the web defaults would also read "100".
-        options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.Strict;
-    })
+    .AddJsonOptions(options => BankingJson.Configure(options.JsonSerializerOptions))
     .ConfigureApiBehaviorOptions(options => options.InvalidModelStateResponseFactory = ApiValidation.InvalidModelState);
 // A lambda, not the method group: the XML-comment source generator only intercepts this form, and without it every
 // summary silently disappears from the document.
@@ -44,38 +36,12 @@ builder.Services.AddOpenApi(options => ApiDocument.Configure(options));
 builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = ApiProblems.Customize);
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 
-// One DbContext per HTTP request (scoped); never shared between requests. The connection string is
-// read from configuration (the existing environment variable) when the context is created, so test
-// hosts can override it. Migrations are never applied here: schema changes only run through the CLI.
-builder.Services.AddDbContext<BankingDbContext>((services, options) =>
-    options.UseNpgsql(services.GetRequiredService<IConfiguration>()[ConnectionStringKey]));
-
-// Token settings are read lazily from configuration, like the connection string, so test hosts can override them.
-builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton(services => JwtSettings.FromConfiguration(services.GetRequiredService<IConfiguration>()));
+// Database, business time, token validation, the token-by-default policy and the read-only analytics services are
+// shared with the MCP server (BankingAI.Hosting, MCP-a K8-A). What follows is only what the API itself exposes.
+builder.Services.AddBankingCore();
 builder.Services.AddSingleton<TokenIssuer>();
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
-
-// Application services. Anything that uses the DbContext is scoped like the context itself; a singleton
-// would keep the first request's context forever and share it between concurrent requests.
-// Business time (analytics periods, the time of new transactions) may be fixed to the demo moment with
-// BANKINGAI_DEMO_NOW; security keeps the real clock above, so tokens never look expired (decision ANA-09 2-A).
-builder.Services.AddSingleton(services => BusinessClock.FromConfiguration(
-    services.GetRequiredService<IConfiguration>(), services.GetRequiredService<TimeProvider>()));
-builder.Services.AddSingleton(services => new PeriodResolver(services.GetRequiredService<BusinessClock>().Time));
-builder.Services.AddScoped<ICustomerCheck, CustomerCheck>();
 builder.Services.AddScoped<IAccountReadService, AccountReadService>();
 builder.Services.AddScoped<IAccountWriteService, AccountWriteService>();
-builder.Services.AddScoped<TransactionSearchService>();
-builder.Services.AddScoped<SpendingSummaryService>();
-builder.Services.AddScoped<CategoryBreakdownService>();
-builder.Services.AddScoped<MerchantSpendingService>();
-builder.Services.AddScoped<SpendingComparisonService>();
-builder.Services.AddScoped<HighestTransactionsService>();
-builder.Services.AddScoped<RecurringPaymentService>();
-builder.Services.AddScoped<UpcomingPaymentService>();
-builder.Services.AddScoped<BudgetCheckService>();
-builder.Services.AddScoped<SavingsSimulationService>();
 builder.Services.AddScoped<ITransactionWriteService>(services => new TransactionWriteService(
     services.GetRequiredService<BankingDbContext>(), services.GetRequiredService<PeriodResolver>(),
     services.GetRequiredService<BusinessClock>().Time, services.GetRequiredService<TransactionSearchService>()));
@@ -87,19 +53,6 @@ builder.Services.AddHttpClient<IAssistantClient, AssistantClient>((services, htt
     http.BaseAddress = services.GetRequiredService<AssistantSettings>().BaseAddress;
     http.Timeout = Timeout.InfiniteTimeSpan;
 });
-
-builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
-    .Configure<JwtSettings>((options, jwt) =>
-    {
-        // Keep "sub" as "sub" instead of the long legacy claim type name.
-        options.MapInboundClaims = false;
-        options.TokenValidationParameters = jwt.ValidationParameters();
-    });
-
-// Every endpoint requires a token unless it opts out with [AllowAnonymous]; a forgotten attribute fails
-// closed, and without a token even unknown routes answer 401 instead of revealing what exists.
-builder.Services.AddAuthorizationBuilder()
-    .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 
 // Only the direct connection's IP is used; X-Forwarded-For is client-controlled and not trusted (OPS-04).
 builder.Services.AddRateLimiter(options =>
@@ -125,10 +78,7 @@ builder.Services.AddRateLimiter(options =>
 var app = builder.Build();
 
 // Fail at startup with a clear message instead of on the first request.
-if (string.IsNullOrWhiteSpace(app.Configuration[ConnectionStringKey]))
-    throw new InvalidOperationException($"Set {ConnectionStringKey} before starting the API.");
-app.Services.GetRequiredService<JwtSettings>();
-app.Services.GetRequiredService<BusinessClock>();
+app.EnsureBankingCoreSettings();
 var assistantSettings = app.Services.GetRequiredService<AssistantSettings>();
 // The address may be a default (decision AI-14b K7-C), so the log says which one is in use.
 app.Logger.LogInformation("AI service: {BaseAddress} (chat timeout {TimeoutSeconds} s)",

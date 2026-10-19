@@ -1,7 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace BankingAI.Api.Errors;
+namespace BankingAI.Hosting.Json;
 
 /// <summary>
 /// Enums travel as their exact names ("Purchase"). Unlike the built-in converter, reading accepts neither numbers

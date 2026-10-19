@@ -7,6 +7,7 @@ using BankingAI.Application.Analytics;
 using BankingAI.Application.Transactions;
 using BankingAI.Data.Enums;
 using BankingAI.Data.Validation;
+using BankingAI.Hosting.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BankingAI.Api.Controllers;

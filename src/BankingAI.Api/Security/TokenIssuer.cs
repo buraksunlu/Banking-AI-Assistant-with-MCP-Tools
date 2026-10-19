@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using BankingAI.Hosting.Security;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 

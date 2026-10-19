@@ -1,6 +1,7 @@
 using BankingAI.Api.Queries;
 using BankingAI.Api.Security;
 using BankingAI.Application.Analytics;
+using BankingAI.Hosting.Security;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BankingAI.Api.Controllers;

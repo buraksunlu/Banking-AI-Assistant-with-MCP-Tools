@@ -14,8 +14,9 @@ read-only olacaktır. Her şey ücretsiz ve yereldir (local Qwen + Ollama). Ger�
 | Veritabanı + synthetic demo veri | Tamam: 6 domain tablosu + giriş tablosu, 12 migration, 3 demo müşteri, 7 hesap, 116 işlem |
 | Deterministik analytics | Tamam: özet, kategori, merchant, arama, en yüksek işlemler, dönem karşılaştırması, aylık seri, düzenli ödemeler |
 | HTTP API | Tamam: giriş/JWT, hesaplar, işlemler, analytics endpoint'leri, ortak hata cevabı, OpenAPI + Scalar |
-| Local AI (FastAPI + LangChain + Qwen) | Sürüyor: model seçildi (`qwen3.5:4b`), Ollama bağlantısı, FastAPI servisi, LangChain (`ChatOllama`), açıklama prompt'u ve çıktı doğrulaması hazır ([docs/local-ai.md](docs/local-ai.md)); .NET bağlantısı sırada |
-| MCP, SwiftUI | Henüz başlamadı |
+| Local AI (FastAPI + LangChain + Qwen) | Sohbet uçtan uca çalışıyor: iPhone → .NET `POST /api/assistant/messages` → AI servisi (model araç seçer, kod rakamı yazar, model açıklar, cevap kontrol edilir) ([docs/local-ai.md](docs/local-ai.md)) |
+| MCP | Server tarafı hazır: salt okunur `BankingAI.McpServer`, 3 araç ([docs/mcp.md](docs/mcp.md)); AI servisinin MCP'ye bağlanması sırada (şimdilik REST köprüsü) |
+| SwiftUI | Henüz başlamadı |
 | Market verisi (USDTRY/EURTRY/gram altın) | Ayrı kol; altın kaynağı dış yanıt bekliyor, import yok |
 
 Ayrıntılı iş planı ve sıradaki adım [todo.md](todo.md), kalıcı kurallar [RULE.md](RULE.md) içindedir.
@@ -29,14 +30,18 @@ Bütün projeler `BankingAI.slnx` içindedir:
 | `src/BankingAI.Data` | Kütüphane: DbContext, entity, configuration, migration, seed, doğrulama, giriş bilgisi deposu |
 | `src/BankingAI.Cli` | Komut satırı: `migrate`, `show`, `seed …`, `users set-password`; dotnet-ef startup projesi |
 | `src/BankingAI.Application` | Hesap okuma/yazma servisleri ve deterministik analytics ([docs/analytics.md](docs/analytics.md)) |
+| `src/BankingAI.Hosting` | API ile MCP server'ın ortak kurulumu: JWT doğrulama, iş saati, JSON kuralları, yalnız okuma servisleri |
 | `src/BankingAI.Api` | ASP.NET Core controller API ([docs/api.md](docs/api.md), [docs/security.md](docs/security.md)) |
+| `src/BankingAI.McpServer` | Modelin araçları: salt okunur MCP server, yalnız `127.0.0.1:5249` ([docs/mcp.md](docs/mcp.md)) |
 | `tests/BankingAI.Data.Tests` | Doğrulama, seed, atomik bakiye, giriş bilgisi ve demo veri bütünlüğü testleri |
 | `tests/BankingAI.Application.Tests` | Analytics ve hesap servisi testleri |
 | `tests/BankingAI.Api.Tests` | HTTP integration testleri (`WebApplicationFactory`) |
+| `tests/BankingAI.McpServer.Tests` | MCP server testleri: araç keşfi, rakamlar, token, argümanlar (gerçek C# MCP istemcisiyle) |
 
 ```text
-BankingAI.Api.Tests ─► BankingAI.Api ─► BankingAI.Application ─► BankingAI.Data ─► PostgreSQL
-BankingAI.Cli ───────────────────────────────────────────────► BankingAI.Data
+BankingAI.Api ───────┐
+BankingAI.McpServer ─┴► BankingAI.Hosting ─► BankingAI.Application ─► BankingAI.Data ─► PostgreSQL
+BankingAI.Cli ───────────────────────────────────────────────────────► BankingAI.Data
 ```
 
 ## Kurulum
@@ -238,6 +243,7 @@ dotnet tool run dotnet-ef migrations add <Name> --project src/BankingAI.Data --s
 | [docs/input-validation.md](docs/input-validation.md) | Girdi kuralları (VAL), harcama tanımı, işlem türleri |
 | [docs/synthetic-seed.md](docs/synthetic-seed.md) | Demo veri ve beklenen rakamlar |
 | [docs/local-ai.md](docs/local-ai.md) | Local AI: model seçimi, Ollama bağlantısı, AI servisi sözleşmesi |
+| [docs/mcp.md](docs/mcp.md) | Salt okunur MCP server: sınır, araçlar, argüman kontrolü, hata kodları |
 | [docs/market-data-sources.md](docs/market-data-sources.md) | Döviz/altın fiyat kaynağı araştırması |
 | [docs/customer-review.md](docs/customer-review.md) | İlk modülün (Customer tablosu) tarihsel incelemesi |
 

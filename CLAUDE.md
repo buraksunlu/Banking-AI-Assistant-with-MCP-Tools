@@ -42,15 +42,16 @@ controller API, Python FastAPI + LangChain + Ollama (local Qwen), .NET MCP serve
 - TDD: önce test, kırmızının nedenini doğrula (NotImplemented/veri yok), sonra kod. Refactor'da
   mevcut testler değişmeden yeşil kalmalı. Analytics'te çalışan SQL'i geçici bir test ile
   yakalayıp sorgu sayısını doğrulama alışkanlığı var; geçici dosya sonra silinir.
-- Adım sonunda: yapısal değişiklik (önce/sonra ağaç) + dosya dosya kod açıklaması (snippet'li)
-  + doğrulama + bilinen sınırlar. `todo.md` maddesini sonucu ve test sayısıyla `[x]` yap,
+- Adım sonunda: yapısal değişiklik (önce/sonra ağaç) + kısa kod anlatımı (aşağıda) + doğrulama + bilinen
+  sınırlar. `todo.md` maddesini sonucu ve test sayısıyla `[x]` yap,
   `RULE.md` §29'u ve ilgili `docs/` dosyasını güncelle.
 - **Kod yorumları (kullanıcı kararı):** Kodun içinde yalnız İngilizce. Her public tip/metotta
   `/// <summary>`, gövdede sadece "neden" yorumları; satır satır "ne yapıyor" yorumu **yazılmaz**.
-- **Kod açıklaması (her kod değişikliğinden sonra, sohbette; istemesini bekleme):** Kullanıcı C#'a hakim
-  değil ve kod okumayı öğreniyor. Yeni yazılan/değişen kodu dosya dosya, ne yaptığını ve ne ifade ettiğini akıcı, sade Türkçe ile anlat;
-  gereken sözdizimini (`?`, `=>`, `new(...)` gibi) kısaca geç. Python karşılığı, uzun tablolar ve
-  adım adım trace yok; uzatma, kafa karıştırma. Ayrı walkthrough dosyası oluşturulmaz.
+- **Kod anlatımı (her kod değişikliğinden sonra, sohbette; 19 Ekim 2026 en son kullanıcı kararı):** Kısa tutulur, çok
+  uzun olmaz. Önce yapısal anlatım (ağaç, parça nereye eklendi, parçalar nasıl bağlanıyor), sonra her değişen parça
+  için kod okumayı öğretecek biçimde "ne yapıyor, istek gelince ne oluyor": okurken nereye bakılır, akış nereden nereye
+  gider; gerekirse 2–5 satırlık küçük parça. Derin sözdizimine girilmez (yapının adı yarım cümleyle geçer), satır satır
+  ders ve uzun tablo yok. Amaç kullanıcıya kod okuma becerisi kazandırmak. Ayrı walkthrough dosyası oluşturulmaz.
 - **Git akışı: her iş kendi dalında, PR ile (16 Ekim 2026 kullanıcı kararı).** `main`'e doğrudan commit yok. Depo:
   private GitHub `buraksunlu/Banking-AI-Assistant-with-MCP-Tools` (`origin`, `gh` girişli). Bütün git komutlarını
   **kullanıcı** çalıştırır (git'i öğrenmek istiyor); Claude komutları doğru anda verir, kendisi commit/push/merge yapmaz.
@@ -87,6 +88,8 @@ API (yerel, http://localhost:5248; `GET /api/health`, OpenAPI `/openapi/v1.json`
 
 ```sh
 dotnet run --project src/BankingAI.Api --launch-profile http
+dotnet run --project src/BankingAI.McpServer --launch-profile http   # MCP server, yalnız 127.0.0.1:5249/mcp (docs/mcp.md)
+dotnet test tests/BankingAI.McpServer.Tests
 ```
 
 Console CLI (`src/BankingAI.Cli`), seed sırası önemlidir:
@@ -169,11 +172,23 @@ docker exec bankingai-week1-postgres-1 psql -U bankingai_foundation -d bankingai
 ## Mimari
 
 ```text
-BankingAI.Api.Tests ─► BankingAI.Api ─► BankingAI.Application ─► BankingAI.Data ─► PostgreSQL
-BankingAI.Cli ───────────────────────────────────────────────► BankingAI.Data
-BankingAI.Application.Tests ──────────► BankingAI.Application
-BankingAI.Data.Tests ────────────────────────────────────────► BankingAI.Data
+BankingAI.Api.Tests ───────► BankingAI.Api ───────┐
+BankingAI.McpServer.Tests ─► BankingAI.McpServer ─┴► BankingAI.Hosting ─► BankingAI.Application ─► BankingAI.Data ─► PostgreSQL
+BankingAI.Cli ─────────────────────────────────────────────────────────────────────────────────► BankingAI.Data
+BankingAI.Application.Tests ───────────────────────────────────────────► BankingAI.Application
+BankingAI.Data.Tests ──────────────────────────────────────────────────────────────────────────► BankingAI.Data
 ```
+
+`BankingAI.Hosting` (MCP-a K8-A) API ile MCP server'ın ortak kurulumudur: `JwtSettings`, `BusinessClock`,
+`ClaimsPrincipalExtensions` (`GetCustomerId`), `BankingJson` (+ `StrictEnumConverter`) ve `AddBankingCore()` (DbContext,
+saat, JWT, varsayılan token politikası, **yalnız okuma** servisleri) + `EnsureBankingCoreSettings()`. Yazma servisleri
+(`IAccountWriteService`, `ITransactionWriteService`) ve `TokenIssuer` yalnız API'de kayıtlıdır.
+`BankingAI.McpServer` (docs/mcp.md): ayrı süreç, `127.0.0.1:5249/mcp`, durumsuz Streamable HTTP, `ModelContextProtocol.AspNetCore`
+2.2.0. Araçlar `Tools/SpendingTools` (servisler **kurucudan**; SDK metot parametresinde servis tahminini bazen yanlış yapıyor),
+argümanlar `ToolCallFilter`'da yayınlanan şemaya göre (SDK şemayı uygulamaz), hatalar `ToolErrors` ile
+`{code: invalid_arguments|session_invalid|internal_error, message}`. Yeni araç → `ToolDiscoveryTests` allowlist'ine satır.
+Testlerin ortak yardımcıları `tests/Shared` (`TestTokens`, `CapturedLogs`, `CommittedRowsLock`), `BankingAI.TestSupport`
+namespace'i proje dosyasında global using.
 
 `BankingAI.Data` bir **kütüphanedir**: DbContext, entity, configuration, migration ve seed kodu.
 `BankingAI.Cli` yalnız `Program.cs`'i (migrate/show/seed komutları) taşıyan Exe'dir ve dotnet-ef'in
@@ -367,7 +382,8 @@ işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu test
 tipleri: kavramsal merchant, tutar filtresi, yaklaşan ödemeler, bütçe, tasarruf), API-14 (endpoint taraması, kalıcılık).
 API-15 (OpenAPI sözleşmesi, Scalar, örnekler). API bölümü tamam. AI-01 (local model: `qwen3.5:4b` varsayılan, thinking kapalı;
 `ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`), AI-03 (FastAPI servisi `ai/service/app.py`), AI-04 (LangChain `ChatOllama`), AI-05 (prompt `explanation-v1`), AI-06 (çıktı doğrulama, değerlendirme 13/15), ANA-20 (gün/hafta dönemleri), AI-14a/14b + AI-07 + SEC-06 (uçtan uca sohbet:
-FastAPI `/v1/chat` + .NET `POST /api/assistant/messages`); sıradaki: read-only MCP (MCP-01/02/05/12).
+FastAPI `/v1/chat` + .NET `POST /api/assistant/messages`), MCP-a (MCP-01/02 + MCP-05/07/25 server tarafı: `BankingAI.McpServer`,
+`BankingAI.Hosting`); sıradaki: MCP-b (Python `mcp` istemcisi, REST köprüsü silinir; MCP-12).
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
 içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d. 19 Ekim 2026 todo taraması: AI-14 (uçtan uca
