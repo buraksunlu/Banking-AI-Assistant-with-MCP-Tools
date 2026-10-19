@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
+using BankingAI.Api.Assistant;
 using BankingAI.Api.Controllers;
 using BankingAI.Api.Errors;
 using BankingAI.Api.OpenApi;
@@ -7,6 +9,7 @@ using BankingAI.Api.Security;
 using BankingAI.Api.Time;
 using BankingAI.Application.Accounts;
 using BankingAI.Application.Analytics;
+using BankingAI.Application.Customers;
 using BankingAI.Application.Transactions;
 using BankingAI.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -60,6 +63,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
 builder.Services.AddSingleton(services => BusinessClock.FromConfiguration(
     services.GetRequiredService<IConfiguration>(), services.GetRequiredService<TimeProvider>()));
 builder.Services.AddSingleton(services => new PeriodResolver(services.GetRequiredService<BusinessClock>().Time));
+builder.Services.AddScoped<ICustomerCheck, CustomerCheck>();
 builder.Services.AddScoped<IAccountReadService, AccountReadService>();
 builder.Services.AddScoped<IAccountWriteService, AccountWriteService>();
 builder.Services.AddScoped<TransactionSearchService>();
@@ -75,6 +79,15 @@ builder.Services.AddScoped<SavingsSimulationService>();
 builder.Services.AddScoped<ITransactionWriteService>(services => new TransactionWriteService(
     services.GetRequiredService<BankingDbContext>(), services.GetRequiredService<PeriodResolver>(),
     services.GetRequiredService<BusinessClock>().Time, services.GetRequiredService<TransactionSearchService>()));
+
+// The AI service (AI-07). The client sets its own deadlines per call, so HttpClient's single timeout is switched off.
+builder.Services.AddSingleton(services => AssistantSettings.FromConfiguration(services.GetRequiredService<IConfiguration>()));
+builder.Services.AddHttpClient<IAssistantClient, AssistantClient>((services, http) =>
+{
+    http.BaseAddress = services.GetRequiredService<AssistantSettings>().BaseAddress;
+    http.Timeout = Timeout.InfiniteTimeSpan;
+});
+
 builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
     .Configure<JwtSettings>((options, jwt) =>
     {
@@ -95,6 +108,18 @@ builder.Services.AddRateLimiter(options =>
     options.AddPolicy(AuthController.LoginRateLimitPolicy, context => RateLimitPartition.GetFixedWindowLimiter(
         context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    // Every chat message keeps the single local model busy for seconds, so each customer gets their own allowance
+    // (SEC-06, decision AI-14b K6-A); the key comes from the token, which is why the limiter runs after authentication.
+    options.AddPolicy(AssistantController.RateLimitPolicy, context => RateLimitPartition.GetFixedWindowLimiter(
+        context.User.GetCustomerId(),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    options.OnRejected = (context, _) =>
+    {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+            context.HttpContext.Response.Headers.RetryAfter =
+                ((int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(CultureInfo.InvariantCulture);
+        return ValueTask.CompletedTask;
+    };
 });
 
 var app = builder.Build();
@@ -104,6 +129,10 @@ if (string.IsNullOrWhiteSpace(app.Configuration[ConnectionStringKey]))
     throw new InvalidOperationException($"Set {ConnectionStringKey} before starting the API.");
 app.Services.GetRequiredService<JwtSettings>();
 app.Services.GetRequiredService<BusinessClock>();
+var assistantSettings = app.Services.GetRequiredService<AssistantSettings>();
+// The address may be a default (decision AI-14b K7-C), so the log says which one is in use.
+app.Logger.LogInformation("AI service: {BaseAddress} (chat timeout {TimeoutSeconds} s)",
+    assistantSettings.BaseAddress, assistantSettings.Timeout.TotalSeconds);
 
 // The contract and a page to browse and try it (/scalar), for development only (API-15, decision K4-A).
 if (app.Environment.IsDevelopment())
@@ -119,9 +148,11 @@ app.UseExceptionHandler();
 app.UseStatusCodePages();
 
 // No HTTPS redirection yet: local development runs on HTTP only; TLS is decided with Docker (OPS-04).
-app.UseRateLimiter();
+// The rate limiter comes after authorization: the chat limit is per customer, so it needs the validated token, and a
+// request without a token is refused with 401 before it uses up anyone's allowance.
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 app.MapControllers();
 
 app.Run();

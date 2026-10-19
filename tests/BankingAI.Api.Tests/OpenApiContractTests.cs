@@ -109,8 +109,8 @@ public sealed class OpenApiContractTests
             var bearer = operation["security"]?.AsArray().Any(r => r!.AsObject().ContainsKey("Bearer")) ?? false;
             Assert.True(bearer != open.Contains($"{method} {path}"), $"{method} {path}: security {bearer}");
         }
-        // 21 protected operations + health and login.
-        Assert.Equal(23, Operations(document).Count());
+        // 23 protected operations + health and login.
+        Assert.Equal(25, Operations(document).Count());
     }
 
     [Theory]
@@ -123,6 +123,8 @@ public sealed class OpenApiContractTests
     [InlineData("POST", "/api/accounts", new[] { "201", "400", "401", "409", "500" })]
     [InlineData("POST", "/api/accounts/{accountId}/transactions", new[] { "201", "400", "401", "404", "409", "500" })]
     [InlineData("GET", "/api/analytics/spending-summary", new[] { "200", "400", "401", "404", "500" })]
+    [InlineData("POST", "/api/assistant/messages", new[] { "200", "400", "401", "429", "500", "502", "503", "504" })]
+    [InlineData("GET", "/api/assistant/status", new[] { "200", "401", "500" })]
     public async Task Operations_document_their_real_status_codes(string method, string path, string[] codes)
     {
         var operation = Operations(await DocumentAsync()).Single(o => o.Method == method && o.Path == path).Operation;

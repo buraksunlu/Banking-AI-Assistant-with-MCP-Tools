@@ -50,7 +50,7 @@ Bilinen sınırlar: logout/token iptali ve refresh token yok (token 60 dk geçer
 sonraya bırakıldı (kullanıcı kararı); sınır sayaçları bellektedir (yeniden başlatmada sıfırlanır, tek sunucu);
 proxy arkasında bütün istemciler tek IP görünür ve HTTP'de token açıkta gider (ikisi de OPS-04).
 
-### AI / MCP'ye müşteri bağlamı (tasarım; MCP adımında uygulanacak)
+### AI / MCP'ye müşteri bağlamı (API → AI servisi kısmı AI-14b'de uygulandı; MCP kısmı MCP adımında)
 
 ```text
 SwiftUI ──(Bearer token)──► API ──(aynı token, HTTP header)──► FastAPI ──(header)──► MCP Server
@@ -59,3 +59,11 @@ SwiftUI ──(Bearer token)──► API ──(aynı token, HTTP header)──
 - MCP tool'larında `customerId` parametresi **yoktur**; MCP server müşteriyi header'daki token'dan çözer.
 - Token LLM prompt'una veya tool argümanlarına girmez. Prompt injection ("Deniz'in hesabını göster")
   olsa bile modelin başka bir müşteriyi seçecek aracı yoktur.
+- AI-14b (19 Ekim 2026): `POST /api/assistant/messages` doğrulanmış token'ı aynı `Authorization` başlığıyla AI servisine
+  iletir (`BearerTokenExtensions`); gövdeye müşteri kimliği konmaz (testle doğrulanır). Hazır olma kontrolü
+  (`GET /api/assistant/status`) token'ı AI servisine göndermez. Müşteri silinmişse model çalışmadan 401 `session_invalid`
+  (`ICustomerCheck`). Mesaj metni ve token .NET logunda yer almaz (K9-A, testli); AI servisi de token'ı loglamaz (AI-14a).
+- Sohbet hız sınırı (SEC-06, AI-14b K6-A): müşteri başına (token'daki `sub`) dakikada 10 mesaj, fazlası 429 +
+  `Retry-After`. Sınırlayıcı kimlik doğrulamadan sonra çalışır (`UseAuthentication` → `UseAuthorization` →
+  `UseRateLimiter`); giriş sınırı IP'ye bakmaya devam eder. AI servisine yalnız .NET ulaşabildiği (127.0.0.1) sürece
+  ikinci bir sınır gerekmez.

@@ -1445,13 +1445,23 @@ COMPLETED
   küçük sayılar dahil), boş cevap ve sistemden söz etme reddedilir. Geçmeyen cevaba bir kez düzeltme istenir (iki deneme tek 30 sn),
   yine geçmezse 502 ai_answer_rejected; logda yalnız sayım. Sayı okuma tek kopya serviste (scoring.py oradan alır). Ölçüm: model hesap
   yapmaya iten 5 sorunun 4'ünde sayı uydurdu (biri yanlış yüzde); düzeltme 3'ünü kurtardı; değerlendirme 13/15. 132 Python testi.
+- Gün/hafta dönemleri (ANA-20, 19 Ekim 2026): PeriodKind'e Today, Yesterday, ThisWeek, LastWeek, Last7Days, Last30Days, ThisYear;
+  hafta pazartesi, "son N gün" bugün dahil tam N gün; dönem alan 7 endpoint kendiliğinden kabul eder (docs/analytics.md).
+- Uçtan uca sohbet (AI-14a + AI-14b + AI-07, 19 Ekim 2026): FastAPI POST /v1/chat (model tool seçer → kod argümanı kontrol eder →
+  geçici REST köprüsü kullanıcının token'ıyla .NET analytics'i çağırır → kod rakamları Türkçe yazar → model açıklar → AI-06 kontrolü;
+  tek 30 sn). iPhone yalnız .NET'e konuşur: POST /api/assistant/messages (mesaj 1–500, müşteri kontrolü ICustomerCheck, müşteri başına
+  dakikada 10 mesaj SEC-06, aynı Authorization başlığıyla AI servisine) → AssistantReply {type, answer, toolCalls, facts};
+  GET /api/assistant/status her zaman 200 {available}. AI hataları üç koda: assistant_unavailable 503, assistant_timeout 504,
+  assistant_failed 502. AssistantClient kendi süresini tutar (BANKINGAI_AI_TIMEOUT_SECONDS, varsayılan 35), adres
+  BANKINGAI_AI_URL (varsayılan http://127.0.0.1:8000/). Mesaj ve token loglanmaz. UseRateLimiter kimlik doğrulamadan sonra.
+  Testler: Application 306, Data 63, Api 445, Python 220 (docs/api.md "Sohbet asistanı", docs/local-ai.md).
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Local AI (todo bölüm 15): AI-14b + AI-07 (.NET POST /api/assistant/messages, token iletme, hazır olma kontrolü), ardından
-  read-only MCP (bölüm 16; geçici REST köprüsünün yerini alır). Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
+- Read-only MCP (todo bölüm 16: MCP-01/02/05/12; geçici REST köprüsünün yerini alır); iPhone tarafında IOS-13 (giriş) ve AI-08
+  (sohbet ekranı). Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,
   geri soru, en fazla 3 tool'luk çok adımlı soru), yeni analizler (todo 12c: ANA-15–19, MCP-19–23) ve içgörü kartları
