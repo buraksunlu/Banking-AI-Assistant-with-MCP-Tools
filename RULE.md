@@ -1435,6 +1435,8 @@ COMPLETED
 - LangChain (AI-04, 19 Ekim 2026): explainer.py LangChainExplainer (ChatOllama, think kapalı, temperature 0, 400 token). ChatOllama
   her zaman stream kullandığı için timeout toplam süreyi sınırlamıyor: cevap parça parça okunur, süre dolunca akış kapatılır.
   LangChain hataları dört türe çevrilir; kesik cevap 502; LangSmith izleme açıksa servis açılmaz. Agent/tool yok. 89 Python testi.
+  Mimari kararı (19 Ekim 2026, ölçümle): yapı .NET → FastAPI/LangChain → Ollama olarak kalır; katmanlar ~0,1 sn ekliyor, sürenin
+  neredeyse tamamı model (2,03 sn). Yanıt süresi sorun olursa: keep_alive/ısıtma, akarak gösterme, daha az tool turu (docs/local-ai.md, "Not (D)").
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.

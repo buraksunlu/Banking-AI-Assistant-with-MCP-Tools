@@ -285,3 +285,26 @@ aşılabilir; hiç parça gelmezse `client_kwargs` timeout'u devreye girer (en k
 
 uvicorn + curl: cevap AI-03'tekiyle kelimesi kelimesine aynı; model sıcakken 2,1–2,3 sn (AI-03'teki 4,9 sn yüklemeyi de içeriyordu);
 Ollama'ya ulaşamayan örnekte 503 `ai_unavailable`; `LANGSMITH_TRACING=true` ile servis açılmıyor.
+
+## Yanıt süresi ve mimari kararı (19 Ekim 2026)
+
+Soru: LangChain ve FastAPI katmanları cevabı yavaşlatıyor mu; Ollama'yı doğrudan .NET'e bağlamak daha mı mantıklı?
+Ölçüm (aynı soru, model bellekte, her yoldan beşer kez):
+
+| Yol | Ortalama | Fark |
+| --- | --- | --- |
+| Doğrudan Ollama (`ollama_client.chat`) | 2,03 sn | — |
+| LangChain (`LangChainExplainer`) | 2,07 sn | +0,04 sn |
+| FastAPI servisinin tamamı (HTTP + doğrulama + LangChain) | 2,13 sn | +0,10 sn |
+
+Ollama'nın kendi ölçümü de 2,03 sn: sürenin neredeyse tamamı modelin kelime üretmesi. **Kullanıcı kararı: A, mevcut yapı
+(.NET → FastAPI/LangChain → Ollama) korunur.** Doğrudan .NET bağlantısı (B) ya da LangChain'siz servis (C) en fazla ~0,1 sn
+kazandırır, buna karşılık tool döngüsünü ve MCP istemcisini yeniden yazmayı gerektirir.
+
+**Not (D): yanıt süresi sorun olursa başvurulacak ayarlar.** Şimdilik uygulanmadı:
+
+- **Model bellekte daha uzun kalsın** (Ollama `keep_alive`, ör. 30 dk) ya da servis açılırken model ısıtılsın. 5 dk boşta
+  kaldıktan sonraki ilk sorudaki ~5 sn yükleme kalkar; bedeli, modelin 4–7 GB belleği sürekli tutması.
+- **Cevap akarak gösterilsin** (AI-08): ilk kelimeler ~0,3 sn'de görünür, bekleme hissi azalır.
+- **Daha az model turu:** niyete göre tool daraltma (CHAT-01) ve tek mesajda en fazla 3 tool (CHAT-04). Her tool turu bir model turu daha demek.
+- **Daha kısa cevap / daha küçük model:** süre cevap uzunluğuyla doğru orantılı (~24 token/sn); 9b aynı cevapta yaklaşık 2 kat yavaş.
