@@ -1,7 +1,7 @@
 """Turns a question and backend facts into a Turkish explanation.
 
-AI-04: the call goes through LangChain's ChatOllama. The prompt is still the AI-03 placeholder; AI-05 writes
-the real prompt and AI-06 validates the output. The endpoint only depends on the ``Explainer`` protocol.
+AI-04: the call goes through LangChain's ChatOllama. AI-05: the prompt lives in prompts.py (versioned).
+AI-06 validates the output. The endpoint only depends on the ``Explainer`` protocol.
 """
 
 import json
@@ -13,6 +13,7 @@ from langchain_ollama import ChatOllama
 from ollama import ResponseError
 
 from contracts import Fact
+from prompts import build_messages
 from ollama_client import (
     ModelNotFound,
     OllamaBadResponse,
@@ -20,12 +21,6 @@ from ollama_client import (
     OllamaSettings,
     OllamaTimeout,
     OllamaUnavailable,
-)
-
-TEMPORARY_SYSTEM_PROMPT = (
-    "Sen bir bankacılık harcama asistanısın. Sana kullanıcının sorusu ve backend'in hesapladığı hazır veri "
-    "verilecek. Soruyu 2-3 cümlelik sade Türkçe ile cevapla. Yalnız verideki bilgileri ve rakamları, "
-    "verildiği yazımla aynen kullan; hesap yapma, yeni rakam ekleme."
 )
 
 # A 2-3 sentence Turkish answer is about 150-200 tokens; 400 leaves room and caps a runaway answer at ~17 s.
@@ -36,15 +31,6 @@ class Explainer(Protocol):
     """Anything that can explain backend facts in Turkish."""
 
     def explain(self, question: str, facts: list[Fact]) -> str: ...
-
-
-def build_messages(question: str, facts: list[Fact]) -> list[dict]:
-    """The chat messages sent to the model: a system prompt and one user message with the facts."""
-    lines = "\n".join(f"- {fact.label}: {fact.text}" for fact in facts)
-    return [
-        {"role": "system", "content": TEMPORARY_SYSTEM_PROMPT},
-        {"role": "user", "content": f"Soru: {question}\nVeri:\n{lines}"},
-    ]
 
 
 class LangChainExplainer:

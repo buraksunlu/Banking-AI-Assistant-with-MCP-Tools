@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from app import create_app, get_explainer, get_readiness
 from contracts import Fact
-from explainer import TEMPORARY_SYSTEM_PROMPT, LangChainExplainer, build_messages
+from explainer import LangChainExplainer
 from ollama_client import (
     ModelNotFound,
     OllamaBadResponse,
@@ -205,15 +205,3 @@ def test_tracing_switched_off_explicitly_is_allowed():
 
 def test_service_explains_through_langchain():
     assert isinstance(create_app(ENV).state.explainer, LangChainExplainer)
-
-
-# Explainer
-
-
-def test_messages_carry_the_question_and_facts_as_given():
-    messages = build_messages(QUESTION, [Fact(**f) for f in FACTS])
-    assert messages == [
-        {"role": "system", "content": TEMPORARY_SYSTEM_PROMPT},
-        {"role": "user", "content": "Soru: Bu ay ne kadar harcadım?\nVeri:\n- Dönem: 1-10 Ekim 2026\n- Toplam harcama: 735,00 TL"},
-    ]
-    assert TEMPORARY_SYSTEM_PROMPT.strip()

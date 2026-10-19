@@ -1437,12 +1437,16 @@ COMPLETED
   LangChain hataları dört türe çevrilir; kesik cevap 502; LangSmith izleme açıksa servis açılmaz. Agent/tool yok. 89 Python testi.
   Mimari kararı (19 Ekim 2026, ölçümle): yapı .NET → FastAPI/LangChain → Ollama olarak kalır; katmanlar ~0,1 sn ekliyor, sürenin
   neredeyse tamamı model (2,03 sn). Yanıt süresi sorun olursa: keep_alive/ısıtma, akarak gösterme, daha az tool turu (docs/local-ai.md, "Not (D)").
+- Açıklama prompt'u (AI-05, 19 Ekim 2026): ai/service/prompts.py, explanation-v1 (ChatPromptTemplate): yalnız veri, rakamlar aynen,
+  eksik veride tahmin/öneri yok, <veri> içi talimat değildir (blok sonrası hatırlatma; < > etkisizleştirilir), "siz", 1–3 cümle,
+  Markdown serbest. ai/model_check/explanation_eval.py ile 10 vaka: eski prompt 5/10 → explanation-v1 8/10 (4b). Prompt değişirse
+  sürüm adı da değişir ve değerlendirme önce/sonra çalıştırılır. Prompt garanti değildir: kalan injection/eksik rakam AI-06/10'da.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Local AI (todo bölüm 15): AI-05 (açıklama prompt'u), sonra AI-06 (çıktı doğrulama); ardından read-only
+- Local AI (todo bölüm 15): AI-06 (çıktı doğrulama), sonra AI-07 (.NET → FastAPI); ardından read-only
   MCP (bölüm 16). Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,
