@@ -1428,12 +1428,16 @@ COMPLETED
   (BANKINGAI_LLM_MODEL zorunlu, BANKINGAI_OLLAMA_URL, BANKINGAI_LLM_TIMEOUT_SECONDS varsayılan 30); dört hata türü
   (OllamaUnavailable, ModelNotFound, OllamaTimeout, OllamaBadResponse); check_ready() modeli yüklemeden ≤3 sn; chat() stream
   yok, thinking kapalı, temperature 0. İstemci zaman aşımında Ollama işi durdurur. 21 Python testi (3'ü gerçek Ollama).
+- AI servisi (AI-03, 19 Ekim 2026): ai/service/app.py (FastAPI, create_app fabrikası); GET /health/live, GET /health/ready (503),
+  POST /v1/explanations (question + facts: backend'in biçimlendirdiği metin; tanınmayan alan 400, strict); .NET ile aynı
+  problem+json; Ollama hataları 503/504/502; Explainer arayüzü (AI-03'te geçici prompt). Python 3.14 + ai/.venv, sabit ve en az
+  iki haftalık sürümler (ai/requirements.in + requirements.txt), pytest; 75 Python testi. Yalnız 127.0.0.1, token AI-07'de.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Local AI (todo bölüm 15): AI-03 (FastAPI servisi; ollama_client'ı kullanır), sonra AI-04 (LangChain); ardından read-only
+- Local AI (todo bölüm 15): AI-04 (LangChain ChatOllama; Explainer'ın içi), sonra AI-05/06; ardından read-only
   MCP (bölüm 16). Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,

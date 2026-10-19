@@ -1,0 +1,16 @@
+# Direct dependencies of the AI service (AI-03). Exact versions, each at least two weeks old when chosen.
+# The full pinned set, including what these pull in, is requirements.txt (pip freeze).
+fastapi==0.142.2
+pydantic==2.13.5
+uvicorn==0.54.0
+# Tests: pytest also runs the older unittest files; httpx2 is what Starlette's TestClient asks for (httpx is deprecated there).
+pytest==9.1.1
+httpx2==2.13.1
+
+# Indirect dependencies pinned because pip picked releases younger than two weeks (19 Oct 2026).
+starlette==1.7.0
+certifi==2026.7.22
+opentelemetry-api==1.45.0
+pluggy==1.6.0
+iniconfig==2.3.0
+truststore==0.10.4
