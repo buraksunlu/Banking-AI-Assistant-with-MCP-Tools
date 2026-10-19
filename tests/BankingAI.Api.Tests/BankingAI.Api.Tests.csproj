@@ -14,7 +14,13 @@
     <ProjectReference Include="../../src/BankingAI.Api/BankingAI.Api.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <!-- Shared test helpers (tests/Shared) live in this namespace. -->
+    <Using Include="BankingAI.TestSupport" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="../Shared/CommittedRowsLock.cs" Link="Shared/CommittedRowsLock.cs" />
+    <Compile Include="../Shared/TestTokens.cs" Link="Shared/TestTokens.cs" />
+    <Compile Include="../Shared/CapturedLogs.cs" Link="Shared/CapturedLogs.cs" />
     <Compile Include="../BankingAI.Application.Tests/DemoData.cs" Link="Shared/DemoData.cs" />
   </ItemGroup>
 </Project>

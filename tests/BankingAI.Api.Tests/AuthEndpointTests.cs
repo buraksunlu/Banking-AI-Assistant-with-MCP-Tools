@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using BankingAI.Api.Controllers;
 using BankingAI.Api.Security;
+using BankingAI.Hosting.Security;
 using Xunit;
 
 namespace BankingAI.Api.Tests;

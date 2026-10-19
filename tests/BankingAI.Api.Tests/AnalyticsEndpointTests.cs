@@ -1,6 +1,6 @@
 using System.Net;
 using System.Text.Json.Nodes;
-using BankingAI.Api.Time;
+using BankingAI.Hosting.Time;
 using Xunit;
 using static BankingAI.Application.Tests.DemoData;
 

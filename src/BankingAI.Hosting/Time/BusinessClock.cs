@@ -1,6 +1,7 @@
 using System.Globalization;
+using Microsoft.Extensions.Configuration;
 
-namespace BankingAI.Api.Time;
+namespace BankingAI.Hosting.Time;
 
 /// <summary>
 /// The clock of the business: what "this month" means for analytics and when a new transaction happens. It may

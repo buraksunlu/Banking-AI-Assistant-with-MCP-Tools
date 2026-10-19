@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json.Nodes;
-using BankingAI.Api.Time;
+using BankingAI.Hosting.Time;
 using BankingAI.Data;
 using BankingAI.Data.Enums;
 using Microsoft.EntityFrameworkCore;

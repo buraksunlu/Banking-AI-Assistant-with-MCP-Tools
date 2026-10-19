@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using BankingAI.Hosting.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.OpenApi;

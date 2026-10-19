@@ -5,6 +5,7 @@ using BankingAI.Api.Errors;
 using BankingAI.Api.Security;
 using BankingAI.Application.Customers;
 using BankingAI.Data.Validation;
+using BankingAI.Hosting.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 

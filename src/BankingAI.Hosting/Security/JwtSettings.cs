@@ -1,7 +1,8 @@
 using System.Text;
+using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 
-namespace BankingAI.Api.Security;
+namespace BankingAI.Hosting.Security;
 
 /// <summary>
 /// Token settings of the API: fixed issuer/audience/lifetime and the signing key from configuration.

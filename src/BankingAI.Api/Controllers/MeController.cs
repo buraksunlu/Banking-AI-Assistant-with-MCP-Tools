@@ -1,6 +1,7 @@
 using BankingAI.Api.Security;
 using BankingAI.Application;
 using BankingAI.Data;
+using BankingAI.Hosting.Security;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 

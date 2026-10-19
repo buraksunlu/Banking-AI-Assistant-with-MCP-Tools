@@ -62,10 +62,11 @@ canlı PostgreSQL kontrolüne, test/API/AI satırları 19 Ekim 2026 durumuna day
 | Hesap bakiyeleri | Ada TRY 577490.18; Ada USD 500; Deniz TRY 522900; Kahve Durağı 2595; Ege EUR 1000; Ege TRY 273380; boş TRY 0 |
 | Market tabloları | MarketAssets mevcut ve üç seed kaydı var; DailyMarketPrices henüz boş |
 | Bakiye güncelleme akışı | `Writing/TransactionWriter` (tek kayıt) ve `Writing/PairedTransactionWriter` (iki kayıt) insert ile atomik bakiye delta'sını aynı DB transaction'ında yazar; sınır dışı bakiye `BalanceLimitException`. Seed'ler ve API-11 kullanır |
-| Otomatik testler | .NET: Data 63, Application 306, Api 445 (PostgreSQL testleri seed edilmiş demo DB'yi kullanır; rollback veya geçici kayıtla çalışır; ayrı test DB'si DB-01'de açık). Python (`ai/`, pytest): 220 (gerçek Ollama testleri Ollama kapalıysa atlanır) |
+| Otomatik testler | .NET: Data 63, Application 306, Api 445, McpServer 40 (PostgreSQL testleri seed edilmiş demo DB'yi kullanır; rollback veya geçici kayıtla çalışır; ayrı test DB'si DB-01'de açık). Python (`ai/`, pytest): 220 (gerçek Ollama testleri Ollama kapalıysa atlanır) |
 | API | BankingAI.Api (docs/api.md, sözleşme `docs/openapi/v1.json`): health, login/JWT, `/api/me`; hesaplar (liste, tek hesap, açma); işlemler (hesabın listesi, bütün hesaplarda filtreli arama, tek işlem, ekleme + Idempotency-Key); `/api/analytics/` altında 13 endpoint (özet, kategori, merchant dökümü/tek merchant/merchant listesi/grup, karşılaştırma, aylık seri, en yüksek işlemler, düzenli/yaklaşan ödemeler, bütçe, tasarruf); sohbet asistanı (`POST /api/assistant/messages`, `GET /api/assistant/status`; AI servisine aynı token'la iletir, müşteri başına dakikada 10 mesaj); ortak ProblemDetails hataları; Scalar (geliştirmede) |
 | AI servisi | `ai/service` (FastAPI + LangChain + Ollama, `qwen3.5:4b`, docs/local-ai.md): `/health/live`, `/health/ready`, `POST /v1/explanations` (prompt `explanation-v1`, cevap kontrolü + bir düzeltme), `POST /v1/chat` (AI-14a: tool seçimi → geçici REST köprüsü → açıklama); yalnız 127.0.0.1, .NET'ten çağrılır (AI-14b + AI-07). Ölçüm araçları `ai/model_check` |
-| MCP / SwiftUI | Henüz yok |
+| MCP | `BankingAI.McpServer` (docs/mcp.md): `127.0.0.1:5249/mcp`, durumsuz Streamable HTTP, JWT zorunlu; 3 salt okunur araç (`get_spending_summary`, `get_category_breakdown`, `get_merchant_spending`), argümanlar yayınlanan şemaya göre kontrol edilir; ortak kurulum `BankingAI.Hosting`. AI servisi henüz REST köprüsünü kullanıyor (MCP-b) |
+| SwiftUI | Henüz yok |
 
 Migration geçmişi:
 1. 20261007142113_CreateCustomers
@@ -366,13 +367,13 @@ Tool sayısı notu (19 Ekim 2026): bütün maddelerle ~26 tool oluyor; 4b için 
 birleştirmeler değerlendirilir: MCP-04 (`get_transactions`) ile MCP-06 (`search_transactions`) aynı arama endpoint'ini
 kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir. Düzenli ödemeler tool'u REC-04'tedir (bölüm 18).
 
-- [ ] MCP-01 — MCP server/client sınırını tasarla. .NET mevcut hesaplama servislerini çağırır; Python istemci bağlanır. DB sorgusu veya finansal hesap LLM'ye verilmez.
-- [ ] MCP-02 — İlk server ve tool discovery akışını kur. Yalnızca allowlist tool'ları yayınla; development erişimini sınırla.
+- [x] MCP-01 — MCP server/client sınırını tasarla. .NET mevcut hesaplama servislerini çağırır; Python istemci bağlanır. DB sorgusu veya finansal hesap LLM'ye verilmez. Sonuç (19 Ekim 2026, MCP-a, dal `mcp-02-banking-server`, docs/mcp.md): kim neyi bilir tablosu ve token akışı; kullanıcı kararları K1-A ayrı süreç (127.0.0.1, Streamable HTTP), K2-A aynı JWT (kısa ömürlü token SEC-07), K3-A tanımlar .NET'te (AI-14a metinleri birebir), K4-A üç araç, K5-A iki adım (MCP-a server, MCP-b Python), K6-A servisler doğrudan, K7-B Python'da resmi `mcp` SDK + kendi ağ geçidi, K8-A ortak `BankingAI.Hosting`, K9-A REST ile aynı JSON, K10-A `isError` + `{code, message}`, K11-A gerçek protokolle testler.
+- [x] MCP-02 — İlk server ve tool discovery akışını kur. Yalnızca allowlist tool'ları yayınla; development erişimini sınırla. Sonuç (19 Ekim 2026, MCP-a): `src/BankingAI.McpServer` (`ModelContextProtocol.AspNetCore` 2.2.0, 13 Ağustos 2026; yalnız `127.0.0.1:5249`, JWT zorunlu, durumsuz), `src/BankingAI.Hosting` (API'den taşınan `JwtSettings`, `BusinessClock`, `ClaimsPrincipalExtensions`, `StrictEnumConverter` + `BankingJson`, `AddBankingCore()` yalnız okuma servisleriyle; refactor sonrası Api 445 testi içerik değişmeden yeşil). Allowlist bekçisi `ToolDiscoveryTests` (araç kümesi, açıklamalar birebir, ReadOnly, argümanlar, 11 dönem, merchant 1–150, çıktı şeması). `ToolCallFilter` argümanları yayınlanan şemaya göre uygular (SDK uygulamıyor; enum bağlaması küçük harfi kabul ediyordu) ve araç hatalarını saf `{code, message}` yapar (SDK "An error occurred invoking …" ön eki ekliyordu). Bulgu: SDK metot parametresindeki servisi ara sıra argüman sandı (şemada "zorunlu categories", 6 koşuda 3 kırmızı) → servisler kurucudan; 10/10 yeşil. Testler: `BankingAI.McpServer.Tests` 40 (keşif 7, rakam 9, güvenlik 9, argüman 15 — gerçek C# MCP istemcisiyle); `TestTokens` ve `CapturedLogs` `tests/Shared`'a taşındı. 8 kasıtlı bozma yakalandı (token zorunlu değil → 4, `customerId` argümanı → 1, `Custom` dönemi → 1, ReadOnly kalkar → 1, session_invalid ↔ invalid_arguments → 3, testsiz araç → 6, filtre kapalı → 18, tanınmayan argüman serbest → 3). Elle: yalnız 127.0.0.1:5249 dinliyor; tokensız 401; `tools/list` 3 araç; dün 145.00; Starbucks son 3 ay 930.00; `yesterday` → `invalid_arguments`; sohbet köprüyle çalışmaya devam (dün 145,00 TL); logda token yok. Build 0 uyarı; Application 306, Data 63, Api 445, McpServer 40 (2 tam koşu).
 - [ ] MCP-03 — get_accounts tool'unu ekle; typed args, müşteri kapsamı ve sınırlı çıktı kullan.
 - [ ] MCP-04 — get_transactions tool'unu ekle; pagination ve hesap kapsamını doğrula.
-- [ ] MCP-05 — get_spending_summary tool'unu ekle; dönem ve para birimi kuralları backend'de kalsın.
+- [ ] MCP-05 — get_spending_summary tool'unu ekle; dönem ve para birimi kuralları backend'de kalsın. (19 Ekim 2026: server tarafı MCP-a'da tamam — `SpendingSummaryService`, REST ile aynı JSON; AI servisinin MCP'den çağırması MCP-b.)
 - [ ] MCP-06 — search_transactions tool'unu ekle; filtre ve limitleri yeniden doğrula. (ANA-11 sonrası: en az/en çok tutar argümanı.)
-- [ ] MCP-07 — get_category_breakdown tool'unu ekle; kategorisiz tutar bilgisini koru.
+- [ ] MCP-07 — get_category_breakdown tool'unu ekle; kategorisiz tutar bilgisini koru. (19 Ekim 2026: server tarafı MCP-a'da tamam; kategorisiz grup `categoryCode: null` ayrı; bağlantı MCP-b.)
 - [ ] MCP-08 — get_merchant_breakdown tool'unu ekle; null merchant davranışını açıkla.
 - [ ] MCP-09 — compare_spending_periods tool'unu ekle; sıfır payda ve dönem sınırlarını test et.
 - [ ] MCP-10 — get_highest_transactions tool'unu ekle; limit ve yetki kapsamını koru. (ANA-11 sonrası: en az/en çok tutar argümanı.)
@@ -390,7 +391,7 @@ kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir.
 - [ ] MCP-22 — plan_savings_goal tool'unu ekle (ANA-18); hedef tutarı ve tarihi backend'de yeniden doğrulanır.
 - [ ] MCP-23 — get_spending_habits tool'unu ekle (ANA-19); gün ve gün dilimi sınırları çıktıda yazılıdır.
 - [ ] MCP-24 — get_monthly_trend tool'unu ekle (`/api/analytics/monthly-trend`; 19 Ekim taramasında tool'u eksik bulundu). Ay sayısı zorunlu argüman, devam eden ay `IsPartial` ile işaretli ve harcamasız ay 0 olarak çıktıda korunur.
-- [ ] MCP-25 — Tek merchant harcaması (`/api/analytics/merchant-spending`; 19 Ekim taramasında eksik bulundu). `MerchantMatcher` sonucu (tam/kısmi/belirsiz/bulunamadı) çıktıda korunur; belirsiz/bulunamadı CHAT-03 geri sorusuna gider. MCP-15 ile tek araçta birleştirme kararı MCP-01'de.
+- [ ] MCP-25 — Tek merchant harcaması (`/api/analytics/merchant-spending`; 19 Ekim taramasında eksik bulundu). `MerchantMatcher` sonucu (tam/kısmi/belirsiz/bulunamadı) çıktıda korunur; belirsiz/bulunamadı CHAT-03 geri sorusuna gider. MCP-15 ile tek araçta birleştirme kararı MCP-01'de. (19 Ekim 2026: `get_merchant_spending` server tarafı MCP-a'da tamam, eşleşme sonucu çıktıda; MCP-15 ile birleştirme sonraya bırakıldı; bağlantı MCP-b.)
 - [ ] MCP-26 — get_spending_overview tool'unu ekle (ANA-21); "bu ay nasıl gidiyor?" tek tool turunda.
 
 ## 17. Merchant normalization ve kategorilendirme
@@ -423,6 +424,7 @@ kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir.
 - [ ] SEC-04 — LLM'nin SQL veya banking write operasyonu yaptıramadığını doğrula. Bilinmeyen tool ve ayrıcalık iddiaları reddedilsin.
 - [ ] SEC-05 — Secret/log kontrolü yap. Bağlantı parolası, API anahtarı ve gereksiz müşteri detayları log/fixture/repo içine girmesin.
 - [x] SEC-06 — Sohbet hız sınırı (19 Ekim 2026 taramasında eksik bulundu; bugün yalnız girişte dakikada 5 deneme var). Her sohbet mesajı yerel modeli 2–5 sn meşgul ediyor ve makinede tek model var. Müşteri başına (token'daki kimlik) sınır .NET'te, AI-14 uç noktasında; aşınca 429 `too_many_requests`. Sınır ölçülerek seçilir (adım planında); FastAPI'ye yalnız .NET ulaşabildiği sürece ikinci bir sınır gerekmez. Sonuç (19 Ekim 2026, AI-14b ile; K6-A): müşteri başına sabit pencere, dakikada 10 mesaj (ölçülen tur 1,8–13 sn), 429 `too_many_requests` + `Retry-After` (giriş 429'una da eklendi); sınırlayıcı kimlik doğrulamadan sonra çalışır. Paralel gönderime karşı müşteri başına eşzamanlılık sınırı (K6-B) gerekirse sonra.
+- [ ] SEC-07 — Kısa ömürlü "yalnız MCP" token'ı (MCP-a K2-B, 19 Ekim 2026). Bugün kullanıcının tam yetkili 60 dk'lık token'ı AI servisi üzerinden MCP server'a kadar gidiyor. .NET API sohbet mesajında AI servisine kullanıcının token'ı yerine yalnız MCP'de geçen (ayrı audience, ör. 2 dk) bir token verir; AI servisi ele geçirilse bile REST API'de işe yaramaz. MCP server yalnız bu audience'ı kabul eder. Testte: MCP token'ı REST'te 401, kullanıcı token'ı MCP'de 401.
 - [ ] EVAL-01 — (19 Ekim 2026: başladı — `ai/model_check/cases.json` 20 vaka (tool, structured, açıklama), `explanation_cases.json` 15 açıklama vakası; tool seçimi seti MCP ile genişleyecek.) En az 50, tercihen 75–100 synthetic soru hazırla. Beklenen tool, arguments, sonuç ve belirsizlik davranışı bağımsız olarak tanımlansın. (13 Ekim: kapsam dışı/ret gerektiren sorular ayrı kategori — AI-12; 12b soru tipleri de kapsansın.)
 - [ ] EVAL-02 — Tool selection ve argument accuracy ölç. Yanlış tarih, kategori, merchant ve hesap seçimini ayrı raporla.
 - [ ] EVAL-03 — (19 Ekim 2026: açıklama tarafında başladı — `explanation_eval.py` uydurma sayıyı ölçüyor; AI-06 kontrolü uydurma sayıyı kullanıcıya ulaştırmıyor (X11–X15).) Finansal doğruluk ve grounded response ölç. Modelin eklediği uydurma sayı, eksik fiyatı gizleme ve yanlış birimi hata say. (13 Ekim: AI-10 sayı doğrulayıcısının yakaladığı ve kaçırdığı sayılar ayrı raporlansın.)
@@ -474,14 +476,16 @@ Güncelleme: 19 Ekim 2026.
 Tamamlanan bloklar: banking foundation (DOC-09; SYN-01–14, KIND-01–05), deterministik analytics (ANA-01–14,
 REC-01–03, ANA-20), API ve güvenlik (API-01a/01b, API-02–15, SEC-01a/01b, SEC-06), local AI (AI-01–07: model seçimi,
 Ollama bağlantısı, FastAPI servisi, LangChain, açıklama prompt'u, çıktı doğrulama, .NET → FastAPI) ve uçtan uca sohbet
-(AI-14a FastAPI `/v1/chat` + AI-14b .NET `POST /api/assistant/messages`). Testler: .NET Data 63, Application 306, Api 445;
-Python 220; hepsi yeşil. 16 Ekim 2026'dan beri her iş kendi dalında yapılır ve PR ile (squash) `main`'e
+(AI-14a FastAPI `/v1/chat` + AI-14b .NET `POST /api/assistant/messages`). Testler: .NET Data 63, Application 306, Api 445,
+McpServer 40; Python 220; hepsi yeşil. 16 Ekim 2026'dan beri her iş kendi dalında yapılır ve PR ile (squash) `main`'e
 girer; git komutlarını kullanıcı çalıştırır (CLAUDE.md "Git akışı").
 
 Sıradaki (kullanıcı seçer; müşteri her zaman token'dan gelir):
 
-- **Omurga:** sohbet uçtan uca çalışıyor (AI-14a + AI-14b + AI-07, 19 Ekim 2026; iPhone yalnız .NET'e konuşur). Sırada
-  MCP-01/02/05/12 (geçici REST köprüsünün yerini read-only MCP alır); iPhone tarafı IOS-13 (giriş) + AI-08 (sohbet ekranı).
+- **Omurga:** sohbet uçtan uca çalışıyor (AI-14a + AI-14b + AI-07, 19 Ekim 2026; iPhone yalnız .NET'e konuşur). MCP-a
+  (MCP-01/02 + üç aracın server tarafı, `BankingAI.McpServer`) 19 Ekim 2026'da tamam; sırada **MCP-b** (MCP-12: Python `mcp`
+  istemcisi + `McpToolGateway`, REST köprüsü ve `BANKINGAI_API_URL` silinir, tool seçim ölçümü önce/sonra); iPhone tarafı
+  IOS-13 (giriş) + AI-08 (sohbet ekranı).
 - **Küçük ve bağımsız (istenirse omurgadan önce):** CHAT-06 (önerilen sorular, tablo kısmı). ANA-20 (gün/hafta dönemleri) 19 Ekim 2026'da tamamlandı.
 - **Omurgadan sonra (17 Ekim kararı):** 15c sohbet yetenekleri (CHAT-01–07) → 12c yeni analizler (ANA-15–19, ANA-21) +
   MCP-19–26 → 15d içgörü kartları (INS-01–03) + IOS-12. Kalıcı bütçe/hedef (12d, BUD-01–04) 19 Ekim kararıyla eklendi;

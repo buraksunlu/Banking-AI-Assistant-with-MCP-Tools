@@ -1,7 +1,7 @@
 using System.Security.Claims;
 using Microsoft.IdentityModel.JsonWebTokens;
 
-namespace BankingAI.Api.Security;
+namespace BankingAI.Hosting.Security;
 
 /// <summary>
 /// The only way controllers learn the current customer: from the validated token, never from the request.
