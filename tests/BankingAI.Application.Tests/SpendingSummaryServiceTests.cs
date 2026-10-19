@@ -35,6 +35,36 @@ public sealed class SpendingSummaryServiceTests
         Assert.Equal((new DateOnly(2026, 10, 1), new DateOnly(2026, 10, 10)), (summary.Period.StartDate, summary.Period.EndDate));
     }
 
+    // ANA-20. Ada's 2026 purchases, all between 07:00 and 11:00 UTC so the local day is the UTC day: Netflix 229,99 (12th),
+    // Spotify 99,99 (18th) and Starbucks 185 (20th) every month April-September; Kahve Durağı 110 on 15 September;
+    // October: Kahve Durağı 120 (2nd) and 95 (7th), Starbucks 210 (6th) and 165 (8th), unknown 145 (9th).
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData(PeriodKind.Yesterday, "145", 1, "145", 1)]        // 9 Oct
+    [InlineData(PeriodKind.ThisWeek, "615", 4, "145", 1)]         // 5-10 Oct: 210 + 95 + 165 + 145
+    [InlineData(PeriodKind.LastWeek, "120", 1, "0", 0)]           // 28 Sep-4 Oct: Kahve Durağı on the 2nd
+    [InlineData(PeriodKind.Last7Days, "615", 4, "145", 1)]        // 4-10 Oct: nothing on the 4th
+    [InlineData(PeriodKind.Last30Days, "1359.98", 9, "145", 1)]   // 11 Sep-10 Oct: 229,99 + 110 + 99,99 + 185 + 735
+    [InlineData(PeriodKind.ThisYear, "3934.88", 24, "145", 1)]    // 6 x 514,98 + 110 + 735
+    public async Task Day_and_week_periods_sum_the_hand_computed_purchases(
+        PeriodKind kind, string total, int count, string uncategorized, int uncategorizedCount)
+    {
+        var tl = Assert.Single((await GetAsync(new(Ada, kind))).Currencies);
+
+        Assert.Equal(("TRY", decimal.Parse(total, System.Globalization.CultureInfo.InvariantCulture), count),
+            (tl.CurrencyCode, tl.TotalAmount, tl.TransactionCount));
+        Assert.Equal((decimal.Parse(uncategorized, System.Globalization.CultureInfo.InvariantCulture), uncategorizedCount),
+            (tl.UncategorizedAmount, tl.UncategorizedCount));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Today_without_purchases_gives_no_rows()
+    {
+        // Nothing was bought on Saturday 10 October; an empty list, not an invented "0" row.
+        Assert.Empty((await GetAsync(new(Ada, PeriodKind.Today))).Currencies);
+    }
+
     [Fact]
     [Trait("Category", "PostgreSQL")]
     public async Task Shop_income_and_owner_transfer_are_not_personal_spending()

@@ -258,7 +258,8 @@ ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce ge
 ### Analytics (`BankingAI.Application/Analytics`)
 
 - `PeriodResolver` + `TimeProvider`: sembolik dönem (`PeriodKind`) müşterinin `TimeZone`'una göre
-  `[StartUtc, EndUtc)` aralığına çevrilir. Testler ve demo "şimdi"yi
+  `[StartUtc, EndUtc)` aralığına çevrilir. ANA-20: gün/hafta dönemleri (hafta pazartesi; "son N gün" bugün dahil tam N gün,
+  "son N ay" N ay önceki aynı günden; anlam tablosu docs/analytics.md). Testler ve demo "şimdi"yi
   `2026-10-10T12:00:00Z` olarak sabitler (`FixedTimeProvider`); demo verisi bu tarihe göredir.
 - `CustomerScope` (internal) müşteri/saat dilimi, hesap sahipliği (başka müşterinin hesabı =
   `KeyNotFoundException`, varlık sızdırılmaz) ve dönem çözümünün tek yeridir. `PurchaseScope` onun

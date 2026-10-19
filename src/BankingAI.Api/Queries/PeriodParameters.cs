@@ -30,7 +30,7 @@ public static class PeriodParameters
 
         // Exact names only. Refusing every value with a digit refused "Last3Months" too (a bug from API-09). A custom
         // range comes from dates only.
-        return ExactEnum.Parse<PeriodKind>(period, nameof(period), "ThisMonth, LastMonth, Last3Months veya Last6Months olmalı.", PeriodKind.Custom)!.Value;
+        return ExactEnum.Parse<PeriodKind>(period, nameof(period), "ThisMonth, LastMonth, Last3Months, Last6Months, Today, Yesterday, ThisWeek, LastWeek, Last7Days, Last30Days veya ThisYear olmalı.", PeriodKind.Custom)!.Value;
     }
 
     /// <summary>
