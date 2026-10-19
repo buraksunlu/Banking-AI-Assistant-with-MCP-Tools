@@ -1432,12 +1432,15 @@ COMPLETED
   POST /v1/explanations (question + facts: backend'in biçimlendirdiği metin; tanınmayan alan 400, strict); .NET ile aynı
   problem+json; Ollama hataları 503/504/502; Explainer arayüzü (AI-03'te geçici prompt). Python 3.14 + ai/.venv, sabit ve en az
   iki haftalık sürümler (ai/requirements.in + requirements.txt), pytest; 75 Python testi. Yalnız 127.0.0.1, token AI-07'de.
+- LangChain (AI-04, 19 Ekim 2026): explainer.py LangChainExplainer (ChatOllama, think kapalı, temperature 0, 400 token). ChatOllama
+  her zaman stream kullandığı için timeout toplam süreyi sınırlamıyor: cevap parça parça okunur, süre dolunca akış kapatılır.
+  LangChain hataları dört türe çevrilir; kesik cevap 502; LangSmith izleme açıksa servis açılmaz. Agent/tool yok. 89 Python testi.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Local AI (todo bölüm 15): AI-04 (LangChain ChatOllama; Explainer'ın içi), sonra AI-05/06; ardından read-only
+- Local AI (todo bölüm 15): AI-05 (açıklama prompt'u), sonra AI-06 (çıktı doğrulama); ardından read-only
   MCP (bölüm 16). Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,

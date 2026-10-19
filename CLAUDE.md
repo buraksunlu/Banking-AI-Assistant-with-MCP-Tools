@@ -114,8 +114,14 @@ AI servisi (AI-03, `ai/service/app.py`, FastAPI): `GET /health/live` (Ollama'ya 
 `POST /v1/explanations` (`question` + `facts`: backend'in biçimlendirdiği etiket/metin listesi; tanınmayan alan 400, `strict`). Hatalar
 API'ninkiyle aynı problem+json (`title`, `status`, `code`, `traceId`; 422 yerine 400). Ollama hataları: 503 `ai_unavailable`/`model_missing`,
 504 `ai_timeout`, 502 `ai_bad_response`. Uygulama `create_app()` fabrikasıyla kurulur (`--factory`; model ayarı yoksa açılmaz); açıklamayı
-`Explainer` arayüzü üretir (`explainer.py`, AI-03'te geçici prompt), testler `app.dependency_overrides` ile sahte explainer/readiness verir.
+`Explainer` arayüzü üretir (`explainer.py`), testler `app.dependency_overrides` ile sahte explainer/readiness verir.
 Servis yalnız 127.0.0.1'de dinler; token AI-07'de.
+
+LangChain (AI-04): `LangChainExplainer` `ChatOllama` kullanır (`reasoning=False`, `temperature=0`, `num_predict=400`). **Tuzak:** ChatOllama
+`invoke`'ta bile stream eder; `client_kwargs` timeout'u yalnız iki parça arası beklemeyi sınırlar. Toplam süre bu yüzden parçalar okunurken
+kontrol edilir ve süre dolunca akış kapatılır (Ollama da işi bırakır). LangChain/Ollama/httpx hataları `_translate` ile dört türe çevrilir;
+yalnız `json.JSONDecodeError` yakalanır (geniş `ValueError` gerçek hatayı gizlerdi). `LANGSMITH_TRACING`/`LANGCHAIN_TRACING_V2` açıksa
+servis açılmaz (veri buluta gitmesin). Testler Ollama'nın satır satır JSON akışını taklit eden sahte sunucu kullanır (`test_explainer.py`).
 
 Migration:
 
@@ -325,7 +331,7 @@ işlemler), ANA-07 (karşılaştırma ve aylık seri), ANA-08 (kenar durumu test
 ödemeler), API-01a/01b + API-02 (Data kütüphane + Cli, BankingAI.slnx, BankingAI.Api + DI + health), SEC-01a (CustomerCredentials + CLI), SEC-01b (login + JWT + /api/me), API-03 (AccountDto, CreateAccountRequest), API-04 (IAccountReadService), API-05 (GET /api/accounts), API-06 (GET /api/accounts/{id}), API-07 (POST /api/accounts), API-08 (işlem sözleşmesi), API-09 (hesabın işlem listesi), API-10 (tek işlem), API-11 (işlem ekleme), API-12 (Idempotency-Key), API-13 (ortak hata cevabı), ANA-09 (analytics endpoint'leri + `GET /api/transactions` arama), ANA-10–14 (yeni soru
 tipleri: kavramsal merchant, tutar filtresi, yaklaşan ödemeler, bütçe, tasarruf), API-14 (endpoint taraması, kalıcılık).
 API-15 (OpenAPI sözleşmesi, Scalar, örnekler). API bölümü tamam. AI-01 (local model: `qwen3.5:4b` varsayılan, thinking kapalı;
-`ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`), AI-03 (FastAPI servisi `ai/service/app.py`); sıradaki: AI-04 (LangChain), sonra MCP.
+`ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`), AI-03 (FastAPI servisi `ai/service/app.py`), AI-04 (LangChain `ChatOllama`); sıradaki: AI-05 (prompt), AI-06, sonra MCP.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
 içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d.
