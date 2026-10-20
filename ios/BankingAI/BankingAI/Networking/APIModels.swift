@@ -28,3 +28,27 @@ struct ProblemBody: Decodable {
     let status: Int?
     let code: String?
 }
+
+/// Body of `POST /api/assistant/messages`: only the user's text; the customer comes from the token.
+struct AssistantMessageRequest: Encodable {
+    let message: String
+}
+
+/// What kind of reply the assistant gave (the API writes the exact names).
+enum AssistantReplyType: String, Decodable {
+    case answer = "Answer"
+    case clarification = "Clarification"
+    case outOfScope = "OutOfScope"
+}
+
+/// Reply of `POST /api/assistant/messages`. The API also sends the tools and figures used; the app does not show them yet
+/// (IOS-11, decision AI-08 K13-A), so they are not decoded.
+struct AssistantReply: Decodable, Equatable {
+    let type: AssistantReplyType
+    let answer: String
+}
+
+/// Reply of `GET /api/assistant/status`: whether the chat can take questions right now.
+struct AssistantStatus: Decodable, Equatable {
+    let available: Bool
+}

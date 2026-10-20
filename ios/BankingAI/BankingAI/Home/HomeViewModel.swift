@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// The signed-in home screen until the chat arrives (AI-08): who is signed in, and signing out.
+/// The signed-in home screen: who is signed in, and signing out.
 @Observable
 final class HomeViewModel {
     private(set) var greeting: String?
