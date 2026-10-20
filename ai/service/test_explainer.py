@@ -104,6 +104,13 @@ def test_request_has_thinking_off_temperature_zero_and_token_cap():
     assert [{"role": m["role"], "content": m["content"]} for m in body["messages"]] == build_messages(QUESTION, FACTS)
 
 
+def test_request_keeps_the_model_loaded():
+    # Ollama applies its 5-minute default to any request without keep_alive, undoing the warm-up's longer setting.
+    with FakeOllamaStream() as fake:
+        explainer_for(fake.url).explain(QUESTION, FACTS)
+    assert fake.requests[0][1]["keep_alive"] == "30m"
+
+
 def test_streamed_parts_are_joined_and_trimmed():
     lines = [chunk("  Bu ay "), chunk("735,00 TL"), chunk(" harcadınız.\n"), final()]
     with FakeOllamaStream(lines) as fake:

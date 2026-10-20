@@ -5,12 +5,15 @@ Run (from the repository root, after loading .env):
 
 The service holds no data and computes no money: it passes text the backend already formatted to the
 local model. Every error is a problem+json body shaped like the .NET API's (title, status, code, traceId).
+At startup the model is loaded in the background (AI-15), so the first question does not wait for it.
 """
 
 import logging
 import os
+import threading
 import uuid
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -30,6 +33,7 @@ from ollama_client import (
     OllamaUnavailable,
     Readiness,
     check_ready,
+    warm_up as load_model,
 )
 from mcp_gateway import McpSettings, McpToolGateway
 from tools import BackendTimeout, BackendUnavailable, SessionInvalid, ToolCallRejected
@@ -72,14 +76,29 @@ _NOT_READY = {Readiness.SERVER_UNAVAILABLE: AI_UNAVAILABLE, Readiness.MODEL_MISS
 _TRACING_SETTINGS = ("LANGSMITH_TRACING", "LANGSMITH_TRACING_V2", "LANGCHAIN_TRACING", "LANGCHAIN_TRACING_V2")
 
 
-def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
-    """Builds the service; fails at startup when the model setting is invalid or LangSmith tracing is on."""
+def create_app(
+    env: Mapping[str, str] | None = None, warm_up: Callable[[OllamaSettings], float] = load_model
+) -> FastAPI:
+    """Builds the service; fails at startup when the model setting is invalid or LangSmith tracing is on.
+
+    ``warm_up`` loads the model when the server starts (tests pass a fake one).
+    """
     env = os.environ if env is None else env
     _refuse_cloud_tracing(env)
     settings = OllamaSettings.from_env(env)
 
-    app = FastAPI(title="BankingAI AI Service", version="0.1.0")
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        # In the background (K5-A): the service answers at once, and a question that arrives meanwhile simply waits
+        # for the same load inside Ollama; the model is not loaded twice.
+        app.state.warm_up_thread = threading.Thread(
+            target=_warm_up_in_background, args=(warm_up, settings), name="model-warm-up", daemon=True)
+        app.state.warm_up_thread.start()
+        yield
+
+    app = FastAPI(title="BankingAI AI Service", version="0.1.0", lifespan=lifespan)
     app.state.settings = settings
+    app.state.warm_up = warm_up
     app.state.explainer = LangChainExplainer(settings)
     app.state.tools = McpToolGateway(McpSettings.from_env(env))
     # The address may be the default (MCP-b K5-C), so startup says which one is in use. Through uvicorn's logger: the
@@ -139,6 +158,17 @@ def bearer_token(request: Request) -> str:
     if scheme != "Bearer" or not token.strip():
         raise HTTPException(status_code=401)
     return token.strip()
+
+
+def _warm_up_in_background(warm_up: Callable[[OllamaSettings], float], settings: OllamaSettings) -> None:
+    log = logging.getLogger("uvicorn.error")  # next to uvicorn's startup lines, like the MCP address line
+    try:
+        seconds = warm_up(settings)
+    except OllamaError as error:
+        # Only a speed-up (K4-A): /health/ready already reports the cause, and the first question loads the model itself.
+        log.warning("Model warm-up failed: %s", error)
+        return
+    log.info("Model %s warmed up in %.1f s; kept loaded for %s after each use", settings.model, seconds, settings.keep_alive)
 
 
 def _refuse_cloud_tracing(env: Mapping[str, str]) -> None:

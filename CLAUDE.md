@@ -169,6 +169,10 @@ API'ninkiyle aynı problem+json (`title`, `status`, `code`, `traceId`; 422 yerin
 `Explainer` arayüzü üretir (`explainer.py`), testler `app.dependency_overrides` ile sahte explainer/readiness verir.
 Servis yalnız 127.0.0.1'de dinler; token AI-07'de.
 
+Isıtma (AI-15): açılışta lifespan arka planda `ollama_client.warm_up` çağırır (prompt yok, açılış beklemez, hata yalnız uyarı logu;
+testlerde yalnız `with TestClient(app)` tetikler, `create_app(env, warm_up=...)` sahte alır). `BANKINGAI_LLM_KEEP_ALIVE` (varsayılan `30m`)
+**her** Ollama isteğinde gönderilmeli: alansız istek süreyi 5 dk'ya çeker. Süresiz `-1` sayı olarak gider (`"-1"` yazısı 400 alır).
+
 LangChain (AI-04): `LangChainExplainer` `ChatOllama` kullanır (`reasoning=False`, `temperature=0`, `num_predict=400`). **Tuzak:** ChatOllama
 `invoke`'ta bile stream eder; `client_kwargs` timeout'u yalnız iki parça arası beklemeyi sınırlar. Toplam süre bu yüzden parçalar okunurken
 kontrol edilir ve süre dolunca akış kapatılır (Ollama da işi bırakır). LangChain/Ollama/httpx hataları `_translate` ile dört türe çevrilir;
@@ -409,7 +413,7 @@ API-15 (OpenAPI sözleşmesi, Scalar, örnekler). API bölümü tamam. AI-01 (lo
 `ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`), AI-03 (FastAPI servisi `ai/service/app.py`), AI-04 (LangChain `ChatOllama`), AI-05 (prompt `explanation-v1`), AI-06 (çıktı doğrulama, değerlendirme 13/15), ANA-20 (gün/hafta dönemleri), AI-14a/14b + AI-07 + SEC-06 (uçtan uca sohbet:
 FastAPI `/v1/chat` + .NET `POST /api/assistant/messages`), MCP-a (MCP-01/02 + MCP-05/07/25 server tarafı: `BankingAI.McpServer`,
 `BankingAI.Hosting`), MCP-b (MCP-12/13/14: AI servisi araçları MCP'den keşfedip çalıştırır, REST köprüsü silindi); sıradaki: kullanıcı
-seçer (todo "Şu anki sonraki adım"). iOS-a (IOS-01/13: `ios/BankingAI`, giriş + Keychain) ve AI-08 (sohbet ekranı) tamam.
+seçer (todo "Şu anki sonraki adım"). iOS-a (IOS-01/13: `ios/BankingAI`, giriş + Keychain), AI-08 (sohbet ekranı) ve AI-15 (soğuk model ısıtma) tamam.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
 içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d. 19 Ekim 2026 todo taraması: AI-14 (uçtan uca

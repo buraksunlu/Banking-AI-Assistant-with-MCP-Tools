@@ -99,6 +99,7 @@ ve ileride kullanıcıya "asistan şu an kullanılamıyor" denebilsin (AI-07: AI
 | `BANKINGAI_LLM_MODEL` | Zorunlu; boşsa açılışta hata |
 | `BANKINGAI_OLLAMA_URL` | Boşsa `http://127.0.0.1:11434`; sondaki `/` atılır |
 | `BANKINGAI_LLM_TIMEOUT_SECONDS` | Varsayılan 30; pozitif, sonlu sayı (`abc`, `0`, `-5`, `inf`, `nan` reddedilir) |
+| `BANKINGAI_LLM_KEEP_ALIVE` | AI-15: varsayılan `30m`; `90s`/`45m`/`2h` gibi süre ya da süresiz için `-1` (Ollama'ya **sayı** olarak gider); `0`, birimsiz sayı, `-1m`, `1d` reddedilir |
 
 30 sn: ölçülen en kötü durum soğuk yükleme ~6 sn + en uzun cevap ~8 sn ≈ 14 sn; bellek baskısı için yaklaşık iki kat pay.
 Sağlık kontrolü en fazla 3 sn bekler.
@@ -303,8 +304,7 @@ kazandırır, buna karşılık tool döngüsünü ve MCP istemcisini yeniden yaz
 
 **Not (D): yanıt süresi sorun olursa başvurulacak ayarlar.** Şimdilik uygulanmadı:
 
-- **Model bellekte daha uzun kalsın** (Ollama `keep_alive`, ör. 30 dk) ya da servis açılırken model ısıtılsın. 5 dk boşta
-  kaldıktan sonraki ilk sorudaki ~5 sn yükleme kalkar; bedeli, modelin 4–7 GB belleği sürekli tutması.
+- ~~**Model bellekte daha uzun kalsın** ya da servis açılırken model ısıtılsın.~~ 20 Ekim 2026'da uygulandı (AI-15, aşağıda).
 - **Cevap akarak gösterilsin** (AI-08): ilk kelimeler ~0,3 sn'de görünür, bekleme hissi azalır.
 - **Daha az model turu:** niyete göre tool daraltma (CHAT-01) ve tek mesajda en fazla 3 tool (CHAT-04). Her tool turu bir model turu daha demek.
 - **Daha kısa cevap / daha küçük model:** süre cevap uzunluğuyla doğru orantılı (~24 token/sn); 9b aynı cevapta yaklaşık 2 kat yavaş.
@@ -576,3 +576,41 @@ AI servisi araç listesini ve rakamları .NET MCP server'dan alır (ayrıntı do
 seçici listeyi her turda bağlar, `invalid_arguments` → geri soru), `app.py` (MCP bağlantısı, hazır olma MCP'yi de kapsar). `facts.py`,
 `formatting.py`, `prompts.py` değişmedi. Bağımlılık: `mcp==2.3.0` (2 Ekim 2026); dolaylı `pycparser` 3.11/3.1 çok yeni olduğu için
 `3.0`'a sabitlendi. Araç seçim ölçümü `ai/model_check/tool_selection_eval.py`: önce 12/12, sonra 12/12.
+
+# Soğuk model ısıtma (AI-15, 20 Ekim 2026)
+
+Sorun: Ollama modeli 5 dk boşta kalınca bellekten çıkarır; sonraki ilk soru yüklemeyi bekler. Ollama logunda soğuk ilk araç seçimi
+**9,7 sn**, sıcak **1,9 sn**; aynı gün API logunda bir 35 sn zaman aşımı (504) ve 27 sn'de 502 (düzeltmeye süre kalmadı) görüldü.
+
+Çözüm (kullanıcı kararları K1-A, K2-D, K3-A, K4-A, K5-A):
+
+- **Açılışta ısıtma (K1-A, K3-A):** `create_app`'in lifespan'ı arka plan iş parçacığında `ollama_client.warm_up`'ı çağırır:
+  `POST /api/generate {model, keep_alive}`, prompt yok. Ollama yalnız yükler (`done_reason: "load"`), metin üretilmez. Logda
+  `Model qwen3.5:4b warmed up in 5.3 s; kept loaded for 30m after each use`.
+- **Bellekte kalma (K2-D):** `BANKINGAI_LLM_KEEP_ALIVE` (varsayılan `30m`). **Tuzak:** Ollama süreyi her istekte yeniden belirler;
+  `keep_alive` taşımayan istek 5 dk varsayılanını uygular ve ısıtmanın süresini geri alır. Bu yüzden ısıtma, araç seçimi
+  (`LangChainToolSelector`), açıklama (`LangChainExplainer`) ve `ollama_client.chat` aynı değeri gönderir. **İkinci tuzak:** Ollama
+  `"-1"` yazısını 400 ile reddeder ("missing unit in duration"); süresiz için sayı `-1` gönderilir. `0` reddedilir (her istekten sonra
+  boşaltır, her soru soğuk olur).
+- **Açılış beklemez (K5-A):** servis anında istek kabul eder; ısıtma sürerken gelen soru Ollama'da aynı yüklemeyi bekler (model iki kez
+  yüklenmez). Isıtma kendi süresini kullanır (`WARM_UP_TIMEOUT_SECONDS` 120): kimse onu beklemez, harici diskten okuma sohbet turundan
+  uzun sürebilir.
+- **Hata (K4-A):** Ollama kapalı / model yok → uyarı logu (`Model warm-up failed: …`), servis yine açılır; `/health/ready` nedeni
+  zaten 503 ile söyler, ilk soru modeli kendisi yükler.
+- Testlerde ısıtma yalnız `with TestClient(app)` ile çalışır (lifespan); diğer testler gerçek Ollama'ya dokunmaz. `create_app(env,
+  warm_up=...)` sahte ısıtma alır.
+
+Ölçüm (20 Ekim 2026, açıklama uç noktası, model boşaltılıp ikişer koşu):
+
+| Durum | İlk cevap | İkinci cevap |
+| --- | --- | --- |
+| Soğuk (eski davranış) | 7,6 / 8,0 sn | 1,1 sn |
+| Yalnız yükleme ile ısıtılmış (seçilen, K3-A) | 2,5 / 2,9 sn | 1,2 sn |
+| Yükleme + 1 kelimelik soru (K3-B) | 2,4 / 2,5 sn | 1,1 sn |
+
+Gerçek servisle: model boşken servis açıldı, soru sorulmadan ~6 sn'de model bellekteydi (`ollama ps`: 29 dk); ilk açıklama **2,4 sn**,
+ikincisi 1,1 sn; istekten sonra kalan süre 29 dk (eskiden her istek 5 dk'ya çekiyordu). Kalan ~1,3 sn ilk prompt'un işlenmesidir.
+
+Sınırlar: 30 dk'dan uzun boşluktan sonraki ilk soru yine soğuk (~15 sn; sohbet ekranı açılınca ısıtma ya da `-1` çözümü). Ölçümlerde
+model dosyaları macOS dosya önbelleğindeydi; yeniden başlatma sonrası harici SSD'den gerçek okuma daha uzun sürebilir (ölçülemedi,
+önbelleği boşaltmak `sudo` ister); ısıtma bu süreyi de kullanıcıdan önce harcar. Model son kullanımdan sonra 30 dk 4 GB bellek tutar.

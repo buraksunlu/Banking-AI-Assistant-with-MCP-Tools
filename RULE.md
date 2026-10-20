@@ -1475,12 +1475,16 @@ COMPLETED
   "Tekrar gönder", K5-C); hata koda göre (K6-A: 503 → bant + kapalı giriş, 504/502 → balonda "Tekrar dene", 429 → "N sn", 401 → giriş);
   yeniden deneme aynı balonda; yerleşik satır içi Markdown (K8-A); boş sohbette üç örnek soru (K9-A); kaynak/rakam paneli yok (K13-A,
   IOS-11). Backend değişmedi. 54 iOS test durumu (ChatViewModel 20).
+- Soğuk model ısıtma AI-15 (20 Ekim 2026, docs/local-ai.md): AI servisi açılırken lifespan'da arka planda ollama_client.warm_up
+  (POST /api/generate {model, keep_alive}, prompt yok; açılış beklemez, hata yalnız uyarı logu). BANKINGAI_LLM_KEEP_ALIVE (varsayılan
+  30m; süre ya da -1, 0 reddedilir) ısıtma, araç seçimi ve açıklamada gönderilir: Ollama alansız isteğe 5 dk uygular; "-1" yazısı 400
+  alır, sayı -1 gider. Soğuk ilk cevap ~8 sn → ~2,5 sn. Python 249.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Kullanıcı seçer: soğuk model ısıtma (ilk soruda 504); 15c sohbet yetenekleri (CHAT-01–07); hesap ekranları (IOS-04…); yeni
+- Kullanıcı seçer (20 Ekim önerisi: önce yeni MCP araçları, sonra 15c): 15c sohbet yetenekleri (CHAT-01–07); hesap ekranları (IOS-04…); yeni
   MCP araçları (MCP-03…26); SEC-07 kısa ömürlü yalnız-MCP token'ı. Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,

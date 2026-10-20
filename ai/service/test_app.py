@@ -1,4 +1,6 @@
 import re
+import threading
+import time
 
 import pytest
 from fastapi.testclient import TestClient
@@ -8,6 +10,7 @@ from app import create_app, get_chat_service, get_explainer, get_readiness, get_
 from chat import ChatReply, ChatService, LangChainToolSelector, ToolCall
 from contracts import Fact
 from explainer import LangChainExplainer
+import ollama_client
 from mcp_gateway import McpToolGateway
 from tools import BackendTimeout, BackendUnavailable, SessionInvalid, ToolCallRejected
 from ollama_client import (
@@ -207,6 +210,7 @@ def test_each_error_gets_its_own_trace_id():
     [
         ({}, "BANKINGAI_LLM_MODEL"),
         ({**ENV, "BANKINGAI_LLM_TIMEOUT_SECONDS": "abc"}, "BANKINGAI_LLM_TIMEOUT_SECONDS"),
+        ({**ENV, "BANKINGAI_LLM_KEEP_ALIVE": "0"}, "BANKINGAI_LLM_KEEP_ALIVE"),
         # LangSmith would send questions and facts to a cloud service; bank data must stay on this machine.
         ({**ENV, "LANGSMITH_TRACING": "true"}, "LANGSMITH_TRACING"),
         ({**ENV, "LANGCHAIN_TRACING_V2": "1"}, "LANGCHAIN_TRACING_V2"),
@@ -224,6 +228,43 @@ def test_tracing_switched_off_explicitly_is_allowed():
 
 def test_service_explains_through_langchain():
     assert isinstance(create_app(ENV).state.explainer, LangChainExplainer)
+
+
+# Warm-up (AI-15). Only `with TestClient(...)` runs the startup; the other tests never warm up.
+
+
+def test_startup_warms_the_model_once_with_the_service_settings():
+    calls = []
+    app = create_app(ENV, warm_up=lambda settings: calls.append(settings) or 4.8)
+    with TestClient(app):
+        app.state.warm_up_thread.join(2)
+    assert calls == [app.state.settings]
+
+
+def test_startup_does_not_wait_for_the_warm_up():
+    release = threading.Event()
+    app = create_app(ENV, warm_up=lambda settings: release.wait(5))
+    started = time.monotonic()
+    with TestClient(app) as test_client:
+        assert test_client.get("/health/live").status_code == 200
+        assert time.monotonic() - started < 0.5
+        release.set()
+
+
+def test_a_failed_warm_up_is_logged_and_the_service_still_answers(caplog):
+    def unavailable(settings):
+        raise OllamaUnavailable("Cannot reach Ollama at http://127.0.0.1:11434: Connection refused")
+
+    app = create_app(ENV, warm_up=unavailable)
+    with TestClient(app) as test_client:
+        app.state.warm_up_thread.join(2)
+        assert test_client.get("/health/live").status_code == 200
+    warnings = [r.getMessage() for r in caplog.records if r.levelname == "WARNING"]
+    assert any("warm-up failed" in w and "Connection refused" in w for w in warnings), warnings
+
+
+def test_service_warms_up_through_ollama_by_default():
+    assert create_app(ENV).state.warm_up is ollama_client.warm_up
 
 
 # Chat (AI-14a)

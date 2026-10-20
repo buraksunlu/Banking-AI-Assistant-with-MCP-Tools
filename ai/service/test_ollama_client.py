@@ -6,6 +6,7 @@ import threading
 import time
 import unittest
 import urllib.request
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from ollama_client import (
@@ -19,6 +20,7 @@ from ollama_client import (
     Readiness,
     chat,
     check_ready,
+    warm_up,
 )
 
 HELLO = [{"role": "user", "content": "Merhaba"}]
@@ -30,6 +32,8 @@ CHAT_OK = {
     "load_duration": 5_200_000_000,
     "total_duration": 5_600_000_000,
 }
+# What Ollama answers to a load-only request (no prompt): the model is in memory, nothing was generated.
+LOADED = {"model": "qwen3.5:4b", "created_at": "2026-10-20T12:24:38Z", "response": "", "done": True, "done_reason": "load"}
 
 
 class FakeOllama:
@@ -78,8 +82,8 @@ class FakeOllama:
         self.server.server_close()
 
 
-def settings(url: str, model: str = "qwen3.5:4b", timeout: float = 5.0) -> OllamaSettings:
-    return OllamaSettings(base_url=url, model=model, timeout_seconds=timeout)
+def settings(url: str, model: str = "qwen3.5:4b", timeout: float = 5.0, keep_alive: str | int = "30m") -> OllamaSettings:
+    return OllamaSettings(base_url=url, model=model, timeout_seconds=timeout, keep_alive=keep_alive)
 
 
 def closed_port_url() -> str:
@@ -111,6 +115,31 @@ class SettingsTests(unittest.TestCase):
                 OllamaSettings.from_env({"BANKINGAI_LLM_MODEL": "qwen3.5:4b", "BANKINGAI_LLM_TIMEOUT_SECONDS": value})
             self.assertIn("BANKINGAI_LLM_TIMEOUT_SECONDS", str(error.exception))
 
+    def test_keep_alive_defaults_to_thirty_minutes(self):
+        for env in ({}, {"BANKINGAI_LLM_KEEP_ALIVE": ""}):
+            with self.subTest(env=env):
+                result = OllamaSettings.from_env({"BANKINGAI_LLM_MODEL": "qwen3.5:4b", **env})
+                self.assertEqual(result.keep_alive, "30m")
+
+    def test_keep_alive_durations_are_read(self):
+        for value, expected in (("90s", "90s"), ("45m", "45m"), ("2h", "2h"), (" 1h ", "1h")):
+            with self.subTest(value=value):
+                result = OllamaSettings.from_env({"BANKINGAI_LLM_MODEL": "qwen3.5:4b", "BANKINGAI_LLM_KEEP_ALIVE": value})
+                self.assertEqual(result.keep_alive, expected)
+
+    def test_minus_one_means_forever_and_becomes_a_number(self):
+        # Ollama rejects the text "-1" with 400 ("missing unit in duration"); only the number -1 means forever.
+        result = OllamaSettings.from_env({"BANKINGAI_LLM_MODEL": "qwen3.5:4b", "BANKINGAI_LLM_KEEP_ALIVE": "-1"})
+        self.assertEqual(result.keep_alive, -1)
+        self.assertIsInstance(result.keep_alive, int)
+
+    def test_invalid_keep_alive_is_rejected(self):
+        # "0" and "0m" would unload the model after every request, making every question a cold one.
+        for value in ("0", "0m", "30", "-1m", "-5m", "1d", "abc", "30 dakika", "30m5s"):
+            with self.subTest(value=value), self.assertRaises(ValueError) as error:
+                OllamaSettings.from_env({"BANKINGAI_LLM_MODEL": "qwen3.5:4b", "BANKINGAI_LLM_KEEP_ALIVE": value})
+            self.assertIn("BANKINGAI_LLM_KEEP_ALIVE", str(error.exception))
+
 
 class ChatTests(unittest.TestCase):
     def test_answer_and_timings_are_returned(self):
@@ -128,6 +157,11 @@ class ChatTests(unittest.TestCase):
         self.assertIs(body["stream"], False)
         self.assertIs(body["think"], False)
         self.assertEqual(body["options"]["temperature"], 0)
+
+    def test_request_keeps_the_model_loaded(self):
+        with FakeOllama() as fake:
+            chat(settings(fake.url), HELLO)
+        self.assertEqual(fake.requests[0][1]["keep_alive"], "30m")
 
     def test_404_is_model_not_found_and_names_the_model(self):
         with FakeOllama(404, {"error": "model 'yok:1b' not found"}) as fake:
@@ -168,6 +202,34 @@ class ChatTests(unittest.TestCase):
     def test_closed_port_is_unavailable(self):
         with self.assertRaises(OllamaUnavailable):
             chat(settings(closed_port_url()), HELLO)
+
+
+class WarmUpTests(unittest.TestCase):
+    def test_the_model_is_loaded_without_a_prompt(self):
+        with FakeOllama(body=LOADED) as fake:
+            seconds = warm_up(settings(fake.url))
+        self.assertEqual(fake.requests, [("/api/generate", {"model": "qwen3.5:4b", "keep_alive": "30m"})])
+        self.assertGreaterEqual(seconds, 0.0)
+
+    def test_forever_is_sent_as_a_number(self):
+        with FakeOllama(body=LOADED) as fake:
+            warm_up(settings(fake.url, keep_alive=-1))
+        self.assertEqual(json.dumps(fake.requests[0][1]["keep_alive"]), "-1")
+
+    def test_warm_up_may_take_longer_than_a_chat_call(self):
+        # Nobody waits for the warm-up, and a model read from an external disk can take longer than one chat turn.
+        with FakeOllama(body=LOADED, delay=0.6) as fake:
+            warm_up(settings(fake.url, timeout=0.2))
+
+    def test_404_is_model_not_found_and_names_the_model(self):
+        with FakeOllama(404, {"error": "model 'yok:1b' not found"}) as fake:
+            with self.assertRaises(ModelNotFound) as error:
+                warm_up(settings(fake.url, model="yok:1b"))
+        self.assertIn("yok:1b", str(error.exception))
+
+    def test_closed_port_is_unavailable(self):
+        with self.assertRaises(OllamaUnavailable):
+            warm_up(settings(closed_port_url()))
 
 
 class CheckReadyTests(unittest.TestCase):
@@ -236,6 +298,18 @@ class RealOllamaTests(unittest.TestCase):
         started = time.monotonic()
         chat(real_settings(), HELLO)
         self.assertLess(time.monotonic() - started, 10)
+
+    def test_warm_up_keeps_the_model_loaded_for_the_setting(self):
+        settings = real_settings()
+        urllib.request.urlopen(urllib.request.Request(  # unload first, so the warm-up really loads it
+            f"{settings.base_url}/api/generate", json.dumps({"model": settings.model, "keep_alive": 0}).encode()), timeout=30).read()
+        warm_up(dataclasses.replace(settings, keep_alive="30m"))
+        with urllib.request.urlopen(f"{settings.base_url}/api/ps", timeout=5) as response:
+            loaded = {m["name"]: m for m in json.loads(response.read())["models"]}
+        self.assertIn(settings.model, loaded)
+        expires = datetime.fromisoformat(loaded[settings.model]["expires_at"])
+        minutes = (expires - datetime.now(timezone.utc)).total_seconds() / 60
+        self.assertTrue(29 <= minutes <= 30.5, minutes)
 
 
 if __name__ == "__main__":
