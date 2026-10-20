@@ -92,6 +92,18 @@ dotnet run --project src/BankingAI.McpServer --launch-profile http   # MCP serve
 dotnet test tests/BankingAI.McpServer.Tests
 ```
 
+iPhone uygulaması (`ios/BankingAI`, docs/ios.md; Xcode 26.5, iOS 17+, Swift Testing). Simülatör `http://localhost:5248`'e ulaşır:
+
+```sh
+xcodebuild -project ios/BankingAI/BankingAI.xcodeproj -scheme BankingAI -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' test
+```
+
+iOS kuralları: `View → @Observable ViewModel → APIClient → URLSession`; View'da ağ kodu yok, kütüphane yok. Proje "eşitlenen klasör"
+kullanır: `ios/BankingAI/BankingAI/` altına eklenen dosya projeye kendiliğinden girer, `project.pbxproj` elle düzenlenmez. Kod varsayılan
+olarak `MainActor` (Xcode 26 ayarı). Token yalnız Keychain'de; token'lı çağrıda 401 → oturum kapanır (giriş çağrısında değil).
+Testlerde ağ `MockURLProtocol` ile, test başına ayrı uydurma sunucu adıyla (paralel güvenli). Demo şifresini Claude yazmaz/okumaz:
+simülatörde girişi kullanıcı yapar.
+
 Console CLI (`src/BankingAI.Cli`), seed sırası önemlidir:
 
 ```sh
@@ -395,7 +407,7 @@ API-15 (OpenAPI sözleşmesi, Scalar, örnekler). API bölümü tamam. AI-01 (lo
 `ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`), AI-03 (FastAPI servisi `ai/service/app.py`), AI-04 (LangChain `ChatOllama`), AI-05 (prompt `explanation-v1`), AI-06 (çıktı doğrulama, değerlendirme 13/15), ANA-20 (gün/hafta dönemleri), AI-14a/14b + AI-07 + SEC-06 (uçtan uca sohbet:
 FastAPI `/v1/chat` + .NET `POST /api/assistant/messages`), MCP-a (MCP-01/02 + MCP-05/07/25 server tarafı: `BankingAI.McpServer`,
 `BankingAI.Hosting`), MCP-b (MCP-12/13/14: AI servisi araçları MCP'den keşfedip çalıştırır, REST köprüsü silindi); sıradaki: kullanıcı
-seçer (todo "Şu anki sonraki adım").
+seçer (todo "Şu anki sonraki adım"). iOS-a (IOS-01/13: `ios/BankingAI`, giriş + Keychain) tamam; sıradaki AI-08 (sohbet ekranı).
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
 içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d. 19 Ekim 2026 todo taraması: AI-14 (uçtan uca

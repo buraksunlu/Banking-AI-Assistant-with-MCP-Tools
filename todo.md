@@ -66,7 +66,7 @@ canlı PostgreSQL kontrolüne, test/API/AI satırları 19 Ekim 2026 durumuna day
 | API | BankingAI.Api (docs/api.md, sözleşme `docs/openapi/v1.json`): health, login/JWT, `/api/me`; hesaplar (liste, tek hesap, açma); işlemler (hesabın listesi, bütün hesaplarda filtreli arama, tek işlem, ekleme + Idempotency-Key); `/api/analytics/` altında 13 endpoint (özet, kategori, merchant dökümü/tek merchant/merchant listesi/grup, karşılaştırma, aylık seri, en yüksek işlemler, düzenli/yaklaşan ödemeler, bütçe, tasarruf); sohbet asistanı (`POST /api/assistant/messages`, `GET /api/assistant/status`; AI servisine aynı token'la iletir, müşteri başına dakikada 10 mesaj); ortak ProblemDetails hataları; Scalar (geliştirmede) |
 | AI servisi | `ai/service` (FastAPI + LangChain + Ollama, `qwen3.5:4b`, docs/local-ai.md): `/health/live`, `/health/ready`, `POST /v1/explanations` (prompt `explanation-v1`, cevap kontrolü + bir düzeltme), `POST /v1/chat` (araçlar MCP server'dan: liste → tool seçimi → MCP çağrısı → açıklama; MCP-b); yalnız 127.0.0.1, .NET'ten çağrılır (AI-14b + AI-07). Ölçüm araçları `ai/model_check` |
 | MCP | `BankingAI.McpServer` (docs/mcp.md): `127.0.0.1:5249/mcp`, durumsuz Streamable HTTP, JWT zorunlu; 3 salt okunur araç (`get_spending_summary`, `get_category_breakdown`, `get_merchant_spending`), argümanlar yayınlanan şemaya göre kontrol edilir; ortak kurulum `BankingAI.Hosting`; tokensız `/health`. AI servisi araçları buradan keşfedip çalıştırıyor (MCP-b) |
-| SwiftUI | Henüz yok |
+| SwiftUI | `ios/BankingAI` (docs/ios.md): Xcode 26.5, iOS 17+, MVVM; giriş (Keychain'de token, 401'de girişe dönüş) ve geçici ana ekran; 34 Swift Testing test durumu. Sohbet ekranı AI-08 |
 
 Migration geçmişi:
 1. 20261007142113_CreateCustomers
@@ -298,10 +298,10 @@ migration onayıyla (CLAUDE.md: SQL gösterilir, ikinci onay). Sıra adım plan�
 
 ## 14. SwiftUI — çalışan endpoint üzerine küçük ekranlar
 
-- [ ] IOS-01 — SwiftUI proje temelini oluştur. MVVM, NavigationStack ve native state kullan; gereksiz paket ekleme.
-- [ ] IOS-02 — Codable API modellerini yaz. Decimal/tarih/null alanların backend sözleşmesiyle eşleşmesini doğrula.
-- [ ] IOS-03 — URLSession istemcisini yaz. Base URL, timeout, cancellation ve hata cevabını ele al; ağ kodunu View içine koyma.
-- [ ] IOS-13 — Giriş ekranı ve oturum (19 Ekim 2026 taramasında eksik bulundu; IOS-04'ten önce yapılır, ID sırası eklenme sırasıdır). `POST /api/auth/login` ile giriş; token yalnız Keychain'de (UserDefaults değil); token süresi (60 dk) dolunca ya da 401 `session_invalid`/`unauthorized` gelince giriş ekranına dönüş; 429'da bekleme mesajı; çıkışta Keychain temizlenir. Şifre loglanmaz, ekranda gösterilmez. Refresh token yok (SEC-01b sınırı).
+- [x] IOS-01 — SwiftUI proje temelini oluştur. MVVM, NavigationStack ve native state kullan; gereksiz paket ekleme. Sonuç (20 Ekim 2026, iOS-a, dal `ios-13-login`, docs/ios.md): `ios/BankingAI` (Xcode 26.5 eşitlenen klasörler, Swift 6.3, en düşük iOS 17, Swift Testing; arayüz testi hedefi kaldırıldı). Klasörler App/Networking/Session/Login/Home; `@Observable` ViewModel'ler, View'da ağ kodu yok; kütüphane yok. Info.plist yalnız `NSAllowsLocalNetworking`. Kullanıcı kararları (AI-08 planı): K1-B iki adım (iOS-a giriş, iOS-b sohbet), K2-A projeyi kullanıcı Xcode'da oluşturdu, K3-A iOS 17.
+- [ ] IOS-02 — Codable API modellerini yaz. Decimal/tarih/null alanların backend sözleşmesiyle eşleşmesini doğrula. (20 Ekim 2026, iOS-a: `LoginResponse` (ISO 8601 tarih), `MeResponse`, `ProblemBody`; hesap/işlem modelleri IOS-04+.)
+- [ ] IOS-03 — URLSession istemcisini yaz. Base URL, timeout, cancellation ve hata cevabını ele al; ağ kodunu View içine koyma. (20 Ekim 2026, iOS-a: çekirdek `APIClient` hazır — taban adres, token, iptal (`APIError.cancelled`), ağ yok, problem gövdesi + `Retry-After`; sohbet çağrısının bekleme süresi AI-08'de.)
+- [x] IOS-13 — Giriş ekranı ve oturum (19 Ekim 2026 taramasında eksik bulundu; IOS-04'ten önce yapılır, ID sırası eklenme sırasıdır). `POST /api/auth/login` ile giriş; token yalnız Keychain'de (UserDefaults değil); token süresi (60 dk) dolunca ya da 401 `session_invalid`/`unauthorized` gelince giriş ekranına dönüş; 429'da bekleme mesajı; çıkışta Keychain temizlenir. Şifre loglanmaz, ekranda gösterilmez. Refresh token yok (SEC-01b sınırı). Sonuç (20 Ekim 2026, iOS-a): `LoginViewModel` (boşluklar kırpılır, boş alan gönderilmez, şifre her denemeden sonra silinir; 401 → "Kullanıcı adı veya şifre hatalı.", 429 → "N sn sonra" (`Retry-After`), ağ yok → "Sunucuya ulaşılamıyor"), `SessionStore` (açılışta ve çağrı öncesi süre kontrolü), `KeychainSessionStorage` (`WhenUnlockedThisDeviceOnly`). Token'lı çağrıda 401 → oturum kapanır (giriş çağrısında değil). Geçici ana ekran `GET /api/me` ile "Merhaba, Ada!" + Çıkış. Testler 34 (APIClient 18, Login 7, Home 4, SessionStore 4, Keychain 1); 7 kasıtlı bozma yakalandı (iskelette tesadüfen yeşil kalan iki test dahil). Elle simülatörde gerçek API ile: yanlış şifre, doğru giriş, yeniden açılışta oturum, çıkış.
 - [ ] IOS-04 — Accounts ekranını ekle. Loading, empty, error ve başarılı liste durumları olsun.
 - [ ] IOS-05 — Hesap detayından hareket listesine geçişi ekle. Pagination ve tarih filtresini backend ile eşleştir.
 - [ ] IOS-06 — Transaction detayını ekle. Ham açıklama, merchant, kategori, para birimi ve yerel saati anlaşılır göster.
@@ -483,8 +483,10 @@ girer; git komutlarını kullanıcı çalıştırır (CLAUDE.md "Git akışı").
 Sıradaki (kullanıcı seçer; müşteri her zaman token'dan gelir):
 
 - **Omurga tamam:** iPhone → .NET sohbet kapısı → AI servisi → araçlar salt okunur MCP server'dan (AI-14a/b, AI-07, MCP-a,
-  MCP-b; 20 Ekim 2026). Sıradaki seçenekler: iPhone tarafı IOS-13 (giriş) + AI-08 (sohbet ekranı); 15c sohbet yetenekleri
-  (CHAT-01–07); yeni araçlar MCP-03/04/06/24… (her biri .NET'te bir metot + allowlist satırı); SEC-07 (kısa ömürlü MCP token'ı).
+  MCP-b; 20 Ekim 2026). iPhone: iOS-a (proje + giriş, IOS-01/13) 20 Ekim 2026'da tamam; sırada **AI-08** (iOS-b, sohbet ekranı;
+  kararlar hazır: K4-D bellekte geçmiş + çıkışta temizlik, K5-C Durdur + ekrandan çıkınca iptal, K6-A koda göre hata, K7-A açılışta
+  durum, K8-A yerleşik Markdown, K9-A üç örnek soru, K10-A Swift Testing). Sonra: 15c sohbet yetenekleri (CHAT-01–07), yeni araçlar
+  MCP-03/04/06/24…, SEC-07.
 - **Küçük ve bağımsız (istenirse omurgadan önce):** CHAT-06 (önerilen sorular, tablo kısmı). ANA-20 (gün/hafta dönemleri) 19 Ekim 2026'da tamamlandı.
 - **Omurgadan sonra (17 Ekim kararı):** 15c sohbet yetenekleri (CHAT-01–07) → 12c yeni analizler (ANA-15–19, ANA-21) +
   MCP-19–26 → 15d içgörü kartları (INS-01–03) + IOS-12. Kalıcı bütçe/hedef (12d, BUD-01–04) 19 Ekim kararıyla eklendi;

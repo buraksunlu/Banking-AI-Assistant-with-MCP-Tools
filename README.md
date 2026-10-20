@@ -16,7 +16,7 @@ read-only olacaktır. Her şey ücretsiz ve yereldir (local Qwen + Ollama). Ger�
 | HTTP API | Tamam: giriş/JWT, hesaplar, işlemler, analytics endpoint'leri, ortak hata cevabı, OpenAPI + Scalar |
 | Local AI (FastAPI + LangChain + Qwen) | Sohbet uçtan uca çalışıyor: iPhone → .NET `POST /api/assistant/messages` → AI servisi (model araç seçer, kod rakamı yazar, model açıklar, cevap kontrol edilir) ([docs/local-ai.md](docs/local-ai.md)) |
 | MCP | Çalışıyor: salt okunur `BankingAI.McpServer`, 3 araç; AI servisi araçları oradan keşfedip çalıştırıyor ([docs/mcp.md](docs/mcp.md)) |
-| SwiftUI | Henüz başlamadı |
+| SwiftUI | Başladı: giriş ekranı ve oturum (Keychain) hazır, simülatörde gerçek API'yle çalışıyor ([docs/ios.md](docs/ios.md)); sohbet ekranı sırada |
 | Market verisi (USDTRY/EURTRY/gram altın) | Ayrı kol; altın kaynağı dış yanıt bekliyor, import yok |
 
 Ayrıntılı iş planı ve sıradaki adım [todo.md](todo.md), kalıcı kurallar [RULE.md](RULE.md) içindedir.
@@ -37,6 +37,7 @@ Bütün projeler `BankingAI.slnx` içindedir:
 | `tests/BankingAI.Application.Tests` | Analytics ve hesap servisi testleri |
 | `tests/BankingAI.Api.Tests` | HTTP integration testleri (`WebApplicationFactory`) |
 | `tests/BankingAI.McpServer.Tests` | MCP server testleri: araç keşfi, rakamlar, token, argümanlar (gerçek C# MCP istemcisiyle) |
+| `ios/BankingAI` | SwiftUI iPhone uygulaması (Xcode projesi + Swift Testing testleri; [docs/ios.md](docs/ios.md)) |
 
 ```text
 BankingAI.Api ───────┐
@@ -244,6 +245,7 @@ dotnet tool run dotnet-ef migrations add <Name> --project src/BankingAI.Data --s
 | [docs/synthetic-seed.md](docs/synthetic-seed.md) | Demo veri ve beklenen rakamlar |
 | [docs/local-ai.md](docs/local-ai.md) | Local AI: model seçimi, Ollama bağlantısı, AI servisi sözleşmesi |
 | [docs/mcp.md](docs/mcp.md) | Salt okunur MCP server: sınır, araçlar, argüman kontrolü, hata kodları |
+| [docs/ios.md](docs/ios.md) | iPhone uygulaması: yapı, oturum ve hata kuralları, çalıştırma |
 | [docs/market-data-sources.md](docs/market-data-sources.md) | Döviz/altın fiyat kaynağı araştırması |
 | [docs/customer-review.md](docs/customer-review.md) | İlk modülün (Customer tablosu) tarihsel incelemesi |
 
