@@ -301,9 +301,11 @@ real = pytest.mark.skipif(not _real_server_up(), reason="the .NET MCP server is 
 
 
 @real
-def test_real_server_lists_the_three_spending_tools():
+def test_real_server_lists_the_published_tools():
     names = {d["function"]["name"] for d in McpToolGateway(McpSettings.from_env(os.environ)).list_tools(_real_token(), soon())}
-    assert names == {"get_spending_summary", "get_category_breakdown", "get_merchant_spending"}
+    assert names == {"get_spending_summary", "get_category_breakdown", "get_merchant_spending",  # MCP-a
+                     "get_merchant_breakdown", "get_highest_transactions", "compare_spending", "get_monthly_trend",  # MCP-08
+                     "get_recurring_payments", "get_upcoming_payments"}
 
 
 @real

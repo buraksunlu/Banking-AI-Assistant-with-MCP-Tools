@@ -72,6 +72,16 @@ public static class ToolCallFilter
                     return $"{name} şunlardan biri olmalı (tam adıyla): {string.Join(", ", allowed.EnumerateArray().Select(a => a.GetString()))}.";
                 continue;
             }
+            if (rule.TryGetProperty("type", out var count) && count.ValueKind == JsonValueKind.String && count.GetString() == "integer")
+            {
+                // The SDK's binding would turn "3" and 3.5 into 3: only a whole JSON number is a count the model meant.
+                if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out var number))
+                    return $"{name} tam sayı olmalı.";
+                if (rule.TryGetProperty("minimum", out var minimum) && number < minimum.GetInt32()
+                    || rule.TryGetProperty("maximum", out var maximum) && number > maximum.GetInt32())
+                    return $"{name} şema sınırları dışında.";
+                continue;
+            }
             if (rule.TryGetProperty("type", out var type) && type.GetString() == "string")
             {
                 if (value.ValueKind != JsonValueKind.String)

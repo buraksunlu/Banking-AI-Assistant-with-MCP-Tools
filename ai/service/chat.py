@@ -43,6 +43,11 @@ class ToolSelector(Protocol):
     def select(self, message: str, tools: list[dict], deadline: float) -> list[ToolCall]: ...
 
 
+# K8-A: a tool call is 30-60 tokens. Without a cap, a model that writes a text answer instead (a joke) can run past the
+# turn's limit; that text is never shown (the fixed out-of-scope reply is), so cutting it loses nothing.
+MAX_TOOL_CALL_TOKENS = 200
+
+
 class LangChainToolSelector:
     """Tool selection with the local model through LangChain's tool calling."""
 
@@ -51,7 +56,7 @@ class LangChainToolSelector:
         # Same model settings as the explainer (AI-01/04): no thinking, deterministic.
         self.llm = ChatOllama(
             model=settings.model, base_url=settings.base_url, reasoning=False, temperature=0, keep_alive=settings.keep_alive,
-            client_kwargs={"timeout": settings.timeout_seconds},
+            num_predict=MAX_TOOL_CALL_TOKENS, client_kwargs={"timeout": settings.timeout_seconds},
         )
         self.clock = time.monotonic
 

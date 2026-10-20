@@ -216,6 +216,26 @@ def test_the_selector_keeps_the_model_loaded():
     assert fake.requests[0][1]["keep_alive"] == "30m"
 
 
+def test_the_selector_caps_its_answer():
+    # K8-A: a tool call is 30-60 tokens; a model writing a joke instead must not run into the turn's 30 s.
+    from chat import MAX_TOOL_CALL_TOKENS, LangChainToolSelector
+    from test_explainer import FakeOllamaStream, chunk, final
+
+    with FakeOllamaStream([chunk("Merhaba"), final()]) as fake:
+        selector = LangChainToolSelector(OllamaSettings(fake.url, "qwen3.5:4b", 5.0))
+        selector.select("Bana bir fıkra anlat", DEFINITIONS, selector.clock() + 5.0)
+    assert fake.requests[0][1]["options"]["num_predict"] == MAX_TOOL_CALL_TOKENS == 200
+
+
+def test_a_text_answer_cut_at_the_cap_means_no_tool():
+    from chat import LangChainToolSelector
+    from test_explainer import FakeOllamaStream, chunk, final
+
+    with FakeOllamaStream([chunk("Bir gün Temel ile Dursun "), final(done_reason="length")]) as fake:
+        selector = LangChainToolSelector(OllamaSettings(fake.url, "qwen3.5:4b", 5.0))
+        assert selector.select("Bana bir fıkra anlat", DEFINITIONS, selector.clock() + 5.0) == []
+
+
 def test_real_model_picks_yesterday():
     from chat import LangChainToolSelector
 

@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 
-from formatting import day, money, percent, period
+from formatting import day, money, month, percent, period
 
 
 @pytest.mark.parametrize(
@@ -42,6 +42,10 @@ def test_every_month_has_its_turkish_name():
     names = [day(date(2026, month, 1)) for month in range(1, 13)]
     assert names == ["1 Ocak 2026", "1 Şubat 2026", "1 Mart 2026", "1 Nisan 2026", "1 Mayıs 2026", "1 Haziran 2026",
                      "1 Temmuz 2026", "1 Ağustos 2026", "1 Eylül 2026", "1 Ekim 2026", "1 Kasım 2026", "1 Aralık 2026"]
+
+
+def test_a_month_is_its_turkish_name_and_year():
+    assert [month(2026, 7), month(2026, 10), month(2027, 1)] == ["Temmuz 2026", "Ekim 2026", "Ocak 2027"]
 
 
 @pytest.mark.parametrize(

@@ -19,6 +19,7 @@ var toolJson = BankingJson.ConfigureForTools(new JsonSerializerOptions(JsonSeria
 builder.Services.AddMcpServer(options => options.ServerInfo = new() { Name = "BankingAI", Version = "1.0" })
     .WithHttpTransport(options => options.Stateless = true)
     .WithTools<SpendingTools>(toolJson)
+    .WithTools<PaymentTools>(toolJson)
     // Model arguments are checked against the published schema before any tool runs (untrusted input), and every tool
     // error leaves as the bare {code, message} JSON (K10-A).
     .WithRequestFilters(filters => filters.AddCallToolFilter(ToolCallFilter.Create))
