@@ -1,8 +1,8 @@
-"""One chat turn: the model picks a tool, the backend computes, the model explains (AI-14a).
+"""One chat turn: the model picks a tool, the backend computes, the model explains (AI-14a, MCP-b).
 
-    message → tool selection (model) → argument check (code) → tool call (bridge) → facts (code) → explanation (model)
+    tools (MCP server) → tool selection (model) → tool call (MCP server checks and computes) → facts (code) → explanation (model)
 
-The whole turn shares one time limit. The user's token only goes to the bridge, never to a model.
+The whole turn shares one time limit. The user's token only goes to the MCP server, never to a model.
 """
 
 import time
@@ -16,7 +16,7 @@ from explainer import stream_message
 from facts import outcome_for
 from ollama_client import OllamaSettings
 from prompts import CLARIFY_TEXT, OUT_OF_SCOPE_TEXT, build_tool_messages
-from tools import tool_definitions, validate_arguments
+from tools import ToolArgumentsRejected, ToolGateway
 
 
 @dataclass(frozen=True)
@@ -38,9 +38,9 @@ class ChatReply:
 
 
 class ToolSelector(Protocol):
-    """Lets the model choose tools for a message."""
+    """Lets the model choose among the given tools for a message."""
 
-    def select(self, message: str, deadline: float) -> list[ToolCall]: ...
+    def select(self, message: str, tools: list[dict], deadline: float) -> list[ToolCall]: ...
 
 
 class LangChainToolSelector:
@@ -52,28 +52,31 @@ class LangChainToolSelector:
         self.llm = ChatOllama(
             model=settings.model, base_url=settings.base_url, reasoning=False, temperature=0,
             client_kwargs={"timeout": settings.timeout_seconds},
-        ).bind_tools(tool_definitions())
+        )
         self.clock = time.monotonic
 
-    def select(self, message: str, deadline: float) -> list[ToolCall]:
+    def select(self, message: str, tools: list[dict], deadline: float) -> list[ToolCall]:
         """The tools the model chose; an empty list when it answered in text instead."""
-        reply = stream_message(self.llm, build_tool_messages(message), deadline, self.clock, self.settings)
+        # Bound per turn: the list comes from the MCP server on every turn, with the user's token (K1-A).
+        reply = stream_message(self.llm.bind_tools(tools), build_tool_messages(message), deadline, self.clock, self.settings)
         return [ToolCall(call["name"], call["args"]) for call in reply.tool_calls]
 
 
 class ChatService:
     """Runs one chat turn."""
 
-    def __init__(self, selector: ToolSelector, gateway, explainer, settings: OllamaSettings):
+    def __init__(self, selector: ToolSelector, gateway: ToolGateway, explainer, settings: OllamaSettings):
         self.selector, self.gateway, self.explainer, self.settings = selector, gateway, explainer, settings
         self.clock = time.monotonic
 
     def answer(self, message: str, token: str) -> ChatReply:
         """The reply to ``message`` for the user whose token is given."""
-        # One limit for the whole turn: selection, API call and explanation all take from it (AI-06 K5-B, AI-14).
+        # One limit for the whole turn: listing, selection, tool call and explanation all take from it (AI-06 K5-B, AI-14).
         deadline = self.clock() + self.settings.timeout_seconds
 
-        calls = self.selector.select(message, deadline)
+        # Listed first: when the tools cannot answer, the single local model is not kept busy for nothing.
+        tools = self.gateway.list_tools(token, deadline)
+        calls = self.selector.select(message, tools, deadline)
         if not calls:
             # The model's own text is never shown here: it might promise a transfer it cannot make (K5-A).
             return ChatReply("outOfScope", OUT_OF_SCOPE_TEXT, [], [])
@@ -82,13 +85,16 @@ class ChatService:
             return ChatReply("clarification", CLARIFY_TEXT, calls, [])
 
         call = calls[0]
-        arguments = validate_arguments(call.tool, call.arguments)
-        if arguments is None:
+        if call.tool not in {tool["function"]["name"] for tool in tools}:
             return ChatReply("clarification", CLARIFY_TEXT, calls, [])
-
-        result = self.gateway.call(call.tool, arguments, token, deadline)
-        outcome = outcome_for(call.tool, arguments, result)
-        used = [ToolCall(call.tool, arguments)]
+        try:
+            # The MCP server checks the arguments against the schema it published (MCP-a K3-A); there is no second copy here.
+            result = self.gateway.call(call.tool, call.arguments, token, deadline)
+        except ToolArgumentsRejected:
+            # The same fixed question as before MCP (MCP-b K3-A): the user sees no difference.
+            return ChatReply("clarification", CLARIFY_TEXT, calls, [])
+        outcome = outcome_for(call.tool, call.arguments, result)
+        used = [call]
         if outcome.reply is not None:
             kind, text = outcome.reply
             return ChatReply(kind, text, used, outcome.facts)

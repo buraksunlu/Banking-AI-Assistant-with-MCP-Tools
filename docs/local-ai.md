@@ -481,6 +481,9 @@ POST /v1/chat  { "message": "Dün ne harcadım?" }   + Authorization: Bearer <to
 
 ## Tool'lar ve köprü (K1-A, K6-A)
 
+> MCP-b (20 Ekim 2026) ile değişti: tool tanımları ve geçici REST köprüsü silindi; araçlar .NET MCP server'dan keşfedilip orada
+> çalıştırılıyor (`mcp_gateway.py`, docs/mcp.md "MCP-b"). Aşağısı AI-14a'nın kaydıdır.
+
 Üç tool Python'da tanımlı (`tools.py`): `get_spending_summary`, `get_category_breakdown`, `get_merchant_spending`. Dönem argümanı
 11 addan biri (`Custom` yok; tarihi model seçmez), anlamları tool açıklamasında. `RestToolGateway` tool'u .NET API'de kullanıcının
 kendi token'ıyla çalıştırır (`BANKINGAI_API_URL`, varsayılan `http://127.0.0.1:5248`); API müşteriyi token'dan alır ve argümanı
@@ -565,3 +568,11 @@ qwen3.5:4b in 13330 ms for a 16-character message`.
 - Hız sınırı sayaçları bellekte (yeniden başlatmada sıfırlanır, tek sunucu); paralel gönderim tek pencerede 10'a kadar
   geçer (müşteri başına eşzamanlılık sınırı yok, K6-B ileride).
 - .NET → AI servisi → .NET döngüsü MCP-12'ye kadar sürer.
+
+# Sohbet araçları MCP'den (MCP-b, 20 Ekim 2026)
+
+AI servisi araç listesini ve rakamları .NET MCP server'dan alır (ayrıntı docs/mcp.md "MCP-b"). Değişen dosyalar: yeni
+`mcp_gateway.py` (`McpSettings`, `McpToolGateway`), `tools.py` yalnız hata türleri + `ToolGateway` arayüzü, `chat.py` (tur başında liste,
+seçici listeyi her turda bağlar, `invalid_arguments` → geri soru), `app.py` (MCP bağlantısı, hazır olma MCP'yi de kapsar). `facts.py`,
+`formatting.py`, `prompts.py` değişmedi. Bağımlılık: `mcp==2.3.0` (2 Ekim 2026); dolaylı `pycparser` 3.11/3.1 çok yeni olduğu için
+`3.0`'a sabitlendi. Araç seçim ölçümü `ai/model_check/tool_selection_eval.py`: önce 12/12, sonra 12/12.

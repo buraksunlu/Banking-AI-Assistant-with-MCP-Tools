@@ -673,7 +673,7 @@ AI servisine (`POST /v1/chat`, docs/local-ai.md) iletir. AI servisi yalnız `127
 
 ```text
 iPhone ──Bearer──► POST /api/assistant/messages ── token → müşteri var mı (K10-A) → hız sınırı → mesaj kuralı
-                         └── aynı Authorization başlığı ──► AI servisi /v1/chat ──► (köprü) /api/analytics/...
+                         └── aynı Authorization başlığı ──► AI servisi /v1/chat ──► MCP server (araçlar, MCP-b)
 ```
 
 ### `POST /api/assistant/messages`

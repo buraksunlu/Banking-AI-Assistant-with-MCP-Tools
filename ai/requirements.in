@@ -12,6 +12,8 @@ pytest==9.1.1
 httpx2==2.13.1
 # AI-14a: the chat's tool bridge calls the .NET API with httpx (already pulled in by ollama/langchain-core; K6-A).
 httpx==0.28.1
+# MCP-b: the official MCP client (K7-B); the chat's tools come from the .NET MCP server.
+mcp==2.3.0
 
 # Indirect dependencies pinned because pip picked releases younger than two weeks (19 Oct 2026).
 starlette==1.7.0
@@ -27,3 +29,5 @@ jsonpointer==3.1.1
 orjson==3.12.0
 tenacity==9.1.4
 xxhash==4.0.1
+# Added with mcp (MCP-b, 20 Oct 2026): pycparser 3.11 and 3.1 were 11 and 12 days old.
+pycparser==3.0

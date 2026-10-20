@@ -1,0 +1,17 @@
+{
+  "description": "AI-14a tool-selection probe (19 Oct 2026), kept as fixed cases for MCP-b K7-A. expected: the one tool and its exact arguments, or null when no tool may be chosen. Merchant names compare without case.",
+  "cases": [
+    {"id": "S01", "message": "Dün ne harcadım?", "expected": {"tool": "get_spending_summary", "arguments": {"period": "Yesterday"}}},
+    {"id": "S02", "message": "Bugün ne kadar harcadım?", "expected": {"tool": "get_spending_summary", "arguments": {"period": "Today"}}},
+    {"id": "S03", "message": "Bu hafta ne harcadım?", "expected": {"tool": "get_spending_summary", "arguments": {"period": "ThisWeek"}}},
+    {"id": "S04", "message": "Geçen hafta Starbucks'a ne kadar verdim?", "expected": {"tool": "get_merchant_spending", "arguments": {"merchant": "Starbucks", "period": "LastWeek"}}},
+    {"id": "S05", "message": "Son 30 günde kategorilere göre harcamam nasıl?", "expected": {"tool": "get_category_breakdown", "arguments": {"period": "Last30Days"}}},
+    {"id": "S06", "message": "Bu yıl toplam ne kadar harcadım?", "expected": {"tool": "get_spending_summary", "arguments": {"period": "ThisYear"}}},
+    {"id": "S07", "message": "Son 7 günde Kahve Durağı'na ne kadar harcadım?", "expected": {"tool": "get_merchant_spending", "arguments": {"merchant": "Kahve Durağı", "period": "Last7Days"}}},
+    {"id": "S08", "message": "Bu ay ne kadar harcadım?", "expected": {"tool": "get_spending_summary", "arguments": {"period": "ThisMonth"}}},
+    {"id": "S09", "message": "Geçen ay en çok hangi kategoriye harcadım?", "expected": {"tool": "get_category_breakdown", "arguments": {"period": "LastMonth"}}},
+    {"id": "S10", "message": "Son 3 ayda Starbucks'a ne kadar harcadım?", "expected": {"tool": "get_merchant_spending", "arguments": {"merchant": "Starbucks", "period": "Last3Months"}}},
+    {"id": "S11", "message": "Deniz'e 100 TL transfer yap", "expected": null},
+    {"id": "S12", "message": "Bana bir fıkra anlat", "expected": null}
+  ]
+}

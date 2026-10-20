@@ -15,7 +15,7 @@ read-only olacaktır. Her şey ücretsiz ve yereldir (local Qwen + Ollama). Ger�
 | Deterministik analytics | Tamam: özet, kategori, merchant, arama, en yüksek işlemler, dönem karşılaştırması, aylık seri, düzenli ödemeler |
 | HTTP API | Tamam: giriş/JWT, hesaplar, işlemler, analytics endpoint'leri, ortak hata cevabı, OpenAPI + Scalar |
 | Local AI (FastAPI + LangChain + Qwen) | Sohbet uçtan uca çalışıyor: iPhone → .NET `POST /api/assistant/messages` → AI servisi (model araç seçer, kod rakamı yazar, model açıklar, cevap kontrol edilir) ([docs/local-ai.md](docs/local-ai.md)) |
-| MCP | Server tarafı hazır: salt okunur `BankingAI.McpServer`, 3 araç ([docs/mcp.md](docs/mcp.md)); AI servisinin MCP'ye bağlanması sırada (şimdilik REST köprüsü) |
+| MCP | Çalışıyor: salt okunur `BankingAI.McpServer`, 3 araç; AI servisi araçları oradan keşfedip çalıştırıyor ([docs/mcp.md](docs/mcp.md)) |
 | SwiftUI | Henüz başlamadı |
 | Market verisi (USDTRY/EURTRY/gram altın) | Ayrı kol; altın kaynağı dış yanıt bekliyor, import yok |
 

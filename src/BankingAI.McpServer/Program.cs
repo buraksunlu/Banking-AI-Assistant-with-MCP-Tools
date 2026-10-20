@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
+using BankingAI.Data;
 using BankingAI.Hosting;
 using BankingAI.Hosting.Json;
 using BankingAI.McpServer.Tools;
@@ -33,9 +34,23 @@ app.UseAuthorization();
 // The fallback policy makes this endpoint require a token; without one the answer is 401 and no tool runs.
 app.MapMcp("/mcp");
 
+// The AI service's readiness asks this (MCP-b K6-C): tools can only answer when the database does. Open, like the API's
+// /api/health, and about no customer.
+app.MapGet("/health", async (BankingDbContext db, CancellationToken cancellationToken) =>
+        // CanConnectAsync returns false instead of throwing when the database is down.
+        await db.Database.CanConnectAsync(cancellationToken)
+            ? Results.Ok(new HealthResponse("ok", true))
+            : Results.Json(new HealthResponse("unavailable", false), statusCode: StatusCodes.Status503ServiceUnavailable))
+    .AllowAnonymous();
+
 app.Run();
 
 /// <summary>
 /// Exposes the generated entry point to the integration tests (WebApplicationFactory&lt;Program&gt;).
 /// </summary>
 public partial class Program;
+
+/// <summary>
+/// Reply of <c>GET /health</c>: <c>ok</c> when the database is reachable, otherwise <c>unavailable</c>.
+/// </summary>
+public sealed record HealthResponse(string Status, bool Database);

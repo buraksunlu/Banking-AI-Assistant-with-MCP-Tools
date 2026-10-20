@@ -1461,14 +1461,18 @@ COMPLETED
   döner; müşteri/hesap/tarih argümanı yok, dönem 11 ad. Argümanlar ToolCallFilter'da yayınlanan şemaya göre uygulanır (SDK şemayı
   uygulamaz); hatalar {code: invalid_arguments|session_invalid|internal_error, message}. Ortak kurulum BankingAI.Hosting (JWT, iş saati,
   JSON kuralı, AddBankingCore yalnız okuma servisleri; yazma servisleri yalnız API'de). McpServer.Tests 40 (gerçek C# MCP istemcisi).
-  Python henüz REST köprüsünde (MCP-b).
+  MCP-b (MCP-12/13/14, 20 Ekim 2026): AI servisi araç listesini her turda kullanıcının token'ıyla MCP'den alır, modelin seçtiği aracı
+  MCP'de çalıştırır (resmi Python mcp 2.3.0, ai/service/mcp_gateway.py, protokol 2026-07-28 sabit, anyio.run ile senkron sohbetten);
+  argümanları yalnız MCP server doğrular, invalid_arguments → sabit geri soru; sonuç metinden Decimal (SDK structuredContent'i float
+  yapıyor). REST köprüsü ve Python araç tanımları silindi; MCP server'a tokensız /health, AI servisinin hazır olma kontrolü ona da bakar.
+  Araç seçimi önce/sonra 12/12 (ai/model_check/tool_selection_eval.py); tur başına ~10 ms. Python 231, McpServer 43.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- MCP-b (todo MCP-12): AI servisi araçları MCP'den keşfedip çalıştırır (resmi Python `mcp` SDK + McpToolGateway), REST köprüsü silinir;
-  iPhone tarafında IOS-13 (giriş) ve AI-08 (sohbet ekranı). SEC-07: kısa ömürlü yalnız-MCP token'ı. Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
+- Omurga tamam. Kullanıcı seçer: iPhone tarafında IOS-13 (giriş) ve AI-08 (sohbet ekranı); 15c sohbet yetenekleri (CHAT-01–07); yeni
+  MCP araçları (MCP-03…26); SEC-07 kısa ömürlü yalnız-MCP token'ı. Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,
   geri soru, en fazla 3 tool'luk çok adımlı soru), yeni analizler (todo 12c: ANA-15–19, MCP-19–23) ve içgörü kartları

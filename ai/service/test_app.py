@@ -4,11 +4,12 @@ import pytest
 from fastapi.testclient import TestClient
 
 from answer_check import AnswerRejected
-from app import create_app, get_chat_service, get_explainer, get_readiness
+from app import create_app, get_chat_service, get_explainer, get_readiness, get_tools_ready
 from chat import ChatReply, ChatService, LangChainToolSelector, ToolCall
 from contracts import Fact
 from explainer import LangChainExplainer
-from tools import BackendTimeout, BackendUnavailable, RestToolGateway, SessionInvalid, ToolCallRejected
+from mcp_gateway import McpToolGateway
+from tools import BackendTimeout, BackendUnavailable, SessionInvalid, ToolCallRejected
 from ollama_client import (
     ModelNotFound,
     OllamaBadResponse,
@@ -35,12 +36,13 @@ class FakeExplainer:
         return self.answer
 
 
-def client(explainer=None, readiness=None, raise_server_exceptions=True) -> TestClient:
+def client(explainer=None, readiness=None, tools_ready=True, raise_server_exceptions=True) -> TestClient:
     app = create_app(ENV)
     if explainer is not None:
         app.dependency_overrides[get_explainer] = lambda: explainer
     if readiness is not None:
         app.dependency_overrides[get_readiness] = readiness
+    app.dependency_overrides[get_tools_ready] = lambda: tools_ready
     return TestClient(app, raise_server_exceptions=raise_server_exceptions)
 
 
@@ -83,6 +85,12 @@ def test_ready_when_model_is_installed():
 def test_not_ready_is_503(readiness, code, title):
     response = client(readiness=lambda: readiness).get("/health/ready")
     assert_problem(response, 503, code, title)
+
+
+def test_not_ready_while_the_tools_cannot_answer():
+    # MCP-b K6-C: a model without its tools cannot answer a single question, so the chat screen must not offer it.
+    response = client(readiness=lambda: Readiness.READY, tools_ready=False).get("/health/ready")
+    assert_problem(response, 503, "backend_unavailable", "Banka servisine şu an ulaşılamıyor.")
 
 
 # Explanations: success
@@ -202,6 +210,7 @@ def test_each_error_gets_its_own_trace_id():
         # LangSmith would send questions and facts to a cloud service; bank data must stay on this machine.
         ({**ENV, "LANGSMITH_TRACING": "true"}, "LANGSMITH_TRACING"),
         ({**ENV, "LANGCHAIN_TRACING_V2": "1"}, "LANGCHAIN_TRACING_V2"),
+        ({**ENV, "BANKINGAI_MCP_URL": "localhost:5249/mcp"}, "BANKINGAI_MCP_URL"),
     ],
 )
 def test_service_does_not_start_with_bad_settings(env, setting):
@@ -299,8 +308,8 @@ def test_bridge_errors_map_to_problems(error, status, code, title):
 
 
 def test_service_wires_the_real_chat_parts():
-    service = create_app({**ENV, "BANKINGAI_API_URL": "http://api.test:8080/"}).state.chat_service
+    service = create_app({**ENV, "BANKINGAI_MCP_URL": "http://mcp.test:9000/mcp"}).state.chat_service
     assert isinstance(service, ChatService)
     assert isinstance(service.selector, LangChainToolSelector)
-    assert isinstance(service.gateway, RestToolGateway)
-    assert service.gateway.settings.base_url == "http://api.test:8080"
+    assert isinstance(service.gateway, McpToolGateway)
+    assert service.gateway.settings.url == "http://mcp.test:9000/mcp"
