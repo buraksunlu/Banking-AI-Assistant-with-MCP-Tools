@@ -50,6 +50,7 @@ class LangChainExplainer:
             reasoning=False,  # sent as think: false (AI-01: thinking is too slow on this machine)
             temperature=0,
             num_predict=MAX_ANSWER_TOKENS,
+            keep_alive=settings.keep_alive,  # every request renews it (AI-15)
             # Per read, not in total: it only fires when no part arrives at all (e.g. while the model loads).
             client_kwargs={"timeout": settings.timeout_seconds},
         )

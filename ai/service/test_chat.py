@@ -206,6 +206,16 @@ def _real_ready() -> bool:
 
 
 @pytest.mark.skipif(not _real_ready(), reason="Ollama is not running or the model is not installed")
+def test_the_selector_keeps_the_model_loaded():
+    from chat import LangChainToolSelector
+    from test_explainer import FakeOllamaStream, chunk, final
+
+    with FakeOllamaStream([chunk("Merhaba"), final()]) as fake:
+        selector = LangChainToolSelector(OllamaSettings(fake.url, "qwen3.5:4b", 5.0))
+        assert selector.select("Merhaba", DEFINITIONS, selector.clock() + 5.0) == []
+    assert fake.requests[0][1]["keep_alive"] == "30m"
+
+
 def test_real_model_picks_yesterday():
     from chat import LangChainToolSelector
 

@@ -10,7 +10,9 @@ Manual check (from the repository root, after loading .env):
 import json
 import math
 import os
+import re
 import sys
+import time
 import urllib.error
 import urllib.request
 from collections.abc import Mapping
@@ -20,6 +22,11 @@ from enum import Enum
 DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434"
 DEFAULT_TIMEOUT_SECONDS = 30.0
 READY_TIMEOUT_SECONDS = 3.0
+# AI-15 K2-D: long enough for a working or demo session; Ollama's own default unloads the model after 5 idle minutes.
+DEFAULT_KEEP_ALIVE = "30m"
+# Nobody waits for the warm-up, and reading the model from the external disk can take longer than a chat turn.
+WARM_UP_TIMEOUT_SECONDS = 120.0
+_KEEP_ALIVE = re.compile(r"[1-9][0-9]*[smh]")
 
 
 class OllamaError(Exception):
@@ -52,15 +59,19 @@ class Readiness(Enum):
 
 @dataclass(frozen=True)
 class OllamaSettings:
-    """Where Ollama is, which model to use and how long a chat call may take."""
+    """Where Ollama is, which model to use, how long a chat call may take and how long the model stays loaded."""
 
     base_url: str
     model: str
     timeout_seconds: float
+    # A duration such as "30m", or the number -1 for "never unload". Sent with every request: Ollama applies its
+    # 5-minute default to a request without it, which would undo a longer setting.
+    keep_alive: str | int = DEFAULT_KEEP_ALIVE
 
     @classmethod
     def from_env(cls, env: Mapping[str, str]) -> "OllamaSettings":
-        """Reads BANKINGAI_LLM_MODEL (required), BANKINGAI_OLLAMA_URL and BANKINGAI_LLM_TIMEOUT_SECONDS."""
+        """Reads BANKINGAI_LLM_MODEL (required), BANKINGAI_OLLAMA_URL, BANKINGAI_LLM_TIMEOUT_SECONDS and
+        BANKINGAI_LLM_KEEP_ALIVE."""
         model = env.get("BANKINGAI_LLM_MODEL", "").strip()
         if not model:
             raise ValueError("BANKINGAI_LLM_MODEL is required (for example qwen3.5:4b).")
@@ -76,7 +87,7 @@ class OllamaSettings:
         if not (math.isfinite(timeout) and timeout > 0):
             raise ValueError(f"BANKINGAI_LLM_TIMEOUT_SECONDS must be a positive number of seconds, got {raw_timeout!r}.")
 
-        return cls(base_url, model, timeout)
+        return cls(base_url, model, timeout, _keep_alive(env.get("BANKINGAI_LLM_KEEP_ALIVE", "")))
 
 
 @dataclass(frozen=True)
@@ -112,6 +123,7 @@ def chat(settings: OllamaSettings, messages: list[dict]) -> ChatReply:
         # AI-01: thinking took 50 s for a greeting on this machine, and greedy decoding makes it loop.
         "think": False,
         "options": {"temperature": 0},
+        "keep_alive": settings.keep_alive,
     }
     try:
         result = _request(settings.base_url, "/api/chat", body, settings.timeout_seconds)
@@ -125,6 +137,18 @@ def chat(settings: OllamaSettings, messages: list[dict]) -> ChatReply:
         raise OllamaBadResponse(f"Chat answer has no message text: {str(result)[:200]}")
 
     return ChatReply(content, _seconds(result.get("load_duration")), _seconds(result.get("total_duration")))
+
+
+def warm_up(settings: OllamaSettings) -> float:
+    """Loads the model into memory without generating anything (AI-15) and returns how long it took, in seconds."""
+    started = time.monotonic()
+    try:
+        # No prompt: Ollama only loads the model ("done_reason": "load"), so no text is produced.
+        _request(settings.base_url, "/api/generate", {"model": settings.model, "keep_alive": settings.keep_alive},
+                 WARM_UP_TIMEOUT_SECONDS)
+    except ModelNotFound:
+        raise ModelNotFound(f"Model {settings.model!r} is not installed on {settings.base_url}.") from None
+    return round(time.monotonic() - started, 1)
 
 
 def _request(base_url: str, path: str, body: dict | None, timeout: float):
@@ -164,6 +188,19 @@ def _error_text(error: urllib.error.HTTPError) -> str:
         return str(json.loads(raw).get("error", raw[:200]))
     except (ValueError, AttributeError):
         return repr(raw[:200])
+
+
+def _keep_alive(raw: str) -> str | int:
+    value = raw.strip()
+    if not value:
+        return DEFAULT_KEEP_ALIVE
+    if value == "-1":
+        # Ollama rejects the text "-1" ("missing unit in duration"); only the number means forever.
+        return -1
+    # "0" is refused on purpose: it unloads the model after every request, so every question would be a cold one.
+    if not _KEEP_ALIVE.fullmatch(value):
+        raise ValueError(f"BANKINGAI_LLM_KEEP_ALIVE must be a duration such as 30m, 90s or 2h, or -1 for never; got {raw!r}.")
+    return value
 
 
 def _with_tag(model: str) -> str:

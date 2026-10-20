@@ -50,7 +50,7 @@ class LangChainToolSelector:
         self.settings = settings
         # Same model settings as the explainer (AI-01/04): no thinking, deterministic.
         self.llm = ChatOllama(
-            model=settings.model, base_url=settings.base_url, reasoning=False, temperature=0,
+            model=settings.model, base_url=settings.base_url, reasoning=False, temperature=0, keep_alive=settings.keep_alive,
             client_kwargs={"timeout": settings.timeout_seconds},
         )
         self.clock = time.monotonic
