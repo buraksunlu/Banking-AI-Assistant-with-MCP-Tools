@@ -31,13 +31,15 @@ from ollama_client import (
     Readiness,
     check_ready,
 )
-from tools import ApiSettings, BackendTimeout, BackendUnavailable, RestToolGateway, SessionInvalid, ToolCallRejected
+from mcp_gateway import McpSettings, McpToolGateway
+from tools import BackendTimeout, BackendUnavailable, SessionInvalid, ToolCallRejected
 
 logger = logging.getLogger("bankingai.ai")
 
 AI_UNAVAILABLE = ("ai_unavailable", "Asistan şu an kullanılamıyor.")
 MODEL_MISSING = ("model_missing", "Asistan modeli bulunamadı.")
 ANSWER_REJECTED = ("ai_answer_rejected", "Asistan cevabı doğrulanamadı.")
+BACKEND_UNAVAILABLE = ("backend_unavailable", "Banka servisine şu an ulaşılamıyor.")
 INTERNAL_ERROR = ("internal_error", "Beklenmeyen bir hata oluştu.")
 
 # Status → code and title, the same table as ApiProblems in the .NET API.
@@ -59,7 +61,7 @@ _OLLAMA_ERRORS: dict[type[OllamaError], tuple[int, str, str]] = {
 # Errors of the tool bridge (AI-14a, K4-A): each tells the caller something different to do.
 _BRIDGE_ERRORS: dict[type[Exception], tuple[int, str, str]] = {
     SessionInvalid: (401, "session_invalid", "Oturum geçersiz; yeniden giriş yapın."),
-    BackendUnavailable: (503, "backend_unavailable", "Banka servisine şu an ulaşılamıyor."),
+    BackendUnavailable: (503, *BACKEND_UNAVAILABLE),
     ToolCallRejected: (502, "ai_bad_tool_call", "Asistan geçersiz bir sorgu üretti."),
     BackendTimeout: (504, "ai_timeout", "Asistan zamanında cevap veremedi."),
 }
@@ -79,8 +81,11 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
     app = FastAPI(title="BankingAI AI Service", version="0.1.0")
     app.state.settings = settings
     app.state.explainer = LangChainExplainer(settings)
-    app.state.chat_service = ChatService(
-        LangChainToolSelector(settings), RestToolGateway(ApiSettings.from_env(env)), app.state.explainer, settings)
+    app.state.tools = McpToolGateway(McpSettings.from_env(env))
+    # The address may be the default (MCP-b K5-C), so startup says which one is in use. Through uvicorn's logger: the
+    # service's own logger is not configured, and uvicorn prints its INFO lines next to its own startup lines.
+    logging.getLogger("uvicorn.error").info("MCP server: %s", app.state.tools.settings.url)
+    app.state.chat_service = ChatService(LangChainToolSelector(settings), app.state.tools, app.state.explainer, settings)
 
     app.add_exception_handler(RequestValidationError, _validation_failed)
     app.add_exception_handler(HTTPException, _http_error)
@@ -96,11 +101,13 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         return HealthResponse(status="ok")
 
     @app.get("/health/ready", response_model=HealthResponse)
-    def ready(request: Request, readiness: Readiness = Depends(get_readiness)):
-        """Ollama answers and the configured model is installed (the model is not loaded)."""
-        if readiness is Readiness.READY:
-            return HealthResponse(status="ready", model=request.app.state.settings.model)
-        return problem(503, *_NOT_READY[readiness])
+    def ready(request: Request, readiness: Readiness = Depends(get_readiness), tools_ready: bool = Depends(get_tools_ready)):
+        """Ollama answers, the configured model is installed (not loaded) and the MCP server's tools can answer (K6-C)."""
+        if readiness is not Readiness.READY:
+            return problem(503, *_NOT_READY[readiness])
+        if not tools_ready:
+            return problem(503, *BACKEND_UNAVAILABLE)
+        return HealthResponse(status="ready", model=request.app.state.settings.model)
 
     # A plain def, not async: ollama_client blocks, and FastAPI runs plain defs on a worker thread.
     @app.post("/v1/explanations", response_model=ExplanationResponse)
@@ -116,7 +123,7 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
         body: ChatRequest, request: Request,
         token: str = Depends(bearer_token), service: ChatService = Depends(get_chat_service),
     ) -> ChatResponse:
-        """One chat turn: the model picks a tool, the .NET API computes, the model explains (AI-14a)."""
+        """One chat turn: the model picks a tool, the MCP server computes, the model explains (AI-14a, MCP-b)."""
         reply = service.answer(body.message, token)
         return ChatResponse(
             type=reply.type, answer=reply.answer,
@@ -127,7 +134,7 @@ def create_app(env: Mapping[str, str] | None = None) -> FastAPI:
 
 
 def bearer_token(request: Request) -> str:
-    """Dependency: the caller's bearer token; it is passed to the .NET API and never to a model or a log."""
+    """Dependency: the caller's bearer token; it is passed to the MCP server and never to a model or a log."""
     scheme, _, token = request.headers.get("Authorization", "").partition(" ")
     if scheme != "Bearer" or not token.strip():
         raise HTTPException(status_code=401)
@@ -154,6 +161,11 @@ def get_explainer(request: Request) -> Explainer:
 def get_readiness(request: Request) -> Readiness:
     """Dependency: whether Ollama is up and the model installed (tests replace it)."""
     return check_ready(request.app.state.settings)
+
+
+def get_tools_ready(request: Request) -> bool:
+    """Dependency: whether the MCP server and its database answer (tests replace it)."""
+    return request.app.state.tools.is_ready()
 
 
 def problem(status: int, code: str, title: str, errors: dict[str, list[str]] | None = None,

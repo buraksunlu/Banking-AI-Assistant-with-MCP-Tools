@@ -123,11 +123,22 @@ sürümle eklenir. Starlette'in `TestClient`'ı `httpx` yerine `httpx2` ister.
 `ModelNotFound`, `OllamaTimeout`, `OllamaBadResponse`); `check_ready()` modeli yüklemez. Testler gerçek Ollama yerine sahte HTTP
 sunucusu kullanır; gerçek Ollama testleri Ollama kapalıysa atlanır.
 
-Sohbet (AI-14a): `POST /v1/chat` (Bearer zorunlu) → `chat.ChatService`: `LangChainToolSelector` (bind_tools, `tool-selection-v1`) →
-`tools.validate_arguments` → `tools.RestToolGateway` (geçici köprü: kullanıcının token'ıyla .NET analytics; `BANKINGAI_API_URL`; JSON
-sayıları `Decimal`) → `facts.outcome_for` (`formatting.py` ile Türkçe metin; belirsiz/yok merchant modelsiz sabit cevap) → açıklama.
-Bütün tur tek süre; token yalnız köprüye gider (testte modele gitmediği doğrulanır). Uçtan uca deneme için .NET API
-`BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z` ile açık olmalı. Tool seçimi ve açıklama aynı `explainer.stream_message`'ı kullanır.
+Sohbet (AI-14a, MCP-b): `POST /v1/chat` (Bearer zorunlu) → `chat.ChatService`: `mcp_gateway.McpToolGateway.list_tools` (her turda,
+kullanıcının token'ıyla; MCP kapalıysa model çalışmaz) → `LangChainToolSelector` (o turun listesiyle `bind_tools`, `tool-selection-v1`) →
+araç adı listede mi → `McpToolGateway.call` (argümanları MCP server şemaya göre kontrol eder; `invalid_arguments` → sabit geri soru) →
+`facts.outcome_for` (`formatting.py` ile Türkçe metin; belirsiz/yok merchant modelsiz sabit cevap) → açıklama. Araç tanımı Python'da
+yok (MCP'den keşif). Bütün tur tek süre; token yalnız MCP başlığına gider (testte modele gitmediği doğrulanır). Uçtan uca deneme için
+.NET API ve MCP server `BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z` ile açık olmalı. Tool seçimi ve açıklama aynı `explainer.stream_message`'ı kullanır.
+
+MCP istemcisi (MCP-b, `ai/service/mcp_gateway.py`, `mcp` 2.3.0): `BANKINGAI_MCP_URL` (yoksa `http://127.0.0.1:5249/mcp`; yanlış biçimde
+servis açılmaz). Protokol `2026-07-28`'e sabit (el sıkışma/keşif isteği yok); her çağrı kendi kısa olay döngüsünde (`anyio.run`, sohbet
+senkron). **Tuzaklar:** (1) SDK `structuredContent`'i float'a çevirir (145.00 → 145.0); sonuç **metin içeriğinden** `Decimal` ile okunur.
+(2) SDK 401 ve 5xx'i genel "Server returned an error response" hatasına gömer; `httpx2` cevap kancası bunları ayırır. (3) Hatalar iç içe
+ExceptionGroup gelir; `_cause` ilk yaprağı alır. (4) SDK bir çağrının çevresinde kendiliğinden `tools/list` yapabilir. Süre hem
+`anyio.fail_after` (toplam) hem HTTP zaman aşımıyla (istek başına) sınırlı. Hazır olma (`/health/ready`) MCP server'ın tokensız
+`/health`'ine de bakar. Testlerde `FakeMcp` gerçek sunucunun 2026-07-28 cevaplarını (`resultType`, `ttlMs`, `cacheScope`) taklit eder;
+gerçek .NET server açıksa (ve demo anındaysa) iki test daha çalışır. Araç seçim ölçümü:
+`ai/.venv/bin/python ai/model_check/tool_selection_eval.py` (12 vaka, MCP server + Ollama açık, `.env` yüklü).
 
 Sohbet kapısı (AI-14b + AI-07, .NET): iPhone yalnız .NET'e konuşur. `POST /api/assistant/messages` → `ICustomerCheck` (silinmiş
 müşteri model çalışmadan 401) → `IAssistantClient` (`Api/Assistant/AssistantClient`, typed `HttpClient`) aynı `Authorization`
@@ -383,7 +394,8 @@ tipleri: kavramsal merchant, tutar filtresi, yaklaşan ödemeler, bütçe, tasar
 API-15 (OpenAPI sözleşmesi, Scalar, örnekler). API bölümü tamam. AI-01 (local model: `qwen3.5:4b` varsayılan, thinking kapalı;
 `ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`), AI-03 (FastAPI servisi `ai/service/app.py`), AI-04 (LangChain `ChatOllama`), AI-05 (prompt `explanation-v1`), AI-06 (çıktı doğrulama, değerlendirme 13/15), ANA-20 (gün/hafta dönemleri), AI-14a/14b + AI-07 + SEC-06 (uçtan uca sohbet:
 FastAPI `/v1/chat` + .NET `POST /api/assistant/messages`), MCP-a (MCP-01/02 + MCP-05/07/25 server tarafı: `BankingAI.McpServer`,
-`BankingAI.Hosting`); sıradaki: MCP-b (Python `mcp` istemcisi, REST köprüsü silinir; MCP-12).
+`BankingAI.Hosting`), MCP-b (MCP-12/13/14: AI servisi araçları MCP'den keşfedip çalıştırır, REST köprüsü silindi); sıradaki: kullanıcı
+seçer (todo "Şu anki sonraki adım").
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
 içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d. 19 Ekim 2026 todo taraması: AI-14 (uçtan uca

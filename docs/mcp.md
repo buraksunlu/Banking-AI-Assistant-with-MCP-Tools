@@ -4,8 +4,7 @@ Modelin kullandığı araçlar .NET'te ayrı bir programda, **`BankingAI.McpServ
 listesini buradan öğrenir (`tools/list`) ve araçları buradan çalıştırır (`tools/call`). iPhone'un kapısı (`BankingAI.Api`)
 ile modelin kapısı ayrı süreçlerdir; MCP server yalnız `127.0.0.1:5249`'da dinler.
 
-Bu belge MCP-a adımının (server tarafı) sonucudur. Python'un MCP'ye bağlanması ve geçici REST köprüsünün silinmesi MCP-b'dir;
-o adıma kadar sohbet köprüyle çalışmaya devam eder.
+MCP-a (server tarafı) ve MCP-b (AI servisinin istemcisi, 20 Ekim 2026) birlikte tamam; geçici REST köprüsü silindi.
 
 ## Sınır: kim neyi bilir
 
@@ -95,6 +94,39 @@ Starbucks 930.00 (`Matched`); `"yesterday"` → `invalid_arguments`; logda token
 
 ## Sınırlar
 
-- Python henüz MCP'yi kullanmıyor (MCP-b); bir süre iki yol yan yana.
 - Kullanıcının tam yetkili token'ı MCP'ye kadar gidiyor (K2-A); kısa ömürlü "yalnız MCP" token'ı SEC-07'de.
 - Araçlar yalnız 3; diğerleri MCP-03…26. Hız sınırı yok: MCP'ye yalnız aynı makinedeki AI servisi ulaşır.
+
+# MCP-b: AI servisinin istemcisi (MCP-12/13/14, 20 Ekim 2026)
+
+`ai/service/mcp_gateway.py` (`McpToolGateway`, resmi Python `mcp` 2.3.0). Her sohbet turu:
+
+```text
+list_tools(token) ─► model seçer (o turun listesi) ─► ad listede mi ─► call(tool, args, token) ─► sonuç metni Decimal ile ─► facts.py
+```
+
+| Karar | Seçim |
+| --- | --- |
+| K1 | Araç listesi her turda kullanıcının token'ıyla (önbellek yok; sunucu da `ttlMs: 0` diyor) |
+| K2 | Her MCP çağrısı kendi kısa olay döngüsünde (`anyio.run`); sohbet senkron kaldı |
+| K3 | Python argüman doğrulamaz; `invalid_arguments` → bugünkü sabit geri soru |
+| K4 | Testler: gerçek sunucunun cevap biçimini taklit eden sahte MCP + gerçek sunucu açıksa atlanabilir testler |
+| K5 | `BANKINGAI_MCP_URL`, yoksa `http://127.0.0.1:5249/mcp`; yanlış biçimde servis açılmaz; açılışta logda |
+| K6 | MCP server'a tokensız `GET /health` (veritabanı); AI servisinin `/health/ready`'si ona da bakar |
+| K7 | `ai/model_check/tool_selection_eval.py` (12 vaka): önce 12/12 (Python tanımları), sonra 12/12 (MCP tanımları), seçimler birebir aynı |
+
+Hata eşlemesi (AI servisinin cevabı değişmedi): HTTP 401 ve `session_invalid` → 401 `session_invalid`; bağlantı yok, 5xx,
+`internal_error` ve sözleşme dışı cevap → 503 `backend_unavailable`; süre → 504 `ai_timeout`; protokol hatası (olmayan araç) →
+502 `ai_bad_tool_call`; `invalid_arguments` → 200 sabit geri soru.
+
+SDK bulguları (2026-07-28 protokolü): sonuçlar `resultType: "complete"` ve sunucu bilgisi taşır, listeler `ttlMs`/`cacheScope` taşır
+(sahte sunucu bunlarsız cevap verince SDK reddetti); `structuredContent` float'a çevrilir, para metinden okunur; 401/5xx genel bir
+hataya gömülür, HTTP kancasıyla ayrılır; hatalar iç içe ExceptionGroup gelir; SDK çağrı çevresinde kendiliğinden `tools/list` yapabilir.
+
+Ölçüm (20 Ekim 2026, yerel): `tools/list` ortanca 2 ms, `tools/call` ortanca 8 ms; tur başına ~10 ms (model 2–5 sn). Uçtan uca (API +
+MCP + AI servisi + `qwen3.5:4b`, Ada, demo anı): dün 145,00 TL, bu hafta 615,00 TL, kategoriler 590,00 (%80,27) + 145,00, son 3 ay
+Starbucks 930,00 TL, Migros bulunamadı, transfer `OutOfScope`; MCP kapalıyken hazır olma 503, .NET `available: false`, mesaj anında 503
+(model çalışmadan); logda token yok.
+
+Sınırlar: tur başına iki kısa MCP bağlantısı; sohbet senkron (istemci ayrılınca model turu bitirir); kullanıcının tam token'ı MCP'ye
+kadar gider (SEC-07); 3 araç.
