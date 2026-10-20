@@ -11,3 +11,8 @@ __pycache__/
 
 # Python virtual environment (ai/)
 ai/.venv/
+
+# Xcode: per-user state and build output (ios/)
+xcuserdata/
+*.xcuserstate
+DerivedData/

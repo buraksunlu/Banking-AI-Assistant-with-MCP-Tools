@@ -1466,12 +1466,15 @@ COMPLETED
   argümanları yalnız MCP server doğrular, invalid_arguments → sabit geri soru; sonuç metinden Decimal (SDK structuredContent'i float
   yapıyor). REST köprüsü ve Python araç tanımları silindi; MCP server'a tokensız /health, AI servisinin hazır olma kontrolü ona da bakar.
   Araç seçimi önce/sonra 12/12 (ai/model_check/tool_selection_eval.py); tur başına ~10 ms. Python 231, McpServer 43.
+- iPhone uygulaması iOS-a (IOS-01, IOS-13, 20 Ekim 2026, docs/ios.md): ios/BankingAI (Xcode 26.5, iOS 17+, SwiftUI + MVVM,
+  URLSession, kütüphane yok). Giriş ekranı; token ve bitişi Keychain'de (WhenUnlockedThisDeviceOnly); token'lı çağrıda 401 veya süre
+  dolunca oturum kapanır; tek ağ kapısı APIClient (problem gövdesi, Retry-After, iptal, ağ yok). 34 Swift Testing test durumu.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Omurga tamam. Kullanıcı seçer: iPhone tarafında IOS-13 (giriş) ve AI-08 (sohbet ekranı); 15c sohbet yetenekleri (CHAT-01–07); yeni
+- AI-08 (iOS-b, sohbet ekranı; kararlar AI-08 planında). Sonra kullanıcı seçer: 15c sohbet yetenekleri (CHAT-01–07); yeni
   MCP araçları (MCP-03…26); SEC-07 kısa ömürlü yalnız-MCP token'ı. Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,
