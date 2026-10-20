@@ -5,7 +5,7 @@ Usage (from the repository root, Ollama and the .NET MCP server running, .env lo
 
 It measures the selector, the tool-selection prompt and the tool definitions the MCP server publishes right now (listed
 with a locally signed demo token, as the chat lists them with the user's), so running it before and after a change
-gives the comparison. Before MCP-b the definitions were Python's own (12/12, 20 Oct 2026). A case passes when the model
+gives the comparison. Before MCP-b the definitions were Python's own (12/12, 20 Oct 2026); MCP-08 added cases S13-S26. A case passes when the model
 chose exactly the expected tool with exactly the expected arguments (merchant names without case), or no tool when none
 may be chosen.
 """
@@ -27,8 +27,11 @@ from ollama_client import OllamaError, OllamaSettings  # noqa: E402
 CASES_FILE = Path(__file__).with_name("tool_selection_cases.json")
 
 
-def matches(expected: dict | None, calls: list) -> bool:
-    """Exactly one expected call (or none), with exactly the expected arguments."""
+def matches(expected: dict | list | None, calls: list) -> bool:
+    """Exactly one expected call (or none), with exactly the expected arguments; a list gives the equally right answers
+    (an optional argument left out or set to its default)."""
+    if isinstance(expected, list):
+        return any(matches(choice, calls) for choice in expected)
     if expected is None:
         return not calls
     if len(calls) != 1 or calls[0].tool != expected["tool"]:

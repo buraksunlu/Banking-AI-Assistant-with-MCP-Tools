@@ -152,7 +152,11 @@ ExceptionGroup gelir; `_cause` ilk yaprağı alır. (4) SDK bir çağrının çe
 `anyio.fail_after` (toplam) hem HTTP zaman aşımıyla (istek başına) sınırlı. Hazır olma (`/health/ready`) MCP server'ın tokensız
 `/health`'ine de bakar. Testlerde `FakeMcp` gerçek sunucunun 2026-07-28 cevaplarını (`resultType`, `ttlMs`, `cacheScope`) taklit eder;
 gerçek .NET server açıksa (ve demo anındaysa) iki test daha çalışır. Araç seçim ölçümü:
-`ai/.venv/bin/python ai/model_check/tool_selection_eval.py` (12 vaka, MCP server + Ollama açık, `.env` yüklü).
+`ai/.venv/bin/python ai/model_check/tool_selection_eval.py` (26 vaka, MCP server + Ollama açık, `.env` yüklü; MCP server yeni kodla
+yeniden başlatılmış olmalı). Araç ekleyince/açıklama değişince önce ve sonra çalıştırılır (MCP-08 K2-A: eski vakalar bozulmaz, toplam
+≥ %90). Sohbet cevabında araç argümanları **yazı** olarak döner (`app._as_text`: sözleşme ve .NET DTO `dict[str, str]`); araç seçici
+`num_predict=200` (metin yazan model süreyi doldurmasın). Her yeni araca `facts.outcome_for`'da kalem üretici gerekir; ham
+`rawDescription` asla kalem olmaz.
 
 Sohbet kapısı (AI-14b + AI-07, .NET): iPhone yalnız .NET'e konuşur. `POST /api/assistant/messages` → `ICustomerCheck` (silinmiş
 müşteri model çalışmadan 401) → `IAssistantClient` (`Api/Assistant/AssistantClient`, typed `HttpClient`) aynı `Authorization`
@@ -213,9 +217,10 @@ BankingAI.Data.Tests ───────────────────�
 saat, JWT, varsayılan token politikası, **yalnız okuma** servisleri) + `EnsureBankingCoreSettings()`. Yazma servisleri
 (`IAccountWriteService`, `ITransactionWriteService`) ve `TokenIssuer` yalnız API'de kayıtlıdır.
 `BankingAI.McpServer` (docs/mcp.md): ayrı süreç, `127.0.0.1:5249/mcp`, durumsuz Streamable HTTP, `ModelContextProtocol.AspNetCore`
-2.2.0. Araçlar `Tools/SpendingTools` (servisler **kurucudan**; SDK metot parametresinde servis tahminini bazen yanlış yapıyor),
+2.2.0. Araçlar `Tools/SpendingTools` + `Tools/PaymentTools`, 9 araç (servisler **kurucudan**; SDK metot parametresinde servis tahminini bazen yanlış yapıyor),
 argümanlar `ToolCallFilter`'da yayınlanan şemaya göre (SDK şemayı uygulamaz), hatalar `ToolErrors` ile
-`{code: invalid_arguments|session_invalid|internal_error, message}`. Yeni araç → `ToolDiscoveryTests` allowlist'ine satır.
+`{code: invalid_arguments|session_invalid|internal_error, message}`. Yeni araç → `ToolDiscoveryTests` allowlist'ine satır. Filtre tam
+sayıyı da uygular (SDK `"3"`/`3.5`'i sessizce 3 yapar); `[Range]` şemaya `minimum`/`maximum` olarak, varsayılan değerli parametre zorunsuz yazılır.
 Testlerin ortak yardımcıları `tests/Shared` (`TestTokens`, `CapturedLogs`, `CommittedRowsLock`), `BankingAI.TestSupport`
 namespace'i proje dosyasında global using.
 
@@ -413,7 +418,7 @@ API-15 (OpenAPI sözleşmesi, Scalar, örnekler). API bölümü tamam. AI-01 (lo
 `ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`), AI-03 (FastAPI servisi `ai/service/app.py`), AI-04 (LangChain `ChatOllama`), AI-05 (prompt `explanation-v1`), AI-06 (çıktı doğrulama, değerlendirme 13/15), ANA-20 (gün/hafta dönemleri), AI-14a/14b + AI-07 + SEC-06 (uçtan uca sohbet:
 FastAPI `/v1/chat` + .NET `POST /api/assistant/messages`), MCP-a (MCP-01/02 + MCP-05/07/25 server tarafı: `BankingAI.McpServer`,
 `BankingAI.Hosting`), MCP-b (MCP-12/13/14: AI servisi araçları MCP'den keşfedip çalıştırır, REST köprüsü silindi); sıradaki: kullanıcı
-seçer (todo "Şu anki sonraki adım"). iOS-a (IOS-01/13: `ios/BankingAI`, giriş + Keychain), AI-08 (sohbet ekranı) ve AI-15 (soğuk model ısıtma) tamam.
+seçer (todo "Şu anki sonraki adım"). iOS-a (IOS-01/13: `ios/BankingAI`, giriş + Keychain), AI-08 (sohbet ekranı), AI-15 (soğuk model ısıtma) ve MCP-08 (altı yeni araç, 9 araç) tamam.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
 içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d. 19 Ekim 2026 todo taraması: AI-14 (uçtan uca

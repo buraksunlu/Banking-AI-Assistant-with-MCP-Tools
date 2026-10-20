@@ -1,5 +1,5 @@
 {
-  "description": "AI-14a tool-selection probe (19 Oct 2026), kept as fixed cases for MCP-b K7-A. expected: the one tool and its exact arguments, or null when no tool may be chosen. Merchant names compare without case.",
+  "description": "AI-14a tool-selection probe (19 Oct 2026), kept as fixed cases for MCP-b K7-A. expected: the one tool and its exact arguments, or null when no tool may be chosen. Merchant names compare without case. A list gives equally right answers (MCP-08: an optional argument left out or set to its default).",
   "cases": [
     {"id": "S01", "message": "Dün ne harcadım?", "expected": {"tool": "get_spending_summary", "arguments": {"period": "Yesterday"}}},
     {"id": "S02", "message": "Bugün ne kadar harcadım?", "expected": {"tool": "get_spending_summary", "arguments": {"period": "Today"}}},
@@ -12,6 +12,20 @@
     {"id": "S09", "message": "Geçen ay en çok hangi kategoriye harcadım?", "expected": {"tool": "get_category_breakdown", "arguments": {"period": "LastMonth"}}},
     {"id": "S10", "message": "Son 3 ayda Starbucks'a ne kadar harcadım?", "expected": {"tool": "get_merchant_spending", "arguments": {"merchant": "Starbucks", "period": "Last3Months"}}},
     {"id": "S11", "message": "Deniz'e 100 TL transfer yap", "expected": null},
-    {"id": "S12", "message": "Bana bir fıkra anlat", "expected": null}
+    {"id": "S12", "message": "Bana bir fıkra anlat", "expected": null},
+    {"id": "S13", "message": "Bu ay en çok hangi işyerine harcadım?", "expected": {"tool": "get_merchant_breakdown", "arguments": {"period": "ThisMonth"}}},
+    {"id": "S14", "message": "Geçen ay harcamalarım işyerlerine göre nasıl dağıldı?", "expected": {"tool": "get_merchant_breakdown", "arguments": {"period": "LastMonth"}}},
+    {"id": "S15", "message": "Geçen ayki en büyük harcamalarım neler?", "expected": {"tool": "get_highest_transactions", "arguments": {"period": "LastMonth"}}},
+    {"id": "S16", "message": "Bu yıl yaptığım en pahalı alışveriş hangisi?", "expected": {"tool": "get_highest_transactions", "arguments": {"period": "ThisYear"}}},
+    {"id": "S17", "message": "Geçen aya göre harcamam arttı mı?", "expected": {"tool": "compare_spending", "arguments": {"comparison": "PreviousFullMonth"}}},
+    {"id": "S18", "message": "Bu ay, geçen ayın aynı günlerine göre daha mı çok harcıyorum?", "expected": {"tool": "compare_spending", "arguments": {"comparison": "MonthToDate"}}},
+    {"id": "S19", "message": "Aboneliklerim neler?", "expected": {"tool": "get_recurring_payments", "arguments": {}}},
+    {"id": "S20", "message": "Her ay düzenli ödediğim şeyler toplam ne kadar tutuyor?", "expected": {"tool": "get_recurring_payments", "arguments": {}}},
+    {"id": "S21", "message": "Yaklaşan ödemelerim neler?", "expected": [{"tool": "get_upcoming_payments", "arguments": {}}, {"tool": "get_upcoming_payments", "arguments": {"days": 30}}]},
+    {"id": "S22", "message": "Önümüzdeki 7 günde hangi ödemelerim çıkacak?", "expected": {"tool": "get_upcoming_payments", "arguments": {"days": 7}}},
+    {"id": "S23", "message": "Son 6 ayda harcamam aylara göre nasıl değişti?", "expected": {"tool": "get_monthly_trend", "arguments": {"months": 6}}},
+    {"id": "S24", "message": "Son 4 ayın aylık harcamalarını göster", "expected": {"tool": "get_monthly_trend", "arguments": {"months": 4}}},
+    {"id": "S25", "message": "Geçen ay Netflix'e ne kadar ödedim?", "expected": {"tool": "get_merchant_spending", "arguments": {"merchant": "Netflix", "period": "LastMonth"}}},
+    {"id": "S26", "message": "Geçen ay toplam ne kadar harcadım?", "expected": {"tool": "get_spending_summary", "arguments": {"period": "LastMonth"}}}
   ]
 }

@@ -1479,6 +1479,12 @@ COMPLETED
   (POST /api/generate {model, keep_alive}, prompt yok; açılış beklemez, hata yalnız uyarı logu). BANKINGAI_LLM_KEEP_ALIVE (varsayılan
   30m; süre ya da -1, 0 reddedilir) ısıtma, araç seçimi ve açıklamada gönderilir: Ollama alansız isteğe 5 dk uygular; "-1" yazısı 400
   alır, sayı -1 gider. Soğuk ilk cevap ~8 sn → ~2,5 sn. Python 249.
+- Yeni MCP araçları MCP-08 (MCP-08/09/10/16/24/27, 20 Ekim 2026, docs/mcp.md): get_merchant_breakdown, get_highest_transactions (yalnız
+  harcama, 5 kalem, ham açıklama modele gitmez), compare_spending (PreviousFullMonth | MonthToDate), get_monthly_trend (months 1–12),
+  get_recurring_payments, get_upcoming_payments (days 1–31, isteğe bağlı) → 9 araç. ToolCallFilter tam sayı kuralı (JSON tam sayısı,
+  minimum/maximum). Python facts.py altı üretici (ilk 5 kalem + "N daha" notu, tahminler "tahmini" etiketli). Sohbet cevabında argümanlar
+  yazı (_as_text; sözleşme dict[str, str]); seçici num_predict 200. Seçim ölçümü 26 vaka 26/26 (açıklama ayarından sonra). McpServer
+  85, Python 271.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.

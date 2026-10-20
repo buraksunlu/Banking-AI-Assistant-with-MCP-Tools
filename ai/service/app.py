@@ -8,6 +8,7 @@ local model. Every error is a problem+json body shaped like the .NET API's (titl
 At startup the model is loaded in the background (AI-15), so the first question does not wait for it.
 """
 
+import json
 import logging
 import os
 import threading
@@ -146,10 +147,16 @@ def create_app(
         reply = service.answer(body.message, token)
         return ChatResponse(
             type=reply.type, answer=reply.answer,
-            tool_calls=[ToolCallOut(tool=c.tool, arguments=c.arguments) for c in reply.tool_calls],
+            tool_calls=[ToolCallOut(tool=c.tool, arguments={k: _as_text(v) for k, v in c.arguments.items()}) for c in reply.tool_calls],
             facts=reply.facts, model=request.app.state.settings.model)
 
     return app
+
+
+def _as_text(value) -> str:
+    # K7-A: the reply contract (and the .NET DTO behind it) carries argument values as text; counts such as months
+    # arrive as numbers (MCP-16, MCP-24) and are written the JSON way ("3", "true").
+    return value if isinstance(value, str) else json.dumps(value)
 
 
 def bearer_token(request: Request) -> str:

@@ -308,6 +308,18 @@ def test_chat_returns_the_reply_in_the_agreed_shape():
     assert fake.calls == [("Dün ne harcadım?", "abc")]
 
 
+
+def test_chat_writes_every_argument_as_text():
+    # K7-A: the contract (and the .NET DTO behind it) carries argument values as text; counts arrive as numbers (MCP-16/24).
+    reply = ChatReply("answer", "Temmuz 2026'da 514,98 TL harcadınız.",
+                      [ToolCall("get_monthly_trend", {"months": 3}), ToolCall("some_tool", {"flag": True, "period": "ThisMonth"})], [])
+
+    response = chat_client(FakeChat(reply)).post("/v1/chat", json={"message": "Son 3 ay?"}, headers={"Authorization": "Bearer t"})
+
+    assert response.status_code == 200, response.text
+    assert response.json()["toolCalls"] == [{"tool": "get_monthly_trend", "arguments": {"months": "3"}},
+                                            {"tool": "some_tool", "arguments": {"flag": "true", "period": "ThisMonth"}}]
+
 @pytest.mark.parametrize("header", [None, "Basic abc", "Bearer ", "Bearer   "])
 def test_chat_needs_a_bearer_token(header):
     fake = FakeChat(CHAT_REPLY)

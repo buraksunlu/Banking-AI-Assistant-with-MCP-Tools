@@ -38,15 +38,23 @@ iPhone ──Bearer──► BankingAI.Api ──aynı token──► AI servisi
 
 ## Araçlar
 
-Hepsi `ReadOnly = true`, `Destructive = false`. Argümanlar yalnız `period` (11 ad: `Today`, `Yesterday`, `ThisWeek`,
+Hepsi `ReadOnly = true`, `Destructive = false`. Argümanlar: `period` (11 ad: `Today`, `Yesterday`, `ThisWeek`,
 `LastWeek`, `Last7Days`, `Last30Days`, `ThisMonth`, `LastMonth`, `Last3Months`, `Last6Months`, `ThisYear`; `Custom` ve tarih
-yok) ve merchant aracında `merchant` (1–150 karakter). Müşteri, hesap ve tarih argümanı yoktur.
+yok), merchant aracında `merchant` (1–150 karakter), `compare_spending`'de `comparison` (`PreviousFullMonth` | `MonthToDate`;
+`Custom` yok), `get_monthly_trend`'de zorunlu `months` (tam sayı 1–12), `get_upcoming_payments`'ta isteğe bağlı `days` (tam sayı
+1–31, verilmezse 30). Müşteri, hesap ve tarih argümanı yoktur.
 
 | Araç | Servis | Sonuç (REST karşılığı) |
 | --- | --- | --- |
 | `get_spending_summary` | `SpendingSummaryService` | `SpendingSummary` (`/api/analytics/spending-summary`) |
 | `get_category_breakdown` | `CategoryBreakdownService` | `CategoryBreakdown` (`/api/analytics/category-breakdown`) |
 | `get_merchant_spending` | `MerchantSpendingService.GetSpendingAsync` | `MerchantSpendingResult` (`/api/analytics/merchant-spending`) |
+| `get_merchant_breakdown` (MCP-08) | `MerchantSpendingService.GetBreakdownAsync` | `MerchantBreakdown` (`/api/analytics/merchant-breakdown`) |
+| `get_highest_transactions` (MCP-10) | `HighestTransactionsService` (yalnız harcama, 5 kalem) | `HighestTransactions` (`/api/analytics/highest-transactions`) |
+| `compare_spending` (MCP-09) | `SpendingComparisonService.CompareAsync` | `SpendingComparison` (`/api/analytics/period-comparison`) |
+| `get_monthly_trend` (MCP-24) | `SpendingComparisonService.GetMonthlyTrendAsync` (filtresiz) | `SpendingTrend` (`/api/analytics/monthly-trend`) |
+| `get_recurring_payments` (MCP-27) | `RecurringPaymentService` (`PaymentTools`) | `RecurringPayments` (`/api/analytics/recurring-payments`) |
+| `get_upcoming_payments` (MCP-16) | `UpcomingPaymentService` (`PaymentTools`) | `UpcomingPayments` (`/api/analytics/upcoming-payments`) |
 
 Yeni araç = `SpendingTools` benzeri bir sınıfa `[McpServerTool]` metodu + `ToolDiscoveryTests`'teki allowlist'e satır
 (eklenmezse keşif testi kırmızı olur; API'deki endpoint taramasının karşılığı).
@@ -56,8 +64,9 @@ Yeni araç = `SpendingTools` benzeri bir sınıfa `[McpServerTool]` metodu + `To
 SDK şemayı yayınlar ama **çalışma anında uygulamaz** (SDK belgesi: argümanlar "doğrulanmamış ve güvenilmez"); enum bağlaması
 da "yesterday"i sessizce "Yesterday" yapar. Bu yüzden `ToolCallFilter` her çağrıda, araç çalışmadan önce, argümanları
 **yayınlanan şemaya** göre kontrol eder: tanınmayan argüman, eksik/null zorunlu argüman, tam adla enum, metin tipi, Unicode
-karakter sayısıyla uzunluk. Boş metin ve NUL gibi backend kuralları servislerde kalır (`InputRules`). Modelin gördüğü şema
-ile kabul edilen tam olarak aynıdır.
+karakter sayısıyla uzunluk, tam sayı (`integer`: JSON tam sayısı, `minimum`/`maximum`; SDK bağlaması `"3"` ve `3.5`'i sessizce 3
+yapardı). SDK `[Range]`'i şemaya `minimum`/`maximum` olarak, varsayılan değerli parametreyi zorunlu olmayan olarak yazar. Boş metin
+ve NUL gibi backend kuralları servislerde kalır (`InputRules`). Modelin gördüğü şema ile kabul edilen tam olarak aynıdır.
 
 ## Hatalar (K10-A)
 
@@ -95,7 +104,8 @@ Starbucks 930.00 (`Matched`); `"yesterday"` → `invalid_arguments`; logda token
 ## Sınırlar
 
 - Kullanıcının tam yetkili token'ı MCP'ye kadar gidiyor (K2-A); kısa ömürlü "yalnız MCP" token'ı SEC-07'de.
-- Araçlar yalnız 3; diğerleri MCP-03…26. Hız sınırı yok: MCP'ye yalnız aynı makinedeki AI servisi ulaşır.
+- Araçlar 9 (MCP-08 ile; aşağıda); bütçe, tasarruf, arama, hesaplar ve kavramsal merchant MCP-03/06/15/17/18'de. Hız sınırı yok:
+  MCP'ye yalnız aynı makinedeki AI servisi ulaşır.
 
 # MCP-b: AI servisinin istemcisi (MCP-12/13/14, 20 Ekim 2026)
 
@@ -130,3 +140,30 @@ Starbucks 930,00 TL, Migros bulunamadı, transfer `OutOfScope`; MCP kapalıyken 
 
 Sınırlar: tur başına iki kısa MCP bağlantısı; sohbet senkron (istemci ayrılınca model turu bitirir); kullanıcının tam token'ı MCP'ye
 kadar gider (SEC-07); 3 araç.
+
+# MCP-08: yeni analiz araçları (MCP-08/09/10/16/24/27, 20 Ekim 2026)
+
+Hazır analizlerden altısı modele açıldı (3 → 9 araç); backend ve API değişmedi. Kullanıcı kararları: K1-B (metin/enum argümanlı dört
+araç + sayı argümanlı iki araç), K2-A (eşikli ölçüm: eski 12 vaka 12/12, toplam ≥ %90), K3-A (`months` 1–12, filtre yok), K4-A (en
+büyük harcamalarda yalnız harcama, sabit 5, ham açıklama modele gitmez), K5-A (tahmin olan sonuçlarda "tahmini" etiket + kural notu),
+K6-B (uzun listede ilk 5 kalem + "N … daha var" notu; Python tutar toplamaz), K7-A (sohbet cevabında argümanlar yazı: `"3"`), K8-A
+(araç seçicide 200 token sınırı).
+
+- **.NET:** `SpendingTools`'a dört araç, yeni `PaymentTools` (düzenli/yaklaşan ödemeler), `ToolComparison` enum'u, `ToolCallFilter`'a
+  tam sayı kuralı. `get_spending_summary` ve `get_highest_transactions` açıklamalarına ölçümle ayrıştırıcı ipucu eklendi.
+- **Python:** `facts.py`'ye altı kalem üretici (`formatting.month`); ham işlem açıklaması (`rawDescription`) hiçbir zaman kalem olmaz
+  (AI-13). `app.py` cevapta argüman değerlerini yazıya çevirir (`_as_text`): sözleşme (`ToolCallOut`, .NET `AssistantToolCall`)
+  `dict[str, str]`'dir ve sayı argümanı canlı serviste 500 veriyordu (sahte sohbet servisli testler yakalamamıştı). Seçici
+  `num_predict=200` (`MAX_TOOL_CALL_TOKENS`): fıkra yazan model 30 sn'ye kadar gidip 504 alabiliyordu; kesilen metin "araç yok" sayılır.
+- **Ölçüm** (`tool_selection_eval.py`, 26 vaka; vaka listesi bir vakada eşdeğer doğru cevapları kabul eder): 3 araçta 12/12 → 9 araçta
+  ilk koşu **25/26** ("Dün ne harcadım?" → `get_highest_transactions`). Önce yalnız en büyük harcamalar açıklaması daraltıldı (yine
+  S01 hatalı, ayrıca S12 iki kez 30 sn zaman aşımı); toplam harcama açıklamasına "ne harcadım / ne kadar harcadım" eklenince dört
+  koşuda **26/26** (ikisi K8-A'dan sonra). Vaka başına ortalama 1,6 sn.
+- **Uçtan uca** (.NET API → AI servisi → MCP → model, Ada, demo anı): bu ay en çok Starbucks 375,00 TL (%51,02); geçen ayın en büyük
+  harcaması Netflix 229,99 TL; geçen aya göre +110,00 TL (%21,36, yeme-içme); abonelikler Netflix 229,99 + Spotify 99,99 = aylık
+  329,98 TL; 7 günde Netflix 229,99 TL (tahmini); son 3 ay 514,98 / 514,98 / 624,98 / 735,00 (devam eden); fıkra → kapsam dışı.
+- **Bulgu:** karşılaştırmada boş taraf JSON'da `0.0` yazılır (SQL toplamının ölçeği); değer doğru, Python "0,00 TL" yazar.
+
+Sınırlar: bütçe/tasarruf (para birimi tahmini riski, CHAT-03 sonrası), işlem araması, hesaplar ve kavramsal merchant (iki adım,
+CHAT-04) yok; aylık seride kategori/işyeri filtresi yok; takip sorusu yok (CHAT-02); araç sayısı arttıkça isabet yeniden ölçülmeli
+(CHAT-01 niyete göre daraltma).

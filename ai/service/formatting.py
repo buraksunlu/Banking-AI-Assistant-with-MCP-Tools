@@ -1,4 +1,4 @@
-"""Turns backend values into the Turkish text the model is given (AI-09, for the AI-14a tools).
+"""Turns backend values into the Turkish text the model is given (AI-09, for the AI-14a and MCP-08 tools).
 
 Deterministic and independent of the machine's locale: the model never formats, rounds or converts a number itself.
 """
@@ -30,6 +30,11 @@ def percent(value: Decimal) -> str:
 def day(value: date) -> str:
     """2026-10-10 → "10 Ekim 2026"."""
     return f"{value.day} {_MONTHS[value.month - 1]} {value.year}"
+
+
+def month(year: int, number: int) -> str:
+    """2026, 7 → "Temmuz 2026"."""
+    return f"{_MONTHS[number - 1]} {year}"
 
 
 def period(start: date, end: date) -> str:
