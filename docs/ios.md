@@ -13,7 +13,8 @@ ios/BankingAI/
     Networking/  APIClient (tek ağ kapısı), APIError (+ Türkçe mesaj), APIModels (Codable)
     Session/     SessionStorage (Keychain), SessionStore (@Observable oturum)
     Login/       LoginView, LoginViewModel
-    Home/        HomeView, HomeViewModel (geçici ana ekran: "Merhaba, Ada!" + Çıkış; sohbet AI-08'de)
+    Home/        HomeView, HomeViewModel (ana ekran: "Merhaba, Ada!", "Asistana sor", Çıkış)
+    Chat/        ChatView, ChatViewModel, MessageBubble, ChatMessage (AI-08)
     Info.plist   yalnız yerel ağa düz HTTP (NSAllowsLocalNetworking)
   BankingAITests/  Swift Testing; sahte ağ (MockURLProtocol, test başına ayrı sunucu adı), bellekte oturum
 ```
@@ -57,5 +58,52 @@ kapanıp açılınca oturum sürüyor, Çıkış giriş ekranına döndürüyor.
 ### Sınırlar
 
 - Yalnız simülatör: gerçek iPhone için API'nin ağa açılması ve HTTPS gerekir (OPS-04).
-- Ana ekran geçici; sohbet ekranı AI-08 (iOS-b), hesap ekranları IOS-04…
-- URLSession'ın varsayılan bekleme süresi (60 sn) kullanılıyor; sohbet çağrısı için süre AI-08'de ele alınır.
+- Hesap ekranları IOS-04… (ana ekrana eklenecek).
+- Sohbet çağrısı dışındaki istekler URLSession'ın varsayılan bekleme süresini (60 sn) kullanır.
+
+## iOS-b: sohbet ekranı (AI-08; 20 Ekim 2026)
+
+Backend değişmedi; iPhone mevcut iki uç noktayı kullanır: `GET /api/assistant/status` ve `POST /api/assistant/messages`.
+
+```text
+HomeView ──"Asistana sor"──► ChatView ──► ChatViewModel ──► APIClient ──► .NET API ──► AI servisi ──► MCP + Ollama
+ (@State chat: ChatViewModel; ana ekranla yaşar, çıkışta biter)
+```
+
+- **Yer (K11-B):** ana ekranda "Asistana sor" düğmesi, sohbet NavigationStack ile itilir. Hesap ekranları ileride ana ekrana gelir.
+- **Geçmiş (K4-D):** yalnız bellekte. `ChatViewModel` `HomeView`'un `@State`'inde durur: geri dönüp girince konuşma yerindedir; çıkış
+  yapınca ana ekranla birlikte silinir. Diske yazılmaz.
+- **Gönderme:** tek seferde bir soru (tek yerel model sırayla cevaplar; API dakikada 10 mesaj). Metin kırpılır; boş ya da 500 karakteri
+  aşan mesaj gönderilmez (API gibi Unicode karakter sayılır).
+- **Durdur (K5-C):** bekleyen isteği iptal eder; ekrandan çıkınca ya da uygulama arka plana geçince de iptal. Soru "Durduruldu" +
+  "Tekrar gönder" olur, hata gösterilmez. Model arka planda turu yine bitirir (sınır).
+- **Hatalar (K6-A, `ChatViewModel.failed`):** 503 → turuncu "Asistan şu an kullanılamıyor" bandı, yazı alanı kapanır, "Yeniden kontrol et"
+  durumu yeniden sorar; 504/502 → balonun altında API'nin Türkçe başlığı + "Tekrar dene"; 429 → "N sn sonra"; 401 → oturum kapanır,
+  giriş ekranı gelir (APIClient). "Tekrar dene" aynı balonu yeniden gönderir, sorunun ikinci kopyası oluşmaz.
+- **Durum (K7-A):** ekran açılınca bir kez sorulur; başarısız kontrol durumu değiştirmez.
+- **Bekleme süresi (K12-A):** yalnız sohbet isteğinde 40 sn (`APIRequest.timeout`). Zincir AI servisi 30 → .NET 35 → iPhone 40: API'nin
+  açıklayıcı 504'ü her zaman önce gelir.
+- **Cevap:** satır içi Markdown (K8-A, `inlineOnlyPreservingWhitespace`: kalın/italik/bağlantı, satır sonları korunur); bozuk Markdown
+  düz metin olarak gösterilir. `Answer`, `Clarification`, `OutOfScope` aynı balonda. API'nin gönderdiği araç ve rakam kalemleri çözülmez
+  (K13-A; "nasıl hesaplandı" paneli IOS-11).
+- **Boş sohbet (K9-A):** üç örnek soru, dokununca gönderilir (kapsam dışı cevabının önerdiği sorularla aynı).
+
+### Test ve doğrulama (AI-08)
+
+54 test durumu (önceki 34 + `ChatViewModelTests` 20: kırpma ve 500 sınırı, boş/uzun mesaj, beklerken ikinci mesaj, Durdur, 503 bandı ve
+geri gelme, zaman aşımı, 429, 401, aynı balonda yeniden deneme, açılıştaki durum, cevap türleri, Markdown kalın/bozuk, örnek sorular,
+yalnız sohbet çağrısının 40 sn beklemesi). 8 kasıtlı bozma yakalandı (aralarında: Durdur iptal etmez, 503 bandı açmaz, "Tekrar dene" yeni
+balon ekler, beklerken ikinci gönderim engellenmez, mesaj kırpılmaz, bozuk Markdown metni yutar).
+
+Elle (simülatör; API + MCP server + AI servisi + Ollama açık, `BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z`): örnek soruya kalın rakamlı
+cevap; Durdur → "Durduruldu", "Tekrar gönder" aynı balonda cevap alır; geri dönüp girince geçmiş duruyor, beklerken çıkınca soru
+durduruluyor; AI servisi kapalıyken bant + kapalı yazı alanı + pasif "Tekrar dene", servis açılınca "Yeniden kontrol et" bandı kaldırıyor ve
+"Tekrar dene" cevap alıyor; çıkış ve yeniden girişte sohbet boş.
+
+### Sınırlar (AI-08)
+
+- Durdur yalnız iPhone'un beklemesini bırakır; .NET ve AI servisi turu bitirir (iptal zincire taşınmıyor).
+- Takip sorusu yok ("peki geçen ay?", CHAT-02); her mesaj bağımsız.
+- Kaynak ve rakam paneli yok (IOS-11).
+- Soğuk model: model 5 dk kullanılmayınca bellekten çıkar; harici SSD'den yüklenirken ilk soru 504 alabilir ("Tekrar dene" çalışır).
+- Akarak gösterme (stream) yok: cevap tek seferde gelir.

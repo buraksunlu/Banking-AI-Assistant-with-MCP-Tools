@@ -6,6 +6,8 @@ struct APIRequest<Response: Decodable> {
     let path: String
     let body: Data?
     let requiresToken: Bool
+    /// How long to wait for this call; nil keeps URLSession's default.
+    var timeout: TimeInterval? = nil
 }
 
 extension APIRequest where Response == LoginResponse {
@@ -20,6 +22,22 @@ extension APIRequest where Response == MeResponse {
     /// `GET /api/me`: who is signed in.
     static var me: APIRequest<MeResponse> {
         APIRequest(method: "GET", path: "api/me", body: nil, requiresToken: true)
+    }
+}
+
+extension APIRequest where Response == AssistantStatus {
+    /// `GET /api/assistant/status`: asked when the chat screen opens (decision AI-08 K7-A).
+    static var assistantStatus: APIRequest<AssistantStatus> {
+        APIRequest(method: "GET", path: "api/assistant/status", body: nil, requiresToken: true)
+    }
+}
+
+extension APIRequest where Response == AssistantReply {
+    /// `POST /api/assistant/messages`: one question to the assistant.
+    static func assistantMessage(_ text: String) -> APIRequest<AssistantReply> {
+        // 40 s: above the API's own 35 s for a chat turn, so its clearer 504 arrives first (decision AI-08 K12-A).
+        APIRequest(method: "POST", path: "api/assistant/messages",
+                   body: try? JSONEncoder().encode(AssistantMessageRequest(message: text)), requiresToken: true, timeout: 40)
     }
 }
 
@@ -48,6 +66,9 @@ final class APIClient {
         var urlRequest = URLRequest(url: baseURL.appending(path: request.path))
         urlRequest.httpMethod = request.method
         urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let timeout = request.timeout {
+            urlRequest.timeoutInterval = timeout
+        }
         if let body = request.body {
             urlRequest.httpBody = body
             urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")

@@ -1357,7 +1357,7 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   kullanıcıyla netleşir; açıkça istenen varlık korunur. Eksik veride kazanan uydurulmaz.
 
 ==================================================
-29. MEVCUT PROJE DURUMU — 19 EKİM 2026
+29. MEVCUT PROJE DURUMU — 20 EKİM 2026
 ==================================================
 
 COMPLETED
@@ -1469,12 +1469,18 @@ COMPLETED
 - iPhone uygulaması iOS-a (IOS-01, IOS-13, 20 Ekim 2026, docs/ios.md): ios/BankingAI (Xcode 26.5, iOS 17+, SwiftUI + MVVM,
   URLSession, kütüphane yok). Giriş ekranı; token ve bitişi Keychain'de (WhenUnlockedThisDeviceOnly); token'lı çağrıda 401 veya süre
   dolunca oturum kapanır; tek ağ kapısı APIClient (problem gövdesi, Retry-After, iptal, ağ yok). 34 Swift Testing test durumu.
+- iPhone sohbet ekranı AI-08 (iOS-b, 20 Ekim 2026, docs/ios.md): ana ekranda "Asistana sor" → ChatView (K11-B); GET /api/assistant/status
+  ekran açılınca ve "Yeniden kontrol et"le (K7-A), POST /api/assistant/messages yalnız bu istekte 40 sn (K12-A; 30 → 35 → 40). Sohbet
+  yalnız bellekte, ana ekranla yaşar, çıkışta silinir (K4-D); tek seferde bir soru; Durdur, ekrandan çıkınca/arka planda iptal ("Durduruldu" +
+  "Tekrar gönder", K5-C); hata koda göre (K6-A: 503 → bant + kapalı giriş, 504/502 → balonda "Tekrar dene", 429 → "N sn", 401 → giriş);
+  yeniden deneme aynı balonda; yerleşik satır içi Markdown (K8-A); boş sohbette üç örnek soru (K9-A); kaynak/rakam paneli yok (K13-A,
+  IOS-11). Backend değişmedi. 54 iOS test durumu (ChatViewModel 20).
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- AI-08 (iOS-b, sohbet ekranı; kararlar AI-08 planında). Sonra kullanıcı seçer: 15c sohbet yetenekleri (CHAT-01–07); yeni
+- Kullanıcı seçer: soğuk model ısıtma (ilk soruda 504); 15c sohbet yetenekleri (CHAT-01–07); hesap ekranları (IOS-04…); yeni
   MCP araçları (MCP-03…26); SEC-07 kısa ömürlü yalnız-MCP token'ı. Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,
