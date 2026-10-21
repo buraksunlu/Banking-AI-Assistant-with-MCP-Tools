@@ -32,15 +32,25 @@ public sealed class SyntheticAccountSeederTests
             (Number: "DUMMY-EGE-EUR-001", Customer: egeId, Currency: "EUR"),
             (Number: "DUMMY-EGE-TRY-001", Customer: egeId, Currency: "TRY"),
             (Number: "DUMMY-DENIZ-SHOP-001", Customer: denizId, Currency: "TRY"),
-            (Number: "DUMMY-ADA-EMPTY-001", Customer: adaId, Currency: "TRY")
+            (Number: "DUMMY-ADA-EMPTY-001", Customer: adaId, Currency: "TRY"),
+            // SYN-15 personas.
+            (Number: "DUMMY-SELIN-TRY-001", Customer: Customer(4), Currency: "TRY"),
+            (Number: "DUMMY-MURAT-TRY-001", Customer: Customer(5), Currency: "TRY"),
+            (Number: "DUMMY-ZEYNEP-TRY-001", Customer: Customer(6), Currency: "TRY"),
+            (Number: "DUMMY-ZEYNEP-USD-001", Customer: Customer(6), Currency: "USD"),
+            (Number: "DUMMY-HASAN-TRY-001", Customer: Customer(7), Currency: "TRY"),
+            (Number: "DUMMY-ELIF-EUR-001", Customer: Customer(8), Currency: "EUR"),
+            (Number: "DUMMY-ELIF-TRY-001", Customer: Customer(8), Currency: "TRY"),
+            (Number: "DUMMY-CAN-TRY-001", Customer: Customer(9), Currency: "TRY"),
+            (Number: "DUMMY-CAN-SHOP-001", Customer: Customer(9), Currency: "TRY")
         };
         var numbers = expected.Select(a => a.Number).ToArray();
         var originalIds = await db.Accounts.Select(a => a.Id).ToListAsync();
         var added = await SyntheticAccountSeeder.SeedAsync(db);
         var accounts = await db.Accounts.AsNoTracking().Where(a => numbers.Contains(a.AccountNumber)).ToListAsync();
-        Assert.Equal(7, accounts.Count);
+        Assert.Equal(16, accounts.Count);
         Assert.Equal(accounts.Count(a => !originalIds.Contains(a.Id)), added);
-        Assert.Equal(7, accounts.Select(a => a.AccountNumber).Distinct().Count());
+        Assert.Equal(16, accounts.Select(a => a.AccountNumber).Distinct().Count());
         foreach (var item in expected)
         {
             var account = Assert.Single(accounts, a => a.AccountNumber == item.Number);
@@ -50,8 +60,9 @@ public sealed class SyntheticAccountSeederTests
             Assert.True(await db.Customers.AnyAsync(c => c.Id == account.CustomerId));
             if (!originalIds.Contains(account.Id)) Assert.Equal(0m, account.Balance);
         }
-        Assert.Equal(AccountType.Business, Assert.Single(accounts, a => a.AccountNumber == "DUMMY-DENIZ-SHOP-001").AccountType);
-        Assert.All(accounts.Where(a => a.AccountNumber != "DUMMY-DENIZ-SHOP-001"), a => Assert.Equal(AccountType.Personal, a.AccountType));
+        string[] shops = ["DUMMY-DENIZ-SHOP-001", "DUMMY-CAN-SHOP-001"];
+        Assert.All(accounts.Where(a => shops.Contains(a.AccountNumber)), a => Assert.Equal(AccountType.Business, a.AccountType));
+        Assert.All(accounts.Where(a => !shops.Contains(a.AccountNumber)), a => Assert.Equal(AccountType.Personal, a.AccountType));
         var empty = Assert.Single(accounts, a => a.AccountNumber == "DUMMY-ADA-EMPTY-001");
         Assert.Equal(0m, empty.Balance);
         Assert.False(await db.Transactions.AnyAsync(t => t.AccountId == empty.Id));
@@ -100,4 +111,6 @@ public sealed class SyntheticAccountSeederTests
         db.ChangeTracker.Clear();
         Assert.Equal(originalIds.Order(), (await db.Accounts.Select(a => a.Id).ToListAsync()).Order());
     }
+
+    private static Guid Customer(int number) => Guid.Parse($"10000000-0000-0000-0000-{number:D12}");
 }

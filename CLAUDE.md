@@ -113,7 +113,7 @@ dotnet run --project src/BankingAI.Cli -- migrate
 dotnet run --project src/BankingAI.Cli -- seed categories        # sonra: market-assets, customers, accounts
 dotnet run --project src/BankingAI.Cli -- seed transactions credits
 # diğer transaction scope'ları: subscriptions, category-examples, grocery-growth,
-# categorization-boundaries, recent-spending, demo-coverage, pairs
+# categorization-boundaries, recent-spending, demo-coverage, pairs, realistic (SYN-15: 6 persona, 1 yıl, 1.710 işlem)
 dotnet run --project src/BankingAI.Cli -- users set-password <username> [--customer <customer-id>]   # gizli sorar
 ```
 
@@ -125,6 +125,7 @@ olmadan Ollama modelleri bulamaz). Thinking modunda temperature 0 sonsuz düşü
 ai/.venv/bin/python -m pytest ai                                      # bütün Python testleri; Ollama kapalıysa gerçek-Ollama testleri atlanır
 python3 ai/model_check/run.py --model qwen3.5:4b --model qwen3.5:9b   # model ölçümü (yalnız standart kütüphane)
 ai/.venv/bin/python ai/model_check/explanation_eval.py              # açıklama prompt'u değerlendirmesi (AI-05, Ollama açık)
+ai/.venv/bin/python ai/model_check/answer_eval.py                   # cevap doğruluğu (SYN-15 personaları, gerçek zincir; AI servisi + MCP + .env)
 python3 ai/service/ollama_client.py                                  # elle kontrol (BANKINGAI_LLM_MODEL gerekir)
 ai/.venv/bin/uvicorn --app-dir ai/service --factory app:create_app --host 127.0.0.1 --port 8000   # AI servisi (AI-03)
 ```
@@ -159,7 +160,7 @@ ExceptionGroup gelir; `_cause` ilk yaprağı alır. (4) SDK bir çağrının çe
 `anyio.fail_after` (toplam) hem HTTP zaman aşımıyla (istek başına) sınırlı. Hazır olma (`/health/ready`) MCP server'ın tokensız
 `/health`'ine de bakar. Testlerde `FakeMcp` gerçek sunucunun 2026-07-28 cevaplarını (`resultType`, `ttlMs`, `cacheScope`) taklit eder;
 gerçek .NET server açıksa (ve demo anındaysa) iki test daha çalışır. Araç seçim ölçümü:
-`ai/.venv/bin/python ai/model_check/tool_selection_eval.py` (45 vaka; S27–S31 geri soru, F01–F14 takip, MCP server + Ollama açık, `.env` yüklü; MCP server yeni kodla
+`ai/.venv/bin/python ai/model_check/tool_selection_eval.py` (48 vaka; S27–S31 geri soru, F01–F14 takip, MCP server + Ollama açık, `.env` yüklü; MCP server yeni kodla
 yeniden başlatılmış olmalı). Araç ekleyince/açıklama değişince önce ve sonra çalıştırılır (MCP-08 K2-A: eski vakalar bozulmaz, toplam
 ≥ %90). Sohbet cevabında araç argümanları **yazı** olarak döner (`app._as_text`: sözleşme ve .NET DTO `dict[str, str]`); araç seçici
 `num_predict=200` (metin yazan model süreyi doldurmasın). Her yeni araca `facts.outcome_for`'da kalem üretici gerekir; ham
@@ -330,7 +331,11 @@ Sabit GUID'ler: müşteri `10000000-…-000000000001..3` (Ada Kahve, Deniz Marke
 `20000000-…-00000000000N` (7 = Deniz'in Business "Kahve Durağı" hesabı), işlem
 `30000000-…-{ordinal:D12}`, çift `40000000-…`. Demo hesap numaraları sabit (`DUMMY-…`); API'den açılan hesaplar
 `AccountNumberSequence` sayacından `ACC-n` alır (sayaç rollback'te geri dönmez, boşluk normaldir). Kullanılan ordinal aralıkları: 1–14, 101–106,
-201–206, 301–306, 401–402, 501–536, 601–628, 701–718. Seed'ler idempotenttir; aynı ID farklı
+201–206, 301–306, 401–402, 501–536, 601–628, 701–718; SYN-15 gerçekçi yıl: müşteri …0004–0009 (Selin, Murat, Zeynep, Hasan,
+Elif — Europe/Berlin, Can), hesap …0008–0016 (16 = Can'ın Business dükkânı), ordinal blokları 11001+…16001+ ve çiftler 19001+ (PairId
+…0101+). **Ada/Deniz/Ege elle hesaplanmış demodur, yeni veri onlara yazılmaz**; bütün veri setini sayan testler ilk demo hesaplarına
+(…0001–0007) daraltılmıştır. Yeni personaların arka planı sabit seed'li üreticiden gelir: Credit'ler elle, Debit/sayılar altın değer
+(`RealisticDatasetTests`; üretici değişince bilerek yenilenir). Seed'ler idempotenttir; aynı ID farklı
 içerikle bulunursa sessizce düzeltmez, hata verir. Transaction seed'leri advisory lock kullanır
 ve liste **sırasıyla** yazılır (boş hesaba Credit'ler Debit'lerden önce gelmeli).
 
@@ -425,7 +430,7 @@ API-15 (OpenAPI sözleşmesi, Scalar, örnekler). API bölümü tamam. AI-01 (lo
 `ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`), AI-03 (FastAPI servisi `ai/service/app.py`), AI-04 (LangChain `ChatOllama`), AI-05 (prompt `explanation-v1`), AI-06 (çıktı doğrulama, değerlendirme 13/15), ANA-20 (gün/hafta dönemleri), AI-14a/14b + AI-07 + SEC-06 (uçtan uca sohbet:
 FastAPI `/v1/chat` + .NET `POST /api/assistant/messages`), MCP-a (MCP-01/02 + MCP-05/07/25 server tarafı: `BankingAI.McpServer`,
 `BankingAI.Hosting`), MCP-b (MCP-12/13/14: AI servisi araçları MCP'den keşfedip çalıştırır, REST köprüsü silindi); sıradaki: kullanıcı
-seçer (todo "Şu anki sonraki adım"). iOS-a (IOS-01/13: `ios/BankingAI`, giriş + Keychain), AI-08 (sohbet ekranı), AI-15 (soğuk model ısıtma), MCP-08 (altı yeni araç, 9 araç) CHAT-03 (belirsizlikte geri soru) ve CHAT-02 (takip soruları) tamam; sırada SYN-15 (demo verisini genişletme).
+seçer (todo "Şu anki sonraki adım"). iOS-a (IOS-01/13: `ios/BankingAI`, giriş + Keychain), AI-08 (sohbet ekranı), AI-15 (soğuk model ısıtma), MCP-08 (altı yeni araç, 9 araç) CHAT-03 (belirsizlikte geri soru) ve CHAT-02 (takip soruları) ve SYN-15 (gerçekçi yıl: 6 persona, 1.710 işlem) tamam.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
 içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d. 19 Ekim 2026 todo taraması: AI-14 (uçtan uca

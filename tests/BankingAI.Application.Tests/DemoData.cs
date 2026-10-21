@@ -23,4 +23,13 @@ internal static class DemoData
     public static readonly Guid EgeEurAccount = Guid.Parse("20000000-0000-0000-0000-000000000004");
     public static readonly Guid EgeTryAccount = Guid.Parse("20000000-0000-0000-0000-000000000006");
     public static readonly Guid DenizShopAccount = Guid.Parse("20000000-0000-0000-0000-000000000007"); // Business
+
+    // SYN-15 realistic personas (a year from 1 October 2025; docs/synthetic-seed.md "SYN-15").
+    public static readonly Guid Selin = Guid.Parse("10000000-0000-0000-0000-000000000004");
+    public static readonly Guid Murat = Guid.Parse("10000000-0000-0000-0000-000000000005");
+    public static readonly Guid Zeynep = Guid.Parse("10000000-0000-0000-0000-000000000006");
+    public static readonly Guid Hasan = Guid.Parse("10000000-0000-0000-0000-000000000007");
+    public static readonly Guid Elif = Guid.Parse("10000000-0000-0000-0000-000000000008"); // Europe/Berlin
+    public static readonly Guid Can = Guid.Parse("10000000-0000-0000-0000-000000000009");
+    public static readonly Guid ElifEurAccount = Guid.Parse("20000000-0000-0000-0000-000000000013");
 }

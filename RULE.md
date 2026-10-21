@@ -1493,7 +1493,12 @@ COMPLETED
 - Takip soruları CHAT-02 (21 Ekim 2026, docs/local-ai.md): son başarılı çağrı AI servisinde bellekte (conversation.ConversationStore,
   memory.TokenMemory, sha256(token), 10 dk); yalnız ≤ 4 kelimelik ya da peki/ya/ayrıca/bir de ile başlayan mesaj seçiciye bağlam satırıyla
   gider (tool-selection-v2); argüman mesajda ya da son çağrıdan aynen olmalı, takipte söylenmeyen işyeri son çağrınınki; bağlama ve
-  açıklamaya yalnız son mesaj; cevabın rakamları saklanmaz. Seçim ölçümü 45/45. Sırada SYN-15 (demo verisini genişletme).
+  açıklamaya yalnız son mesaj; cevabın rakamları saklanmaz. Seçim ölçümü 45/45.
+- Gerçekçi yıl SYN-15 (21 Ekim 2026, docs/synthetic-seed.md): 6 yeni persona (müşteri …0004–0009, Elif Europe/Berlin), 9 hesap (…0008–0016),
+  1 Ekim 2025 – 10 Ekim 2026 arası 1.710 işlem (`seed transactions realistic`; hikâye elle, arka plan sabit seed'li üretici). Ada/Deniz/Ege
+  ve 116 işlem değişmedi; bütün veri setini sayan testler ilk demo hesaplarına daraltıldı. Yeni fixture: RealisticDatasetTests (Credit elle,
+  Debit altın), RealisticPersonaTests (düzenli ödeme zammı/iptali, benzer adlı Migros, Berlin ay sınırı). Ölçüm: seçim 48/48, cevap doğruluğu
+  (answer_eval.py, bağımsız SQL rakamları) 10/10. İade yok: KIND-06.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
