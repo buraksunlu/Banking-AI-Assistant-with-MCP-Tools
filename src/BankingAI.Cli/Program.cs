@@ -15,13 +15,14 @@ var isSeedCategorizationBoundaries = args.Length == 3 && args[0] == "seed" && ar
 var isSeedRecentSpending = args.Length == 3 && args[0] == "seed" && args[1] == "transactions" && args[2] == "recent-spending";
 var isSeedDemoCoverage = args.Length == 3 && args[0] == "seed" && args[1] == "transactions" && args[2] == "demo-coverage";
 var isSeedPairs = args.Length == 3 && args[0] == "seed" && args[1] == "transactions" && args[2] == "pairs";
+var isSeedRealistic = args.Length == 3 && args[0] == "seed" && args[1] == "transactions" && args[2] == "realistic";
 // users set-password <username> [--customer <customer-id>]
 var isSetPassword = args.Length is 3 or 5 && args[0] == "users" && args[1] == "set-password"
     && (args.Length == 3 || args[3] == "--customer");
 var isSingleCommand = args.Length == 1 && (args[0] == "migrate" || args[0] == "show");
-if (!isSingleCommand && !isSeedCategories && !isSeedMarketAssets && !isSeedCustomers && !isSeedAccounts && !isSeedCredits && !isSeedSubscriptions && !isSeedCategoryExamples && !isSeedGroceryGrowth && !isSeedCategorizationBoundaries && !isSeedRecentSpending && !isSeedDemoCoverage && !isSeedPairs && !isSetPassword)
+if (!isSingleCommand && !isSeedCategories && !isSeedMarketAssets && !isSeedCustomers && !isSeedAccounts && !isSeedCredits && !isSeedSubscriptions && !isSeedCategoryExamples && !isSeedGroceryGrowth && !isSeedCategorizationBoundaries && !isSeedRecentSpending && !isSeedDemoCoverage && !isSeedPairs && !isSeedRealistic && !isSetPassword)
 {
-    Console.WriteLine("Usage: BankingAI.Cli migrate | show | seed categories | seed market-assets | seed customers | seed accounts | seed transactions credits | seed transactions subscriptions | seed transactions category-examples | seed transactions grocery-growth | seed transactions categorization-boundaries | seed transactions recent-spending | seed transactions demo-coverage | seed transactions pairs | users set-password <username> [--customer <customer-id>]");
+    Console.WriteLine("Usage: BankingAI.Cli migrate | show | seed categories | seed market-assets | seed customers | seed accounts | seed transactions credits | seed transactions subscriptions | seed transactions category-examples | seed transactions grocery-growth | seed transactions categorization-boundaries | seed transactions recent-spending | seed transactions demo-coverage | seed transactions pairs | seed transactions realistic | users set-password <username> [--customer <customer-id>]");
     return 1;
 }
 
@@ -71,7 +72,7 @@ else if (isSeedCategories)
 else if (isSeedCustomers)
 {
     var added = await SyntheticCustomerSeeder.SeedAsync(db);
-    Console.WriteLine($"Synthetic customers seeded. Added: {added}; unchanged: {3 - added}.");
+    Console.WriteLine($"Synthetic customers seeded. Added: {added}; unchanged: {SyntheticCustomerSeeder.CustomerCount - added}.");
 }
 else if (isSeedAccounts)
 {
@@ -117,6 +118,13 @@ else if (isSeedPairs)
 {
     var added = await SyntheticTransactionSeeder.SeedPairsAsync(db);
     Console.WriteLine($"Synthetic transfer and shop pairs seeded. Added rows: {added}; unchanged: {SyntheticTransactionSeeder.PairsCount - added}.");
+}
+else if (isSeedRealistic)
+{
+    // SYN-15: a year for the six new personas; needs 'seed customers' and 'seed accounts' first.
+    var total = SyntheticTransactionSeeder.RealisticDefinitions().Count;
+    var added = await SyntheticTransactionSeeder.SeedRealisticAsync(db);
+    Console.WriteLine($"Realistic year seeded. Added rows: {added}; unchanged: {total - added}.");
 }
 else
 {

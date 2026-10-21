@@ -8,7 +8,7 @@ namespace BankingAI.Data.Seeding;
 public static class SyntheticAccountSeeder
 {
     private const long SeedLockKey = 2026100906;
-    public const int AccountCount = 7;
+    public const int AccountCount = 16;
 
     public static async Task<int> SeedAsync(BankingDbContext db, CancellationToken cancellationToken = default)
     {
@@ -25,7 +25,18 @@ public static class SyntheticAccountSeeder
             new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000005"), CustomerId = adaId, AccountName = "Ada boş TRY", AccountNumber = "DUMMY-ADA-EMPTY-001", CurrencyCode = "TRY" },
             new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000006"), CustomerId = egeId, AccountName = "Ege günlük TRY", AccountNumber = "DUMMY-EGE-TRY-001", CurrencyCode = "TRY" },
             // Fictional shop owned by Deniz; receives Purchase→Sale income (KIND-04b).
-            new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000007"), CustomerId = denizId, AccountName = "Kahve Durağı – Kadıköy", AccountNumber = "DUMMY-DENIZ-SHOP-001", CurrencyCode = "TRY", AccountType = AccountType.Business }
+            new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000007"), CustomerId = denizId, AccountName = "Kahve Durağı – Kadıköy", AccountNumber = "DUMMY-DENIZ-SHOP-001", CurrencyCode = "TRY", AccountType = AccountType.Business },
+            // SYN-15 personas (customers ...0004–0009).
+            new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000008"), CustomerId = Customer(4), AccountName = "Selin günlük TRY", AccountNumber = "DUMMY-SELIN-TRY-001", CurrencyCode = "TRY" },
+            new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000009"), CustomerId = Customer(5), AccountName = "Murat aile TRY", AccountNumber = "DUMMY-MURAT-TRY-001", CurrencyCode = "TRY" },
+            new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000010"), CustomerId = Customer(6), AccountName = "Zeynep TRY", AccountNumber = "DUMMY-ZEYNEP-TRY-001", CurrencyCode = "TRY" },
+            new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000011"), CustomerId = Customer(6), AccountName = "Zeynep USD", AccountNumber = "DUMMY-ZEYNEP-USD-001", CurrencyCode = "USD" },
+            new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000012"), CustomerId = Customer(7), AccountName = "Hasan emekli TRY", AccountNumber = "DUMMY-HASAN-TRY-001", CurrencyCode = "TRY" },
+            new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000013"), CustomerId = Customer(8), AccountName = "Elif Berlin EUR", AccountNumber = "DUMMY-ELIF-EUR-001", CurrencyCode = "EUR" },
+            new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000014"), CustomerId = Customer(8), AccountName = "Elif TRY", AccountNumber = "DUMMY-ELIF-TRY-001", CurrencyCode = "TRY" },
+            new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000015"), CustomerId = Customer(9), AccountName = "Can kişisel TRY", AccountNumber = "DUMMY-CAN-TRY-001", CurrencyCode = "TRY" },
+            // Fictional stationery shop owned by Can; its income is the other personas' purchases (Sale legs).
+            new() { Id = Guid.Parse("20000000-0000-0000-0000-000000000016"), CustomerId = Customer(9), AccountName = "Can Kırtasiye – Moda", AccountNumber = "DUMMY-CAN-SHOP-001", CurrencyCode = "TRY", AccountType = AccountType.Business }
         ];
 
         var referenceUtc = DateTimeOffset.UtcNow;
@@ -82,4 +93,6 @@ public static class SyntheticAccountSeeder
             await transaction.CommitAsync(cancellationToken);
         return additions.Count;
     }
+
+    private static Guid Customer(int number) => Guid.Parse($"10000000-0000-0000-0000-{number:D12}");
 }

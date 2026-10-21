@@ -166,7 +166,9 @@ public sealed class AnalyticsEdgeCaseTests
         await using var rowsLock = await CommittedRowsLock.ExclusiveAsync();
         await using var db = Db();
 
-        Assert.Equal(116, await db.Transactions.CountAsync());
+        // The demo's own accounts (...0001–0007); SYN-15's realistic year is counted by its own fixture.
+        Guid[] demoAccounts = [AdaTryAccount, AdaUsdAccount, DenizTryAccount, EgeEurAccount, AdaEmptyAccount, EgeTryAccount, DenizShopAccount];
+        Assert.Equal(116, await db.Transactions.CountAsync(t => demoAccounts.Contains(t.AccountId)));
         Assert.False(await db.Transactions.AnyAsync(t => t.RawDescription == "ANA-08 temporary row"));
     }
 }

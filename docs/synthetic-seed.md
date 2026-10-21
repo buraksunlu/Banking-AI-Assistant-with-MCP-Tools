@@ -365,3 +365,52 @@ TRY hesaplarının toplamı KIND-04b öncesiyle aynıdır (1.376.365,18). Ekim'd
 (Kind Purchase) 12.925 TRY'dir; bütün Debit'leri toplamak transferler yüzünden 14.725 TRY
 gibi yanlış bir sonuç verir. Dükkân satışları Eylül 2 adet/240 TRY, Ekim 3 adet/355 TRY.
 İlk çalıştırma 1 hesap ve 18 kayıt, tekrar 0 ekledi; Data suite 38/38.
+
+## SYN-15 gerçekçi yıl (20-21 Ekim 2026)
+
+Kullanıcı isteği: testler ve model ölçümleri yalnız üç "temiz" demo müşterisinde iyimser kalmasın. Kararlar: K1-B (yalnız yeni müşteriler;
+Ada/Deniz/Ege ve 116 işlem hiç değişmez), K2-C (hikâye işlemleri elle, arka plan sabit seed'li üreticiyle), K3-B (6 persona, 12 ay +
+devam eden ay), K4-D (iade/iptal yok; ayrı madde KIND-06), K5-B (testler daraltıldı + ölçümler genişletildi), K6-B (Murat ve Elif'e giriş
+açılabilir; şifreyi kullanıcı CLI ile koyar).
+
+Komutlar (sıra önemli): `seed customers` (artık 9), `seed accounts` (16), `seed transactions realistic` (1.710 işlem, ~10 sn, tekrar 0).
+Kod: `SyntheticTransactionSeeder.Realistic.cs` (aynı sınıfın parçası; yazım hattı, kilit ve çift kontrolü ortak). Kimlikler: müşteri
+`10000000-…-000000000004..9`, hesap `20000000-…-0000000000008..16`, işlem ordinal blokları Selin 11001+, Murat 12001+, Zeynep 13001+,
+Hasan 14001+, Elif 15001+, Can 16001+, çiftler 19001+ (PairId `40000000-…-000000000101..133`). Dönem 1 Ekim 2025 – 10 Ekim 2026 12:00 UTC
+(demo anından sonrası yazılmaz). Arka plan `new Random(RandomSeed + n)` ile her koşuda aynı.
+
+| Persona (hesaplar) | Hikâye (elle) | Arka plan (üretici) | Sınadığı |
+| --- | --- | --- | --- |
+| Selin Kampüs (8) | burs ayın 1'i 8.000; dede transferi 26'sı 3.000; Spotify öğrenci 59,99; telefon 350; 10 Ekim sabahı kahve 85 | günlük kafe/yemekhane/ulaşım, kitapçı; Ağustos 2026 boş (yaz okulu) | düzensiz gelir, çok küçük işlem, boş ay, "bugün" |
+| Murat Aile (9) | maaş 15'i 85.000; Netflix; su 380; mevsimsel doğalgaz/elektrik; internet 299,90 → Ağustos'tan 449,90; okul taksidi 2 × 25.000; beyaz eşya 45.000 (Mart, Diğer) | haftada 1–2 market (Migros Jet, Migros Sanal Market, A101, BİM), akaryakıt, lokanta, sinema, çocuk giyim | benzer adlı işyeri (geri soru), mevsimsellik, %50 zam = düzenli değil |
+| Zeynep Serbest (10 TRY, 11 USD) | 9 proje ödemesi 255.500 TL; 6 USD ödemesi 11.950; Ortak Ofis 3.500; telefon 450; Adobe 22,99 + Figma 15 USD | kafe, lokanta, market | düzensiz gelir, iki para birimi |
+| Hasan Emekli (12) | emekli maaşı 25'i 22.000; elektrik 780; Selin'e 3.000 | eczane (Sağlık), BİM/A101 | transferin harcama sayılmaması, Sağlık |
+| Elif Berlin (13 EUR, 14 TRY; Europe/Berlin) | Gehalt 28'i 4.200 EUR; kira 1.350 + BVG 58; uçak 289; **31 Ağustos 23:30 Berlin = 21:30 UTC** REWE 64,30; 3–16 Ağustos Türkiye'de 10 TRY harcama (7.390) | REWE/Lidl, döner | saat dilimi ve ay sınırı, iki para birimi |
+| Can Kırtasiye (15, 16 Business) | dükkândan her ay 18.000 transfer; Netflix Haziran'dan sonra iptal; Spotify 99,99 → Temmuz'dan 109,99; dükkâna 8 alışveriş (3.720) | lokanta/kafe, market, akaryakıt, merchant'sız POS | iptal ve küçük zam kuralı, Sale/Purchase, sınıflandırılmamış |
+
+Bağımsız fixture (`RealisticDatasetTests`; Credit'ler elle, Debit ve sayılar bir kez üretilip gözden geçirilen altın değerler):
+
+| Hesap | İşlem | Credit | Debit |
+| --- | ---: | ---: | ---: |
+| DUMMY-SELIN-TRY-001 | 646 | 145.000 (5.000 + 13 × 8.000 + 12 × 3.000) | 65.227,37 |
+| DUMMY-MURAT-TRY-001 | 227 | 1.050.000 (30.000 + 12 × 85.000) | 405.340,58 |
+| DUMMY-ZEYNEP-TRY-001 | 282 | 270.500 | 135.077,50 |
+| DUMMY-ZEYNEP-USD-001 | 32 | 12.250 USD | 478,87 USD (13 × 22,99 + 12 × 15) |
+| DUMMY-HASAN-TRY-001 | 116 | 272.000 (8.000 + 12 × 22.000) | 97.819,50 (36.000 transfer dahil) |
+| DUMMY-ELIF-EUR-001 | 152 | 53.400 EUR | 24.816,89 EUR |
+| DUMMY-ELIF-TRY-001 | 11 | 25.000 | 7.390 |
+| DUMMY-CAN-TRY-001 | 222 | 239.000 (5.000 + 13 × 18.000) | 166.256,79 |
+| DUMMY-CAN-SHOP-001 | 22 | 253.720 (250.000 + 3.720) | 234.000 |
+
+Toplam 1.579 harcama, 64 gelir, 9 devreden bakiye, 25 transfer çifti, 8 satış; 33 çift. Persona testleri (`RealisticPersonaTests`):
+düzenli ödemeler Murat {Netflix, Su} 609,99; Can {Spotify} 109,99 (median 104,99, sapma 5,00 ≤ 10,50); Zeynep TRY 3.950 + USD 37,99; Selin
+409,99; Hasan 780; Elif EUR 1.408; "Migros" Murat'ta Belirsiz (Migros Jet, Migros Sanal Market); Elif'in 64,30'u Berlin Ağustos'unda, Eylül'de
+değil; Selin bugün 435,00 (2); Hasan'ın 3.000 transferi harcama değil.
+
+Bütün veri setini sayan eski testler (`SyntheticDatasetIntegrityTests`'teki dönem, 2025, Ekim, tür ve çift sayımları; `AnalyticsEdgeCaseTests`
+116) ilk demo hesaplarına (…0001–0007) daraltıldı; rakamları değişmedi.
+
+Bulgu: ilk tasarımda Murat'ın devreden bakiyesi (10.000) ilk maaşa kadar yetmiyordu (12 Ekim'de eksiye düşerdi; yazıcı reddederdi) →
+30.000; tanım testi "yazım sırasında hiçbir hesap eksiye düşmez" bunu yakaladı. Sınırlar: hâlâ sentetik; iade/iptal yok (KIND-06); serbest
+çalışan geliri ayrı bir gelir türü olmadığı için `Salary`; Elif'in TRY hesabının parası `OpeningFunding` (döviz bozdurma modeli yok);
+testler ve demo aynı veritabanında (DB-01); üretici ya da hikâye değişirse kimlikler çelişir, seed hata verir (sürüm atlamak gerekir).

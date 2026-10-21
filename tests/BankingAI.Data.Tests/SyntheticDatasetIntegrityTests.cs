@@ -99,7 +99,7 @@ public sealed class SyntheticDatasetIntegrityTests : IAsyncLifetime
         await using var db = new BankingDbContext();
         // Spending is Kind = Purchase (KIND-01); transfers are Debits but not spending.
         var spending = await db.Transactions.AsNoTracking()
-            .Where(t => t.OccurredAt >= start && t.OccurredAt < end && t.Kind == TransactionKind.Purchase)
+            .Where(t => DemoAccounts.Contains(t.AccountId) && t.OccurredAt >= start && t.OccurredAt < end && t.Kind == TransactionKind.Purchase)
             .Select(t => new { t.AccountId, t.Amount, t.OccurredAt, t.NormalizedMerchant })
             .ToListAsync();
 
@@ -122,7 +122,7 @@ public sealed class SyntheticDatasetIntegrityTests : IAsyncLifetime
 
         var yearStart = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
         var yearEnd = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        Assert.Equal(34, await db.Transactions.CountAsync(t => t.OccurredAt >= yearStart && t.OccurredAt < yearEnd));
+        Assert.Equal(34, await db.Transactions.CountAsync(t => DemoAccounts.Contains(t.AccountId) && t.OccurredAt >= yearStart && t.OccurredAt < yearEnd));
     }
 
     [Fact]
@@ -136,7 +136,7 @@ public sealed class SyntheticDatasetIntegrityTests : IAsyncLifetime
 
         await using var db = new BankingDbContext();
         var october = await db.Transactions.AsNoTracking()
-            .Where(t => t.OccurredAt >= octoberStart && t.OccurredAt < octoberEnd)
+            .Where(t => DemoAccounts.Contains(t.AccountId) && t.OccurredAt >= octoberStart && t.OccurredAt < octoberEnd)
             .ToListAsync();
 
         // Each customer receives one salary; salaries stay outside spending totals.
@@ -175,6 +175,7 @@ public sealed class SyntheticDatasetIntegrityTests : IAsyncLifetime
     {
         await using var db = new BankingDbContext();
         var kinds = await db.Transactions.AsNoTracking()
+            .Where(t => DemoAccounts.Contains(t.AccountId))
             .GroupBy(t => new { t.Kind, t.Direction })
             .Select(g => new { g.Key.Kind, g.Key.Direction, Count = g.Count() })
             .ToListAsync();
@@ -196,7 +197,7 @@ public sealed class SyntheticDatasetIntegrityTests : IAsyncLifetime
 
         // Nine pairs, each exactly one Debit + one Credit with the same amount.
         var pairs = await db.Transactions.AsNoTracking()
-            .Where(t => t.PairId != null)
+            .Where(t => DemoAccounts.Contains(t.AccountId) && t.PairId != null)
             .GroupBy(t => t.PairId)
             .Select(g => new
             {
@@ -252,6 +253,11 @@ public sealed class SyntheticDatasetIntegrityTests : IAsyncLifetime
         var transfer = Assert.Single(sent);
         Assert.Equal((1500m, denizId), (transfer.Amount, transfer.AccountId));
     }
+
+    // The hand-computed demo (Ada, Deniz, Ege; accounts ...0001–0007). SYN-15's realistic year lives on accounts ...0008+
+    // and has its own fixture (RealisticDatasetTests), so whole-dataset counts here stay the demo's.
+    private static readonly Guid[] DemoAccounts =
+        Enumerable.Range(1, 7).Select(n => Guid.Parse($"20000000-0000-0000-0000-{n:D12}")).ToArray();
 
     private sealed record ExpectedAccount(
         string AccountNumber,

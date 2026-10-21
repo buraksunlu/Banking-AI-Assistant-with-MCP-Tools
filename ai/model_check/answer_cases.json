@@ -1,0 +1,15 @@
+{
+  "description": "SYN-15 answer-accuracy cases: real chat turns on the realistic personas (demo moment 10 October 2026). Expected figures were computed with SQL straight from the database, independent of the backend's analytics code (docs/synthetic-seed.md \"SYN-15\"). A case passes when the last reply has the expected type and tool, every 'facts' text is among the facts, every 'answer' text is in the answer and no 'absent' text is in the facts.",
+  "cases": [
+    {"id": "A01", "customer": "selin", "messages": ["Bugün ne kadar harcadım?"], "type": "answer", "tool": "get_spending_summary", "facts": ["435,00 TL"], "answer": ["435"]},
+    {"id": "A02", "customer": "murat", "messages": ["Geçen ay Migros'a ne kadar harcadım?"], "type": "clarification", "answer": ["Migros Jet", "Migros Sanal Market"]},
+    {"id": "A03", "customer": "murat", "messages": ["Geçen ay Migros'a ne kadar harcadım?", "1"], "type": "answer", "tool": "get_merchant_spending", "facts": ["Migros Jet", "5.317,50 TL"], "answer": ["5.317,50"]},
+    {"id": "A04", "customer": "murat", "messages": ["Bu ay ne kadar harcadım?", "Peki geçen ay?"], "type": "answer", "tool": "get_spending_summary", "facts": ["53.388,39 TL"], "answer": ["53.388,39"], "absent": ["8.241,40 TL"]},
+    {"id": "A05", "customer": "murat", "messages": ["Son 12 ayda harcamam aylara göre nasıl değişti?"], "type": "answer", "tool": "get_monthly_trend", "facts": ["34.771,89 TL"]},
+    {"id": "A06", "customer": "elif", "messages": ["Geçen ay ne kadar harcadım?"], "type": "answer", "tool": "get_spending_summary", "facts": ["1-30 Eylül 2026", "1.766,26 EUR"], "answer": ["1.766,26"]},
+    {"id": "A07", "customer": "zeynep", "messages": ["Bu yıl ne kadar harcadım?"], "type": "answer", "tool": "get_spending_summary", "facts": ["101.583,00 TL", "364,90 USD", "Farklı para birimleri toplanmaz"]},
+    {"id": "A08", "customer": "hasan", "messages": ["Geçen ay en çok hangi kategoriye harcadım?"], "type": "answer", "tool": "get_category_breakdown", "facts": ["3.817,00 TL"], "answer": ["Market"]},
+    {"id": "A09", "customer": "can", "messages": ["Aboneliklerim neler?"], "type": "answer", "tool": "get_recurring_payments", "facts": ["109,99 TL"], "absent": ["Netflix"]},
+    {"id": "A10", "customer": "can", "messages": ["Geçen ay Netflix'e ne kadar harcadım?"], "type": "answer", "tool": "get_merchant_spending", "facts": ["Bu dönemde bu işyerinde harcama bulunamadı."]}
+  ]
+}

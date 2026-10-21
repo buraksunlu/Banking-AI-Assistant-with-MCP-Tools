@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace BankingAI.Data.Seeding;
 
-public static class SyntheticTransactionSeeder
+public static partial class SyntheticTransactionSeeder
 {
     private const short SubscriptionCategoryId = 6;
     private const long SeedAdvisoryLockId = 871945310246L;
@@ -364,10 +364,12 @@ public static class SyntheticTransactionSeeder
         2 => "GROCERY",
         3 => "CLOTHING",
         4 => "TRANSPORTATION",
+        5 => "ENTERTAINMENT",
         6 => "SUBSCRIPTION",
         7 => "TRAVEL",
         8 => "FUEL",
         9 => "BILLS",
+        10 => "HEALTH",
         11 => "OTHER",
         _ => throw new InvalidOperationException($"Synthetic seed için beklenmeyen kategori Id {id}.")
     };
