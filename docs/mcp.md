@@ -42,7 +42,9 @@ Hepsi `ReadOnly = true`, `Destructive = false`. Argümanlar: `period` (11 ad: `T
 `LastWeek`, `Last7Days`, `Last30Days`, `ThisMonth`, `LastMonth`, `Last3Months`, `Last6Months`, `ThisYear`; `Custom` ve tarih
 yok), merchant aracında `merchant` (1–150 karakter), `compare_spending`'de `comparison` (`PreviousFullMonth` | `MonthToDate`;
 `Custom` yok), `get_monthly_trend`'de zorunlu `months` (tam sayı 1–12), `get_upcoming_payments`'ta isteğe bağlı `days` (tam sayı
-1–31, verilmezse 30). Müşteri, hesap ve tarih argümanı yoktur.
+1–31, verilmezse 30), `check_budget`'te zorunlu `amount` (JSON sayısı) ve `currencyCode` (`TRY` | `USD` | `EUR` | `GBP`),
+`simulate_savings`'te zorunlu `reductionPercent` (tam sayı 1–100) ve isteğe bağlı `months` (1–12, verilmezse 6); ikisinde de isteğe
+bağlı `categoryCode` (11 kodluk kapalı küme, `ToolCategory`) ya da `merchant` (MCP-17/18). Müşteri, hesap ve tarih argümanı yoktur.
 
 | Araç | Servis | Sonuç (REST karşılığı) |
 | --- | --- | --- |
@@ -55,6 +57,8 @@ yok), merchant aracında `merchant` (1–150 karakter), `compare_spending`'de `c
 | `get_monthly_trend` (MCP-24) | `SpendingComparisonService.GetMonthlyTrendAsync` (filtresiz) | `SpendingTrend` (`/api/analytics/monthly-trend`) |
 | `get_recurring_payments` (MCP-27) | `RecurringPaymentService` (`PaymentTools`) | `RecurringPayments` (`/api/analytics/recurring-payments`) |
 | `get_upcoming_payments` (MCP-16) | `UpcomingPaymentService` (`PaymentTools`) | `UpcomingPayments` (`/api/analytics/upcoming-payments`) |
+| `check_budget` (MCP-17) | `BudgetCheckService` (`PlanningTools`) | `BudgetCheck` (`/api/analytics/budget-check`) |
+| `simulate_savings` (MCP-18) | `SavingsSimulationService` (`PlanningTools`) | `SavingsSimulation` (`/api/analytics/savings-simulation`) |
 
 Yeni araç = `SpendingTools` benzeri bir sınıfa `[McpServerTool]` metodu + `ToolDiscoveryTests`'teki allowlist'e satır
 (eklenmezse keşif testi kırmızı olur; API'deki endpoint taramasının karşılığı).
@@ -65,7 +69,9 @@ SDK şemayı yayınlar ama **çalışma anında uygulamaz** (SDK belgesi: argüm
 da "yesterday"i sessizce "Yesterday" yapar. Bu yüzden `ToolCallFilter` her çağrıda, araç çalışmadan önce, argümanları
 **yayınlanan şemaya** göre kontrol eder: tanınmayan argüman, eksik/null zorunlu argüman, tam adla enum, metin tipi, Unicode
 karakter sayısıyla uzunluk, tam sayı (`integer`: JSON tam sayısı, `minimum`/`maximum`; SDK bağlaması `"3"` ve `3.5`'i sessizce 3
-yapardı). SDK `[Range]`'i şemaya `minimum`/`maximum` olarak, varsayılan değerli parametreyi zorunlu olmayan olarak yazar. Boş metin
+yapardı), tutar (`number`: JSON sayısı ve `decimal`'a sığmalı; `"1000"`, `true` ve `1e40` reddedilir, kuruş ve üst sınır
+`InputRules.Money`'de). İsteğe bağlı argüman şemada `["string", "null"]` olarak yayınlanır: `null` "verilmedi" demektir ve kabul
+edilir (MCP-17/18). SDK `[Range]`'i şemaya `minimum`/`maximum` olarak, varsayılan değerli parametreyi zorunlu olmayan olarak yazar. Boş metin
 ve NUL gibi backend kuralları servislerde kalır (`InputRules`). Modelin gördüğü şema ile kabul edilen tam olarak aynıdır.
 
 ## Hatalar (K10-A)
@@ -167,3 +173,53 @@ K6-B (uzun listede ilk 5 kalem + "N … daha var" notu; Python tutar toplamaz), 
 Sınırlar: bütçe/tasarruf (para birimi tahmini riski, CHAT-03 sonrası), işlem araması, hesaplar ve kavramsal merchant (iki adım,
 CHAT-04) yok; aylık seride kategori/işyeri filtresi yok; takip sorusu yok (CHAT-02); araç sayısı arttıkça isabet yeniden ölçülmeli
 (CHAT-01 niyete göre daraltma).
+
+# MCP-17/18: bütçe ve tasarruf araçları (21 Ekim 2026)
+
+Hazır iki analiz modele açıldı (9 → 11 araç): bütçe kontrolü (ANA-13) ve tasarruf simülasyonu (ANA-14). İlk kez argüman
+**kullanıcının kendi rakamı** (bütçe tutarı, azaltma oranı); asıl iş, modelin bu rakamı uydurmasını ya da yanlış okumasını
+("1.000 TL" → `1.0`) engellemek. Kullanıcı kararları: K0-A (iki araç tek PR), K1-A (`check_budget`: tutar + para birimi zorunlu,
+kategori ya da işyeri isteğe bağlı), K2-A (para birimi söylenmezse geri soru), K3-A (tutar rakam ya da "bin" kalıbıyla okunur, yoksa
+geri soru), K4-A (oran rakam, "yüzde yirmi", "yarı" = 50, "çeyrek" = 25, "tamamen" = 100; yoksa geri soru), K5-A (`months` isteğe
+bağlı 1–12, verilmezse 6), K6-A (kategori kapalı küme, Türkçe adı backend'den), K7-A (tam kalemler + notlar), K8-A (seçim ölçümüne 15
+vaka; eski 48 bozulmaz, toplam ≥ %90), K9-A (cevap doğruluğuna 5 persona vakası).
+
+- **.NET:** `PlanningTools` (`check_budget`, `simulate_savings`), `ToolCategory` (11 kod; keşif testi kategori tablosuyla birebir
+  karşılaştırır) ve `ToolCurrency` enum'ları; `ToolCallFilter`'a `number` kuralı ve `["string", "null"]` tipi. `SavingsSimulation`'a
+  `CategoryDisplayName` eklendi (API sözleşmesine bir alan; `docs/openapi/v1.json` yenilendi). Testler McpServer 85 → 131.
+- **Python:** `grounding.py` tutarı (`amounts_in`; "1.000" = 1000, "5 bin" = 5000), para birimini (`currency_in`; TL/lira/₺, euro/€,
+  dolar/$, sterlin/£; iki para birimi geçerse hiçbiri) ve oranı (`percent_in`) mesajda arar; model zorunlu bir rakamı hiç yazmadıysa
+  o da sorulur; boş metinli isteğe bağlı argüman düşer. `clarification.py`'ye üç soru türü (`amount`, `currency`, `percent`): bunlar
+  **hep sabit metin** (model yazarsa bir tutar önerebilirdi) ve `later` ile zincirlenir: "Bütçemi aşar mıyım?" → tutar sorulur →
+  "3000" → para birimi sorulur → "1" → araç çalışır; "3.000 TL" cevabı ikisini birden tamamlar. `facts.py`'ye iki kalem üretici:
+  bütçede dönem (ayın kaçıncı günü), hedef, bütçe, harcanan, kalan ya da aşım, günlük ortalama, ay sonu tahmini, tahmini aşım ya da
+  "bütçe içinde kalınır" ve doğrusal tahmin notu; tasarrufta ay ay tutarlar (boş ay 0,00), toplam, ortalama, aylık/yıllık tahmini
+  tasarruf ve "yatırım tavsiyesi değildir" notu.
+- **SDK bulguları:** isteğe bağlı parametre `["string", "null"]` ve enum'a `null` ile yayınlanıyor; filtre `type`'ı tek yazı sandığı
+  için bu tiple çöküyor ve yayınlanan `null`'u reddediyordu. `decimal` `number` yayınlanıyor ama filtrede kuralı yoktu (`"1000"`
+  denetimsiz geçerdi).
+- **Araç seçim ölçümü** (`tool_selection_eval.py`, 63 vaka): 9 araçla önce **48/48**. İlk taslakla (açıklamalarda 11 kategorinin
+  Türkçe karşılıkları) 11 araçta **53/63**; eski 5 vaka bozuldu ("geçen hafta" → `Last7Days`, "geçen ay" → `Last30Days`, "Dün ne
+  harcadım?" → en büyük harcamalar). Bozulma her koşuda aynıydı ve yeni araçlar listeden çıkarılınca 5'i de geçiyordu. Deneyler (vaka
+  başına tek çağrı, aralarda bekleme): kategori listesi çıkınca dönem kaymaları düzeldi (kodlar yalnız şemada); `check_budget`'ın
+  "Yalnız kullanıcı bir bütçe tutarı söylediyse" diye başlaması "Geçen hafta Starbucks'a"yı düzeltti; S01 ise bütçe aracının açıklaması
+  tek cümleye inse bile bozuk kaldı, en büyük harcamalar açıklamasını daraltmak da düzeltmedi; `get_spending_summary` açıklamasına
+  "gibi genel harcama soruları için ilk tercih" eklenince düzeldi (eski bir açıklama değişti, bu yüzden 63 vaka yeniden ölçüldü). Son
+  durum **60/63**, eski 48'in hepsi geçiyor (eşik ≥ %90 sağlandı). Kalan üçü: S40 ve S46'da (bütçe/oran söylenmemiş) model hiç araç
+  seçmiyor, kullanıcı geri soru yerine kapsam dışı metnini görür (ve model 200 token sınırına kadar yazdığı için ~15 sn sürüyor); S43'te
+  model "yılda" için `months: 12` yazıyor, ölçüm modelin ham seçimini puanladığı için FAIL; sohbette bu değer `grounding`'de düşer ve 6
+  ay kullanılır. Vaka başına ortalama 3,9 sn (MCP-08'de 1,6). Ölçüm sırasında iki hata kodda düzeltildi: "yılda ne kadar
+  biriktiririm" 12 ay sayılıyordu (artık yalnız "son/geçen/bir yıl"), model boş `categoryCode: ""` yazıyordu (isteğe bağlı boş metin
+  artık düşer).
+- **Cevap doğruluğu** (`answer_eval.py`, gerçek zincir, bağımsız SQL rakamları): **14/15**; eski 10 vaka geçiyor. A11 (Selin yeme-içme
+  bütçesi), A13 (Elif'in euro bütçesi aşılmış: 55,03 EUR), A14 (Selin %20, Ağustos 0,00), A15 (Zeynep TRY ve USD ayrı) geçti. A12'de
+  (Murat "market bütçem 8.000 TL, bu hızla aşar mıyım?") kalemler doğru ve cevap soruyu doğru yanıtlıyordu (ay sonu 15.912,30 TL,
+  7.912,30 TL aşım), ama vakanın cevap şartı harcanan tutardı (5.133) ve o cevapta yoktu. Şart soruyla uyumsuzdu (kullanıcı kararı B,
+  21 Ekim 2026): artık sorunun cevabı olan aşımı (7.912,30) ister, harcanan tutar kalem şartında kontrol edilmeye devam eder. Bu koşunun
+  A12 cevabı yeni şartı karşılıyor; ölçüm yeniden koşulmadı (bir sonraki koşuda 15/15 beklenir). A15'te model iki para birimini "veya" ile bağladı
+  (anlam kontrolü kodla yapılmıyor, AI-10).
+- **Bellek:** ölçüm sırasında model 12,7 GB'a kadar büyüdü (16 GB'lık makinede swap); ölçümler tek oturumda, aralarda beklemeyle
+  çalıştırıldı ve sonra model boşaltıldı. Model gerektirmeyen Python testleri: `pytest ai -k "not real"`.
+
+Sınırlar: bütçe yalnız bu ay, kaydedilmez (BUD-01..04); "geçen ay bütçemi aştım mı?" desteklenmez; yazıyla tutar ("bin beş yüz")
+geri soruya düşer; kategori ile işyeri birlikte verilemez; araç sayısı 11 (CHAT-01 niyete göre daraltma).

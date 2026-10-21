@@ -386,8 +386,16 @@ kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir.
 - [x] MCP-14 — En az beş farklı Türkçe soruda doğru tool + doğru argüman + backend'e dayalı cevap akışını göster. (20 Ekim 2026, MCP-b: 6 Türkçe soru gerçek zincirde doğru araç + argüman + backend rakamı; 12 vakalık seçim ölçümü 12/12.)
 - [ ] MCP-15 — ANA-10 için iki read-only tool: müşterinin merchant listesi ve seçilen merchant'ların harcaması. Backend her adı yeniden doğrular; liste dışı ad reddedilir, cevap dahil edilen merchant'ları taşır.
 - [x] MCP-16 — get_upcoming_payments tool'unu ekle (ANA-12); sonucun tahmin olduğu bilgisi çıktıda korunur. Sonuç: `get_upcoming_payments(days?: 1–31, verilmezse 30)`; kalemlerde "tahmini" tutar/tarih, gecikmiş/bugün ayrımı ve kural notu (K5-A). Ada 30 gün: Netflix 12 Ekim 229,99, Spotify 18 Ekim 99,99, tahmini toplam 329,98. (20 Ekim 2026, MCP-08 PR'ı, dal `mcp-08-analysis-tools`, docs/mcp.md "MCP-08"; kararlar K1-B…K8-A orada.)
-- [ ] MCP-17 — check_budget tool'unu ekle (ANA-13); bütçe tutarı argümanı backend'de yeniden doğrulanır, model hesap yapmaz.
-- [ ] MCP-18 — simulate_savings tool'unu ekle (ANA-14); oran ve dönem sınırları backend'de, çıktı yatırım tavsiyesi dili taşımaz.
+- [x] MCP-17 — check_budget tool'unu ekle (ANA-13); bütçe tutarı argümanı backend'de yeniden doğrulanır, model hesap yapmaz. Sonuç (21 Ekim
+  2026, dal `mcp-17-budget-savings-tools`, MCP-18 ile birlikte, docs/mcp.md "MCP-17/18"; kararlar K0-A…K9-A): `check_budget(amount, currencyCode,
+  categoryCode?, merchant?)`; tutar, para birimi ve oran kullanıcının mesajında aranır, söylenmeyen sabit metinle sorulur ve zincirlenir.
+  Ada FOOD 1.000 TL: harcanan 590, kalan 410, ay sonu 1.829, tahmini aşım 829. Ölçüm: seçim 48/48 → ilk taslak 53/63 (uzun kategori
+  açıklaması eski araçların dönemini bozdu) → **60/63** (eski 48 tam); cevap doğruluğu **14/15** (A12'nin cevap şartı
+  soruyla uyumsuzdu, "aşar mıyım?" için harcanan değil aşım istenecek şekilde düzeltildi; kayıtlı cevap yeni şartla geçer). Testler: Data 84, Application 318, Api 445,
+  McpServer 131, Python 530 (520 modelsiz); 18 kasıtlı bozma yakalandı.
+- [x] MCP-18 — simulate_savings tool'unu ekle (ANA-14); oran ve dönem sınırları backend'de, çıktı yatırım tavsiyesi dili taşımaz. Sonuç (21 Ekim
+  2026, MCP-17 ile aynı PR): `simulate_savings(reductionPercent, categoryCode?, merchant?, months?)`; ay ay tutarlar (boş ay 0,00) ve "yatırım
+  tavsiyesi değildir" notu kalemlerde; sonuca `CategoryDisplayName` eklendi. Ada Starbucks %50: ayda 92,50, yılda 1.110 TL.
 - [ ] MCP-19 — detect_unusual_spending tool'unu ekle (ANA-15); yöntem ve eşik çıktıda, "yetersiz veri" durumu korunur.
 - [ ] MCP-20 — get_subscription_summary tool'unu ekle (ANA-16); yıllık toplamın varsayımı ve fiyat değişiminin kanıtı çıktıda.
 - [ ] MCP-21 — get_month_end_outlook tool'unu ekle (ANA-17); sonucun tahmin olduğu ve dahil edilmeyen kalemler çıktıda korunur.
@@ -475,13 +483,13 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Güncelleme: 20 Ekim 2026.
+Güncelleme: 21 Ekim 2026.
 
 Tamamlanan bloklar: banking foundation (DOC-09; SYN-01–14, KIND-01–05), deterministik analytics (ANA-01–14,
 REC-01–03, ANA-20), API ve güvenlik (API-01a/01b, API-02–15, SEC-01a/01b, SEC-06), local AI (AI-01–07: model seçimi,
 Ollama bağlantısı, FastAPI servisi, LangChain, açıklama prompt'u, çıktı doğrulama, .NET → FastAPI) ve uçtan uca sohbet
 (AI-14a FastAPI `/v1/chat` + AI-14b .NET `POST /api/assistant/messages`), MCP (MCP-a/b) ve iPhone (IOS-01/13, AI-08). Testler: .NET
-Data 84, Application 317, Api 445, McpServer 85; Python 429 (gerçek Ollama/MCP dahil); iOS 54; hepsi yeşil. 16 Ekim 2026'dan beri her iş kendi dalında yapılır ve PR ile (squash) `main`'e
+Data 84, Application 317, Api 445, McpServer 85; Python 431 (gerçek Ollama/MCP dahil); iOS 54; hepsi yeşil (SYN-15 sonrası). 16 Ekim 2026'dan beri her iş kendi dalında yapılır ve PR ile (squash) `main`'e
 girer; git komutlarını kullanıcı çalıştırır (CLAUDE.md "Git akışı").
 
 Sıradaki (kullanıcı seçer; müşteri her zaman token'dan gelir):
@@ -490,7 +498,7 @@ Sıradaki (kullanıcı seçer; müşteri her zaman token'dan gelir):
   MCP-b; 20 Ekim 2026). iPhone: iOS-a (proje + giriş, IOS-01/13) ve AI-08 (iOS-b, sohbet ekranı) 20 Ekim 2026'da tamam; iPhone'dan
   uçtan uca sohbet çalışıyor. AI-15 (soğuk model ısıtma) ve MCP-08 (altı yeni araç: MCP-08/09/10/16/24/27; 9 araçta seçim 26/26)
   20 Ekim 2026'da, CHAT-03 (belirsizlikte geri soru), CHAT-02 (takip soruları) ve SYN-15 (gerçekçi yıl: 6 persona, 1.710 işlem; cevap doğruluğu
-  ölçümü) 21 Ekim 2026'da tamam. Sırada (kullanıcı seçer): bütçe/tasarruf araçları MCP-17/18, CHAT-01 (araç sayısı arttıkça), KIND-06 (iade),
+  ölçümü) 21 Ekim 2026'da tamam. MCP-17/18 (bütçe/tasarruf araçları, 11 araç) 21 Ekim 2026'da tamam. Sırada (kullanıcı seçer): CHAT-01 (araç sayısı arttıkça), KIND-06 (iade),
   arama/hesaplar MCP-06/03, hesap ekranları (IOS-04…), SEC-07, DB-01 (ayrı test veritabanı; veri büyüdükçe daha anlamlı).
 - **Küçük ve bağımsız (istenirse omurgadan önce):** CHAT-06 (önerilen sorular, tablo kısmı). ANA-20 (gün/hafta dönemleri) 19 Ekim 2026'da tamamlandı.
 - **Omurgadan sonra (17 Ekim kararı):** 15c sohbet yetenekleri (CHAT-01–07) → 12c yeni analizler (ANA-15–19, ANA-21) +

@@ -1,6 +1,7 @@
 import pytest
 
-from clarification import PendingStore, ask_count, ask_merchant, ask_period, check_question, resolve, template
+from clarification import (PendingStore, ask_amount, ask_count, ask_currency, ask_merchant, ask_percent, ask_period, check_question,
+                           resolve, template)
 from prompts import build_clarify_messages
 
 # CHAT-03 K3-A/K4-B/K5-A: the question is remembered for one reply, the reply is matched against the stored options in code,
@@ -166,3 +167,54 @@ def test_the_merchant_prompt_names_the_users_words():
     system, user = build_clarify_messages(CITY.question, CITY.kind, [o.label for o in CITY.options], numbered=True, asked="<şehir>")
     assert "‘‹şehir›’ adı birden fazla işyerine uyuyor" in user["content"]
     assert "Eksik bilgi" not in user["content"]
+
+
+# MCP-17/18: the budget, its currency and the cut. The options are fixed and the questions are never the model's wording.
+
+AMOUNT = ask_amount("check_budget", {"categoryCode": "FOOD"}, "Bu ay yeme içme bütçemi aşar mıyım?", later=("currencyCode",))
+CURRENCY = ask_currency("check_budget", {"amount": 500}, "Bu ay 500 bütçem var, ne durumdayım?")
+PERCENT = ask_percent("simulate_savings", {"merchant": "Starbucks"}, "Starbucks'tan ne kadar tasarruf ederim?")
+
+
+@pytest.mark.parametrize(("reply", "completed"), [
+    ("3000 TL", {"categoryCode": "FOOD", "amount": 3000, "currencyCode": "TRY"}),    # the currency asked next comes along
+    ("3.000", {"categoryCode": "FOOD", "amount": 3000}),
+    ("2.500,50 lira", {"categoryCode": "FOOD", "amount": 2500.5, "currencyCode": "TRY"}),
+    ("5 bin", {"categoryCode": "FOOD", "amount": 5000}),
+])
+def test_an_amount_reply(reply, completed):
+    assert resolve(AMOUNT, reply) == completed
+
+
+@pytest.mark.parametrize("reply", ["bilmiyorum", "0", "Bu ay market için ne kadar harcadım acaba?"])
+def test_a_reply_without_an_amount_is_a_new_question(reply):
+    assert resolve(AMOUNT, reply) is None
+
+
+@pytest.mark.parametrize(("reply", "currency"), [("1", "TRY"), ("TL", "TRY"), ("euro", "EUR"), ("2", "EUR"), ("Dolar", "USD"),
+                                                 ("4", "GBP"), ("lira olsun", "TRY")])
+def test_a_currency_reply(reply, currency):
+    assert resolve(CURRENCY, reply) == {"amount": 500, "currencyCode": currency}
+
+
+@pytest.mark.parametrize("reply", ["5", "yen", "bilmiyorum"])
+def test_a_reply_that_is_not_one_of_the_currencies(reply):
+    assert resolve(CURRENCY, reply) is None
+
+
+@pytest.mark.parametrize(("reply", "value"), [("%20", 20), ("20", 20), ("yüzde 30", 30), ("yarısı", 50), ("100", 100)])
+def test_a_cut_reply(reply, value):
+    assert resolve(PERCENT, reply) == {"merchant": "Starbucks", "reductionPercent": value}
+
+
+@pytest.mark.parametrize("reply", ["150", "0", "biraz"])
+def test_a_cut_outside_1_to_100_or_without_a_figure_is_a_new_question(reply):
+    assert resolve(PERCENT, reply) is None
+
+
+def test_the_figure_questions_are_fixed():
+    assert template(AMOUNT) == "Bütçeniz ne kadar? Örneğin 3.000 TL."
+    assert template(CURRENCY) == "Bütçeniz hangi para biriminde? 1) TL 2) Euro 3) Dolar 4) Sterlin"
+    assert template(PERCENT) == "Ne kadar azaltmayı düşünüyorsunuz? Örneğin %10, %25 ya da %50."
+    # The model words only the period, count and merchant questions (CHAT-03 K4-B); these three are always the fixed text.
+    assert [p.model_worded for p in (AMOUNT, CURRENCY, PERCENT, PERIOD, MONTHS, CITY)] == [False, False, False, True, True, True]

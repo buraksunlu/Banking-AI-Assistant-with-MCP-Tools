@@ -3674,6 +3674,7 @@
           "months",
           "reductionPercent",
           "categoryCode",
+          "categoryDisplayName",
           "merchantMatch",
           "method",
           "currencies"
@@ -3710,6 +3711,12 @@
               "string"
             ]
           },
+          "categoryDisplayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "merchantMatch": {
             "oneOf": [
               {
@@ -3730,7 +3737,7 @@
             }
           }
         },
-        "description": "Result of SavingsSimulationService: the complete months used (`From`–`To`), the assumption in\n`Method` and one row per currency with spending in those months (none: empty list). A merchant text that does not\nmatch exactly one of the customer's merchants gives no rows; `MerchantMatch` says why."
+        "description": "Result of SavingsSimulationService: the complete months used (`From`–`To`), the assumption in\n`Method` and one row per currency with spending in those months (none: empty list). A merchant text that does not\nmatch exactly one of the customer's merchants gives no rows; `MerchantMatch` says why. `CategoryDisplayName`\nis the category's Turkish name (MCP-18), as in BudgetCheck."
       },
       "SpendingComparison": {
         "required": [

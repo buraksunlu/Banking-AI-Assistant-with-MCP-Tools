@@ -2,14 +2,16 @@
 
 The input side of the answer check (AI-06): there every number in the answer must be in the facts, here every period and
 count in a tool call must be in the message. A tool's period is required, so the model always writes one; "Ne kadar
-harcadım?" became "this month" without the user knowing. Standard library only, deterministic: a phrase the word lists
-miss leads to one unnecessary question, never to a guessed figure.
+harcadım?" became "this month" without the user knowing. MCP-17/18 add the user's own figures: a budget amount, its currency
+and a cut in percent (K2-A, K3-A, K4-A). Standard library only, deterministic: a phrase the word lists miss leads to one
+unnecessary question, never to a guessed figure.
 """
 
 import re
 from dataclasses import dataclass
+from decimal import Decimal
 
-from answer_check import fold_turkish
+from answer_check import fold_turkish, parse_turkish_numbers
 
 # Any expression of time. Folded text (fold_turkish): every i-like letter is "i", the other Turkish letters stay.
 _TIME = re.compile(
@@ -23,6 +25,25 @@ _TIME = re.compile(
 
 _NUMBER_WORDS = {"bir": 1, "iki": 2, "üç": 3, "dört": 4, "beş": 5, "alti": 6, "yedi": 7, "sekiz": 8, "dokuz": 9, "on": 10,
                  "yirmi": 20, "otuz": 30}
+
+# "5 bin", "1,5 bin" and "bin" alone; written-out amounts ("bin beş yüz") are a documented limit (K3-A).
+_THOUSANDS = re.compile(r"(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?)?\s*\bbin\b")
+
+# Folded text; a letter must not touch the code ("atletizm" is no "tl"), a digit may ("3000TL").
+_LETTER = "a-zçğöşü"
+_CURRENCIES = {
+    "TRY": rf"(?<![{_LETTER}])(?:tl|try)(?![{_LETTER}])|\blira|₺",
+    "EUR": rf"\beuro|\bavro|€|(?<![{_LETTER}])eur(?![{_LETTER}])",
+    "USD": rf"\bdolar|\$|(?<![{_LETTER}])usd(?![{_LETTER}])",
+    "GBP": rf"\bsterlin|\bpound|£|(?<![{_LETTER}])gbp(?![{_LETTER}])",
+}
+
+# A cut in percent: "%20", "20%", "yüzde 20", "yüzde yirmi beş", and three words people use instead of a number (K4-A).
+_PERCENT_DIGITS = re.compile(r"%\s*(\d+)|(\d+)\s*%|\byüzde\s*(\d+)")
+# "yarın" (tomorrow) is not a half.
+_PERCENT_WORDS = (("yari(?!n)", 50), ("çeyre", 25), ("tamamen", 100))
+_UNITS = {"bir": 1, "iki": 2, "üç": 3, "dört": 4, "beş": 5, "alti": 6, "yedi": 7, "sekiz": 8, "dokuz": 9}
+_TENS = {"on": 10, "yirmi": 20, "otuz": 30, "kirk": 40, "elli": 50, "altmiş": 60, "yetmiş": 70, "seksen": 80, "doksan": 90, "yüz": 100}
 
 # The tools' own periods (ToolPeriod), each with the words that name it; the order matters ("son 30 gün" before "gün").
 _PERIODS = [
@@ -42,11 +63,13 @@ _PERIODS = [
 
 @dataclass(frozen=True)
 class Grounding:
-    """``missing``: the first required argument the user did not give (asked back); ``arguments``: what may run, with
-    optional arguments the user did not give left out, so the backend's own default applies."""
+    """``missing``: the first required argument the user did not give (asked back); ``unsaid``: all of them, in the tool's own
+    order (MCP-17: an amount and a currency may both be invented); ``arguments``: what may run, with optional arguments the
+    user did not give left out, so the backend's own default applies."""
 
     missing: str | None
     arguments: dict
+    unsaid: tuple[str, ...] = ()
 
 
 def mentions_period(message: str) -> bool:
@@ -61,17 +84,63 @@ def period_in(reply: str) -> str | None:
 
 
 def mentions_count(message: str, value: int) -> bool:
-    """True when the message writes this count, in digits or words ("6", "altı"); "yıl" counts as 12."""
+    """True when the message writes this count, in digits or words ("6", "altı"); a whole year ("son bir yıl", "geçen yıl")
+    counts as 12, "yılda" (per year) and "bu yıl" (the months so far) do not."""
     folded = fold_turkish(message)
     if value in _counts(folded):
         return True
-    return value == 12 and re.search(r"\b(?:yil|sene)", folded) is not None
+    return value == 12 and re.search(r"\b(?:son|geçen|bir|1)\s+(?:yil|sene)", folded) is not None
 
 
 def count_in(reply: str) -> int | None:
     """The first count a reply writes, in digits or words; None when there is none."""
     counts = _counts(fold_turkish(reply))
     return counts[0] if counts else None
+
+
+def amounts_in(text: str) -> list[Decimal]:
+    """Every amount a text writes, the Turkish way ("1.000", "2.500,50", "5 bin", "bin"), in order."""
+    folded = fold_turkish(text)
+    found = [(m.start(), Decimal((m.group(1) or "1").replace(".", "").replace(",", ".")) * 1000) for m in _THOUSANDS.finditer(folded)]
+    rest = _THOUSANDS.sub(" ", folded)
+    # The rest keeps its positions only roughly; the order of "5 bin" against a plain number never matters to a caller.
+    return [value for _, value in found] + parse_turkish_numbers(rest)
+
+
+def mentions_amount(message: str, value) -> bool:
+    """True when the message writes this amount; "1.000" is 1000, never 1 (the model's misreading K3-A exists for)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    return Decimal(str(value)) in amounts_in(message)
+
+
+def currency_in(text: str) -> str | None:
+    """The one currency a text names ("TL", "lira", "€", "dolar"…); None for none, or for two."""
+    folded = fold_turkish(text)
+    named = [code for code, pattern in _CURRENCIES.items() if re.search(pattern, folded)]
+    return named[0] if len(named) == 1 else None
+
+
+def mentions_currency(message: str, code) -> bool:
+    """True when the message names this currency and no other."""
+    return isinstance(code, str) and currency_in(message) == code
+
+
+def percent_in(text: str) -> int | None:
+    """The cut a text names ("%20", "yüzde yirmi", "yarıya" = 50); None when there is none."""
+    folded = fold_turkish(text)
+    digits = _PERCENT_DIGITS.search(folded)
+    if digits:
+        return int(next(group for group in digits.groups() if group))
+    words = re.search(r"\byüzde\s+([a-zçğöşü]+)(?:\s+([a-zçğöşü]+))?", folded)
+    if words and words.group(1) in _TENS:
+        return _TENS[words.group(1)] + _UNITS.get(words.group(2) or "", 0)
+    return next((value for word, value in _PERCENT_WORDS if re.search(rf"\b{word}", folded)), None)
+
+
+def mentions_percent(message: str, value) -> bool:
+    """True when the message names this cut."""
+    return isinstance(value, int) and not isinstance(value, bool) and percent_in(message) == value
 
 
 def check_arguments(arguments: dict, schema: dict, message: str, previous: dict | None = None) -> Grounding:
@@ -82,8 +151,12 @@ def check_arguments(arguments: dict, schema: dict, message: str, previous: dict 
     """
     properties, required = schema.get("properties", {}), set(schema.get("required", []))
     previous = previous or {}
-    kept = dict(arguments)
+    kept, unsaid = dict(arguments), set()
     for name, value in arguments.items():
+        if name not in required and isinstance(value, str) and not value.strip():
+            # A blank optional argument is the model's way of leaving it out; the server would refuse "" as a code.
+            del kept[name]
+            continue
         if name == "merchant" and name in previous and not _named(value, message):
             # A merchant the user did not name in a follow-up is the last call's: the model fell back to an older one.
             kept[name] = previous[name]
@@ -91,17 +164,32 @@ def check_arguments(arguments: dict, schema: dict, message: str, previous: dict 
         if (name in previous and previous[name] == value) or _grounded(name, value, properties.get(name, {}), message):
             continue
         if name in required:
-            return Grounding(name, dict(arguments))
-        del kept[name]
-    return Grounding(None, kept)
+            unsaid.add(name)
+        else:
+            del kept[name]
+    # A figure the model left out entirely is asked as well (MCP-17/18); other required arguments keep the server's refusal.
+    unsaid.update(name for name in required if name not in arguments and _figure(name, properties.get(name, {})))
+    order = [name for name in properties if name in unsaid]
+    return Grounding(order[0] if order else None, dict(arguments) if order else kept, tuple(order))
+
+
+def _figure(name: str, rule: dict) -> bool:
+    return name in ("currencyCode", "reductionPercent") or rule.get("type") == "number"
 
 
 def _grounded(name: str, value, rule: dict, message: str) -> bool:
     if name == "period":
         return mentions_period(message)
+    if name == "currencyCode":
+        return mentions_currency(message, value)
+    if name == "reductionPercent":
+        return mentions_percent(message, value)
+    if rule.get("type") == "number":
+        return mentions_amount(message, value)
     if rule.get("type") == "integer":
         return isinstance(value, int) and mentions_count(message, value)
-    # Merchant names are matched by the backend against the customer's own merchants (MerchantMatcher), not here.
+    # Merchant names are matched by the backend against the customer's own merchants (MerchantMatcher), not here; a
+    # category code is checked against the closed set by the MCP server.
     return True
 
 

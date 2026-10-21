@@ -1,3 +1,4 @@
+using BankingAI.Data;
 using BankingAI.Data.Validation;
 
 namespace BankingAI.Application.Analytics;
@@ -23,11 +24,12 @@ public sealed record CurrencySavings(
 /// <summary>
 /// Result of <see cref="SavingsSimulationService"/>: the complete months used (<c>From</c>–<c>To</c>), the assumption in
 /// <c>Method</c> and one row per currency with spending in those months (none: empty list). A merchant text that does not
-/// match exactly one of the customer's merchants gives no rows; <c>MerchantMatch</c> says why.
+/// match exactly one of the customer's merchants gives no rows; <c>MerchantMatch</c> says why. <c>CategoryDisplayName</c>
+/// is the category's Turkish name (MCP-18), as in <see cref="BudgetCheck"/>.
 /// </summary>
 public sealed record SavingsSimulation(
-    DateOnly From, DateOnly To, int Months, int ReductionPercent, string? CategoryCode, MerchantMatch? MerchantMatch,
-    string Method, IReadOnlyList<CurrencySavings> Currencies);
+    DateOnly From, DateOnly To, int Months, int ReductionPercent, string? CategoryCode, string? CategoryDisplayName,
+    MerchantMatch? MerchantMatch, string Method, IReadOnlyList<CurrencySavings> Currencies);
 
 /// <summary>
 /// "What if I spent less?" (ANA-14): the past monthly average times a reduction rate, per month and per year. Not
@@ -35,7 +37,7 @@ public sealed record SavingsSimulation(
 /// monthly amounts come from <see cref="SpendingComparisonService.GetMonthlyTrendAsync"/>, so they always equal the
 /// monthly trend; this service only adds the savings arithmetic.
 /// </summary>
-public sealed class SavingsSimulationService(SpendingComparisonService comparisons)
+public sealed class SavingsSimulationService(BankingDbContext db, SpendingComparisonService comparisons)
 {
     public const int DefaultMonths = 6;
     public const int MaximumReductionPercent = 100;
@@ -73,7 +75,10 @@ public sealed class SavingsSimulationService(SpendingComparisonService compariso
             .Where(c => c.TotalSpent > 0m)
             .ToList();
 
-        return new SavingsSimulation(from, to, months, query.ReductionPercent, query.CategoryCode, trend.MerchantMatch, Method, currencies);
+        // The trend has already refused an unknown code, so this only reads the name of a known one.
+        var categoryName = query.CategoryCode is { } code ? (await CategoryLookup.FindAsync(db, code, cancellationToken)).DisplayName : null;
+        return new SavingsSimulation(
+            from, to, months, query.ReductionPercent, query.CategoryCode, categoryName, trend.MerchantMatch, Method, currencies);
     }
 
     private static decimal Round(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero);

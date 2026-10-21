@@ -207,6 +207,99 @@ public sealed class ToolCallTests
              netflix.GetProperty("isOverdue").GetBoolean()));
     }
 
+    // --- MCP-17, MCP-18 ---
+
+    // Spent, count, remaining, over, daily average, projected month end, projected over, will exceed. Compared as numbers:
+    // a zero from Math.Max is written "0", not "0.00".
+    private static (decimal, int, decimal, decimal, decimal, decimal, decimal, bool) Budget(JsonElement figures) =>
+        (figures.GetProperty("spentAmount").GetDecimal(), figures.GetProperty("transactionCount").GetInt32(),
+         figures.GetProperty("remainingAmount").GetDecimal(), figures.GetProperty("overAmount").GetDecimal(),
+         figures.GetProperty("dailyAverage").GetDecimal(), figures.GetProperty("projectedMonthEnd").GetDecimal(),
+         figures.GetProperty("projectedOverAmount").GetDecimal(), figures.GetProperty("willExceed").GetBoolean());
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Budget_of_a_category_has_the_apis_figures()
+    {
+        var result = await CallAsync(Ada, "check_budget", """{"amount":1000,"currencyCode":"TRY","categoryCode":"FOOD"}""");
+
+        // 10 of 31 days: 590 / 10 = 59 a day; 590 × 31 / 10 = 1.829 at month end, 829 over the budget.
+        Assert.Equal(("TRY", 1000m, "FOOD", "Yeme & İçme"),
+            (result.GetProperty("currencyCode").GetString(), result.GetProperty("budgetAmount").GetDecimal(),
+             result.GetProperty("categoryCode").GetString(), result.GetProperty("categoryDisplayName").GetString()));
+        var figures = result.GetProperty("figures");
+        Assert.Equal((590m, 4, 410m, 0m, 59m, 1829m, 829m, true), Budget(figures));
+        Assert.Equal((10, 31, "LinearDailyAverage"),
+            (figures.GetProperty("elapsedDays").GetInt32(), figures.GetProperty("daysInMonth").GetInt32(), figures.GetProperty("projectionMethod").GetString()));
+        Assert.Equal(("2026-10-01", "2026-10-10"),
+            (result.GetProperty("period").GetProperty("startDate").GetString(), result.GetProperty("period").GetProperty("endDate").GetString()));
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("""{"amount":1000,"currencyCode":"TRY"}""", 735, 5, 265, 0, 73.50, 2278.50, 1278.50, true)]
+    [InlineData("""{"amount":300,"currencyCode":"TRY","merchant":"starbucks"}""", 375, 2, 0, 75, 37.50, 1162.50, 862.50, true)]
+    [InlineData("""{"amount":100,"currencyCode":"USD"}""", 0, 0, 100, 0, 0, 0, 0, false)] // no USD spending is a real 0
+    public async Task Budget_of_the_total_or_a_merchant_has_the_apis_figures(
+        string arguments, double spent, int count, double remaining, double over, double average, double projected, double projectedOver, bool exceeds)
+    {
+        var figures = (await CallAsync(Ada, "check_budget", arguments)).GetProperty("figures");
+
+        Assert.Equal(((decimal)spent, count, (decimal)remaining, (decimal)over, (decimal)average, (decimal)projected, (decimal)projectedOver, exceeds),
+            Budget(figures));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Budget_of_an_ambiguous_merchant_has_no_figures()
+    {
+        var result = await CallAsync(Ege, "check_budget", """{"amount":500,"currencyCode":"TRY","merchant":"şehir"}""");
+
+        Assert.Equal("Ambiguous", result.GetProperty("merchantMatch").GetProperty("status").GetString());
+        Assert.Equal(["Şehir Ulaşım", "Şehirlerarası Otobüs"],
+            result.GetProperty("merchantMatch").GetProperty("candidates").EnumerateArray().Select(c => c.GetString()));
+        Assert.Equal(JsonValueKind.Null, result.GetProperty("figures").ValueKind);
+    }
+
+    // Total spent, monthly average, monthly saving, annual saving of the single TRY row.
+    private static (decimal, decimal, decimal, decimal) Savings(JsonElement result)
+    {
+        var tl = Assert.Single(result.GetProperty("currencies").EnumerateArray());
+        Assert.Equal("TRY", tl.GetProperty("currencyCode").GetString());
+        return (tl.GetProperty("totalSpent").GetDecimal(), tl.GetProperty("monthlyAverage").GetDecimal(),
+                tl.GetProperty("monthlySaving").GetDecimal(), tl.GetProperty("annualSaving").GetDecimal());
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Savings_of_a_merchant_use_the_last_six_complete_months_when_none_is_given()
+    {
+        var result = await CallAsync(Ada, "simulate_savings", """{"reductionPercent":50,"merchant":"Starbucks"}""");
+
+        // April-September at 185 a month: half is 92,50 a month and 1.110 a year; the running October is not averaged.
+        Assert.Equal(("2026-04-01", "2026-09-30", 6, 50, "FullMonthAverageTimesReduction"),
+            (result.GetProperty("from").GetString(), result.GetProperty("to").GetString(), result.GetProperty("months").GetInt32(),
+             result.GetProperty("reductionPercent").GetInt32(), result.GetProperty("method").GetString()));
+        Assert.Equal((1110m, 185m, 92.50m, 1110m), Savings(result));
+        Assert.Equal([4, 5, 6, 7, 8, 9],
+            result.GetProperty("currencies")[0].GetProperty("monthlyAmounts").EnumerateArray().Select(m => m.GetProperty("month").GetInt32()));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Savings_of_the_total_and_of_a_category_over_three_months()
+    {
+        var total = await CallAsync(Ada, "simulate_savings", """{"reductionPercent":10}""");
+        var food = await CallAsync(Ada, "simulate_savings", """{"reductionPercent":50,"categoryCode":"FOOD","months":3}""");
+
+        // 5 × 514,98 + 624,98 = 3.199,88 over six months; food in July-September is 185 + 185 + 295 = 665.
+        Assert.Equal((3199.88m, 533.31m, 53.33m, 639.98m), Savings(total));
+        Assert.Equal(("2026-07-01", "FOOD", "Yeme & İçme"),
+            (food.GetProperty("from").GetString(), food.GetProperty("categoryCode").GetString(), food.GetProperty("categoryDisplayName").GetString()));
+        // 665 / 3 = 221,666…; half: 665 × 50 / 300 = 110,83 a month, 665 × 50 × 12 / 300 = 1.330 a year.
+        Assert.Equal((665m, 221.67m, 110.83m, 1330m), Savings(food));
+    }
+
     [Fact]
     [Trait("Category", "PostgreSQL")]
     public async Task Recurring_payments_come_from_the_tokens_customer_only()

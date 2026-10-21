@@ -31,7 +31,10 @@ public sealed class SpendingTools(
 
     /// <summary><c>get_spending_summary</c>: total spending per currency, with the unclassified part.</summary>
     [McpServerTool(Name = "get_spending_summary", ReadOnly = true, Destructive = false, UseStructuredContent = true)]
-    [Description("Bir dönemdeki toplam harcamayı para birimi başına döndürür; \"ne harcadım / ne kadar harcadım\" soruları için. " + PeriodHelp)]
+    // MCP-17/18: with check_budget listed, "Dün ne harcadım?" went to get_highest_transactions on every run, whatever the budget's
+    // own description said; "ilk tercih" brought it back (eval S01) without moving the highest-transaction cases.
+    [Description("Bir dönemdeki toplam harcamayı para birimi başına döndürür; \"ne harcadım / ne kadar harcadım\" gibi genel harcama "
+        + "soruları için ilk tercih. " + PeriodHelp)]
     public Task<SpendingSummary> GetSpendingSummaryAsync(ToolPeriod period, CancellationToken cancellationToken) =>
         ToolErrors.RunAsync(() => summaries.GetAsync(Spending(period), cancellationToken), logger);
 

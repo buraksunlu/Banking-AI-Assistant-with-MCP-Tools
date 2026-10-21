@@ -2,7 +2,9 @@
 
 K3-A: the question is remembered for one reply, for five minutes, under a digest of the user's token. K4-B: the model may word
 the question, but the options are always the backend's closed set or a fixed list, and the reply is matched in code against
-the stored options, whatever the model wrote. K5-A: a reply that is not one of them is a new question.
+the stored options, whatever the model wrote. K5-A: a reply that is not one of them is a new question. MCP-17/18 add the
+user's own figures (amount, currency, cut): those questions are always the fixed text, because a worded one could suggest a
+figure, and ``later`` holds the figures still to be asked after this one.
 """
 
 import re
@@ -10,7 +12,9 @@ import time
 from dataclasses import dataclass
 
 from answer_check import FORBIDDEN_MENTIONS, fold_turkish
-from grounding import count_in, period_in
+from decimal import Decimal
+
+from grounding import amounts_in, count_in, currency_in, percent_in, period_in
 from memory import TokenMemory
 
 # The periods offered when the user named none; any other tool period in the reply counts too (grounding.period_in).
@@ -18,6 +22,10 @@ PERIOD_OPTIONS = (("bu ay", "ThisMonth"), ("geçen ay", "LastMonth"), ("son 3 ay
 MAX_REPLY_WORDS = 4
 # Examples for a count, not numbered: "1" then means one month, not the first option.
 MONTH_EXAMPLES = (3, 6, 12)
+# The currencies of a budget as people say them; the value is the tool's code.
+CURRENCY_OPTIONS = (("TL", "TRY"), ("Euro", "EUR"), ("Dolar", "USD"), ("Sterlin", "GBP"))
+# Examples for a cut, not numbered: "20" then means 20 %, not an option.
+PERCENT_EXAMPLES = (10, 25, 50)
 _ORDINALS = {"birinci": 1, "ilk": 1, "ilki": 1, "ikinci": 2, "ikincisi": 2, "üçüncü": 3, "üçüncüsü": 3, "dördüncü": 4,
              "dördüncüsü": 4, "beşinci": 5, "beşincisi": 5}
 
@@ -32,7 +40,8 @@ class Option:
 
 @dataclass(frozen=True)
 class Pending:
-    """A tool call waiting for one argument: ``arguments`` holds the rest, ``kind`` is "period", "count" or "merchant"."""
+    """A tool call waiting for one argument: ``arguments`` holds the rest, ``kind`` is "period", "count", "merchant",
+    "amount", "currency" or "percent"; ``later`` names the figures to ask once this one is answered (MCP-17)."""
 
     tool: str
     arguments: dict
@@ -43,11 +52,17 @@ class Pending:
     asked: str = ""
     minimum: int | None = None
     maximum: int | None = None
+    later: tuple[str, ...] = ()
 
     @property
     def numbered(self) -> bool:
-        """Periods and merchants are numbered choices; counts are examples."""
-        return self.kind != "count"
+        """Periods, merchants and currencies are numbered choices; counts, amounts and cuts are examples."""
+        return self.kind in ("period", "merchant", "currency")
+
+    @property
+    def model_worded(self) -> bool:
+        """True when the model may word the question (CHAT-03 K4-B); a figure question is always the fixed text."""
+        return self.kind in ("period", "count", "merchant")
 
 
 def ask_period(tool: str, arguments: dict, question: str) -> Pending:
@@ -69,6 +84,26 @@ def ask_merchant(tool: str, arguments: dict, asked: str, candidates: list[str], 
     return Pending(tool, rest, "merchant", "merchant", tuple(Option(c, c) for c in candidates), question, asked=asked)
 
 
+def ask_amount(tool: str, arguments: dict, question: str, later: tuple[str, ...] = ()) -> Pending:
+    """The question for a budget amount the user did not write (MCP-17 K3-A)."""
+    rest = {k: v for k, v in arguments.items() if k != "amount"}
+    return Pending(tool, rest, "amount", "amount", (), question, later=later)
+
+
+def ask_currency(tool: str, arguments: dict, question: str, later: tuple[str, ...] = ()) -> Pending:
+    """The question for a currency the user did not name (MCP-17 K2-A)."""
+    rest = {k: v for k, v in arguments.items() if k != "currencyCode"}
+    options = tuple(Option(label, value) for label, value in CURRENCY_OPTIONS)
+    return Pending(tool, rest, "currencyCode", "currency", options, question, later=later)
+
+
+def ask_percent(tool: str, arguments: dict, question: str, later: tuple[str, ...] = ()) -> Pending:
+    """The question for a cut the user did not name (MCP-18 K4-A)."""
+    rest = {k: v for k, v in arguments.items() if k != "reductionPercent"}
+    examples = tuple(Option(f"%{n}", n) for n in PERCENT_EXAMPLES)
+    return Pending(tool, rest, "reductionPercent", "percent", examples, question, minimum=1, maximum=100, later=later)
+
+
 def resolve(pending: Pending, reply: str) -> dict | None:
     """The completed arguments when the reply is one of the choices; None when it is something else (a new question)."""
     # A reply is short ("geçen ay", "son 3 ay olsun", "Şehir Ulaşım"); a longer message that happens to name a period or a
@@ -76,7 +111,13 @@ def resolve(pending: Pending, reply: str) -> dict | None:
     if len(reply.split()) > MAX_REPLY_WORDS:
         return None
     value = _value(pending, reply)
-    return None if value is None else {**pending.arguments, pending.argument: value}
+    if value is None:
+        return None
+    completed = {**pending.arguments, pending.argument: value}
+    # "3000 TL" answers the amount and the currency asked next in one go.
+    if pending.kind == "amount" and "currencyCode" in pending.later and (currency := currency_in(reply)) is not None:
+        completed["currencyCode"] = currency
+    return completed
 
 
 def template(pending: Pending) -> str:
@@ -84,9 +125,16 @@ def template(pending: Pending) -> str:
     if pending.kind == "count":
         numbers = [str(o.value) for o in pending.options]
         return f"Kaç aylık bakayım? Örneğin son {', '.join(numbers[:-1])} ya da {numbers[-1]} ay."
+    if pending.kind == "amount":
+        return "Bütçeniz ne kadar? Örneğin 3.000 TL."
+    if pending.kind == "percent":
+        labels = [o.label for o in pending.options]
+        return f"Ne kadar azaltmayı düşünüyorsunuz? Örneğin {', '.join(labels[:-1])} ya da {labels[-1]}."
     choices = " ".join(f"{n}) {o.label}" for n, o in enumerate(pending.options, start=1))
     if pending.kind == "merchant":
         return f"‘{pending.asked}’ birden fazla işyeriyle eşleşti: {choices}. Hangisini kastettiniz?"
+    if pending.kind == "currency":
+        return f"Bütçeniz hangi para biriminde? {choices}"
     return f"Hangi dönem için? {choices}"
 
 
@@ -126,16 +174,30 @@ class PendingStore:
         return self._memory.pop(token)
 
 
-def _value(pending: Pending, reply: str) -> str | int | None:
+def _value(pending: Pending, reply: str) -> str | int | float | None:
     if pending.kind == "count":
         count = count_in(reply)
         return count if count is not None and pending.minimum <= count <= pending.maximum else None
+    if pending.kind == "amount":
+        amount = next((a for a in amounts_in(reply) if a > 0), None)
+        return None if amount is None else _json_number(amount)
+    if pending.kind == "percent":
+        # A bare "20" is the cut itself: the examples are not numbered.
+        cut = percent_in(reply) or count_in(reply)
+        return cut if cut is not None and pending.minimum <= cut <= pending.maximum else None
     choice = _choice_number(reply)
     if choice is not None:
         return pending.options[choice - 1].value if 1 <= choice <= len(pending.options) else None
     if pending.kind == "period":
         return period_in(reply)
+    if pending.kind == "currency":
+        return currency_in(reply)
     return _merchant(pending.options, reply)
+
+
+def _json_number(amount: Decimal) -> int | float:
+    # The same types the model's own arguments arrive in; two decimals survive a float exactly as JSON text ("2500.5").
+    return int(amount) if amount == amount.to_integral_value() else float(amount)
 
 
 def _choice_number(reply: str) -> int | None:

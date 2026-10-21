@@ -1,4 +1,4 @@
-"""Turns a tool's backend result into the facts the model explains, or into a fixed reply (AI-14a, MCP-08).
+"""Turns a tool's backend result into the facts the model explains, or into a fixed reply (AI-14a, MCP-08, MCP-17/18).
 
 Amounts arrive as Decimal (the gateway parses JSON numbers that way) and leave as Turkish text (formatting.py). Nothing is
 added up or computed here: every amount, share and change is the backend's. The bank's raw transaction text never
@@ -22,6 +22,13 @@ RECURRING_RULE = ("Düzenli ödemeler son 6 aydaki harcamalardan bulunur (en az 
                   "sonraki ödeme tarihleri tahminidir, kesin değildir.")
 UPCOMING_RULE = ("Tarih ve tutarlar düzenli ödemelerin geçmişine göre tahmindir (son ödeme tutarı, her ayın aynı günü); "
                  "kesin değildir.")
+BUDGET_RULE = ("Ay sonu tahmini doğrusaldır: bugüne kadarki günlük ortalama ayın sonuna kadar sürer varsayılır; kesin değildir. "
+               "Bütçe kaydedilmez, yalnız bu soru için kullanılır.")
+WITHIN_BUDGET = "Bu hızla bütçe içinde kalınır."
+SAVINGS_RULE = ("Tahmin, geçmiş aylık ortalamanın aynen süreceği varsayımına dayanır; faiz, getiri ve fiyat artışı hesaba "
+                "katılmaz. Yatırım tavsiyesi değildir.")
+NO_SAVINGS_SPENDING = "Bu dönemde bu hedefte harcama bulunamadı; tasarruf hesaplanamaz."
+TOTAL_TARGET = "Toplam harcama"
 # K6-B: a long list keeps the model's facts short; only the number of the rest is said, never an amount added up here.
 LIST_LIMIT = 5
 
@@ -48,6 +55,8 @@ def outcome_for(tool: str, arguments: dict, result: dict) -> ToolOutcome:
         "get_monthly_trend": _trend,
         "get_recurring_payments": _recurring,
         "get_upcoming_payments": _upcoming,
+        "check_budget": _budget,
+        "simulate_savings": _savings,
     }
     return builders[tool](arguments, result)
 
@@ -77,18 +86,12 @@ def _categories(arguments: dict, result: dict) -> ToolOutcome:
 
 
 def _merchant(arguments: dict, result: dict) -> ToolOutcome:
-    asked = arguments["merchant"]
     match = result["match"]
-    # Several merchants: the candidates (the backend's closed set) go back to the chat, which asks and remembers the
-    # question (CHAT-03). An unknown name gets a fixed sentence: nothing for the model to add (AI-14a K3-A).
-    if match["status"] == "Ambiguous":
-        return ToolOutcome([], candidates=tuple(match["candidates"]))
-    if match["status"] == "NotFound":
-        return ToolOutcome([], ("answer", f"‘{asked}’ adında bir işyerinde harcamanız bulunmuyor."))
+    unmatched = _unmatched(arguments, match)
+    if unmatched is not None:
+        return unmatched
 
-    facts = [_period(result), _fact("İşyeri", match["merchant"])]
-    if match["isPartialMatch"]:
-        facts.append(_fact("Not", f"‘{asked}’ yazımı ‘{match['merchant']}’ ile eşleşti."))
+    facts = [_period(result), _fact("İşyeri", match["merchant"]), *_spelling(arguments, match)]
     rows = result["currencies"]
     for row in rows:
         suffix = _suffix(row, rows)
@@ -202,6 +205,76 @@ def _upcoming(arguments: dict, result: dict) -> ToolOutcome:
     elif len(totals) > 1:
         facts.append(_fact("Not", CURRENCIES_APART))
     return ToolOutcome([*facts, _fact("Not", UPCOMING_RULE)])
+
+
+def _budget(arguments: dict, result: dict) -> ToolOutcome:
+    match = result["merchantMatch"]
+    unmatched = _unmatched(arguments, match)
+    if unmatched is not None:
+        return unmatched
+
+    figures, currency = result["figures"], result["currencyCode"]
+    # The day count is the projection's base: the model can only say "ayın 10. gününde" if it sees it.
+    when = f"{_range(result['period'])} (ayın {figures['elapsedDays']}. günü; ay {figures['daysInMonth']} gün)"
+    facts = [_fact("Dönem", when), _fact("Hedef", _target(result, match)), *_spelling(arguments, match),
+             _fact("Bütçe", money(result["budgetAmount"], currency)),
+             _fact("Harcanan", f"{money(figures['spentAmount'], currency)} ({figures['transactionCount']} işlem)")]
+    if figures["isOverBudget"]:
+        facts.append(_fact("Bütçe aşımı", money(figures["overAmount"], currency)))
+    else:
+        facts.append(_fact("Kalan", money(figures["remainingAmount"], currency)))
+    facts.append(_fact("Günlük ortalama", money(figures["dailyAverage"], currency)))
+    facts.append(_fact("Bu hızla tahmini ay sonu", money(figures["projectedMonthEnd"], currency)))
+    if figures["willExceed"]:
+        facts.append(_fact("Tahmini aşım", money(figures["projectedOverAmount"], currency)))
+    else:
+        facts.append(_fact("Tahmin", WITHIN_BUDGET))
+    return ToolOutcome([*facts, _fact("Not", BUDGET_RULE)])
+
+
+def _savings(arguments: dict, result: dict) -> ToolOutcome:
+    match = result["merchantMatch"]
+    unmatched = _unmatched(arguments, match)
+    if unmatched is not None:
+        return unmatched
+
+    used = period(date.fromisoformat(result["from"]), date.fromisoformat(result["to"]))
+    when = f"{used} ({result['months']} tam ay; devam eden ay dahil değil)"
+    facts = [_fact("Dönem", when), _fact("Hedef", _target(result, match)), *_spelling(arguments, match),
+             _fact("Azaltma oranı", f"%{result['reductionPercent']}")]
+    rows = result["currencies"]
+    for row in rows:
+        suffix, currency = _suffix(row, rows), row["currencyCode"]
+        # Every month, an empty one as 0: the average divides by all of them (ANA-14 K2-A), and the model may say why.
+        facts.extend(_fact(f"{month(m['year'], m['month'])}{suffix}", money(m["amount"], currency)) for m in row["monthlyAmounts"])
+        facts.append(_fact(f"Toplam harcama{suffix}", money(row["totalSpent"], currency)))
+        facts.append(_fact(f"Aylık ortalama{suffix}", money(row["monthlyAverage"], currency)))
+        facts.append(_fact(f"Tahmini aylık tasarruf{suffix}", money(row["monthlySaving"], currency)))
+        facts.append(_fact(f"Tahmini yıllık tasarruf{suffix}", money(row["annualSaving"], currency)))
+    return ToolOutcome([*_closing(facts, rows, NO_SAVINGS_SPENDING), _fact("Not", SAVINGS_RULE)])
+
+
+def _unmatched(arguments: dict, match: dict | None) -> ToolOutcome | None:
+    # Several merchants: the candidates (the backend's closed set) go back to the chat, which asks and remembers the
+    # question (CHAT-03). An unknown name gets a fixed sentence: nothing for the model to add (AI-14a K3-A).
+    if match is None:
+        return None
+    if match["status"] == "Ambiguous":
+        return ToolOutcome([], candidates=tuple(match["candidates"]))
+    if match["status"] == "NotFound":
+        return ToolOutcome([], ("answer", f"‘{arguments['merchant']}’ adında bir işyerinde harcamanız bulunmuyor."))
+    return None
+
+
+def _spelling(arguments: dict, match: dict | None) -> list[Fact]:
+    if match is None or not match["isPartialMatch"]:
+        return []
+    return [_fact("Not", f"‘{arguments['merchant']}’ yazımı ‘{match['merchant']}’ ile eşleşti.")]
+
+
+def _target(result: dict, match: dict | None) -> str:
+    # The category's name comes from the backend (K6-A); no second copy of the category table lives here.
+    return result["categoryDisplayName"] or (match["merchant"] if match else TOTAL_TARGET)
 
 
 def _rest(items: list, noun: str, suffix: str) -> list[Fact]:
