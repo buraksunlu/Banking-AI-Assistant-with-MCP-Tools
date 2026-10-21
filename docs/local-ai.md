@@ -614,3 +614,53 @@ ikincisi 1,1 sn; istekten sonra kalan süre 29 dk (eskiden her istek 5 dk'ya çe
 Sınırlar: 30 dk'dan uzun boşluktan sonraki ilk soru yine soğuk (~15 sn; sohbet ekranı açılınca ısıtma ya da `-1` çözümü). Ölçümlerde
 model dosyaları macOS dosya önbelleğindeydi; yeniden başlatma sonrası harici SSD'den gerçek okuma daha uzun sürebilir (ölçülemedi,
 önbelleği boşaltmak `sudo` ister); ısıtma bu süreyi de kullanıcıdan önce harcar. Model son kullanımdan sonra 30 dk 4 GB bellek tutar.
+
+# Belirsizlikte geri soru (CHAT-03, 20-21 Ekim 2026)
+
+Sorun (gerçek zincirde ölçüldü): araçların dönemi zorunlu olduğu için model her zaman bir dönem yazıyordu. "Ne kadar harcadım?" →
+sessizce "bu ay" (735,00 TL), "Starbucks'a ne kadar harcadım?" → "bu yıl" (1.485,00 TL), "aylara göre" → "6 ay" (ilk denemede 502).
+Belirsiz işyeri geri soruluyordu ama cevap bağlanmıyordu: Ege "Son 6 ayda şehir'e…" → "Şehir Ulaşım mı…?" → "Şehir Ulaşım" yazınca
+dönem kayboluyor, **700,00 TL (bu ay)** dönüyordu; doğrusu **5.600,00 TL (13 işlem)**.
+
+Kullanıcı kararları: K1-C (eksik dönem + eksik sayı + belirsiz işyeri, tek "dayanak" kuralı), K2-A (kodla Türkçe zaman/sayı sözlüğü),
+K3-A (AI servisinde bellekte bekleyen soru, token özetine bağlı, 5 dk), K4-B (soruyu model yazar; kod kontrol eder, geçmezse sabit
+şablon), K5-A (seçenek dışı cevap yeni soru).
+
+```text
+mesaj ─► bekleyen soru var mı? ── cevap eşleşti ─► eksik argümanı doldur ─► araç ─► açıkla   (model seçimi yok)
+         │                      └ eşleşmedi ─► bekleyeni sil, yeni soru
+         └► model aracı seçer ─► grounding.check_arguments (dönem/sayı mesajda var mı?)
+                                   ├ yok (zorunlu) ─► geri soru + bekleyen soru (araç çalışmaz)
+                                   ├ yok (isteğe bağlı, ör. days) ─► argüman düşer, backend varsayılanı
+                                   └ var ─► MCP aracı ─► işyeri belirsiz ─► geri soru + bekleyen soru
+```
+
+- **`grounding.py`** (standart kütüphane): `mentions_period` (bugün/dün/hafta/ay/yıl/sene/N gün/ay adları; "aylık", "aylara",
+  "market" dönem sayılmaz), `period_in` (cevaptaki ifadeyi araç dönemine çevirir; araçta olmayanı yuvarlamaz: "geçen yıl", "son 5 ay" →
+  yok), `mentions_count`/`count_in` (rakam ya da "altı", "on iki"; "yıl" = 12), `check_arguments` (yayınlanan şemaya göre: zorunlu ve
+  dayanaksız → sorulur, isteğe bağlı ve dayanaksız → düşer). AI-06 cevap kontrolünün girişteki ikizi.
+- **`clarification.py`**: `Pending` (araç, kalan argümanlar, eksik argüman, seçenekler, asıl soru), `PendingStore` (anahtar
+  `sha256(token)`: AI servisi token doğrulamaz, uydurma token başkasının sorusuna ulaşamasın; 5 dk; kullanıcı başına bir kayıt; üst
+  sınır 1000; kilitli), `resolve` (sıra numarası "1"/"ikincisi", dönem ifadesi, işyeri adı ya da tek eşleşen parça; **en fazla 4
+  kelime**: daha uzun mesaj yeni sorudur, "Bu hafta Starbucks'a ne kadar verdim?" Starbucks'ı kaybetmesin), `template` (sabit sorular),
+  `check_question` (soru işareti var, her seçenek yazılmış, seçenek/sayı/tutar eklenmemiş).
+- **Seçenekler** modelden değil: dönem için sabit "bu ay / geçen ay / son 3 ay" (cevapta araçların diğer dönemleri de geçerli), ay sayısı
+  için örnek "3, 6 ya da 12" (numarasız: "1" bir ay demektir), işyeri için backend'in adayları (`facts` artık cümle değil `candidates`
+  döndürür). "İkisi de" yok (MCP-15).
+- **Model sorusu** (`LangChainClarificationWriter`, `prompts.CLARIFY_PROMPT_VERSION = clarify-v1`, `num_predict=120`, en fazla 8 sn):
+  ilk prompt'taki "Eksik bilgi: hangi işyeri" etiketi soruya aynen kopyalandı → durum cümlesi yazılıyor ("Kullanıcının yazdığı
+  ‘şehir’ adı birden fazla işyerine uyuyor"). Model bazen yalnız listeyi ya da soru olmayan bir cümle yazdı → "?" zorunlu.
+  Ön deneme: 6/6 seçenek doğru, 1,3–2,0 sn. Gerçek zincirde dönem sorusu çoğunlukla modelin cümlesi ("Hangi döneme bakmamı
+  istersiniz?"), işyeri ve ay sorusu çoğunlukla şablon.
+- **Ölçüm** (`tool_selection_eval.py`, 31 vaka): S27–S31 "clarify" (dönem/sayı söylenmemiş; tahmin = hata), diğer 26 vakada
+  dayanak kontrolü gereksiz soru sormamalı. İki koşuda **31/31**; bu 5 vaka eski kodda 0/5 olurdu.
+- **Uçtan uca** (Ada/Ege, demo anı): "Ne kadar harcadım?" → soru → "geçen ay" → 624,98 TL (4 işlem); Ege "şehir" → soru → "1" →
+  5.600,00 TL (13 işlem); "aylara göre" → soru → "6" → 6 aylık seri; "Starbucks'a…" → soru → "2" → 185,00 TL; soru sonrası
+  "Aboneliklerim neler?" yeni soru olarak cevaplandı, ardından tek başına "geçen ay" eski soruya bağlanmadı. Geri soru turu 2,4–4 sn;
+  servis açıldıktan sonraki ilk geri soru ~8 sn.
+- **Bulgu (düzeltildi):** MCP-08/AI-15'te `test_chat.py`'ye eklenen testler `skipif` işaretinin altına girmişti: gerçek modeli kullanan
+  `test_real_model_picks_yesterday` işaretini kaybetmiş, sahte sunuculu test gereksiz yere atlanıyordu.
+
+Sınırlar: takip sorusu yok ("peki geçen ay?", CHAT-02; bekleyen soru onun ilk parçası); "kahve" gibi kavramsal ad MCP-15'te; bekleyen soru
+yalnız bellekte (servis yeniden başlarsa kaybolur); sözlükte olmayan zaman ifadesi gereksiz bir soruya yol açabilir; karşılaştırma türü
+(`comparison`) dayanak kontrolünde değil; açıklama kalitesi (ör. "Nisan–Eylül sabit" gibi hatalı özet) bu adımın konusu değil (AI-10).

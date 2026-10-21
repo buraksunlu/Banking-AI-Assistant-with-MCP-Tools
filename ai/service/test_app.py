@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from answer_check import AnswerRejected
 from app import create_app, get_chat_service, get_explainer, get_readiness, get_tools_ready
-from chat import ChatReply, ChatService, LangChainToolSelector, ToolCall
+from chat import ChatReply, ChatService, LangChainClarificationWriter, LangChainToolSelector, ToolCall
 from contracts import Fact
 from explainer import LangChainExplainer
 import ollama_client
@@ -364,5 +364,6 @@ def test_service_wires_the_real_chat_parts():
     service = create_app({**ENV, "BANKINGAI_MCP_URL": "http://mcp.test:9000/mcp"}).state.chat_service
     assert isinstance(service, ChatService)
     assert isinstance(service.selector, LangChainToolSelector)
+    assert isinstance(service.writer, LangChainClarificationWriter)
     assert isinstance(service.gateway, McpToolGateway)
     assert service.gateway.settings.url == "http://mcp.test:9000/mcp"

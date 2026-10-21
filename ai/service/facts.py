@@ -28,10 +28,12 @@ LIST_LIMIT = 5
 
 @dataclass(frozen=True)
 class ToolOutcome:
-    """Facts for the model to explain, or a fixed reply that needs no model (``reply`` = (type, text))."""
+    """Facts for the model to explain, a fixed reply that needs no model (``reply`` = (type, text)), or the merchants the
+    user has to choose from (``candidates``)."""
 
     facts: list[Fact]
     reply: tuple[str, str] | None = None
+    candidates: tuple[str, ...] = ()
 
 
 def outcome_for(tool: str, arguments: dict, result: dict) -> ToolOutcome:
@@ -77,12 +79,10 @@ def _categories(arguments: dict, result: dict) -> ToolOutcome:
 def _merchant(arguments: dict, result: dict) -> ToolOutcome:
     asked = arguments["merchant"]
     match = result["match"]
-    # Ambiguous and unknown names get a fixed sentence: the names come from the backend's closed set, so there is
-    # nothing for the model to add and nothing it could get wrong (K3-A).
+    # Several merchants: the candidates (the backend's closed set) go back to the chat, which asks and remembers the
+    # question (CHAT-03). An unknown name gets a fixed sentence: nothing for the model to add (AI-14a K3-A).
     if match["status"] == "Ambiguous":
-        return ToolOutcome([], ("clarification",
-                                f"‘{asked}’ birden fazla işyeriyle eşleşti: {', '.join(match['candidates'])}. "
-                                "Hangisini kastettiniz?"))
+        return ToolOutcome([], candidates=tuple(match["candidates"]))
     if match["status"] == "NotFound":
         return ToolOutcome([], ("answer", f"‘{asked}’ adında bir işyerinde harcamanız bulunmuyor."))
 

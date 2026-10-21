@@ -81,3 +81,26 @@ CLARIFY_TEXT = ("Sorunuzu tam anlayamadım. Tek bir soru olarak ve dönemiyle so
 def build_tool_messages(message: str) -> list[dict]:
     """The chat messages for tool selection: the rules and the user's message (AI-14a)."""
     return [{"role": "system", "content": TOOL_SYSTEM_PROMPT}, {"role": "user", "content": _neutralize(message)}]
+
+
+CLARIFY_PROMPT_VERSION = "clarify-v1"
+
+# CHAT-03 K4-B: the model only words the question; the options come from the backend or a fixed list, and the code checks
+# the result (clarification.check_question) before it is shown, else the fixed question is.
+CLARIFY_SYSTEM_PROMPT = ("Sen bir bankacılık harcama asistanısın. Kullanıcının sorusunu cevaplamak için bir bilgi eksik. Kullanıcıya "
+                         "kısa ve kibar bir geri soru yaz; 'siz' diye hitap et. Seçenek olarak YALNIZ verilen seçenekleri, verilen "
+                         "yazımla yaz; başka seçenek ekleme, hiçbirini atlama. Rakam, tutar ya da cevap verme.")
+# What is missing, said as a fact about the question: a bare label ("Eksik bilgi: hangi işyeri") was copied into the
+# question word for word in the CHAT-03 trial.
+_SITUATION = {"period": "Kullanıcı hangi dönemi sorduğunu söylemedi.",
+              "count": "Kullanıcı kaç aylık bir dönem istediğini söylemedi.",
+              "merchant": "Kullanıcının yazdığı ‘{asked}’ adı birden fazla işyerine uyuyor; hangisini kastettiğini sor."}
+
+
+def build_clarify_messages(question: str, kind: str, options: list[str], numbered: bool, asked: str = "") -> list[dict]:
+    """The chat messages for wording one question back: the rules, the user's question, the situation and the options."""
+    how = "Seçenekleri numaralandır." if numbered else "Seçenekleri numaralandırma, örnek olarak yaz."
+    situation = _SITUATION[kind].format(asked=_neutralize(asked))
+    content = (f"Kullanıcının sorusu: {_neutralize(question)}\nDurum: {situation}\n"
+               f"Seçenekler: {'; '.join(options)}\n{how}")
+    return [{"role": "system", "content": CLARIFY_SYSTEM_PROMPT}, {"role": "user", "content": content}]

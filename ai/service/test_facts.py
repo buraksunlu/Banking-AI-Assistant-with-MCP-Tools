@@ -126,8 +126,8 @@ def test_ambiguous_merchant_asks_back_without_the_model():
 
     outcome = outcome_for("get_merchant_spending", {"merchant": "şehir", "period": "Last3Months"}, result)
 
-    assert outcome.reply == ("clarification",
-                             "‘şehir’ birden fazla işyeriyle eşleşti: Şehir Ulaşım, Şehirlerarası Otobüs. Hangisini kastettiniz?")
+    # CHAT-03: the candidates go back to the chat, which asks (and remembers the question); nothing for the model to explain.
+    assert outcome == ToolOutcome([], candidates=("Şehir Ulaşım", "Şehirlerarası Otobüs"))
 
 
 def test_unknown_merchant_is_answered_without_the_model():
