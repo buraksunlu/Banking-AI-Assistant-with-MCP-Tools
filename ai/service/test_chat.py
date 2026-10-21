@@ -5,7 +5,7 @@ import pytest
 
 from chat import ChatReply, ChatService, ToolCall
 from contracts import Fact
-from ollama_client import OllamaSettings, Readiness, check_ready
+from ollama_client import OllamaSettings, OllamaTimeout, OllamaUnavailable, Readiness, check_ready
 from prompts import CLARIFY_TEXT, OUT_OF_SCOPE_TEXT
 from tools import BackendUnavailable, SessionInvalid, ToolArgumentsRejected
 
@@ -37,6 +37,18 @@ DEFINITIONS = [
                        + PERIOD_HELP,
         "parameters": {"type": "object", "properties": {
             "merchant": {"type": "string", "minLength": 1, "maxLength": 150}, "period": PERIOD}, "required": ["merchant", "period"]}}},
+]
+
+
+# MCP-16/24 as published: a required and an optional count.
+DEFINITIONS += [
+    {"type": "function", "function": {
+        "name": "get_monthly_trend", "description": "Son birkaç ayın harcamasını takvim ayı olarak döndürür.",
+        "parameters": {"type": "object", "properties": {"months": {"type": "integer", "minimum": 1, "maximum": 12}},
+                       "required": ["months"]}}},
+    {"type": "function", "function": {
+        "name": "get_upcoming_payments", "description": "Önümüzdeki günlerde beklenen ödemeleri döndürür.",
+        "parameters": {"type": "object", "properties": {"days": {"type": "integer", "minimum": 1, "maximum": 31, "default": 30}}}}},
 ]
 
 
@@ -73,7 +85,8 @@ class FakeGateway:
         self.calls.append((tool, arguments, token, deadline))
         if self.error:
             raise self.error
-        return self.result
+        # A list answers call by call (a clarification followed by the completed call).
+        return self.result.pop(0) if isinstance(self.result, list) else self.result
 
 
 class FakeExplainer:
@@ -85,12 +98,12 @@ class FakeExplainer:
         return self.answer
 
 
-def service(calls, gateway=None, explainer=None, seconds=2.0):
+def service(calls, gateway=None, explainer=None, seconds=2.0, writer=None):
     clock = FakeClock()
     selector = FakeSelector(clock, calls, seconds)
     gateway = gateway or FakeGateway()
     explainer = explainer or FakeExplainer()
-    chat = ChatService(selector, gateway, explainer, SETTINGS)
+    chat = ChatService(selector, gateway, explainer, SETTINGS, writer=writer)
     chat.clock = clock
     return chat, selector, gateway, explainer
 
@@ -192,6 +205,170 @@ def test_an_ambiguous_merchant_is_asked_back_without_the_explainer():
     assert explainer.calls == []
 
 
+# CHAT-03: guessed arguments are asked back, and the reply completes the stored question.
+
+AMBIGUOUS_CITY = {"period": {"kind": "Last6Months", "startDate": "2026-04-10", "endDate": "2026-10-10"},
+                  "match": {"status": "Ambiguous", "merchant": None, "isPartialMatch": False,
+                            "candidates": ["Şehir Ulaşım", "Şehirlerarası Otobüs"]}, "currencies": []}
+CITY_SIX_MONTHS = {"period": {"kind": "Last6Months", "startDate": "2026-04-10", "endDate": "2026-10-10"},
+                   "match": {"status": "Matched", "merchant": "Şehir Ulaşım", "isPartialMatch": False, "candidates": []},
+                   "currencies": [{"currencyCode": "TRY", "totalAmount": Decimal("5600.00"), "transactionCount": 13}]}
+LAST_MONTH = {"period": {"kind": "LastMonth", "startDate": "2026-09-01", "endDate": "2026-09-30"},
+              "currencies": [{"currencyCode": "TRY", "totalAmount": Decimal("624.98"), "transactionCount": 4,
+                              "uncategorizedAmount": Decimal("0.00"), "uncategorizedCount": 0}]}
+PERIOD_QUESTION = "Hangi dönem için? 1) bu ay 2) geçen ay 3) son 3 ay"
+
+
+class FakeWriter:
+    def __init__(self, text=None, error=None):
+        self.text, self.error, self.calls = text, error, []
+
+    def write(self, question, kind, options, numbered, deadline, asked=""):
+        self.calls.append((question, kind, options, numbered, deadline, asked))
+        if self.error:
+            raise self.error
+        return self.text
+
+
+def test_a_guessed_period_is_asked_back_and_nothing_runs():
+    chat, selector, gateway, explainer = service([ToolCall("get_spending_summary", {"period": "ThisMonth"})])
+
+    reply = chat.answer("Ne kadar harcadım?", TOKEN)
+
+    assert reply == ChatReply("clarification", PERIOD_QUESTION, [], [])
+    assert gateway.calls == [] and explainer.calls == []
+
+
+def test_the_reply_completes_the_question_without_the_model():
+    gateway = FakeGateway(LAST_MONTH)
+    chat, selector, gateway, explainer = service([ToolCall("get_spending_summary", {"period": "ThisMonth"})], gateway=gateway)
+    chat.answer("Ne kadar harcadım?", TOKEN)
+
+    reply = chat.answer("geçen ay", TOKEN)
+
+    called = ToolCall("get_spending_summary", {"period": "LastMonth"})
+    assert (reply.type, reply.tool_calls) == ("answer", [called])
+    # No second selection and no second listing: the stored question already names the tool.
+    assert len(selector.calls) == 1 and len(gateway.list_calls) == 1
+    # The reply's turn has its own deadline: 2 s of the first turn passed on the fake clock, so 32 s.
+    assert gateway.calls == [("get_spending_summary", {"period": "LastMonth"}, TOKEN, 32.0)]
+    assert explainer.calls[0][0] == "Ne kadar harcadım? (geçen ay)"
+    assert ("Toplam harcama", "624,98 TL") in [(f.label, f.text) for f in explainer.calls[0][1]]
+
+
+def test_a_merchant_choice_keeps_the_period_of_the_question():
+    gateway = FakeGateway([AMBIGUOUS_CITY, CITY_SIX_MONTHS])
+    call = ToolCall("get_merchant_spending", {"merchant": "şehir", "period": "Last6Months"})
+    chat, selector, gateway, explainer = service([call], gateway=gateway)
+
+    asked = chat.answer("Son 6 ayda şehir'e ne kadar harcadım?", TOKEN)
+    reply = chat.answer("1", TOKEN)
+
+    assert asked.answer == "‘şehir’ birden fazla işyeriyle eşleşti: 1) Şehir Ulaşım 2) Şehirlerarası Otobüs. Hangisini kastettiniz?"
+    assert gateway.calls[1][:2] == ("get_merchant_spending", {"period": "Last6Months", "merchant": "Şehir Ulaşım"})
+    assert reply.type == "answer"
+    assert ("Toplam harcama", "5.600,00 TL") in [(f.label, f.text) for f in explainer.calls[0][1]]
+
+
+def test_a_guessed_count_is_asked_and_the_number_completes_it():
+    window = {"year": 2026, "month": 10, "isPartial": True,
+              "period": {"kind": "Custom", "startDate": "2026-10-01", "endDate": "2026-10-10"}}
+    trend = {"months": [window], "merchantMatch": None, "currencies": []}
+    gateway = FakeGateway(trend)
+    chat, selector, gateway, explainer = service([ToolCall("get_monthly_trend", {"months": 6})], gateway=gateway)
+
+    asked = chat.answer("Harcamam aylara göre nasıl değişti?", TOKEN)
+    chat.answer("6", TOKEN)
+
+    assert asked.answer == "Kaç aylık bakayım? Örneğin son 3, 6 ya da 12 ay."
+    assert gateway.calls[0][:2] == ("get_monthly_trend", {"months": 6})
+
+
+def test_a_guessed_optional_count_is_dropped_and_the_tool_runs():
+    upcoming = {"from": "2026-10-10", "to": "2026-11-09", "payments": [], "totals": []}
+    chat, selector, gateway, explainer = service([ToolCall("get_upcoming_payments", {"days": 30})], gateway=FakeGateway(upcoming))
+
+    reply = chat.answer("Yaklaşan ödemelerim neler?", TOKEN)
+
+    assert gateway.calls[0][:2] == ("get_upcoming_payments", {})
+    assert reply.tool_calls == [ToolCall("get_upcoming_payments", {})]
+
+
+def test_another_question_instead_of_a_choice_is_answered_and_the_old_one_dropped():
+    chat, selector, gateway, explainer = service([ToolCall("get_spending_summary", {"period": "ThisMonth"})])
+    chat.answer("Ne kadar harcadım?", TOKEN)
+
+    chat.answer("Bu hafta Starbucks'a ne kadar verdim?", TOKEN)
+    chat.answer("geçen ay", TOKEN)
+
+    # The second message names a period but is a question of its own (K5-A: too long for a reply), so the old question is
+    # dropped and the third message finds nothing waiting either.
+    assert [c[0] for c in selector.calls] == ["Ne kadar harcadım?", "Bu hafta Starbucks'a ne kadar verdim?", "geçen ay"]
+
+
+def test_a_waiting_question_belongs_to_its_token_only():
+    chat, selector, gateway, explainer = service([ToolCall("get_spending_summary", {"period": "ThisMonth"})])
+    chat.answer("Ne kadar harcadım?", TOKEN)
+
+    chat.answer("geçen ay", "another-users-token")
+
+    assert [c[0] for c in selector.calls] == ["Ne kadar harcadım?", "geçen ay"]
+
+
+def test_a_written_question_is_shown_when_it_names_exactly_the_options():
+    writer = FakeWriter("Hangi döneme ait harcamaları öğrenmek istiyorsunuz?\n1. Bu ay\n2. Geçen ay\n3. Son 3 ay")
+    chat, *_ = service([ToolCall("get_spending_summary", {"period": "ThisMonth"})], writer=writer)
+
+    reply = chat.answer("Ne kadar harcadım?", TOKEN)
+
+    assert reply.answer == writer.text
+    # At most 8 s for the wording (2 s of selection passed): the fixed question is better than a long wait.
+    assert writer.calls == [("Ne kadar harcadım?", "period", ["bu ay", "geçen ay", "son 3 ay"], True, 10.0, "")]
+
+
+@pytest.mark.parametrize("writer", [
+    FakeWriter("Hangi dönem? 1) bu ay 2) geçen ay"),                              # an option left out
+    FakeWriter("Bu ay 735,00 TL harcadınız; başka dönem? 1) bu ay 2) geçen ay 3) son 3 ay"),  # an invented figure
+    FakeWriter(error=OllamaTimeout("slow")),
+    FakeWriter(error=OllamaUnavailable("down")),
+])
+def test_otherwise_the_fixed_question_is_shown(writer):
+    chat, *_ = service([ToolCall("get_spending_summary", {"period": "ThisMonth"})], writer=writer)
+
+    reply = chat.answer("Ne kadar harcadım?", TOKEN)
+
+    assert (reply.type, reply.answer) == ("clarification", PERIOD_QUESTION)
+
+
+def test_the_choice_is_matched_against_the_stored_options_whatever_the_model_wrote():
+    writer = FakeWriter("Hangi işyerini kastettiniz? 1. Şehir Ulaşım 2. Şehirlerarası Otobüs")
+    gateway = FakeGateway([AMBIGUOUS_CITY, CITY_SIX_MONTHS])
+    call = ToolCall("get_merchant_spending", {"merchant": "şehir", "period": "Last6Months"})
+    chat, selector, gateway, explainer = service([call], gateway=gateway, writer=writer)
+
+    chat.answer("Son 6 ayda şehir'e ne kadar harcadım?", TOKEN)
+    chat.answer("ikincisi", TOKEN)
+
+    assert writer.calls[0][5] == "şehir"  # the model is told which words matched several merchants
+    assert gateway.calls[1][1] == {"period": "Last6Months", "merchant": "Şehirlerarası Otobüs"}
+
+
+def test_the_writer_asks_the_model_for_one_short_question():
+    from chat import MAX_QUESTION_TOKENS, LangChainClarificationWriter
+    from prompts import build_clarify_messages
+    from test_explainer import FakeOllamaStream, chunk, final
+
+    with FakeOllamaStream([chunk("Hangi dönem? "), chunk("1) bu ay 2) geçen ay 3) son 3 ay\n"), final()]) as fake:
+        writer = LangChainClarificationWriter(OllamaSettings(fake.url, "qwen3.5:4b", 5.0))
+        text = writer.write("Ne kadar harcadım?", "period", ["bu ay", "geçen ay", "son 3 ay"], True, writer.clock() + 5.0)
+
+    assert text == "Hangi dönem? 1) bu ay 2) geçen ay 3) son 3 ay"
+    body = fake.requests[0][1]
+    assert (body["options"]["num_predict"], body["keep_alive"], body["think"]) == (MAX_QUESTION_TOKENS, "30m", False)
+    expected = build_clarify_messages("Ne kadar harcadım?", "period", ["bu ay", "geçen ay", "son 3 ay"], numbered=True)
+    assert [{"role": m["role"], "content": m["content"]} for m in body["messages"]] == expected
+
+
 def test_bridge_errors_are_not_hidden():
     chat, *_ = service([SUMMARY_YESTERDAY], gateway=FakeGateway(error=SessionInvalid("expired")))
     with pytest.raises(SessionInvalid):
@@ -205,7 +382,6 @@ def _real_ready() -> bool:
         return False
 
 
-@pytest.mark.skipif(not _real_ready(), reason="Ollama is not running or the model is not installed")
 def test_the_selector_keeps_the_model_loaded():
     from chat import LangChainToolSelector
     from test_explainer import FakeOllamaStream, chunk, final
@@ -236,6 +412,7 @@ def test_a_text_answer_cut_at_the_cap_means_no_tool():
         assert selector.select("Bana bir fıkra anlat", DEFINITIONS, selector.clock() + 5.0) == []
 
 
+@pytest.mark.skipif(not _real_ready(), reason="Ollama is not running or the model is not installed")
 def test_real_model_picks_yesterday():
     from chat import LangChainToolSelector
 

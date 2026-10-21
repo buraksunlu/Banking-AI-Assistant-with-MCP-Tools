@@ -1,22 +1,30 @@
-"""One chat turn: the model picks a tool, the backend computes, the model explains (AI-14a, MCP-b).
+"""One chat turn: the model picks a tool, the backend computes, the model explains (AI-14a, MCP-b, CHAT-03).
 
-    tools (MCP server) → tool selection (model) → tool call (MCP server checks and computes) → facts (code) → explanation (model)
+    waiting question? → tools (MCP server) → tool selection (model) → grounding (code) → tool call (MCP server checks and
+    computes) → facts (code) → explanation (model)
 
-The whole turn shares one time limit. The user's token only goes to the MCP server, never to a model.
+A period or count the user did not say, or a merchant name that fits several merchants, is asked back instead of guessed
+(CHAT-03); the reply completes the remembered call without a second selection. The whole turn shares one time limit. The
+user's token only goes to the MCP server (and, as a digest, keys the waiting question), never to a model.
 """
 
+import logging
 import time
 from dataclasses import dataclass
 from typing import Protocol
 
 from langchain_ollama import ChatOllama
 
+from clarification import Pending, PendingStore, ask_count, ask_merchant, ask_period, check_question, resolve, template
 from contracts import Fact
 from explainer import stream_message
 from facts import outcome_for
-from ollama_client import OllamaSettings
-from prompts import CLARIFY_TEXT, OUT_OF_SCOPE_TEXT, build_tool_messages
+from grounding import check_arguments
+from ollama_client import OllamaError, OllamaSettings
+from prompts import CLARIFY_TEXT, OUT_OF_SCOPE_TEXT, build_clarify_messages, build_tool_messages
 from tools import ToolArgumentsRejected, ToolGateway
+
+logger = logging.getLogger("bankingai.ai")
 
 
 @dataclass(frozen=True)
@@ -46,6 +54,16 @@ class ToolSelector(Protocol):
 # K8-A: a tool call is 30-60 tokens. Without a cap, a model that writes a text answer instead (a joke) can run past the
 # turn's limit; that text is never shown (the fixed out-of-scope reply is), so cutting it loses nothing.
 MAX_TOOL_CALL_TOKENS = 200
+# A one-sentence question with two or three options is 40-80 tokens (CHAT-03 probe: 1,3-2,0 s).
+MAX_QUESTION_TOKENS = 120
+# The question is a nicety: when the model is slow, the fixed question is shown instead of keeping the user waiting.
+QUESTION_SECONDS = 8.0
+
+
+class ClarificationWriter(Protocol):
+    """Words a question back with the given options (CHAT-03 K4-B)."""
+
+    def write(self, question: str, kind: str, options: list[str], numbered: bool, deadline: float, asked: str = "") -> str: ...
 
 
 class LangChainToolSelector:
@@ -67,17 +85,46 @@ class LangChainToolSelector:
         return [ToolCall(call["name"], call["args"]) for call in reply.tool_calls]
 
 
+class LangChainClarificationWriter:
+    """The local model words the question; the chat checks it and falls back to the fixed one (K4-B)."""
+
+    def __init__(self, settings: OllamaSettings):
+        self.settings = settings
+        self.llm = ChatOllama(
+            model=settings.model, base_url=settings.base_url, reasoning=False, temperature=0, keep_alive=settings.keep_alive,
+            num_predict=MAX_QUESTION_TOKENS, client_kwargs={"timeout": settings.timeout_seconds},
+        )
+        self.clock = time.monotonic
+
+    def write(self, question: str, kind: str, options: list[str], numbered: bool, deadline: float, asked: str = "") -> str:
+        """The question as the model words it (not yet checked); ``asked`` is the merchant text that matched several."""
+        messages = build_clarify_messages(question, kind, options, numbered, asked)
+        return str(stream_message(self.llm, messages, deadline, self.clock, self.settings).content).strip()
+
+
 class ChatService:
     """Runs one chat turn."""
 
-    def __init__(self, selector: ToolSelector, gateway: ToolGateway, explainer, settings: OllamaSettings):
+    def __init__(self, selector: ToolSelector, gateway: ToolGateway, explainer, settings: OllamaSettings,
+                 writer: ClarificationWriter | None = None, waiting: PendingStore | None = None):
         self.selector, self.gateway, self.explainer, self.settings = selector, gateway, explainer, settings
+        # Without a writer every question is the fixed one (tests, and the fallback of K4-B).
+        self.writer = writer
+        self.waiting = waiting or PendingStore()
         self.clock = time.monotonic
 
     def answer(self, message: str, token: str) -> ChatReply:
         """The reply to ``message`` for the user whose token is given."""
         # One limit for the whole turn: listing, selection, tool call and explanation all take from it (AI-06 K5-B, AI-14).
         deadline = self.clock() + self.settings.timeout_seconds
+
+        # A reply to the question asked last time completes that call: no listing, no selection (K3-A). Anything else is a
+        # new question, and the old one is dropped either way (K5-A).
+        waiting = self.waiting.take(token)
+        if waiting is not None:
+            arguments = resolve(waiting, message)
+            if arguments is not None:
+                return self._run(ToolCall(waiting.tool, arguments), f"{waiting.question} ({message})", token, deadline)
 
         # Listed first: when the tools cannot answer, the single local model is not kept busy for nothing.
         tools = self.gateway.list_tools(token, deadline)
@@ -90,19 +137,55 @@ class ChatService:
             return ChatReply("clarification", CLARIFY_TEXT, calls, [])
 
         call = calls[0]
-        if call.tool not in {tool["function"]["name"] for tool in tools}:
+        schemas = {tool["function"]["name"]: tool["function"].get("parameters", {}) for tool in tools}
+        if call.tool not in schemas:
             return ChatReply("clarification", CLARIFY_TEXT, calls, [])
+
+        # A period or count the user did not say is the model's guess: asked back, the tool does not run (K1-C, K2-A).
+        grounding = check_arguments(call.arguments, schemas[call.tool], message)
+        if grounding.missing is not None:
+            return self._ask(self._question_for(call, grounding.missing, schemas[call.tool], message), [], token, deadline)
+        return self._run(ToolCall(call.tool, grounding.arguments), message, token, deadline)
+
+    def _run(self, call: ToolCall, question: str, token: str, deadline: float) -> ChatReply:
         try:
             # The MCP server checks the arguments against the schema it published (MCP-a K3-A); there is no second copy here.
             result = self.gateway.call(call.tool, call.arguments, token, deadline)
         except ToolArgumentsRejected:
             # The same fixed question as before MCP (MCP-b K3-A): the user sees no difference.
-            return ChatReply("clarification", CLARIFY_TEXT, calls, [])
+            return ChatReply("clarification", CLARIFY_TEXT, [call], [])
         outcome = outcome_for(call.tool, call.arguments, result)
         used = [call]
+        if outcome.candidates:
+            # The backend found several of the customer's merchants: one of them is chosen by the user, never here.
+            pending = ask_merchant(call.tool, call.arguments, call.arguments.get("merchant", ""), list(outcome.candidates), question)
+            return self._ask(pending, used, token, deadline)
         if outcome.reply is not None:
             kind, text = outcome.reply
             return ChatReply(kind, text, used, outcome.facts)
 
-        answer = self.explainer.explain(message, outcome.facts, deadline=deadline)
+        answer = self.explainer.explain(question, outcome.facts, deadline=deadline)
         return ChatReply("answer", answer, used, outcome.facts)
+
+    @staticmethod
+    def _question_for(call: ToolCall, argument: str, schema: dict, message: str) -> Pending:
+        if argument == "period":
+            return ask_period(call.tool, call.arguments, message)
+        rule = schema.get("properties", {}).get(argument, {})
+        return ask_count(call.tool, call.arguments, argument, rule.get("minimum", 1), rule.get("maximum", 12), message)
+
+    def _ask(self, pending: Pending, used: list[ToolCall], token: str, deadline: float) -> ChatReply:
+        text = template(pending)
+        if self.writer is not None:
+            try:
+                written = self.writer.write(pending.question, pending.kind, [o.label for o in pending.options], pending.numbered,
+                                            min(deadline, self.clock() + QUESTION_SECONDS), pending.asked)
+                if check_question(written, pending):
+                    text = written
+                else:
+                    # Only the kind is logged: the wording may repeat the user's words.
+                    logger.info("Model question failed the check (%s); the fixed question is used", pending.kind)
+            except OllamaError as error:
+                logger.info("No model question (%s); the fixed question is used", type(error).__name__)
+        self.waiting.put(token, pending)
+        return ChatReply("clarification", text, used, [])

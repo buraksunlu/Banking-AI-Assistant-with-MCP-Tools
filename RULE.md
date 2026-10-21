@@ -1357,7 +1357,7 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   kullanıcıyla netleşir; açıkça istenen varlık korunur. Eksik veride kazanan uydurulmaz.
 
 ==================================================
-29. MEVCUT PROJE DURUMU — 20 EKİM 2026
+29. MEVCUT PROJE DURUMU — 21 EKİM 2026
 ==================================================
 
 COMPLETED
@@ -1485,12 +1485,17 @@ COMPLETED
   minimum/maximum). Python facts.py altı üretici (ilk 5 kalem + "N daha" notu, tahminler "tahmini" etiketli). Sohbet cevabında argümanlar
   yazı (_as_text; sözleşme dict[str, str]); seçici num_predict 200. Seçim ölçümü 26 vaka 26/26 (açıklama ayarından sonra). McpServer
   85, Python 271.
+- Belirsizlikte geri soru CHAT-03 (21 Ekim 2026, docs/local-ai.md): grounding.check_arguments modelin doldurduğu dönem/sayının mesajda
+  geçmesini ister (yoksa araç çalışmaz, geri soru; isteğe bağlı dayanaksız argüman düşer); belirsiz merchant facts → candidates. Bekleyen
+  soru AI servisinde bellekte (clarification.PendingStore, anahtar sha256(token), 5 dk, kullanıcı başına bir); ≤ 4 kelimelik cevap kodda
+  eşleşir ve model seçimi olmadan araç tamamlanır, eşleşmeyen mesaj yeni sorudur. Soruyu model yazar (clarify-v1), check_question geçmezse
+  sabit şablon; seçenekler backend'in kapalı kümesi ya da sabit liste. Seçim ölçümü 31/31. Python 392.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Kullanıcı seçer (20 Ekim önerisi: önce yeni MCP araçları, sonra 15c): 15c sohbet yetenekleri (CHAT-01–07); hesap ekranları (IOS-04…); yeni
+- Kullanıcı seçer (21 Ekim): CHAT-02 takip sorusu; bütçe/tasarruf araçları MCP-17/18; CHAT-01; hesap ekranları (IOS-04…); yeni
   MCP araçları (MCP-03…26); SEC-07 kısa ömürlü yalnız-MCP token'ı. Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,

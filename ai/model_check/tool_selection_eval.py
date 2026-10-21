@@ -5,7 +5,9 @@ Usage (from the repository root, Ollama and the .NET MCP server running, .env lo
 
 It measures the selector, the tool-selection prompt and the tool definitions the MCP server publishes right now (listed
 with a locally signed demo token, as the chat lists them with the user's), so running it before and after a change
-gives the comparison. Before MCP-b the definitions were Python's own (12/12, 20 Oct 2026); MCP-08 added cases S13-S26. A case passes when the model
+gives the comparison. Before MCP-b the definitions were Python's own (12/12, 20 Oct 2026); MCP-08 added cases S13-S26.
+CHAT-03 adds the grounding check of the chat: a "clarify" case passes only when the turn would ask back instead of
+guessing (S27-S31), and every other case fails if the check would ask a needless question. A case passes when the model
 chose exactly the expected tool with exactly the expected arguments (merchant names without case), or no tool when none
 may be chosen.
 """
@@ -21,10 +23,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "service"))
 
 import chat  # noqa: E402
 import prompts  # noqa: E402
+from grounding import check_arguments  # noqa: E402
 from mcp_gateway import McpSettings, McpToolGateway  # noqa: E402
 from ollama_client import OllamaError, OllamaSettings  # noqa: E402
 
 CASES_FILE = Path(__file__).with_name("tool_selection_cases.json")
+
+
+def asks_back(calls: list, schemas: dict, message: str) -> bool:
+    """True when the chat would ask back: one published tool whose period or count the user did not say (CHAT-03)."""
+    return len(calls) == 1 and calls[0].tool in schemas and \
+        check_arguments(calls[0].arguments, schemas[calls[0].tool], message).missing is not None
 
 
 def matches(expected: dict | list | None, calls: list) -> bool:
@@ -58,6 +67,7 @@ def main() -> int:
     settings = OllamaSettings.from_env({**os.environ, "BANKINGAI_LLM_MODEL": model})
     definitions = McpToolGateway(McpSettings.from_env(os.environ)).list_tools(demo_token(), time.monotonic() + 10)
     selector = chat.LangChainToolSelector(settings)
+    schemas = {d["function"]["name"]: d["function"].get("parameters", {}) for d in definitions}
     data = json.loads(CASES_FILE.read_text(encoding="utf-8"))
 
     print(f"## Tool-selection eval: {model}, prompt {prompts.TOOL_PROMPT_VERSION}, {len(definitions)} tools\n")
@@ -69,7 +79,10 @@ def main() -> int:
         try:
             calls = selector.select(case["message"], definitions, time.monotonic() + settings.timeout_seconds)
             chosen = ", ".join(f"{c.tool}({json.dumps(c.arguments, ensure_ascii=False)})" for c in calls) or "(no tool)"
-            ok = matches(case["expected"], calls)
+            asked = asks_back(calls, schemas, case["message"])
+            if asked:
+                chosen += " → geri soru"
+            ok = asked if case["expected"] == "clarify" else (matches(case["expected"], calls) and not asked)
         except OllamaError as error:
             chosen, ok = f"{type(error).__name__}: {error}", False
         passed += ok

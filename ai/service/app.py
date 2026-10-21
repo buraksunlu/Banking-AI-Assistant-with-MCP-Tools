@@ -23,7 +23,7 @@ from starlette.exceptions import HTTPException
 
 from answer_check import AnswerRejected
 from contracts import ChatRequest, ChatResponse, ExplanationRequest, ExplanationResponse, HealthResponse, ToolCallOut
-from chat import ChatService, LangChainToolSelector
+from chat import ChatService, LangChainClarificationWriter, LangChainToolSelector
 from explainer import Explainer, LangChainExplainer
 from ollama_client import (
     ModelNotFound,
@@ -105,7 +105,8 @@ def create_app(
     # The address may be the default (MCP-b K5-C), so startup says which one is in use. Through uvicorn's logger: the
     # service's own logger is not configured, and uvicorn prints its INFO lines next to its own startup lines.
     logging.getLogger("uvicorn.error").info("MCP server: %s", app.state.tools.settings.url)
-    app.state.chat_service = ChatService(LangChainToolSelector(settings), app.state.tools, app.state.explainer, settings)
+    app.state.chat_service = ChatService(LangChainToolSelector(settings), app.state.tools, app.state.explainer, settings,
+                                         writer=LangChainClarificationWriter(settings))
 
     app.add_exception_handler(RequestValidationError, _validation_failed)
     app.add_exception_handler(HTTPException, _http_error)
