@@ -5,15 +5,13 @@ the question, but the options are always the backend's closed set or a fixed lis
 the stored options, whatever the model wrote. K5-A: a reply that is not one of them is a new question.
 """
 
-import hashlib
 import re
-import threading
 import time
-from collections import OrderedDict
 from dataclasses import dataclass
 
 from answer_check import FORBIDDEN_MENTIONS, fold_turkish
 from grounding import count_in, period_in
+from memory import TokenMemory
 
 # The periods offered when the user named none; any other tool period in the reply counts too (grounding.period_in).
 PERIOD_OPTIONS = (("bu ay", "ThisMonth"), ("geçen ay", "LastMonth"), ("son 3 ay", "Last3Months"))
@@ -114,35 +112,18 @@ def check_question(text: str, pending: Pending) -> bool:
 
 
 class PendingStore:
-    """At most one waiting question per user, forgotten after ``ttl_seconds``; bounded, thread-safe (FastAPI runs the
-    chat on worker threads)."""
+    """At most one waiting question per user, forgotten after ``ttl_seconds`` and used once (memory.TokenMemory)."""
 
     def __init__(self, ttl_seconds: float = 300.0, capacity: int = 1000, clock=time.monotonic):
-        self._ttl, self._capacity, self._clock = ttl_seconds, capacity, clock
-        self._items: OrderedDict[str, tuple[float, Pending]] = OrderedDict()
-        self._lock = threading.Lock()
+        self._memory = TokenMemory(ttl_seconds, capacity, clock)
 
     def put(self, token: str, pending: Pending) -> None:
         """Remembers the question for this token, replacing an older one."""
-        key = _key(token)
-        with self._lock:
-            self._items.pop(key, None)
-            self._items[key] = (self._clock(), pending)
-            while len(self._items) > self._capacity:
-                self._items.popitem(last=False)
+        self._memory.put(token, pending)
 
     def take(self, token: str) -> Pending | None:
         """The waiting question, removed (a reply is used once); None when there is none or it is too old."""
-        with self._lock:
-            item = self._items.pop(_key(token), None)
-        if item is None or self._clock() - item[0] > self._ttl:
-            return None
-        return item[1]
-
-
-def _key(token: str) -> str:
-    # A digest, not the customer id: the AI service never verifies tokens, so only the very same token finds the question.
-    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+        return self._memory.pop(token)
 
 
 def _value(pending: Pending, reply: str) -> str | int | None:

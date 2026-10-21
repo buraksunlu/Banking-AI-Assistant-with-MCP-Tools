@@ -63,7 +63,7 @@ def build_retry_messages(question: str, facts: list[Fact], previous_answer: str,
     ]
 
 
-TOOL_PROMPT_VERSION = "tool-selection-v1"
+TOOL_PROMPT_VERSION = "tool-selection-v2"
 
 # The AI-14 probe chose the right tool and period in 12 of 12 questions with these rules and the tool descriptions.
 TOOL_SYSTEM_PROMPT = ("Sen bir bankacılık harcama asistanısın. Kullanıcının sorusu için uygun aracı seç ve yalnız kullanıcının "
@@ -78,9 +78,25 @@ CLARIFY_TEXT = ("Sorunuzu tam anlayamadım. Tek bir soru olarak ve dönemiyle so
                 "Örneğin: “Bu hafta ne kadar harcadım?”")
 
 
-def build_tool_messages(message: str) -> list[dict]:
-    """The chat messages for tool selection: the rules and the user's message (AI-14a)."""
-    return [{"role": "system", "content": TOOL_SYSTEM_PROMPT}, {"role": "user", "content": _neutralize(message)}]
+# v2 (CHAT-02): a follow-up also gets the previous question and call; without one the messages are exactly v1's.
+# The eval's first run left "Kategorilere göre?" without a tool and turned "6 aylık göster" into another tool: a short follow-up
+# names only the change (a period, a merchant, a count or a view), so the rule spells those out.
+FOLLOW_UP_RULE = ("Yeni mesaj önceki soruya devam ediyorsa yalnız kullanıcının değiştirdiği bilgiyi değiştir, diğerlerini önceki "
+                  "çağrıdan aynen al ve bir araç çağır. Değişen bilgi bir dönem ('Peki geçen ay?'), bir işyeri ('Peki Kahve "
+                  "Durağı'na?'), bir ay ya da gün sayısı ('6 aylık göster': aynı araç, yeni sayı) ya da bir görünüm olabilir "
+                  "('Kategorilere göre?', 'İşyerlerine göre?', 'Karşılaştır': aynı dönemle o görünümün aracı). Yeni mesaj kendi "
+                  "başına bir soruysa önceki çağrıyı yok say.")
+
+
+def build_tool_messages(message: str, previous=None) -> list[dict]:
+    """The chat messages for tool selection: the rules, the previous question and call of a follow-up, the user's message."""
+    messages = [{"role": "system", "content": TOOL_SYSTEM_PROMPT}]
+    if previous is not None:
+        call = ", ".join(f"{name}={value}" for name, value in previous.arguments.items())
+        messages.append({"role": "system", "content": _neutralize(
+            f"Önceki soru: {previous.question}\nÖnceki araç çağrısı: {previous.tool}({call})\n") + FOLLOW_UP_RULE})
+    messages.append({"role": "user", "content": _neutralize(message)})
+    return messages
 
 
 CLARIFY_PROMPT_VERSION = "clarify-v1"

@@ -61,13 +61,16 @@ class FakeClock:
 
 
 class FakeSelector:
-    def __init__(self, clock, calls, seconds=2.0):
-        self.clock, self.result, self.seconds, self.calls = clock, calls, seconds, []
+    def __init__(self, clock, calls, seconds=2.0, turns=None):
+        self.clock, self.result, self.seconds, self.turns, self.calls = clock, calls, seconds, turns, []
+        self.contexts = []
 
-    def select(self, message, tools, deadline):
+    def select(self, message, tools, deadline, context=None):
         self.calls.append((message, tools, deadline))
+        self.contexts.append(context)
         self.clock.now += self.seconds
-        return self.result
+        # ``turns`` answers turn by turn (a question and its follow-ups); otherwise every turn gets the same calls.
+        return self.turns.pop(0) if self.turns else self.result
 
 
 class FakeGateway:
@@ -98,9 +101,9 @@ class FakeExplainer:
         return self.answer
 
 
-def service(calls, gateway=None, explainer=None, seconds=2.0, writer=None):
+def service(calls, gateway=None, explainer=None, seconds=2.0, writer=None, turns=None):
     clock = FakeClock()
-    selector = FakeSelector(clock, calls, seconds)
+    selector = FakeSelector(clock, calls, seconds, turns)
     gateway = gateway or FakeGateway()
     explainer = explainer or FakeExplainer()
     chat = ChatService(selector, gateway, explainer, SETTINGS, writer=writer)
@@ -367,6 +370,134 @@ def test_the_writer_asks_the_model_for_one_short_question():
     assert (body["options"]["num_predict"], body["keep_alive"], body["think"]) == (MAX_QUESTION_TOKENS, "30m", False)
     expected = build_clarify_messages("Ne kadar harcadım?", "period", ["bu ay", "geçen ay", "son 3 ay"], numbered=True)
     assert [{"role": m["role"], "content": m["content"]} for m in body["messages"]] == expected
+
+
+# CHAT-02: the last successful call is the context of a short follow-up.
+
+THIS_MONTH_SUMMARY = {"period": {"kind": "ThisMonth", "startDate": "2026-10-01", "endDate": "2026-10-10"},
+                      "currencies": [{"currencyCode": "TRY", "totalAmount": Decimal("735.00"), "transactionCount": 5,
+                                      "uncategorizedAmount": Decimal("145.00"), "uncategorizedCount": 1}]}
+
+
+def merchant_result(name, kind, start, end, amount, count):
+    return {"period": {"kind": kind, "startDate": start, "endDate": end},
+            "match": {"status": "Matched", "merchant": name, "isPartialMatch": False, "candidates": []},
+            "currencies": [{"currencyCode": "TRY", "totalAmount": Decimal(amount), "transactionCount": count}]}
+
+
+STARBUCKS_LAST_MONTH = ToolCall("get_merchant_spending", {"merchant": "Starbucks", "period": "LastMonth"})
+KAHVE_LAST_MONTH = ToolCall("get_merchant_spending", {"merchant": "Kahve Durağı", "period": "LastMonth"})
+
+
+def test_a_follow_up_gets_the_last_call_and_changes_only_what_was_said():
+    gateway = FakeGateway([THIS_MONTH_SUMMARY, LAST_MONTH])
+    turns = [[ToolCall("get_spending_summary", {"period": "ThisMonth"})], [ToolCall("get_spending_summary", {"period": "LastMonth"})]]
+    chat, selector, gateway, explainer = service([], gateway=gateway, turns=turns)
+
+    chat.answer("Bu ay ne kadar harcadım?", TOKEN)
+    reply = chat.answer("Peki geçen ay?", TOKEN)
+
+    assert selector.contexts[0] is None
+    assert (selector.contexts[1].tool, selector.contexts[1].arguments, selector.contexts[1].question) == (
+        "get_spending_summary", {"period": "ThisMonth"}, "Bu ay ne kadar harcadım?")
+    assert gateway.calls[1][:2] == ("get_spending_summary", {"period": "LastMonth"})
+    assert reply.tool_calls == [ToolCall("get_spending_summary", {"period": "LastMonth"})]
+    # Only the new message is explained: the live trial's "Peki bu ay?" was answered "Geçen ay (1-10 Ekim) …" when the
+    # previous question went along; the period is in the facts anyway.
+    assert explainer.calls[1][0] == "Peki geçen ay?"
+    # Only the new result is explained: the previous answer's 735,00 TL is not a fact of this turn.
+    assert all("735" not in f.text for f in explainer.calls[1][1])
+
+
+def test_the_period_of_the_previous_call_is_kept_for_another_merchant():
+    gateway = FakeGateway([merchant_result("Starbucks", "LastMonth", "2026-09-01", "2026-09-30", "185.00", 1),
+                           merchant_result("Kahve Durağı", "LastMonth", "2026-09-01", "2026-09-30", "110.00", 1)])
+    chat, selector, gateway, explainer = service([], gateway=gateway, turns=[[STARBUCKS_LAST_MONTH], [KAHVE_LAST_MONTH]])
+
+    chat.answer("Geçen ay Starbucks'a ne kadar harcadım?", TOKEN)
+    reply = chat.answer("Peki Kahve Durağı'na?", TOKEN)
+
+    assert reply.type == "answer"
+    assert gateway.calls[1][1] == {"merchant": "Kahve Durağı", "period": "LastMonth"}
+
+
+def test_a_chain_of_follow_ups_keeps_only_the_last_message_and_merchant():
+    gateway = FakeGateway([merchant_result("Starbucks", "LastMonth", "2026-09-01", "2026-09-30", "185.00", 1),
+                           merchant_result("Kahve Durağı", "LastMonth", "2026-09-01", "2026-09-30", "110.00", 1),
+                           merchant_result("Kahve Durağı", "Last3Months", "2026-07-10", "2026-10-10", "325.00", 3)])
+    # The model falls back to the first merchant, as it did in the live trial.
+    back_to_starbucks = ToolCall("get_merchant_spending", {"merchant": "Starbucks", "period": "Last3Months"})
+    chat, selector, gateway, explainer = service([], gateway=gateway, turns=[[STARBUCKS_LAST_MONTH], [KAHVE_LAST_MONTH], [back_to_starbucks]])
+
+    chat.answer("Geçen ay Starbucks'a ne kadar harcadım?", TOKEN)
+    chat.answer("Peki Kahve Durağı'na?", TOKEN)
+    reply = chat.answer("Ya son 3 ayda?", TOKEN)
+
+    assert selector.contexts[2].question == "Peki Kahve Durağı'na?"  # no growing chain with the first merchant in it
+    assert gateway.calls[2][1] == {"merchant": "Kahve Durağı", "period": "Last3Months"}
+    assert reply.tool_calls == [ToolCall("get_merchant_spending", {"merchant": "Kahve Durağı", "period": "Last3Months"})]
+
+
+def test_an_argument_neither_said_nor_carried_over_is_asked_back():
+    invented = ToolCall("get_merchant_spending", {"merchant": "Kahve Durağı", "period": "ThisYear"})
+    gateway = FakeGateway([merchant_result("Starbucks", "LastMonth", "2026-09-01", "2026-09-30", "185.00", 1)])
+    chat, selector, gateway, explainer = service([], gateway=gateway, turns=[[STARBUCKS_LAST_MONTH], [invented]])
+
+    chat.answer("Geçen ay Starbucks'a ne kadar harcadım?", TOKEN)
+    reply = chat.answer("Peki Kahve Durağı'na?", TOKEN)
+
+    assert (reply.type, reply.answer) == ("clarification", PERIOD_QUESTION)
+    assert len(gateway.calls) == 1
+
+
+def test_a_full_question_gets_no_context():
+    gateway = FakeGateway([THIS_MONTH_SUMMARY, LAST_MONTH])
+    turns = [[ToolCall("get_spending_summary", {"period": "ThisMonth"})], [ToolCall("get_spending_summary", {"period": "LastMonth"})]]
+    chat, selector, gateway, explainer = service([], gateway=gateway, turns=turns)
+
+    chat.answer("Bu ay ne kadar harcadım?", TOKEN)
+    chat.answer("Geçen ay toplam ne kadar harcadım?", TOKEN)
+
+    assert selector.contexts == [None, None]
+    assert explainer.calls[1][0] == "Geçen ay toplam ne kadar harcadım?"
+
+
+def test_the_context_belongs_to_its_token_only():
+    chat, selector, gateway, explainer = service([ToolCall("get_spending_summary", {"period": "ThisMonth"})],
+                                                 gateway=FakeGateway(THIS_MONTH_SUMMARY))
+    chat.answer("Bu ay ne kadar harcadım?", TOKEN)
+
+    chat.answer("Peki geçen ay?", "another-users-token")
+
+    assert selector.contexts[1] is None
+
+
+def test_a_turn_without_a_tool_keeps_the_context_for_the_next_follow_up():
+    gateway = FakeGateway([THIS_MONTH_SUMMARY, LAST_MONTH])
+    turns = [[ToolCall("get_spending_summary", {"period": "ThisMonth"})], [],
+             [ToolCall("get_spending_summary", {"period": "LastMonth"})]]
+    chat, selector, gateway, explainer = service([], gateway=gateway, turns=turns)
+
+    chat.answer("Bu ay ne kadar harcadım?", TOKEN)
+    assert chat.answer("Peki ya?", TOKEN).type == "outOfScope"
+    chat.answer("Peki geçen ay?", TOKEN)
+
+    assert selector.contexts[2].arguments == {"period": "ThisMonth"}
+
+
+def test_a_call_completed_by_a_clarification_becomes_the_context():
+    gateway = FakeGateway([LAST_MONTH, THIS_MONTH_SUMMARY])
+    turns = [[ToolCall("get_spending_summary", {"period": "ThisMonth"})], [ToolCall("get_spending_summary", {"period": "ThisMonth"})]]
+    chat, selector, gateway, explainer = service([], gateway=gateway, turns=turns)
+
+    chat.answer("Ne kadar harcadım?", TOKEN)    # asked back (CHAT-03)
+    chat.answer("geçen ay", TOKEN)              # completes the call without the selector
+    chat.answer("Peki bu ay?", TOKEN)
+
+    assert selector.contexts[1].arguments == {"period": "LastMonth"}
+    assert selector.contexts[1].question == "Ne kadar harcadım? (geçen ay)"
+    assert explainer.calls[1][0] == "Peki bu ay?"
+    assert gateway.calls[1][1] == {"period": "ThisMonth"}
 
 
 def test_bridge_errors_are_not_hidden():

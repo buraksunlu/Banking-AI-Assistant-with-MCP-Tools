@@ -1,10 +1,12 @@
-"""One chat turn: the model picks a tool, the backend computes, the model explains (AI-14a, MCP-b, CHAT-03).
+"""One chat turn: the model picks a tool, the backend computes, the model explains (AI-14a, MCP-b, CHAT-03, CHAT-02).
 
-    waiting question? → tools (MCP server) → tool selection (model) → grounding (code) → tool call (MCP server checks and
-    computes) → facts (code) → explanation (model)
+    waiting question? → tools (MCP server) → tool selection (model, with the last call when the message is a follow-up) →
+    grounding (code) → tool call (MCP server checks and computes) → facts (code) → explanation (model) → last call kept
 
 A period or count the user did not say, or a merchant name that fits several merchants, is asked back instead of guessed
-(CHAT-03); the reply completes the remembered call without a second selection. The whole turn shares one time limit. The
+(CHAT-03); the reply completes the remembered call without a second selection. A short follow-up ("Peki geçen ay?") is read
+with the last call; an argument must then be in the message or carried over unchanged (CHAT-02). The answer's figures are
+never carried over: every turn is computed again. The whole turn shares one time limit. The
 user's token only goes to the MCP server (and, as a digest, keys the waiting question), never to a model.
 """
 
@@ -17,6 +19,7 @@ from langchain_ollama import ChatOllama
 
 from clarification import Pending, PendingStore, ask_count, ask_merchant, ask_period, check_question, resolve, template
 from contracts import Fact
+from conversation import ConversationStore, LastCall, is_follow_up
 from explainer import stream_message
 from facts import outcome_for
 from grounding import check_arguments
@@ -48,7 +51,7 @@ class ChatReply:
 class ToolSelector(Protocol):
     """Lets the model choose among the given tools for a message."""
 
-    def select(self, message: str, tools: list[dict], deadline: float) -> list[ToolCall]: ...
+    def select(self, message: str, tools: list[dict], deadline: float, context: LastCall | None = None) -> list[ToolCall]: ...
 
 
 # K8-A: a tool call is 30-60 tokens. Without a cap, a model that writes a text answer instead (a joke) can run past the
@@ -78,10 +81,10 @@ class LangChainToolSelector:
         )
         self.clock = time.monotonic
 
-    def select(self, message: str, tools: list[dict], deadline: float) -> list[ToolCall]:
-        """The tools the model chose; an empty list when it answered in text instead."""
+    def select(self, message: str, tools: list[dict], deadline: float, context: LastCall | None = None) -> list[ToolCall]:
+        """The tools the model chose (``context``: the previous call of a follow-up); an empty list when it answered in text."""
         # Bound per turn: the list comes from the MCP server on every turn, with the user's token (K1-A).
-        reply = stream_message(self.llm.bind_tools(tools), build_tool_messages(message), deadline, self.clock, self.settings)
+        reply = stream_message(self.llm.bind_tools(tools), build_tool_messages(message, context), deadline, self.clock, self.settings)
         return [ToolCall(call["name"], call["args"]) for call in reply.tool_calls]
 
 
@@ -106,11 +109,13 @@ class ChatService:
     """Runs one chat turn."""
 
     def __init__(self, selector: ToolSelector, gateway: ToolGateway, explainer, settings: OllamaSettings,
-                 writer: ClarificationWriter | None = None, waiting: PendingStore | None = None):
+                 writer: ClarificationWriter | None = None, waiting: PendingStore | None = None,
+                 history: ConversationStore | None = None):
         self.selector, self.gateway, self.explainer, self.settings = selector, gateway, explainer, settings
         # Without a writer every question is the fixed one (tests, and the fallback of K4-B).
         self.writer = writer
         self.waiting = waiting or PendingStore()
+        self.history = history or ConversationStore()
         self.clock = time.monotonic
 
     def answer(self, message: str, token: str) -> ChatReply:
@@ -128,7 +133,11 @@ class ChatService:
 
         # Listed first: when the tools cannot answer, the single local model is not kept busy for nothing.
         tools = self.gateway.list_tools(token, deadline)
-        calls = self.selector.select(message, tools, deadline)
+        # Only a short or "peki…" message is read with the last call (K4-B); a full question stands on its own, as before.
+        # The follow-up itself is what is explained and kept: a growing chain of questions led both the model (back to an
+        # older merchant) and the explanation ("geçen ay" for this month) astray in the live trial.
+        context = self.history.recall(token) if is_follow_up(message) else None
+        calls = self.selector.select(message, tools, deadline, context)
         if not calls:
             # The model's own text is never shown here: it might promise a transfer it cannot make (K5-A).
             return ChatReply("outOfScope", OUT_OF_SCOPE_TEXT, [], [])
@@ -142,7 +151,7 @@ class ChatService:
             return ChatReply("clarification", CLARIFY_TEXT, calls, [])
 
         # A period or count the user did not say is the model's guess: asked back, the tool does not run (K1-C, K2-A).
-        grounding = check_arguments(call.arguments, schemas[call.tool], message)
+        grounding = check_arguments(call.arguments, schemas[call.tool], message, context.arguments if context else None)
         if grounding.missing is not None:
             return self._ask(self._question_for(call, grounding.missing, schemas[call.tool], message), [], token, deadline)
         return self._run(ToolCall(call.tool, grounding.arguments), message, token, deadline)
@@ -165,6 +174,8 @@ class ChatService:
             return ChatReply(kind, text, used, outcome.facts)
 
         answer = self.explainer.explain(question, outcome.facts, deadline=deadline)
+        # Kept only after an explained answer: the call, never its figures (CHAT-02 K2-A).
+        self.history.remember(token, LastCall(call.tool, call.arguments, question))
         return ChatReply("answer", answer, used, outcome.facts)
 
     @staticmethod

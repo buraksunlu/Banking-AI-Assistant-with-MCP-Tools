@@ -1490,6 +1490,10 @@ COMPLETED
   soru AI servisinde bellekte (clarification.PendingStore, anahtar sha256(token), 5 dk, kullanıcı başına bir); ≤ 4 kelimelik cevap kodda
   eşleşir ve model seçimi olmadan araç tamamlanır, eşleşmeyen mesaj yeni sorudur. Soruyu model yazar (clarify-v1), check_question geçmezse
   sabit şablon; seçenekler backend'in kapalı kümesi ya da sabit liste. Seçim ölçümü 31/31. Python 392.
+- Takip soruları CHAT-02 (21 Ekim 2026, docs/local-ai.md): son başarılı çağrı AI servisinde bellekte (conversation.ConversationStore,
+  memory.TokenMemory, sha256(token), 10 dk); yalnız ≤ 4 kelimelik ya da peki/ya/ayrıca/bir de ile başlayan mesaj seçiciye bağlam satırıyla
+  gider (tool-selection-v2); argüman mesajda ya da son çağrıdan aynen olmalı, takipte söylenmeyen işyeri son çağrınınki; bağlama ve
+  açıklamaya yalnız son mesaj; cevabın rakamları saklanmaz. Seçim ölçümü 45/45. Sırada SYN-15 (demo verisini genişletme).
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
