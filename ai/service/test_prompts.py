@@ -105,7 +105,7 @@ def test_correction_for_an_empty_answer():
 
 
 def test_tool_selection_prompt_has_its_own_version_and_rules():
-    assert TOOL_PROMPT_VERSION == "tool-selection-v1"
+    assert TOOL_PROMPT_VERSION == "tool-selection-v2"  # CHAT-02: the follow-up context
     for rule in ("araç", "uydurma", "para transferi"):
         assert rule in TOOL_SYSTEM_PROMPT.lower(), rule
 

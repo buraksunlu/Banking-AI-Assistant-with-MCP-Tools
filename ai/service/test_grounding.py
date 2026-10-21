@@ -90,3 +90,51 @@ def test_grounded_arguments_pass_unchanged():
 def test_the_period_is_asked_before_anything_else():
     # Both the merchant and the period are there, but only the period is the model's invention.
     assert check_arguments({"merchant": "Starbucks", "period": "ThisYear"}, MERCHANT, "Starbucks'a ne kadar harcadım?").missing == "period"
+
+
+# CHAT-02 K1-C: in a follow-up, an argument may also come unchanged from the previous call.
+
+LAST_MONTH_STARBUCKS = {"merchant": "Starbucks", "period": "LastMonth"}
+
+
+def test_a_follow_up_keeps_the_previous_period():
+    result = check_arguments({"merchant": "Kahve Durağı", "period": "LastMonth"}, MERCHANT, "Peki Kahve Durağı'na?",
+                             previous=LAST_MONTH_STARBUCKS)
+    assert (result.missing, result.arguments) == (None, {"merchant": "Kahve Durağı", "period": "LastMonth"})
+
+
+def test_a_period_neither_said_nor_carried_over_is_still_a_guess():
+    result = check_arguments({"merchant": "Kahve Durağı", "period": "ThisYear"}, MERCHANT, "Peki Kahve Durağı'na?",
+                             previous=LAST_MONTH_STARBUCKS)
+    assert result.missing == "period"
+
+
+def test_a_count_may_come_from_the_message_or_the_previous_call():
+    assert check_arguments({"months": 6}, TREND, "6 aylık göster", previous={"months": 3}).missing is None
+    assert check_arguments({"months": 3}, TREND, "Peki kategoriye göre?", previous={"months": 3}).missing is None
+    assert check_arguments({"months": 12}, TREND, "Peki kategoriye göre?", previous={"months": 3}).missing == "months"
+
+
+def test_a_period_carried_over_across_tools_counts_too():
+    # "Bu ay en çok hangi kategoriye harcadım?" → "Peki işyerlerine göre?": another tool, the same period.
+    assert check_arguments({"period": "ThisMonth"}, SUMMARY, "Peki işyerlerine göre?", previous={"period": "ThisMonth"}).missing is None
+
+
+def test_a_merchant_not_said_in_a_follow_up_stays_the_previous_one():
+    # The live trial: "Starbucks" → "Peki Kahve Durağı'na?" → "Ya son 3 ayda?" came back with Starbucks (930,00 TL instead of
+    # Kahve Durağı's 325,00 TL). A merchant the user did not name in a follow-up is the one of the last call.
+    result = check_arguments({"merchant": "Starbucks", "period": "Last3Months"}, MERCHANT, "Ya son 3 ayda?",
+                             previous={"merchant": "Kahve Durağı", "period": "LastMonth"})
+    assert (result.missing, result.arguments) == (None, {"merchant": "Kahve Durağı", "period": "Last3Months"})
+
+
+def test_a_merchant_named_in_the_follow_up_is_kept():
+    result = check_arguments({"merchant": "Kahve Durağı", "period": "LastMonth"}, MERCHANT, "Peki KAHVE DURAĞI'na?",
+                             previous=LAST_MONTH_STARBUCKS)
+    assert result.arguments["merchant"] == "Kahve Durağı"
+
+
+def test_without_a_previous_call_the_merchant_is_left_to_the_backend():
+    # Outside a follow-up the backend's MerchantMatcher decides (CHAT-03), as before.
+    result = check_arguments({"merchant": "Kahve", "period": "LastMonth"}, MERCHANT, "Geçen ay kahveye ne kadar verdim?")
+    assert result.arguments == {"merchant": "Kahve", "period": "LastMonth"}

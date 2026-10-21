@@ -664,3 +664,44 @@ mesaj ─► bekleyen soru var mı? ── cevap eşleşti ─► eksik argüman
 Sınırlar: takip sorusu yok ("peki geçen ay?", CHAT-02; bekleyen soru onun ilk parçası); "kahve" gibi kavramsal ad MCP-15'te; bekleyen soru
 yalnız bellekte (servis yeniden başlarsa kaybolur); sözlükte olmayan zaman ifadesi gereksiz bir soruya yol açabilir; karşılaştırma türü
 (`comparison`) dayanak kontrolünde değil; açıklama kalitesi (ör. "Nisan–Eylül sabit" gibi hatalı özet) bu adımın konusu değil (AI-10).
+
+# Takip soruları (CHAT-02, 21 Ekim 2026)
+
+Sorun (gerçek zincirde ölçüldü): "Bu ay ne kadar harcadım?" → "Peki geçen ay?", "Geçen ay Starbucks'a…" → "Peki Kahve Durağı'na?" →
+"Ya son 3 ayda?", "Bu ay en çok hangi kategoriye…" → "Peki işyerlerine göre?": takip mesajlarının hepsi **kapsam dışı** düşüyordu.
+
+Kullanıcı kararları: K1-C (model bağlamla seçer, kod kontrol eder), K2-A (yalnız son başarılı çağrı, 10 dk), K3-B (argüman değişimi + araç
+değişimi; önceki cevaba atıf yok), K4-B (bağlam yalnız kısa ya da "peki/ya/ayrıca/bir de" ile başlayan mesaja), K5-A (eski vakalar
+bozulmaz, takipler ≥ %90).
+
+```text
+mesaj ─► (CHAT-03) bekleyen soru? ─► …
+             └► takip mi? (≤ 4 kelime ya da "peki/ya…") ── evet ─► son çağrı ─► seçiciye bağlam satırı (tool-selection-v2)
+                                                          hayır ─► bağlamsız (v1 ile aynı mesajlar)
+                ─► dayanak: argüman mesajda VEYA son çağrıdan aynen; söylenmeyen işyeri = son çağrının işyeri
+                ─► MCP ─► yalnız yeni kalemler ─► açıkla (yalnız yeni mesajla) ─► son çağrı güncellenir
+```
+
+- **`memory.TokenMemory`**: CHAT-03 deposundan ayrılan ortak parça (anahtar `sha256(token)`, süre, üst sınır, kilit); `PendingStore` onu
+  kullanır (CHAT-03 testleri değişmeden yeşil).
+- **`conversation.py`**: `LastCall` (araç, argümanlar, soru), `ConversationStore` (10 dk, okununca silinmez), `is_follow_up` (≤ 4 kelime:
+  "Bu ay ne kadar harcadım?" 5 kelimelik tam soru bağlam almaz). Yalnız açıklanmış bir cevaptan sonra kaydedilir; araçsız bir tur
+  bağlamı silmez. Cevabın rakamları hiç saklanmaz, her takip backend'den yeniden hesaplanır.
+- **`grounding.check_arguments(…, previous)`**: son çağrıdan aynen gelen argüman dayanaklı; ne söylenmiş ne taşınmış olan (ör. bu yıl)
+  hâlâ tahmin → geri soru. **Takipte söylenmeyen işyeri son çağrınınkidir** (kod düzeltir).
+- **`prompts.build_tool_messages(message, previous)`** (`tool-selection-v2`): ikinci sistem mesajı "Önceki soru / Önceki araç çağrısı" +
+  takip kuralı; bağlam yoksa mesajlar v1'in aynısı.
+- **Bulgular:** (1) ölçümün ilk koşusu 43/45: "Kategorilere göre?" hiç araç seçmedi, "6 aylık göster" başka araca gitti (dayanak kontrolü
+  geri soruya çevirdi) → kurala değişim türleri (dönem, işyeri, sayı, görünüm) örnekle yazıldı → 45/45. (2) **Canlı denemede**
+  "Starbucks → Peki Kahve Durağı'na? → Ya son 3 ayda?" Starbucks'a döndü (930,00 TL yerine 325,00 TL) ve "Peki bu ay?" "Geçen ay (1-10
+  Ekim)" diye açıklandı: bağlamdaki soru zincir halinde büyüyordu ve işyeri dayanak kontrolünde değildi → bağlamda ve açıklamada yalnız
+  son mesaj, takipte söylenmeyen işyeri son çağrınınki.
+- **Ölçüm** (`tool_selection_eval.py`, 45 vaka; F01–F14 takip, vaka bağlamı yalnız takip sayılan mesaja verilir): 45/45 (beş koşu, ikisi
+  son düzeltmeden sonra); eski 31 vaka hep geçti.
+- **Uçtan uca** (.NET API, Ada, demo anı): geçen ay 624,98 TL; Starbucks 185,00 → Kahve Durağı 110,00 → son 3 ay 325,00 TL (3 işlem);
+  kategoriler → işyerleri (Starbucks 375,00 %51,02); karşılaştırma +110,00 (%21,36); geri soru → "geçen ay" → "Peki bu ay?" 735,00 TL;
+  başka müşterinin token'ıyla "Peki geçen ay?" bağlamsız (kapsam dışı).
+
+Sınırlar: yalnız bir önceki çağrı; önceki cevaba atıf ("bunun yarısı") yok; bağlam yalnız bellekte; 4 kelimeyi aşan ve "peki/ya" ile
+başlamayan takip ("Kahve Durağı için de aynısını göster") bağlam almaz; "Bir önceki ayla karşılaştır" bazen "bu ay"a göre değil son tam
+aya göre karşılaştırır (iki tür de kabul ediliyor).

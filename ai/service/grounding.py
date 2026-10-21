@@ -74,12 +74,21 @@ def count_in(reply: str) -> int | None:
     return counts[0] if counts else None
 
 
-def check_arguments(arguments: dict, schema: dict, message: str) -> Grounding:
-    """Compares a tool call with the message, using the tool's published schema (which arguments are counts, which required)."""
+def check_arguments(arguments: dict, schema: dict, message: str, previous: dict | None = None) -> Grounding:
+    """Compares a tool call with the message, using the tool's published schema (which arguments are counts, which required).
+
+    In a follow-up (CHAT-02) ``previous`` holds the last call's arguments: a value carried over unchanged is grounded too
+    ("Peki Kahve Durağı'na?" keeps last month), one that is neither said nor carried over is still a guess.
+    """
     properties, required = schema.get("properties", {}), set(schema.get("required", []))
+    previous = previous or {}
     kept = dict(arguments)
     for name, value in arguments.items():
-        if _grounded(name, value, properties.get(name, {}), message):
+        if name == "merchant" and name in previous and not _named(value, message):
+            # A merchant the user did not name in a follow-up is the last call's: the model fell back to an older one.
+            kept[name] = previous[name]
+            continue
+        if (name in previous and previous[name] == value) or _grounded(name, value, properties.get(name, {}), message):
             continue
         if name in required:
             return Grounding(name, dict(arguments))
@@ -94,6 +103,10 @@ def _grounded(name: str, value, rule: dict, message: str) -> bool:
         return isinstance(value, int) and mentions_count(message, value)
     # Merchant names are matched by the backend against the customer's own merchants (MerchantMatcher), not here.
     return True
+
+
+def _named(value, message: str) -> bool:
+    return isinstance(value, str) and fold_turkish(value).strip() in fold_turkish(message)
 
 
 def _counts(folded: str) -> list[int]:
