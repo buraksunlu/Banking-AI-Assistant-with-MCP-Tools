@@ -66,13 +66,27 @@ public static class ToolCallFilter
         foreach (var (name, value) in arguments)
         {
             var rule = properties.GetProperty(name);
+            var types = Types(rule);
+            // An optional argument is published as ["string", "null"] (MCP-17/18): null is what the model was shown, so it
+            // is accepted and means "left out"; a required one was already refused above.
+            if (value.ValueKind == JsonValueKind.Null && types.Contains("null"))
+                continue;
             if (rule.TryGetProperty("enum", out var allowed))
             {
-                if (value.ValueKind != JsonValueKind.String || !allowed.EnumerateArray().Any(a => a.GetString() == value.GetString()))
-                    return $"{name} şunlardan biri olmalı (tam adıyla): {string.Join(", ", allowed.EnumerateArray().Select(a => a.GetString()))}.";
+                var names = allowed.EnumerateArray().Where(a => a.ValueKind == JsonValueKind.String).Select(a => a.GetString()).ToList();
+                if (value.ValueKind != JsonValueKind.String || !names.Contains(value.GetString()))
+                    return $"{name} şunlardan biri olmalı (tam adıyla): {string.Join(", ", names)}.";
                 continue;
             }
-            if (rule.TryGetProperty("type", out var count) && count.ValueKind == JsonValueKind.String && count.GetString() == "integer")
+            if (types.Contains("number"))
+            {
+                // An amount (MCP-17): the SDK's binding would read "1000" and fail on 1e40 with a generic error. The kuruş
+                // and the upper limit are the backend's money rule (InputRules.Money), as for every amount.
+                if (value.ValueKind != JsonValueKind.Number || !value.TryGetDecimal(out _))
+                    return $"{name} sayı olmalı.";
+                continue;
+            }
+            if (types.Contains("integer"))
             {
                 // The SDK's binding would turn "3" and 3.5 into 3: only a whole JSON number is a count the model meant.
                 if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt32(out var number))
@@ -82,7 +96,7 @@ public static class ToolCallFilter
                     return $"{name} şema sınırları dışında.";
                 continue;
             }
-            if (rule.TryGetProperty("type", out var type) && type.GetString() == "string")
+            if (types.Contains("string"))
             {
                 if (value.ValueKind != JsonValueKind.String)
                     return $"{name} metin olmalı.";
@@ -95,4 +109,10 @@ public static class ToolCallFilter
         }
         return null;
     }
+
+    // "type" is one name ("integer") or, for an optional argument, a list (["string", "null"]).
+    private static HashSet<string> Types(JsonElement rule) =>
+        !rule.TryGetProperty("type", out var type) ? []
+        : type.ValueKind == JsonValueKind.Array ? type.EnumerateArray().Select(t => t.GetString()!).ToHashSet()
+        : [type.GetString()!];
 }

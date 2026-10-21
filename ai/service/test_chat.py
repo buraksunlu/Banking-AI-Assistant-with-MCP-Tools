@@ -500,6 +500,95 @@ def test_a_call_completed_by_a_clarification_becomes_the_context():
     assert gateway.calls[1][1] == {"period": "ThisMonth"}
 
 
+# MCP-17/18: the user's own figures. The tools as the MCP server publishes them (tools/list, 21 Oct 2026), shortened.
+
+CATEGORY = {"type": ["string", "null"], "enum": ["FOOD", "GROCERY", "OTHER", None], "default": None}
+DEFINITIONS += [
+    {"type": "function", "function": {
+        "name": "check_budget", "description": "Bu ayın harcamasını kullanıcının söylediği bütçeyle karşılaştırır.",
+        "parameters": {"type": "object", "properties": {
+            "amount": {"type": "number"}, "currencyCode": {"type": "string", "enum": ["TRY", "USD", "EUR", "GBP"]},
+            "categoryCode": CATEGORY, "merchant": {"type": ["string", "null"], "default": None}},
+            "required": ["amount", "currencyCode"]}}},
+    {"type": "function", "function": {
+        "name": "simulate_savings", "description": "Bir harcamayı azaltırsa ne kadar biriktireceğini hesaplar.",
+        "parameters": {"type": "object", "properties": {
+            "reductionPercent": {"type": "integer", "minimum": 1, "maximum": 100}, "categoryCode": CATEGORY,
+            "merchant": {"type": ["string", "null"], "default": None},
+            "months": {"type": "integer", "default": 6, "minimum": 1, "maximum": 12}}, "required": ["reductionPercent"]}}},
+]
+BUDGET_RESULT = {"period": {"kind": "ThisMonth", "startDate": "2026-10-01", "endDate": "2026-10-10"}, "currencyCode": "TRY",
+                 "budgetAmount": 3000, "categoryCode": None, "categoryDisplayName": None, "merchantMatch": None,
+                 "figures": {"spentAmount": Decimal("735.00"), "transactionCount": 5, "remainingAmount": Decimal("2265.00"),
+                             "overAmount": 0, "isOverBudget": False, "elapsedDays": 10, "daysInMonth": 31,
+                             "dailyAverage": Decimal("73.50"), "projectedMonthEnd": Decimal("2278.50"), "projectedOverAmount": 0,
+                             "willExceed": False, "projectionMethod": "LinearDailyAverage"}}
+SAVINGS_RESULT = {"from": "2026-04-01", "to": "2026-09-30", "months": 6, "reductionPercent": 20, "categoryCode": None,
+                  "categoryDisplayName": None, "merchantMatch": {"status": "Matched", "merchant": "Starbucks", "isPartialMatch": False,
+                                                                 "candidates": []},
+                  "method": "FullMonthAverageTimesReduction", "currencies": []}
+AMOUNT_QUESTION = "Bütçeniz ne kadar? Örneğin 3.000 TL."
+CURRENCY_QUESTION = "Bütçeniz hangi para biriminde? 1) TL 2) Euro 3) Dolar 4) Sterlin"
+
+
+def test_a_budget_in_the_users_words_runs():
+    call = ToolCall("check_budget", {"amount": 3000, "currencyCode": "TRY"})
+    chat, selector, gateway, explainer = service([call], gateway=FakeGateway(BUDGET_RESULT))
+
+    reply = chat.answer("Bu ay 3.000 TL bütçem var, ne durumdayım?", TOKEN)
+
+    assert (reply.type, gateway.calls[0][:2]) == ("answer", ("check_budget", {"amount": 3000, "currencyCode": "TRY"}))
+    assert ("Kalan", "2.265,00 TL") in [(f.label, f.text) for f in explainer.calls[0][1]]
+
+
+def test_a_misread_amount_is_asked_with_the_fixed_question_and_nothing_runs():
+    writer = FakeWriter("Bütçeniz ne kadar, 1.000 TL mi?")
+    chat, selector, gateway, explainer = service([ToolCall("check_budget", {"amount": 1.0, "currencyCode": "TRY"})], writer=writer)
+
+    reply = chat.answer("Bu ay 1.000 TL bütçem var, ne durumdayım?", TOKEN)
+
+    assert reply == ChatReply("clarification", AMOUNT_QUESTION, [], [])
+    # A figure question is never worded by the model: it could suggest an amount (K3-A).
+    assert writer.calls == [] and gateway.calls == []
+
+
+def test_an_invented_amount_and_currency_are_asked_one_after_the_other():
+    gateway = FakeGateway(BUDGET_RESULT)
+    chat, selector, gateway, explainer = service([ToolCall("check_budget", {"amount": 5000, "currencyCode": "TRY"})], gateway=gateway)
+
+    first = chat.answer("Bu ay bütçemi aşacak mıyım?", TOKEN)
+    second = chat.answer("3000", TOKEN)
+    third = chat.answer("1", TOKEN)
+
+    assert (first.answer, second.answer, third.type) == (AMOUNT_QUESTION, CURRENCY_QUESTION, "answer")
+    # The guessed 5000 and TRY never ran; the amount and the currency are the user's replies.
+    assert gateway.calls == [("check_budget", {"amount": 3000, "currencyCode": "TRY"}, TOKEN, gateway.calls[0][3])]
+    assert len(selector.calls) == 1
+
+
+def test_an_amount_reply_that_names_the_currency_completes_both():
+    gateway = FakeGateway(BUDGET_RESULT)
+    chat, selector, gateway, explainer = service([ToolCall("check_budget", {"amount": 5000, "currencyCode": "TRY"})], gateway=gateway)
+
+    chat.answer("Bu ay bütçemi aşacak mıyım?", TOKEN)
+    reply = chat.answer("3.000 TL", TOKEN)
+
+    assert reply.type == "answer"
+    assert gateway.calls[0][:2] == ("check_budget", {"amount": 3000, "currencyCode": "TRY"})
+
+
+def test_a_guessed_cut_is_asked_and_the_reply_completes_it():
+    gateway = FakeGateway(SAVINGS_RESULT)
+    call = ToolCall("simulate_savings", {"reductionPercent": 20, "merchant": "Starbucks"})
+    chat, selector, gateway, explainer = service([call], gateway=gateway)
+
+    asked = chat.answer("Starbucks harcamamı biraz azaltsam ne kazanırım?", TOKEN)
+    chat.answer("%30", TOKEN)
+
+    assert asked.answer == "Ne kadar azaltmayı düşünüyorsunuz? Örneğin %10, %25 ya da %50."
+    assert gateway.calls[0][:2] == ("simulate_savings", {"merchant": "Starbucks", "reductionPercent": 30})
+
+
 def test_bridge_errors_are_not_hidden():
     chat, *_ = service([SUMMARY_YESTERDAY], gateway=FakeGateway(error=SessionInvalid("expired")))
     with pytest.raises(SessionInvalid):

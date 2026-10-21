@@ -17,7 +17,7 @@ public sealed class SavingsSimulationServiceTests
             "PostgreSQL testi için önce .env ortam değişkenlerini yükleyin.");
         await using var db = new BankingDbContext();
         var periods = new PeriodResolver(new FixedTimeProvider(DemoNowUtc));
-        return await new SavingsSimulationService(new SpendingComparisonService(db, periods)).SimulateAsync(query);
+        return await new SavingsSimulationService(db, new SpendingComparisonService(db, periods)).SimulateAsync(query);
     }
 
     // Total spent, monthly average, monthly saving, annual saving.
@@ -70,6 +70,20 @@ public sealed class SavingsSimulationServiceTests
 
     [Fact]
     [Trait("Category", "PostgreSQL")]
+    public async Task A_category_comes_with_its_turkish_name_and_other_targets_with_none()
+    {
+        var travel = await SimulateAsync(new(Ege, 50, CategoryCode: "TRAVEL"));
+        var starbucks = await SimulateAsync(new(Ada, 50, Merchant: "starbucks"));
+        var total = await SimulateAsync(new(Ada, 10));
+
+        // MCP-18 K6-A: the name comes from the category table, so the AI service never keeps a second copy of it.
+        Assert.Equal(("TRAVEL", "Seyahat"), (travel.CategoryCode, travel.CategoryDisplayName));
+        Assert.Equal(((string?)null, (string?)null), (starbucks.CategoryCode, starbucks.CategoryDisplayName));
+        Assert.Null(total.CategoryDisplayName);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
     public async Task Savings_come_from_the_exact_total_not_the_rounded_average()
     {
         var result = await SimulateAsync(new(Ege, 10, CategoryCode: "TRANSPORTATION"));
@@ -98,7 +112,7 @@ public sealed class SavingsSimulationServiceTests
     {
         await using var db = new BankingDbContext();
         var periods = new PeriodResolver(new FixedTimeProvider(DemoNowUtc));
-        var result = await new SavingsSimulationService(new SpendingComparisonService(db, periods)).SimulateAsync(new(Ada, 10));
+        var result = await new SavingsSimulationService(db, new SpendingComparisonService(db, periods)).SimulateAsync(new(Ada, 10));
         var summary = await new SpendingSummaryService(db, periods).GetAsync(new(Ada, PeriodKind.Custom, result.From, result.To));
 
         Assert.Equal(Assert.Single(summary.Currencies).TotalAmount, Assert.Single(result.Currencies).TotalSpent);

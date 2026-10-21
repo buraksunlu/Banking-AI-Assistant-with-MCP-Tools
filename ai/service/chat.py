@@ -3,8 +3,9 @@
     waiting question? → tools (MCP server) → tool selection (model, with the last call when the message is a follow-up) →
     grounding (code) → tool call (MCP server checks and computes) → facts (code) → explanation (model) → last call kept
 
-A period or count the user did not say, or a merchant name that fits several merchants, is asked back instead of guessed
-(CHAT-03); the reply completes the remembered call without a second selection. A short follow-up ("Peki geçen ay?") is read
+A period, count or figure (budget amount, currency, cut; MCP-17/18) the user did not say, or a merchant name that fits several
+merchants, is asked back instead of guessed (CHAT-03); the reply completes the remembered call without a second selection, and
+a figure still unsaid after it is asked next. A short follow-up ("Peki geçen ay?") is read
 with the last call; an argument must then be in the message or carried over unchanged (CHAT-02). The answer's figures are
 never carried over: every turn is computed again. The whole turn shares one time limit. The
 user's token only goes to the MCP server (and, as a digest, keys the waiting question), never to a model.
@@ -17,7 +18,8 @@ from typing import Protocol
 
 from langchain_ollama import ChatOllama
 
-from clarification import Pending, PendingStore, ask_count, ask_merchant, ask_period, check_question, resolve, template
+from clarification import (Pending, PendingStore, ask_amount, ask_count, ask_currency, ask_merchant, ask_percent, ask_period,
+                           check_question, resolve, template)
 from contracts import Fact
 from conversation import ConversationStore, LastCall, is_follow_up
 from explainer import stream_message
@@ -129,7 +131,12 @@ class ChatService:
         if waiting is not None:
             arguments = resolve(waiting, message)
             if arguments is not None:
-                return self._run(ToolCall(waiting.tool, arguments), f"{waiting.question} ({message})", token, deadline)
+                question = f"{waiting.question} ({message})"
+                # "3000" answered the amount; the currency the model guessed as well is asked next, not run.
+                later = tuple(name for name in waiting.later if name not in arguments)
+                if later:
+                    return self._ask(_ask_figure(waiting.tool, arguments, later[0], later[1:], question), [], token, deadline)
+                return self._run(ToolCall(waiting.tool, arguments), question, token, deadline)
 
         # Listed first: when the tools cannot answer, the single local model is not kept busy for nothing.
         tools = self.gateway.list_tools(token, deadline)
@@ -153,7 +160,7 @@ class ChatService:
         # A period or count the user did not say is the model's guess: asked back, the tool does not run (K1-C, K2-A).
         grounding = check_arguments(call.arguments, schemas[call.tool], message, context.arguments if context else None)
         if grounding.missing is not None:
-            return self._ask(self._question_for(call, grounding.missing, schemas[call.tool], message), [], token, deadline)
+            return self._ask(self._question_for(call, grounding.unsaid, schemas[call.tool], message), [], token, deadline)
         return self._run(ToolCall(call.tool, grounding.arguments), message, token, deadline)
 
     def _run(self, call: ToolCall, question: str, token: str, deadline: float) -> ChatReply:
@@ -179,15 +186,21 @@ class ChatService:
         return ChatReply("answer", answer, used, outcome.facts)
 
     @staticmethod
-    def _question_for(call: ToolCall, argument: str, schema: dict, message: str) -> Pending:
+    def _question_for(call: ToolCall, unsaid: tuple[str, ...], schema: dict, message: str) -> Pending:
+        argument, later = unsaid[0], unsaid[1:]
+        # Every guessed value is left out of the stored call, so none of them runs once the user has answered.
+        known = {k: v for k, v in call.arguments.items() if k not in unsaid}
         if argument == "period":
-            return ask_period(call.tool, call.arguments, message)
+            return ask_period(call.tool, known, message)
+        if argument in ("amount", "currencyCode", "reductionPercent"):
+            return _ask_figure(call.tool, known, argument, later, message)
         rule = schema.get("properties", {}).get(argument, {})
-        return ask_count(call.tool, call.arguments, argument, rule.get("minimum", 1), rule.get("maximum", 12), message)
+        return ask_count(call.tool, known, argument, rule.get("minimum", 1), rule.get("maximum", 12), message)
 
     def _ask(self, pending: Pending, used: list[ToolCall], token: str, deadline: float) -> ChatReply:
         text = template(pending)
-        if self.writer is not None:
+        # A figure question stays the fixed text: a worded one could suggest an amount or a cut (MCP-17/18).
+        if self.writer is not None and pending.model_worded:
             try:
                 written = self.writer.write(pending.question, pending.kind, [o.label for o in pending.options], pending.numbered,
                                             min(deadline, self.clock() + QUESTION_SECONDS), pending.asked)
@@ -200,3 +213,9 @@ class ChatService:
                 logger.info("No model question (%s); the fixed question is used", type(error).__name__)
         self.waiting.put(token, pending)
         return ChatReply("clarification", text, used, [])
+
+
+def _ask_figure(tool: str, arguments: dict, argument: str, later: tuple[str, ...], question: str) -> Pending:
+    """The question for one of the user's own figures (MCP-17/18), with the ones still to ask after it."""
+    asker = {"amount": ask_amount, "currencyCode": ask_currency, "reductionPercent": ask_percent}[argument]
+    return asker(tool, arguments, question, later=later)

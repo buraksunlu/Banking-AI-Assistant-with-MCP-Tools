@@ -460,7 +460,8 @@ Tasarruflar yuvarlanmış ortalamadan değil tam toplamdan: aylık = toplam × o
 | Ada, Starbucks, %100, 1 ay (Eyl) | 185 | 185 | 185 | 2.220 |
 | Ada, CLOTHING · Ege, "şehir" | — | — | — | boş liste (`Ambiguous` için `MerchantMatch`) |
 
-Sınırlar: fiyat artışı, mevsimsellik ve davranış değişimi hesaba katılmaz; cevapta kategori adı değil kodu var.
+Sınırlar: fiyat artışı, mevsimsellik ve davranış değişimi hesaba katılmaz. MCP-18 (21 Ekim 2026) sonuca kategorinin Türkçe adını
+(`CategoryDisplayName`, bütçe kontrolündeki gibi kategori tablosundan) ekledi; AI servisi adların ikinci bir kopyasını tutmaz.
 
 ## ANA-10 — Kavramsal merchant harcaması (kapalı küme, 16 Ekim 2026)
 

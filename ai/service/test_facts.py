@@ -378,3 +378,159 @@ def test_no_upcoming_payment_says_so():
 
     assert outcome_for("get_upcoming_payments", {"days": 1}, result).facts == facts(
         ("Dönem", "10-11 Ekim 2026"), ("Sonuç", "Bu dönemde beklenen düzenli ödeme yok."), UPCOMING_NOTE)
+
+
+# Budget (MCP-17, K7-A; docs/analytics.md ANA-13: Ada this month, 10 of 31 days)
+
+BUDGET_NOTE = ("Not", "Ay sonu tahmini doğrusaldır: bugüne kadarki günlük ortalama ayın sonuna kadar sürer varsayılır; kesin değildir. "
+                      "Bütçe kaydedilmez, yalnız bu soru için kullanılır.")
+
+
+def budget(amount, currency="TRY", category=None, name=None, match=None, **figures):
+    defaults = {"spentAmount": Decimal("0.00"), "transactionCount": 0, "remainingAmount": Decimal(amount), "overAmount": 0,
+                "isOverBudget": False, "elapsedDays": 10, "daysInMonth": 31, "dailyAverage": Decimal("0.00"),
+                "projectedMonthEnd": Decimal("0.00"), "projectedOverAmount": 0, "willExceed": False,
+                "projectionMethod": "LinearDailyAverage"}
+    return {"period": THIS_MONTH, "currencyCode": currency, "budgetAmount": amount, "categoryCode": category,
+            "categoryDisplayName": name, "merchantMatch": match, "figures": {**defaults, **figures}}
+
+
+def matched(merchant, partial=False):
+    return {"status": "Matched", "merchant": merchant, "isPartialMatch": partial, "candidates": []}
+
+
+def test_a_category_budget_that_will_be_exceeded():
+    result = budget(1000, category="FOOD", name="Yeme & İçme", spentAmount=Decimal("590.00"), transactionCount=4,
+                    remainingAmount=Decimal("410.00"), dailyAverage=Decimal("59.00"), projectedMonthEnd=Decimal("1829.00"),
+                    projectedOverAmount=Decimal("829.00"), willExceed=True)
+
+    assert outcome_for("check_budget", {"amount": 1000, "currencyCode": "TRY", "categoryCode": "FOOD"}, result) == ToolOutcome(facts(
+        ("Dönem", "1-10 Ekim 2026 (ayın 10. günü; ay 31 gün)"),
+        ("Hedef", "Yeme & İçme"),
+        ("Bütçe", "1.000,00 TL"),
+        ("Harcanan", "590,00 TL (4 işlem)"),
+        ("Kalan", "410,00 TL"),
+        ("Günlük ortalama", "59,00 TL"),
+        ("Bu hızla tahmini ay sonu", "1.829,00 TL"),
+        ("Tahmini aşım", "829,00 TL"),
+        BUDGET_NOTE,
+    ))
+
+
+def test_a_merchant_budget_already_exceeded():
+    result = budget(300, match=matched("Starbucks", partial=True), spentAmount=Decimal("375.00"), transactionCount=2,
+                    remainingAmount=0, overAmount=Decimal("75.00"), isOverBudget=True, dailyAverage=Decimal("37.50"),
+                    projectedMonthEnd=Decimal("1162.50"), projectedOverAmount=Decimal("862.50"), willExceed=True)
+
+    got = outcome_for("check_budget", {"amount": 300, "currencyCode": "TRY", "merchant": "starbuck"}, result).facts
+
+    assert got[1:5] == facts(("Hedef", "Starbucks"), ("Not", "‘starbuck’ yazımı ‘Starbucks’ ile eşleşti."), ("Bütçe", "300,00 TL"),
+                             ("Harcanan", "375,00 TL (2 işlem)"))
+    assert ("Bütçe aşımı", "75,00 TL") in [(f.label, f.text) for f in got]
+    assert "Kalan" not in [f.label for f in got]
+
+
+def test_a_total_budget_without_spending_stays_within():
+    result = budget(100, currency="USD")
+
+    assert outcome_for("check_budget", {"amount": 100, "currencyCode": "USD"}, result).facts == facts(
+        ("Dönem", "1-10 Ekim 2026 (ayın 10. günü; ay 31 gün)"),
+        ("Hedef", "Toplam harcama"),
+        ("Bütçe", "100,00 USD"),
+        ("Harcanan", "0,00 USD (0 işlem)"),
+        ("Kalan", "100,00 USD"),
+        ("Günlük ortalama", "0,00 USD"),
+        ("Bu hızla tahmini ay sonu", "0,00 USD"),
+        ("Tahmin", "Bu hızla bütçe içinde kalınır."),
+        BUDGET_NOTE,
+    )
+
+
+def test_a_budget_for_an_ambiguous_or_unknown_merchant_has_no_figures():
+    ambiguous = {**budget(500), "figures": None,
+                 "merchantMatch": {"status": "Ambiguous", "merchant": None, "isPartialMatch": False,
+                                   "candidates": ["Şehir Ulaşım", "Şehirlerarası Otobüs"]}}
+    unknown = {**budget(500), "figures": None,
+               "merchantMatch": {"status": "NotFound", "merchant": None, "isPartialMatch": False, "candidates": []}}
+
+    assert outcome_for("check_budget", {"merchant": "şehir"}, ambiguous) == ToolOutcome([], candidates=("Şehir Ulaşım", "Şehirlerarası Otobüs"))
+    assert outcome_for("check_budget", {"merchant": "Migros"}, unknown) == ToolOutcome(
+        [], ("answer", "‘Migros’ adında bir işyerinde harcamanız bulunmuyor."))
+
+
+# Savings simulation (MCP-18, K7-A; docs/analytics.md ANA-14: April-September 2026)
+
+SAVINGS_NOTE = ("Not", "Tahmin, geçmiş aylık ortalamanın aynen süreceği varsayımına dayanır; faiz, getiri ve fiyat artışı hesaba "
+                       "katılmaz. Yatırım tavsiyesi değildir.")
+
+
+def months(*amounts, start=4):
+    return [{"year": 2026, "month": start + i, "isPartial": False, "amount": Decimal(a), "transactionCount": 1}
+            for i, a in enumerate(amounts)]
+
+
+def savings(percent, rows, category=None, name=None, match=None, start="2026-04-01", count=6):
+    return {"from": start, "to": "2026-09-30", "months": count, "reductionPercent": percent, "categoryCode": category,
+            "categoryDisplayName": name, "merchantMatch": match, "method": "FullMonthAverageTimesReduction", "currencies": rows}
+
+
+def row(currency, total, average, monthly, annual, amounts):
+    return {"currencyCode": currency, "totalSpent": Decimal(total), "monthlyAverage": Decimal(average),
+            "monthlySaving": Decimal(monthly), "annualSaving": Decimal(annual), "monthlyAmounts": amounts}
+
+
+def test_halving_a_merchant_shows_every_month_and_the_assumption():
+    result = savings(50, [row("TRY", "1110.00", "185.00", "92.50", "1110.00", months(*["185.00"] * 6))], match=matched("Starbucks"))
+
+    assert outcome_for("simulate_savings", {"reductionPercent": 50, "merchant": "Starbucks"}, result) == ToolOutcome(facts(
+        ("Dönem", "1 Nisan - 30 Eylül 2026 (6 tam ay; devam eden ay dahil değil)"),
+        ("Hedef", "Starbucks"),
+        ("Azaltma oranı", "%50"),
+        ("Nisan 2026", "185,00 TL"), ("Mayıs 2026", "185,00 TL"), ("Haziran 2026", "185,00 TL"),
+        ("Temmuz 2026", "185,00 TL"), ("Ağustos 2026", "185,00 TL"), ("Eylül 2026", "185,00 TL"),
+        ("Toplam harcama", "1.110,00 TL"),
+        ("Aylık ortalama", "185,00 TL"),
+        ("Tahmini aylık tasarruf", "92,50 TL"),
+        ("Tahmini yıllık tasarruf", "1.110,00 TL"),
+        SAVINGS_NOTE,
+    ))
+
+
+def test_a_month_without_spending_is_shown_as_zero():
+    # Selin's food in August is 0 and stays in the average (ANA-14 K2-A); the explanation can only say so if it sees it.
+    amounts = months("3316.00", "3879.00", "4403.50", "3780.00", "0", "3746.50")
+    result = savings(20, [row("TRY", "19125.00", "3187.50", "637.50", "7650.00", amounts)], category="FOOD", name="Yeme & İçme")
+
+    got = [(f.label, f.text) for f in outcome_for("simulate_savings", {"reductionPercent": 20, "categoryCode": "FOOD"}, result).facts]
+
+    assert ("Hedef", "Yeme & İçme") in got and ("Ağustos 2026", "0,00 TL") in got and ("Aylık ortalama", "3.187,50 TL") in got
+
+
+def test_two_currencies_are_never_added_up():
+    result = savings(10, [row("TRY", "63594.00", "10599.00", "1059.90", "12718.80", months(*["10599.00"] * 6)),
+                          row("USD", "227.94", "37.99", "3.80", "45.59", months(*["37.99"] * 6))])
+
+    got = outcome_for("simulate_savings", {"reductionPercent": 10}, result).facts
+
+    assert ("Tahmini yıllık tasarruf (USD)", "45,59 USD") in [(f.label, f.text) for f in got]
+    assert ("Hedef", "Toplam harcama") in [(f.label, f.text) for f in got]
+    assert got[-2:] == facts(("Not", "Farklı para birimleri toplanmaz, ayrı gösterilir."), SAVINGS_NOTE)
+
+
+def test_savings_without_spending_say_so():
+    result = savings(50, [], category="CLOTHING", name="Giyim")
+
+    assert outcome_for("simulate_savings", {"reductionPercent": 50, "categoryCode": "CLOTHING"}, result).facts == facts(
+        ("Dönem", "1 Nisan - 30 Eylül 2026 (6 tam ay; devam eden ay dahil değil)"),
+        ("Hedef", "Giyim"),
+        ("Azaltma oranı", "%50"),
+        ("Sonuç", "Bu dönemde bu hedefte harcama bulunamadı; tasarruf hesaplanamaz."),
+        SAVINGS_NOTE,
+    )
+
+
+def test_savings_for_an_ambiguous_merchant_ask_back():
+    ambiguous = {"status": "Ambiguous", "merchant": None, "isPartialMatch": False, "candidates": ["Şehir Ulaşım", "Şehirlerarası Otobüs"]}
+
+    assert outcome_for("simulate_savings", {"reductionPercent": 50, "merchant": "şehir"}, savings(50, [], match=ambiguous)) == ToolOutcome(
+        [], candidates=("Şehir Ulaşım", "Şehirlerarası Otobüs"))

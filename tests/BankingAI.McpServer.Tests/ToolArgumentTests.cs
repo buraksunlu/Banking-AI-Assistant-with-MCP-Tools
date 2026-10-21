@@ -44,6 +44,36 @@ public sealed class ToolArgumentTests
         { "get_highest_transactions", """{"period":"LastMonth","limit":3}""" },
         { "get_highest_transactions", """{"period":"LastMonth","includeAllTransactions":true}""" },
         { "get_recurring_payments", """{"months":6}""" },
+        // The budget (MCP-17): a JSON number, never text or a flag; the currency and category by their exact names.
+        { "check_budget", """{"amount":"1000","currencyCode":"TRY"}""" },
+        { "check_budget", """{"amount":true,"currencyCode":"TRY"}""" },
+        { "check_budget", """{"amount":null,"currencyCode":"TRY"}""" },
+        { "check_budget", """{"amount":1e40,"currencyCode":"TRY"}""" },
+        { "check_budget", """{"currencyCode":"TRY"}""" },
+        { "check_budget", """{"amount":1000}""" },
+        { "check_budget", """{"amount":1000,"currencyCode":"TL"}""" },
+        { "check_budget", """{"amount":1000,"currencyCode":"try"}""" },
+        { "check_budget", """{"amount":1000,"currencyCode":null}""" },
+        { "check_budget", """{"amount":1000,"currencyCode":"TRY","categoryCode":"food"}""" },
+        { "check_budget", """{"amount":1000,"currencyCode":"TRY","categoryCode":"MARKET"}""" },
+        { "check_budget", """{"amount":1000,"currencyCode":"TRY","merchant":""}""" },
+        { "check_budget", """{"amount":1000,"currencyCode":"TRY","merchant":5}""" },
+        { "check_budget", """{"amount":1000,"currencyCode":"TRY","accountId":"20000000-0000-0000-0000-000000000001"}""" },
+        // The backend's own rules (InputRules.Money, one target only), reported the same way.
+        { "check_budget", """{"amount":0,"currencyCode":"TRY"}""" },
+        { "check_budget", """{"amount":-5,"currencyCode":"TRY"}""" },
+        { "check_budget", """{"amount":1000.555,"currencyCode":"TRY"}""" },
+        { "check_budget", """{"amount":1000,"currencyCode":"TRY","categoryCode":"FOOD","merchant":"Starbucks"}""" },
+        // The savings simulation (MCP-18): a whole percent of 1-100 and at most twelve months.
+        { "simulate_savings", """{"reductionPercent":0}""" },
+        { "simulate_savings", """{"reductionPercent":101}""" },
+        { "simulate_savings", """{"reductionPercent":"50"}""" },
+        { "simulate_savings", """{"reductionPercent":50.5}""" },
+        { "simulate_savings", """{}""" },
+        { "simulate_savings", """{"reductionPercent":50,"months":0}""" },
+        { "simulate_savings", """{"reductionPercent":50,"months":13}""" },
+        { "simulate_savings", """{"reductionPercent":50,"categoryCode":"Yeme"}""" },
+        { "simulate_savings", """{"reductionPercent":50,"categoryCode":"FOOD","merchant":"Starbucks"}""" },
     };
 
     [Theory]
@@ -81,6 +111,11 @@ public sealed class ToolArgumentTests
     [InlineData("get_upcoming_payments", """{"days":31}""")]
     [InlineData("get_upcoming_payments", """{}""")]
     [InlineData("get_recurring_payments", """{}""")]
+    [InlineData("check_budget", """{"amount":1000.50,"currencyCode":"TRY"}""")]
+    [InlineData("check_budget", """{"amount":1000,"currencyCode":"TRY","categoryCode":null,"merchant":null}""")]
+    [InlineData("simulate_savings", """{"reductionPercent":1,"months":1}""")]
+    [InlineData("simulate_savings", """{"reductionPercent":100,"months":12}""")]
+    [InlineData("simulate_savings", """{"reductionPercent":50,"categoryCode":null}""")]
     public async Task Counts_on_their_limits_and_left_out_optional_ones_are_accepted(string tool, string arguments)
     {
         await using var server = McpTestServer.Create();

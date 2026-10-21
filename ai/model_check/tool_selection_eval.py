@@ -9,7 +9,8 @@ gives the comparison. Before MCP-b the definitions were Python's own (12/12, 20 
 CHAT-03 adds the grounding check of the chat: a "clarify" case passes only when the turn would ask back instead of
 guessing (S27-S31), and every other case fails if the check would ask a needless question. CHAT-02 adds follow-ups
 (F01-F14): the case's previous call is given to the selector when the message counts as a follow-up, and the grounding check
-accepts what was carried over unchanged, as in the chat. A case passes when the model
+accepts what was carried over unchanged, as in the chat. MCP-17/18 add the budget and savings cases (S35-S47, F15-F16).
+A case passes when the model
 chose exactly the expected tool with exactly the expected arguments (merchant names without case), or no tool when none
 may be chosen.
 """
@@ -49,7 +50,9 @@ def matches(expected: dict | list | None, calls: list) -> bool:
         return not calls
     if len(calls) != 1 or calls[0].tool != expected["tool"]:
         return False
-    fold = lambda arguments: {k: v.casefold() if k == "merchant" and isinstance(v, str) else v for k, v in arguments.items()}
+    # An optional argument written as null is left out (MCP-17/18): the MCP server publishes null for them and accepts it.
+    fold = lambda arguments: {k: v.casefold() if k == "merchant" and isinstance(v, str) else v
+                              for k, v in arguments.items() if v is not None}
     return fold(calls[0].arguments) == fold(expected["arguments"])
 
 

@@ -1501,6 +1501,11 @@ COMPLETED
   (answer_eval.py, bağımsız SQL rakamları) 10/10. İade yok: KIND-06.
 
 IN PROGRESS
+- Bütçe/tasarruf araçları MCP-17/18 (21 Ekim 2026, dal mcp-17-budget-savings-tools, docs/mcp.md "MCP-17/18"): PlanningTools
+  (check_budget, simulate_savings; 11 araç), kategori/para birimi kapalı kümeleri, filtrede tutar (number) ve null kuralı, tasarruf
+  sonucunda CategoryDisplayName. Kullanıcının rakamları (tutar, para birimi, oran) mesajda aranır; söylenmeyen sabit metinle sorulur ve
+  zincirlenir. Kalan: araç seçim ölçümü eşiği (ilk taslak 53/63; uzun kategori açıklaması eski araçların dönem seçimini bozdu, kısa
+  açıklamayla 56/63; "Dün ne harcadım?" açık) ve cevap doğruluğu ölçümü (5 yeni persona vakası).
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT

@@ -1,4 +1,6 @@
 using System.Text.Json;
+using BankingAI.McpServer.Tools;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 using static BankingAI.Application.Tests.DemoData;
 
@@ -6,7 +8,7 @@ namespace BankingAI.McpServer.Tests;
 
 // MCP-02: what the model is shown. The tool set is an allowlist checked here, so a tool cannot be published without a
 // test (the MCP counterpart of the API's endpoint sweep); descriptions are the AI-14a ones word for word (K3-A), and the
-// MCP-08/09/10/16/24/27 ones are the texts the tool-selection eval was run with.
+// MCP-08/09/10/16/24/27 and MCP-17/18 ones are the texts the tool-selection eval was run with.
 public sealed class ToolDiscoveryTests
 {
     private const string PeriodHelp =
@@ -40,6 +42,16 @@ public sealed class ToolDiscoveryTests
         ["get_upcoming_payments"] = (
             "Düzenli ödemelere göre önümüzdeki günlerde beklenen ödemeleri tahmini tarih ve tutarla döndürür. days: kaç gün ileriye "
             + "bakılacağı, 1-31; verilmezse 30.", ["days"], []),
+        ["check_budget"] = (
+            "Bu ayın harcamasını kullanıcının söylediği bütçe tutarıyla karşılaştırır (harcanan, kalan, ay sonu tahmini). amount: "
+            + "bütçe tutarı. currencyCode: TRY=TL/lira, EUR=euro, USD=dolar, GBP=sterlin. categoryCode ya da merchant: bütçe bir kategori "
+            + "ya da işyeri içinse.",
+            ["amount", "categoryCode", "currencyCode", "merchant"], ["amount", "currencyCode"]),
+        ["simulate_savings"] = (
+            "Bir harcamayı yüzde kaç azaltırsa ayda ve yılda tahminen ne kadar biriktireceğini hesaplar; yatırım getirisi değildir. "
+            + "reductionPercent: azaltma oranı, 1-100 (yarıya = 50). months: geriye kaç tam ay, 1-12; verilmezse 6. categoryCode ya da "
+            + "merchant: azaltılacak harcama bir kategori ya da işyeriyse.",
+            ["categoryCode", "merchant", "months", "reductionPercent"], ["reductionPercent"]),
     };
 
     private static async Task<IList<ModelContextProtocol.Client.McpClientTool>> ToolsAsync()
@@ -126,12 +138,42 @@ public sealed class ToolDiscoveryTests
     [Trait("Category", "PostgreSQL")]
     [InlineData("get_monthly_trend", "months", 1, 12)]
     [InlineData("get_upcoming_payments", "days", 1, 31)]
+    [InlineData("simulate_savings", "reductionPercent", 1, 100)]
+    [InlineData("simulate_savings", "months", 1, 12)]
     public async Task Counts_are_whole_numbers_within_their_limits(string tool, string argument, int minimum, int maximum)
     {
         var rule = (await ToolsAsync()).Single(t => t.Name == tool).JsonSchema.GetProperty("properties").GetProperty(argument);
 
         Assert.Equal(("integer", minimum, maximum),
             (rule.GetProperty("type").GetString(), rule.GetProperty("minimum").GetInt32(), rule.GetProperty("maximum").GetInt32()));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task The_budget_is_a_number_in_one_of_the_four_currencies()
+    {
+        var properties = (await ToolsAsync()).Single(t => t.Name == "check_budget").JsonSchema.GetProperty("properties");
+
+        // The kuruş and upper limits are the backend's money rule (InputRules.Money), as for every amount.
+        Assert.Equal("number", properties.GetProperty("amount").GetProperty("type").GetString());
+        Assert.Equal(["TRY", "USD", "EUR", "GBP"],
+            properties.GetProperty("currencyCode").GetProperty("enum").EnumerateArray().Select(v => v.GetString()));
+        foreach (var currency in Enum.GetNames<ToolCurrency>())
+            BankingAI.Data.Validation.InputRules.Currency(currency, "currencyCode");
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("check_budget")]
+    [InlineData("simulate_savings")]
+    public async Task The_categories_are_exactly_the_category_tables_codes(string tool)
+    {
+        var category = (await ToolsAsync()).Single(t => t.Name == tool).JsonSchema.GetProperty("properties").GetProperty("categoryCode");
+        await using var db = new BankingAI.Data.BankingDbContext();
+        var codes = await db.TransactionCategories.OrderBy(c => c.Id).Select(c => c.Code).ToListAsync();
+
+        // Optional: the published set is the table's codes plus null (left out), never a code the table does not have.
+        Assert.Equal([.. codes, null], category.GetProperty("enum").EnumerateArray().Select(v => v.GetString()));
     }
 
     [Fact]
