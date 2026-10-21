@@ -1499,17 +1499,17 @@ COMPLETED
   ve 116 işlem değişmedi; bütün veri setini sayan testler ilk demo hesaplarına daraltıldı. Yeni fixture: RealisticDatasetTests (Credit elle,
   Debit altın), RealisticPersonaTests (düzenli ödeme zammı/iptali, benzer adlı Migros, Berlin ay sınırı). Ölçüm: seçim 48/48, cevap doğruluğu
   (answer_eval.py, bağımsız SQL rakamları) 10/10. İade yok: KIND-06.
+- Bütçe/tasarruf araçları MCP-17/18 (21 Ekim 2026, docs/mcp.md "MCP-17/18"): PlanningTools (check_budget, simulate_savings; 11 araç),
+  kategori/para birimi kapalı kümeleri, filtrede tutar (number) ve null kuralı, tasarruf sonucunda CategoryDisplayName. Kullanıcının
+  rakamları (tutar, para birimi, oran) mesajda aranır; söylenmeyen sabit metinle sorulur ve zincirlenir. Ölçüm: seçim 60/63 (eski 48 tam;
+  uzun kategori açıklaması eski araçların dönemini bozmuştu), cevap doğruluğu 14/15 (A12'nin
+  cevap şartı soruyla uyumsuzdu, düzeltildi).
 
 IN PROGRESS
-- Bütçe/tasarruf araçları MCP-17/18 (21 Ekim 2026, dal mcp-17-budget-savings-tools, docs/mcp.md "MCP-17/18"): PlanningTools
-  (check_budget, simulate_savings; 11 araç), kategori/para birimi kapalı kümeleri, filtrede tutar (number) ve null kuralı, tasarruf
-  sonucunda CategoryDisplayName. Kullanıcının rakamları (tutar, para birimi, oran) mesajda aranır; söylenmeyen sabit metinle sorulur ve
-  zincirlenir. Kalan: araç seçim ölçümü eşiği (ilk taslak 53/63; uzun kategori açıklaması eski araçların dönem seçimini bozdu, kısa
-  açıklamayla 56/63; "Dün ne harcadım?" açık) ve cevap doğruluğu ölçümü (5 yeni persona vakası).
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Kullanıcı seçer (21 Ekim): CHAT-02 takip sorusu; bütçe/tasarruf araçları MCP-17/18; CHAT-01; hesap ekranları (IOS-04…); yeni
+- Kullanıcı seçer (21 Ekim): CHAT-01 niyete göre araç daraltma (11 araçta seçim kırılganlaştı); hesap ekranları (IOS-04…); yeni
   MCP araçları (MCP-03…26); SEC-07 kısa ömürlü yalnız-MCP token'ı. Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,

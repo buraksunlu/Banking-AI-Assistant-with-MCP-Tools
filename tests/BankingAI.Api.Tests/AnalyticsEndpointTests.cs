@@ -596,7 +596,7 @@ public sealed class AnalyticsEndpointTests
     {
         var body = Ok(await GetAsync("/api/analytics/savings-simulation?reductionPercent=50&merchant=starbucks", Ada));
 
-        Assert.Equal(["from", "to", "months", "reductionPercent", "categoryCode", "merchantMatch", "method", "currencies"],
+        Assert.Equal(["from", "to", "months", "reductionPercent", "categoryCode", "categoryDisplayName", "merchantMatch", "method", "currencies"],
             body.AsObject().Select(p => p.Key));
         // Decision K3-A: six complete months by default; the running October is not averaged.
         Assert.Equal(("2026-04-01", "2026-09-30", 6, "FullMonthAverageTimesReduction"),
@@ -614,7 +614,9 @@ public sealed class AnalyticsEndpointTests
     {
         var body = Ok(await GetAsync("/api/analytics/savings-simulation?reductionPercent=20&categoryCode=GROCERY&months=3", Deniz));
 
-        Assert.Equal(("2026-07-01", "GROCERY"), (body["from"]!.GetValue<string>(), body["categoryCode"]!.GetValue<string>()));
+        // MCP-18 K6-A: the category's Turkish name comes with the code, from the category table.
+        Assert.Equal(("2026-07-01", "GROCERY", "Market"),
+            (body["from"]!.GetValue<string>(), body["categoryCode"]!.GetValue<string>(), body["categoryDisplayName"]!.GetValue<string>()));
         Assert.Equal((24333.33m, 4866.67m, 58400m),
             (Amount(body["currencies"]![0]!["monthlyAverage"]), Amount(body["currencies"]![0]!["monthlySaving"]),
              Amount(body["currencies"]![0]!["annualSaving"])));

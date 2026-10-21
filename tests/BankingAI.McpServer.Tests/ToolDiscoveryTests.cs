@@ -19,7 +19,8 @@ public sealed class ToolDiscoveryTests
     // Arguments and the required ones, each in ordinal order.
     private static readonly Dictionary<string, (string Description, string[] Arguments, string[] Required)> Published = new()
     {
-        ["get_spending_summary"] = ("Bir dönemdeki toplam harcamayı para birimi başına döndürür; \"ne harcadım / ne kadar harcadım\" soruları için. " + PeriodHelp, ["period"], ["period"]),
+        ["get_spending_summary"] = ("Bir dönemdeki toplam harcamayı para birimi başına döndürür; \"ne harcadım / ne kadar harcadım\" gibi genel "
+            + "harcama soruları için ilk tercih. " + PeriodHelp, ["period"], ["period"]),
         ["get_category_breakdown"] = ("Bir dönemdeki harcamanın kategorilere dağılımını döndürür. " + PeriodHelp, ["period"], ["period"]),
         ["get_merchant_spending"] = (
             "Bir dönemde tek bir işyerine (merchant) yapılan harcamayı döndürür. merchant: kullanıcının söylediği işyeri adı. " + PeriodHelp,
@@ -43,9 +44,9 @@ public sealed class ToolDiscoveryTests
             "Düzenli ödemelere göre önümüzdeki günlerde beklenen ödemeleri tahmini tarih ve tutarla döndürür. days: kaç gün ileriye "
             + "bakılacağı, 1-31; verilmezse 30.", ["days"], []),
         ["check_budget"] = (
-            "Bu ayın harcamasını kullanıcının söylediği bütçe tutarıyla karşılaştırır (harcanan, kalan, ay sonu tahmini). amount: "
-            + "bütçe tutarı. currencyCode: TRY=TL/lira, EUR=euro, USD=dolar, GBP=sterlin. categoryCode ya da merchant: bütçe bir kategori "
-            + "ya da işyeri içinse.",
+            "Yalnız kullanıcı bir bütçe tutarı söylediyse: bu ayın harcamasını o bütçeyle karşılaştırır (kalan, ay sonu tahmini). "
+            + "amount: bütçe tutarı. currencyCode: TRY=TL/lira, EUR=euro, USD=dolar, GBP=sterlin. categoryCode ya da merchant: bütçe bir "
+            + "kategori ya da işyeri içinse.",
             ["amount", "categoryCode", "currencyCode", "merchant"], ["amount", "currencyCode"]),
         ["simulate_savings"] = (
             "Bir harcamayı yüzde kaç azaltırsa ayda ve yılda tahminen ne kadar biriktireceğini hesaplar; yatırım getirisi değildir. "

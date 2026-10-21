@@ -18,16 +18,16 @@ public sealed class PlanningTools(
 {
     // The category codes are the schema's enum only. Listing their Turkish meanings in the descriptions (the first draft)
     // cost the older tools their periods in the tool-selection eval ("geçen hafta" became Last7Days): the 4b model reads
-    // every description on every turn, so these two are kept short.
+    // every description on every turn, so these two are kept short. "Yalnız … söylediyse" kept "Geçen hafta Starbucks'a" on LastWeek.
 
     /// <summary>
     /// <c>check_budget</c>: this month's spending against the budget the user gives (never stored): spent, remaining or
     /// over, daily average and the linear month-end projection.
     /// </summary>
     [McpServerTool(Name = "check_budget", ReadOnly = true, Destructive = false, UseStructuredContent = true)]
-    [Description("Bu ayın harcamasını kullanıcının söylediği bütçe tutarıyla karşılaştırır (harcanan, kalan, ay sonu tahmini). amount: "
-        + "bütçe tutarı. currencyCode: TRY=TL/lira, EUR=euro, USD=dolar, GBP=sterlin. categoryCode ya da merchant: bütçe bir kategori "
-        + "ya da işyeri içinse.")]
+    [Description("Yalnız kullanıcı bir bütçe tutarı söylediyse: bu ayın harcamasını o bütçeyle karşılaştırır (kalan, ay sonu tahmini). "
+        + "amount: bütçe tutarı. currencyCode: TRY=TL/lira, EUR=euro, USD=dolar, GBP=sterlin. categoryCode ya da merchant: bütçe bir "
+        + "kategori ya da işyeri içinse.")]
     public Task<BudgetCheck> CheckBudgetAsync(
         decimal amount, ToolCurrency currencyCode, ToolCategory? categoryCode = null,
         [MinLength(1), MaxLength(150)] string? merchant = null, CancellationToken cancellationToken = default) =>

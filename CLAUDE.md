@@ -168,7 +168,8 @@ yeniden başlatılmış olmalı). Araç ekleyince/açıklama değişince önce v
 `rawDescription` asla kalem olmaz. MCP-17/18: kullanıcının kendi rakamları (bütçe tutarı, para birimi, azaltma oranı) `grounding`'de
 mesajda aranır ("1.000" = 1000, "5 bin", "yarı" = 50); söylenmeyen ya da yanlış okunan sorulur. Bu sorular hep sabit metindir (model
 yazmaz) ve `Pending.later` ile zincirlenir (tutar → para birimi). Araç açıklamaları kısa tutulur: 11 kategorinin listesi eski araçların
-dönem seçimini bozdu ("geçen hafta" → `Last7Days`), kodlar yalnız şemada.
+dönem seçimini bozdu ("geçen hafta" → `Last7Days`), kodlar yalnız şemada; `check_budget` listedeyken "Dün ne harcadım?" yanlış araca
+gidiyordu, özet aracının açıklamasındaki "ilk tercih" bunu düzeltti (eski açıklama değişince 63 vakanın hepsi yeniden ölçülür).
 
 Sohbet kapısı (AI-14b + AI-07, .NET): iPhone yalnız .NET'e konuşur. `POST /api/assistant/messages` → `ICustomerCheck` (silinmiş
 müşteri model çalışmadan 401) → `IAssistantClient` (`Api/Assistant/AssistantClient`, typed `HttpClient`) aynı `Authorization`
@@ -435,7 +436,7 @@ API-15 (OpenAPI sözleşmesi, Scalar, örnekler). API bölümü tamam. AI-01 (lo
 `ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`), AI-03 (FastAPI servisi `ai/service/app.py`), AI-04 (LangChain `ChatOllama`), AI-05 (prompt `explanation-v1`), AI-06 (çıktı doğrulama, değerlendirme 13/15), ANA-20 (gün/hafta dönemleri), AI-14a/14b + AI-07 + SEC-06 (uçtan uca sohbet:
 FastAPI `/v1/chat` + .NET `POST /api/assistant/messages`), MCP-a (MCP-01/02 + MCP-05/07/25 server tarafı: `BankingAI.McpServer`,
 `BankingAI.Hosting`), MCP-b (MCP-12/13/14: AI servisi araçları MCP'den keşfedip çalıştırır, REST köprüsü silindi); sıradaki: kullanıcı
-seçer (todo "Şu anki sonraki adım"). iOS-a (IOS-01/13: `ios/BankingAI`, giriş + Keychain), AI-08 (sohbet ekranı), AI-15 (soğuk model ısıtma), MCP-08 (altı yeni araç, 9 araç), MCP-17/18 (bütçe ve tasarruf araçları, 11 araç; dalda, ölçüm sürüyor) CHAT-03 (belirsizlikte geri soru) ve CHAT-02 (takip soruları) ve SYN-15 (gerçekçi yıl: 6 persona, 1.710 işlem) tamam.
+seçer (todo "Şu anki sonraki adım"). iOS-a (IOS-01/13: `ios/BankingAI`, giriş + Keychain), AI-08 (sohbet ekranı), AI-15 (soğuk model ısıtma), MCP-08 (altı yeni araç, 9 araç), MCP-17/18 (bütçe ve tasarruf araçları, 11 araç; seçim 60/63, cevap doğruluğu 14/15) CHAT-03 (belirsizlikte geri soru) ve CHAT-02 (takip soruları) ve SYN-15 (gerçekçi yıl: 6 persona, 1.710 işlem) tamam.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
 içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d. 19 Ekim 2026 todo taraması: AI-14 (uçtan uca
