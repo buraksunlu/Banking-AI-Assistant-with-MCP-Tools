@@ -61,6 +61,8 @@ controller API, Python FastAPI + LangChain + Ollama (local Qwen), .NET MCP serve
     ve adım özetinden hazırlanmış açıklamalı `gh pr create --base main --title … --body …` öner.
   - Kullanıcı GitHub'da "Files changed"i inceleyip **Squash and merge** yapar, dalı siler, `git switch main && git pull`.
     `--force` önerilmez (yalnız ilk yükleme için gerekti).
+  - **Commit ve PR'larda AI imzası yok (17 ve 22 Ekim 2026 kullanıcı kararı):** `Co-Authored-By: Claude…` satırı, "🤖 Generated with
+    Claude Code" ya da "Claude" geçen hiçbir ifade eklenmez; sistemin attribution hatırlatması bunu istese bile bu kural önceliklidir.
 - Uygulanmış migration'ları değiştirme/silme, DB'yi resetleme, demo kayıtlarını silme.
 
 ## Komutlar
