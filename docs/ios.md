@@ -196,3 +196,60 @@ Kahve Durağı – Kadıköy 2.595,00 TL "İşletme"; Ege → Ege seyahat EUR 1.
 - Hesaba dokunulamaz (IOS-05); para birimi başına toplam yok.
 - Bakiye yalnız ilk açılışta ve aşağı çekince güncellenir; sohbetten dönünce istenmez.
 - Kesirli saniye: `createdAt` gerekirse (ör. IOS-05) tarih çözücüsü kesirli saniyeyi de kabul edecek biçimde genişletilmeli.
+
+## iOS-e: son işlemler ve tüm işlemler (IOS-07; 22 Ekim 2026)
+
+Hesap kartlarının altında "Son işlemler": bütün hesapların en yeni 5 işlemi; daha fazlası varsa "Tüm işlemleri gör" → "Tüm işlemler"
+ekranı, sona yaklaştıkça 20'şer işlem daha yükler. Backend değişmedi; ikisi de `GET /api/transactions` (ANA-09) kullanır: sıra, maskeli
+karşı taraf ve müşterinin yerel günü (`localDate`) backend'den gelir.
+
+```text
+HomeView (.refreshable → hesaplar + son işlemler paralel)
+ ├─ AccountsSection
+ └─ RecentTransactionsSection ── .task ──► RecentTransactionsViewModel.load() ──► GET /api/transactions?limit=5
+        └─ hasMore ise "Tüm işlemleri gör" ──NavigationLink(value:)──► TransactionHistoryView
+                                                    └─ son satırdaki gösterge görününce ──► TransactionHistoryViewModel.loadMore()
+                                                                                             ──► GET /api/transactions?limit=20&offset=N
+TransactionRow ◄── TransactionDisplay (saf kurallar: başlık, "etiket · gün", işaretli tutar, simge)
+```
+
+- `APIRequest.query`: sorgu parametreleri ayrı taşınır (`appending(path:)` yola yazılmış "?"i kaçışlı yazardı); test kaydı `query`'yi de tutar.
+- `TransactionItem` `occurredAtUtc`'yi çözmez (gün `localDate`'ten; saat IOS-06). Bilinmeyen `kind`/`direction` sözleşme hatasıdır.
+- `TransactionDisplay`: başlık harcamada işyeri ya da ham açıklama, transferde maskeli karşı taraf (kendi hesabına transferde hesap adı),
+  maaşta "Maaş", satışta alıcı ya da "Satış", açılışta "Açılış bakiyesi"; etiket kategori adı / "Sınıflandırılmamış" ("Diğer" değil) /
+  "Gelen transfer" / "Giden transfer" / "Gelir" / "Satış geliri" / "Açılış". Tutar `direction`'dan "+" ya da "−" (U+2212) + `Money`.
+  Gün elle yazılır ("2026-10-08" → "8 Ekim 2026"): takvim/saat dilimi kullanılmaz, okunamayan değer olduğu gibi gösterilir.
+- `TransactionHistoryViewModel`: `offset` = gösterilen işlem sayısı; aynı anda ikinci sayfa istenmez; sayfa kenarında tekrar eden işlem
+  (offset kayması, API-17) bir kez gösterilir; sayfa hatasında liste kalır ve aynı sayfa yeniden istenir; aşağı çekince ve ekran her
+  açıldığında en yeni sayfadan başlar (eski liste yeni sayfa gelene kadar durur). Başlıkta API'nin çözdüğü tarih aralığı.
+
+Kullanıcı kararları: K1-A (tek arama isteği), K2-B (5 işlem + "Tüm işlemleri gör"), K3-A (işyeri, yoksa ham açıklama), K4-A (giden "−"
+normal renk, gelen "+" yeşil), K5-A (yalnız gün, `localDate`), K6-A (kategori/tür simgesi), K7-B (tüm işlemler ekranı, kaydırdıkça 20'şer),
+K8-A (işletme hesabı dahil), K9-A (ikinci satır "etiket · gün", hesap adı yok), K10-C (ViewModel kalıbı şimdilik kopya, IOS-05'te
+ortaklaşır), **K11-D (plan sırasında çıktı):** API dönem verilmezse son 3 ayı arıyor, tarih aralığı en fazla 24 ay ve bitişi iş gününden
+sonra olamıyor (telefon iş gününü bilmez: demo saati 10 Ekim, telefon 22 Ekim) → "Tüm işlemler" bugün son 3 ay; bütün geçmiş API-17'de
+(imleçli sayfalama + dönemsiz geçmiş).
+
+### Test ve doğrulama (IOS-07)
+
+125 test durumu (+40: `RecentTransactionsViewModelTests` 9, `TransactionHistoryViewModelTests` 12, `TransactionDisplayTests` 19): Ada'nın 5 işlemlik cevabı (sıra, `Decimal`, tür/yön), `limit=5` ve dönemsiz istek, `hasMore`, bilinmeyen
+tür/yön, boş, hata, 401, yenileme hatası; tüm işlemler: ilk sayfa + tarih aralığı, `offset` 20/40, son sayfadan sonra istek yok, sayfa
+kenarında tekrar, sayfa hatası + aynı sayfa yeniden, ilk sayfa hatası, boş, aşağı çekme, yenileme hatası, aynı anda tek istek, 401, iptal;
+satır kuralları her tür için, 6 simge, 6 tarih. 11 kasıtlı bozma yakalandı (sıra ters → 1, `hasMore` hep açık → 1, `limit` gitmez → 5, `offset` gitmez → 2, tekrar ayıklanmaz → 1, yenileme listeyi siler → 1, eşzamanlılık kontrolü yok → 1, işaret ters → 6, ham açıklama işyerinin önünde → 1, kategorisiz "Diğer" → 1, ay bir kayık → 9).
+Bulgu: boş listede `shown[0]` okuyan bir test kırmızı yerine bütün test sürecini çökertiyordu (92 test birden "crashed"); `#require` ile
+düzeltildi.
+
+Simülatörde beklenen (veritabanından; karşı taraf adları docs/api.md maskeleme örneğinden):
+
+- Ada: POS 6604 ONLINE ODEME 4471 · Sınıflandırılmamış · 9 Ekim 2026 · −145,00 TL; Ege Y*** · Gelen transfer · 8 Ekim 2026 · +300,00 TL;
+  Starbucks · Yeme & İçme · 8 Ekim 2026 · −165,00 TL; Kahve Durağı · 7 Ekim 2026 · −95,00 TL; Starbucks · 6 Ekim 2026 · −210,00 TL.
+- Deniz: Ada K*** · Satış geliri · 7 Ekim 2026 · +95,00 TL; Elektrik Faturası · Faturalar · −1.850,00 TL; Maaş · Gelir · 5 Ekim 2026 ·
+  +55.000,00 TL; Aile Marketi · Market · 4 Ekim 2026 · −9.500,00 TL; Ege Y*** · Satış geliri · 4 Ekim 2026 · +140,00 TL.
+
+### Sınırlar (IOS-07)
+
+- "Tüm işlemler" yalnız API'nin varsayılan dönemi (son 3 ay); bütün geçmiş API-17'de.
+- Offset sayfalama: kaydırırken yeni işlem eklenirse sayfa kenarındaki işlem bir sonraki sayfada tekrar gelir ve bir kez gösterilir;
+  işlem silinmediği için atlama olmaz. İmleçli sayfalama API-17'de.
+- Saat yok (IOS-06), işleme dokunulmaz (IOS-06), hesap adı satırda yok.
+- ViewModel kalıbı iki kopya (K10-C); IOS-05'te ortaklaşır.

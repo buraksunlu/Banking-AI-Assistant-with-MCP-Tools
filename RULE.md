@@ -1516,12 +1516,16 @@ COMPLETED
 - Hesaplar ekranı IOS-04 (22 Ekim 2026, docs/ios.md "iOS-d"): ana ekranın gövdesi `GET /api/accounts` listesi (K1-D; `AccountsViewModel`
   dört durum + yenileme hatası bandı, `AccountRow` kartı), tutar yazımı sohbetle aynı (`Formatting/Money`: `577.490,18 TL`), aşağı çekip
   yenileme, yenileme hatası listeyi silmez (K6-A), vurgu rengi lacivert. Backend değişmedi; hesaba dokunma IOS-05'te. 85 iOS test durumu.
+- Son işlemler IOS-07 (22 Ekim 2026, docs/ios.md "iOS-e"): ana ekranda hesapların altında `GET /api/transactions?limit=5` (bütün hesaplar,
+  işletme dahil), "Tüm işlemler" ekranı kaydırdıkça 20'şer (`offset`; tekrar eden işlem bir kez). Satır kuralları `TransactionDisplay`'de
+  (işyeri ya da ham açıklama, maskeli karşı taraf, "Sınıflandırılmamış" ≠ "Diğer", "+"/"−" `direction`'dan, gün `localDate`'ten).
+  K11-D: dönemsiz arama son 3 ay ve telefon iş gününü bilmiyor → bütün geçmiş API-17'de. Backend değişmedi. 125 iOS test durumu.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Kullanıcı seçer (22 Ekim): AI-16 model belleği (12,7 GB, ısınma); KIND-06 iade; hesap detayı ve işlem listesi (IOS-05…); yeni
+- Kullanıcı seçer (22 Ekim): AI-16 model belleği (12,7 GB, ısınma); KIND-06 iade; API-17 (imleçli sayfalama + bütün geçmiş, "Tüm işlemler" bekliyor); hesap detayı (IOS-05…); yeni
   MCP araçları (MCP-03…26); SEC-07 kısa ömürlü yalnız-MCP token'ı. Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,

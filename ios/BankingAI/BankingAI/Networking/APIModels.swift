@@ -76,3 +76,52 @@ struct Account: Decodable, Equatable, Identifiable {
     let accountType: AccountType
     let balance: Decimal
 }
+
+/// What a transaction is economically (the API writes the exact names). Spending is `purchase` only.
+enum TransactionKind: String, Decodable {
+    case purchase = "Purchase"
+    case sale = "Sale"
+    case transfer = "Transfer"
+    case salary = "Salary"
+    case openingFunding = "OpeningFunding"
+}
+
+/// Which way the money went for this account.
+enum TransactionDirection: String, Decodable {
+    case debit = "Debit"
+    case credit = "Credit"
+}
+
+/// One transaction as every list of the API returns it (`TransactionItem`, docs/api.md). `occurredAtUtc` is not decoded:
+/// the screens show the backend's `localDate`, the day in the customer's own time zone (decision IOS-07 K5-A).
+struct TransactionItem: Decodable, Equatable, Identifiable {
+    let id: UUID
+    let accountName: String
+    /// The local day as the API writes it, "2026-10-08".
+    let localDate: String
+    let kind: TransactionKind
+    let direction: TransactionDirection
+    let amount: Decimal
+    let currencyCode: String
+    let merchant: String?
+    let categoryCode: String?
+    let categoryDisplayName: String?
+    let rawDescription: String
+    /// Masked ("Ege Y***"), or the account's name for an own account or a shop.
+    let counterparty: String?
+    let counterpartyIsOwnAccount: Bool
+}
+
+/// The days a search covered, as local dates; without a period the API searches the last three months.
+struct SearchedPeriod: Decodable, Equatable {
+    let startDate: String
+    let endDate: String
+}
+
+/// Reply of `GET /api/transactions`: one page of the customer's transactions, newest first.
+struct TransactionSearchResult: Decodable, Equatable {
+    let period: SearchedPeriod
+    let totalCount: Int
+    let hasMore: Bool
+    let items: [TransactionItem]
+}

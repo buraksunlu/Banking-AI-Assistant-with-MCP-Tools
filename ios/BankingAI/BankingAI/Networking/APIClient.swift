@@ -4,6 +4,8 @@ import Foundation
 struct APIRequest<Response: Decodable> {
     let method: String
     let path: String
+    /// Query parameters, sent as they are; `appending(path:)` would escape a "?" written into the path.
+    var query: [URLQueryItem] = []
     let body: Data?
     let requiresToken: Bool
     /// How long to wait for this call; nil keeps URLSession's default.
@@ -29,6 +31,18 @@ extension APIRequest where Response == [Account] {
     /// `GET /api/accounts`: every account of the customer, oldest first; `[]` when there are none.
     static var accounts: APIRequest<[Account]> {
         APIRequest(method: "GET", path: "api/accounts", body: nil, requiresToken: true)
+    }
+}
+
+extension APIRequest where Response == TransactionSearchResult {
+    /// `GET /api/transactions`: the newest transactions of every account, `offset` of them skipped. No period: the API's
+    /// default (the last three months of the business day, which the phone does not know) decides (IOS-07 K11-D).
+    static func transactions(limit: Int, offset: Int = 0) -> APIRequest<TransactionSearchResult> {
+        var query = [URLQueryItem(name: "limit", value: String(limit))]
+        if offset > 0 {
+            query.append(URLQueryItem(name: "offset", value: String(offset)))
+        }
+        return APIRequest(method: "GET", path: "api/transactions", query: query, body: nil, requiresToken: true)
     }
 }
 
@@ -77,7 +91,11 @@ final class APIClient {
 
     /// Sends the request and decodes the answer; every failure is an ``APIError``.
     func send<Response: Decodable>(_ request: APIRequest<Response>) async throws -> Response {
-        var urlRequest = URLRequest(url: baseURL.appending(path: request.path))
+        var url = baseURL.appending(path: request.path)
+        if !request.query.isEmpty {
+            url.append(queryItems: request.query)
+        }
+        var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = request.method
         urlRequest.setValue("application/json", forHTTPHeaderField: "Accept")
         if let timeout = request.timeout {
