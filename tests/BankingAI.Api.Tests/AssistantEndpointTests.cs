@@ -14,6 +14,7 @@ public sealed class AssistantEndpointTests
 {
     private const string MessagesPath = "/api/assistant/messages";
     private const string StatusPath = "/api/assistant/status";
+    private const string SuggestionsPath = "/api/assistant/suggestions";
 
     private static StringContent Body(string json) => new(json, Encoding.UTF8, "application/json");
 
@@ -56,7 +57,8 @@ public sealed class AssistantEndpointTests
             JsonNode.Parse("""
                 {"type":"Answer","answer":"Dün 145,00 TL harcadınız.",
                  "toolCalls":[{"tool":"get_spending_summary","arguments":{"period":"Yesterday"}}],
-                 "facts":[{"label":"Toplam harcama","text":"145,00 TL"}]}
+                 "facts":[{"label":"Toplam harcama","text":"145,00 TL"}],
+                 "suggestions":["Kategorilere göre?","Peki işyerlerine göre?"]}
                 """)!.ToJsonString(),
             body.ToJsonString());
     }
@@ -67,7 +69,7 @@ public sealed class AssistantEndpointTests
     [InlineData("outOfScope", "OutOfScope")]
     public async Task Each_reply_type_keeps_its_meaning(string aiType, string apiType)
     {
-        var reply = $$"""{"type":"{{aiType}}","answer":"Hangi dönem?","toolCalls":[],"facts":[],"model":"qwen3.5:4b"}""";
+        var reply = $$"""{"type":"{{aiType}}","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"model":"qwen3.5:4b"}""";
 
         var (status, body) = await AskAsync(FakeAssistantService.Answering(reply));
 
@@ -187,7 +189,11 @@ public sealed class AssistantEndpointTests
         """{"type":"answer","answer":null,"toolCalls":[],"facts":[],"model":"m"}""",
         """{"type":"answer","answer":"Tamam","toolCalls":[],"model":"m"}""",
         """{"type":"answer","answer":"Tamam","toolCalls":[{"tool":"x"}],"facts":[],"model":"m"}""",
-        """{"type":"answer","answer":"Tamam","toolCalls":[],"facts":[{"label":"Toplam"}],"model":"m"}""");
+        """{"type":"answer","answer":"Tamam","toolCalls":[],"facts":[{"label":"Toplam"}],"suggestions":[],"model":"m"}""",
+        // CHAT-06: the suggestions are part of the contract; a missing list is not read as "none".
+        """{"type":"answer","answer":"Tamam","toolCalls":[],"facts":[],"model":"m"}""",
+        """{"type":"answer","answer":"Tamam","toolCalls":[],"facts":[],"suggestions":[null],"model":"m"}""",
+        """{"type":"answer","answer":"Tamam","toolCalls":[],"facts":[],"suggestions":"Kategorilere göre?","model":"m"}""");
 
     [Theory]
     [Trait("Category", "PostgreSQL")]
@@ -353,5 +359,96 @@ public sealed class AssistantEndpointTests
         // What is logged instead: enough to follow a turn without the customer's words.
         Assert.Contains(logs.Lines, line => line.Contains("Answer") && line.Contains("get_spending_summary") && line.Contains("qwen3.5:4b"));
         Assert.Contains(logs.Lines, line => line.Contains("ai_answer_rejected"));
+    }
+
+    // --- Starter questions (CHAT-06 K4-B) ---------------------------------------------------------------------------
+
+    private static async Task<(HttpStatusCode Status, JsonObject Body)> SuggestionsAsync(FakeAssistantService fake, Guid? customerId = null)
+    {
+        await using var api = FakeAssistantService.Api(fake);
+        using var client = api.CreateClient().WithToken(TestTokens.Create(customerId ?? Ada));
+        var response = await client.GetAsync(SuggestionsPath);
+        return (response.StatusCode, JsonNode.Parse(await response.Content.ReadAsStringAsync())!.AsObject());
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Starter_questions_come_from_the_ai_service_with_the_callers_own_token()
+    {
+        var fake = FakeAssistantService.Answering(FakeAssistantService.SampleSuggestions);
+        var token = TestTokens.Create(Ada);
+        await using var api = FakeAssistantService.Api(fake);
+        using var client = api.CreateClient().WithToken(token);
+
+        var response = await client.GetAsync(SuggestionsPath);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(JsonNode.Parse(FakeAssistantService.SampleSuggestions)!.ToJsonString(),
+            JsonNode.Parse(await response.Content.ReadAsStringAsync())!.ToJsonString());
+        var request = Assert.Single(fake.Requests);
+        // The starters depend on the customer's data, so the AI service needs the token to ask the MCP server.
+        Assert.Equal((HttpMethod.Get, "/v1/suggestions", $"Bearer {token}", (string?)null),
+            (request.Method, request.Path, request.Authorization, request.Body));
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [MemberData(nameof(AiServiceErrors))]
+    public async Task Each_starter_error_is_the_same_as_a_messages(
+        HttpStatusCode aiStatus, string aiCode, HttpStatusCode expectedStatus, string expectedCode)
+    {
+        var (status, body) = await SuggestionsAsync(FakeAssistantService.Failing(aiCode, aiStatus));
+
+        Assert.Equal((expectedStatus, expectedCode), (status, body["code"]!.GetValue<string>()));
+    }
+
+    public static TheoryData<string> BrokenSuggestions => new(
+        "not json", "{}", """{"suggestions":null}""", """{"suggestions":[null]}""", """{"suggestions":"Bu ay?"}""");
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [MemberData(nameof(BrokenSuggestions))]
+    public async Task Starters_that_do_not_match_the_contract_are_a_502(string reply)
+    {
+        var (status, body) = await SuggestionsAsync(FakeAssistantService.Answering(reply));
+
+        Assert.Equal((HttpStatusCode.BadGateway, "assistant_failed"), (status, body["code"]!.GetValue<string>()));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Starters_of_an_unreachable_or_slow_ai_service_are_503_and_504()
+    {
+        Assert.Equal(HttpStatusCode.ServiceUnavailable, (await SuggestionsAsync(FakeAssistantService.Unreachable())).Status);
+
+        await using var api = FakeAssistantService.Api(FakeAssistantService.Slow(TimeSpan.FromSeconds(30)),
+            settings: [(AssistantSettings.TimeoutKey, "1")]);
+        using var client = api.CreateClient().WithToken(TestTokens.Create(Ada));
+        Assert.Equal(HttpStatusCode.GatewayTimeout, (await client.GetAsync(SuggestionsPath)).StatusCode);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Starters_of_a_deleted_customer_are_401_before_the_ai_service_is_asked()
+    {
+        var fake = FakeAssistantService.Answering(FakeAssistantService.SampleSuggestions);
+
+        var (status, body) = await SuggestionsAsync(fake, Guid.NewGuid());
+
+        Assert.Equal((HttpStatusCode.Unauthorized, "session_invalid"), (status, body["code"]!.GetValue<string>()));
+        Assert.Empty(fake.Requests);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Opening_the_chat_does_not_use_up_the_ten_messages()
+    {
+        // The starters run no model (K4-B); counting them would leave fewer questions for a user who reopens the chat.
+        var fake = FakeAssistantService.Answering(FakeAssistantService.SampleSuggestions);
+        await using var api = FakeAssistantService.Api(fake);
+        using var client = api.CreateClient().WithToken(TestTokens.Create(Ada));
+
+        for (var i = 0; i < 11; i++)
+            Assert.Equal(HttpStatusCode.OK, (await client.GetAsync(SuggestionsPath)).StatusCode);
     }
 }

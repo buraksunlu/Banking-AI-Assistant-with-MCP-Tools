@@ -42,6 +42,7 @@ public sealed class EndpointSweepTests
         // The AI service is never reached here: the token and customer checks answer first.
         ["POST api/assistant/messages"] = ("/api/assistant/messages", """{"message":"Dün ne harcadım?"}"""),
         ["GET api/assistant/status"] = ("/api/assistant/status", null),
+        ["GET api/assistant/suggestions"] = ("/api/assistant/suggestions", null),
     };
 
     // The only endpoints a client may call without a token: health, login, and in development the OpenAPI contract with

@@ -7,6 +7,7 @@ from chat import ChatReply, ChatService, ToolCall
 from contracts import Fact
 from ollama_client import OllamaSettings, OllamaTimeout, OllamaUnavailable, Readiness, check_ready
 from prompts import CLARIFY_TEXT, OUT_OF_SCOPE_TEXT
+from suggestions import OUT_OF_SCOPE_SUGGESTIONS
 from tools import BackendUnavailable, SessionInvalid, ToolArgumentsRejected
 
 TOKEN = "secret-token-123"
@@ -119,7 +120,8 @@ def test_a_tool_call_is_run_and_explained():
 
     reply = chat.answer("Dün ne harcadım?", TOKEN)
 
-    assert reply == ChatReply("answer", ANSWER, [SUMMARY_YESTERDAY], YESTERDAY_FACTS)
+    assert reply == ChatReply("answer", ANSWER, [SUMMARY_YESTERDAY], YESTERDAY_FACTS,
+                              ["Kategorilere göre?", "Peki işyerlerine göre?", "En büyük harcamalarım neler?"])
     assert gateway.list_calls == [(TOKEN, 30.0)]
     # CHAT-01: the model is shown the general group only, not the planning tools the server lists too.
     assert selector.calls == [("Dün ne harcadım?", general_tools(), 30.0)]
@@ -146,7 +148,7 @@ def test_no_tool_means_the_fixed_out_of_scope_reply():
 
     reply = chat.answer("Hesabımdan Deniz'e 500 TL gönder.", TOKEN)
 
-    assert reply == ChatReply("outOfScope", OUT_OF_SCOPE_TEXT, [], [])
+    assert reply == ChatReply("outOfScope", OUT_OF_SCOPE_TEXT, [], [], list(OUT_OF_SCOPE_SUGGESTIONS))
     assert gateway.calls == [] and explainer.calls == []
 
 
@@ -432,7 +434,8 @@ def test_a_chain_of_follow_ups_keeps_only_the_last_message_and_merchant():
 
     chat.answer("Geçen ay Starbucks'a ne kadar harcadım?", TOKEN)
     chat.answer("Peki Kahve Durağı'na?", TOKEN)
-    reply = chat.answer("Ya son 3 ayda?", TOKEN)
+    # Not the offered "Ya son 3 ayda?" (CHAT-06), which would run without the model: this is about the model's path.
+    reply = chat.answer("Peki son 3 ayda?", TOKEN)
 
     assert selector.contexts[2].question == "Peki Kahve Durağı'na?"  # no growing chain with the first merchant in it
     assert gateway.calls[2][1] == {"merchant": "Kahve Durağı", "period": "Last3Months"}
@@ -616,7 +619,7 @@ def test_a_clear_out_of_scope_request_runs_no_model_and_lists_no_tools():
 
     reply = chat.answer("Deniz'e 100 TL transfer yap", TOKEN)
 
-    assert reply == ChatReply("outOfScope", OUT_OF_SCOPE_TEXT, [], [])
+    assert reply == ChatReply("outOfScope", OUT_OF_SCOPE_TEXT, [], [], list(OUT_OF_SCOPE_SUGGESTIONS))
     assert (selector.calls, gateway.list_calls, gateway.calls) == ([], [], [])
 
 
@@ -733,3 +736,80 @@ def test_real_model_picks_yesterday():
     settings = OllamaSettings.from_env({"BANKINGAI_LLM_MODEL": "qwen3.5:4b", **os.environ})
     selector = LangChainToolSelector(settings)
     assert selector.select("Dün ne harcadım?", DEFINITIONS, selector.clock() + 30) == [SUMMARY_YESTERDAY]
+
+
+# CHAT-06: follow-ups under an explained answer; the offered text in the next message runs its call without a selection.
+
+YESTERDAY_CATEGORIES = {"period": {"kind": "Yesterday", "startDate": "2026-10-09", "endDate": "2026-10-09"},
+                        "currencies": [{"currencyCode": "TRY", "totalAmount": Decimal("145.00"),
+                                        "categories": [{"displayName": "Market", "amount": Decimal("145.00"),
+                                                        "percentage": Decimal("100.00")}]}]}
+
+
+def test_an_offered_follow_up_runs_its_call_without_listing_or_selecting():
+    chat, selector, gateway, explainer = service([SUMMARY_YESTERDAY], gateway=FakeGateway([YESTERDAY, YESTERDAY_CATEGORIES]))
+    chat.answer("Dün ne harcadım?", TOKEN)
+
+    reply = chat.answer("Kategorilere göre?", TOKEN)
+
+    assert len(selector.calls) == 1 and len(gateway.list_calls) == 1
+    assert gateway.calls[1][:3] == ("get_category_breakdown", {"period": "Yesterday"}, TOKEN)
+    assert reply.tool_calls == [ToolCall("get_category_breakdown", {"period": "Yesterday"})]
+    # The model still writes the sentence; only the choice of tool was code's.
+    assert (reply.type, explainer.calls[1][0]) == ("answer", "Kategorilere göre?")
+    assert reply.suggestions == ["Peki işyerlerine göre?", "En büyük harcamalarım neler?"]
+
+
+def test_the_offered_call_becomes_the_context_of_the_next_follow_up():
+    gateway = FakeGateway([YESTERDAY, YESTERDAY_CATEGORIES, YESTERDAY_CATEGORIES])
+    turns = [[SUMMARY_YESTERDAY], [ToolCall("get_category_breakdown", {"period": "Today"})]]
+    chat, selector, gateway, explainer = service([], gateway=gateway, turns=turns)
+    chat.answer("Dün ne harcadım?", TOKEN)
+    chat.answer("Kategorilere göre?", TOKEN)
+
+    chat.answer("Peki bugün?", TOKEN)
+
+    assert (selector.contexts[1].tool, selector.contexts[1].arguments) == ("get_category_breakdown", {"period": "Yesterday"})
+
+
+def test_an_offer_belongs_to_its_token_only():
+    chat, selector, gateway, explainer = service([SUMMARY_YESTERDAY])
+    chat.answer("Dün ne harcadım?", TOKEN)
+
+    chat.answer("Kategorilere göre?", "another-users-token")
+
+    assert len(selector.calls) == 2
+
+
+def test_an_offer_lasts_for_the_next_message_only():
+    chat, selector, gateway, explainer = service([], turns=[[SUMMARY_YESTERDAY], [], [SUMMARY_YESTERDAY]])
+    chat.answer("Dün ne harcadım?", TOKEN)
+    chat.answer("Peki ya?", TOKEN)                  # out of scope: the offer is gone
+
+    chat.answer("Kategorilere göre?", TOKEN)
+
+    assert len(selector.calls) == 3
+
+
+def test_a_waiting_question_comes_before_an_offer():
+    chat, selector, gateway, explainer = service([ToolCall("get_spending_summary", {"period": "ThisMonth"})],
+                                                 gateway=FakeGateway([LAST_MONTH]))
+
+    reply = chat.answer("Ne kadar harcadım?", TOKEN)   # asked back (CHAT-03)
+    assert reply.suggestions == []
+    chat.answer("geçen ay", TOKEN)
+
+    assert gateway.calls[0][:2] == ("get_spending_summary", {"period": "LastMonth"})
+
+
+def test_a_fixed_merchant_reply_and_a_clarification_offer_nothing():
+    not_found = {"period": {"kind": "LastMonth", "startDate": "2026-09-01", "endDate": "2026-09-30"},
+                 "match": {"status": "NotFound", "merchant": None, "isPartialMatch": False, "candidates": []}, "currencies": []}
+    call = ToolCall("get_merchant_spending", {"merchant": "Zara", "period": "LastMonth"})
+    chat, selector, gateway, explainer = service([call], gateway=FakeGateway(not_found))
+
+    reply = chat.answer("Geçen ay Zara'ya ne kadar harcadım?", TOKEN)
+
+    assert (reply.type, reply.suggestions) == ("answer", [])
+    assert chat.answer("Ya son 3 ayda?", TOKEN) and len(selector.calls) == 2
+

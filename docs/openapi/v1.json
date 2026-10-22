@@ -1693,6 +1693,82 @@
         ]
       }
     },
+    "/api/assistant/suggestions": {
+      "get": {
+        "tags": [
+          "Assistant"
+        ],
+        "summary": "Up to three questions to show when the chat opens, chosen from the customer's…",
+        "description": "`GET /api/assistant/suggestions`: up to three questions to show when the chat opens, chosen from the\ncustomer's data (CHAT-06). Not under the message limit: no model runs for it.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantSuggestions"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "No valid list came out (assistant_failed).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The assistant is not running (assistant_unavailable).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "504": {
+            "description": "The assistant did not answer in time (assistant_timeout).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
     "/api/auth/login": {
       "post": {
         "tags": [
@@ -2422,7 +2498,8 @@
           "type",
           "answer",
           "toolCalls",
-          "facts"
+          "facts",
+          "suggestions"
         ],
         "type": "object",
         "properties": {
@@ -2443,9 +2520,15 @@
             "items": {
               "$ref": "#/components/schemas/AssistantFact"
             }
+          },
+          "suggestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
-        "description": "Reply of `POST /api/assistant/messages`. The figures in `answer` come from `facts`, which the\nbackend computed; the model only chose the tool and wrote the sentence."
+        "description": "Reply of `POST /api/assistant/messages`. The figures in `answer` come from `facts`, which the\nbackend computed; the model only chose the tool and wrote the sentence. `suggestions` are up to three questions\nto offer under the reply, from a fixed table (CHAT-06); sent back as written, one runs the call it stands for."
       },
       "AssistantReplyType": {
         "enum": [
@@ -2467,6 +2550,21 @@
           }
         },
         "description": "Reply of `GET /api/assistant/status`: whether the chat screen can take questions right now."
+      },
+      "AssistantSuggestions": {
+        "required": [
+          "suggestions"
+        ],
+        "type": "object",
+        "properties": {
+          "suggestions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "Reply of `GET /api/assistant/suggestions`: up to three questions to show when the chat opens, chosen from the\ncustomer's own data without a model (CHAT-06)."
       },
       "AssistantToolCall": {
         "required": [

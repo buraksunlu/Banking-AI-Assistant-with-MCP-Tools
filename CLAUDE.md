@@ -156,6 +156,12 @@ bağlamla gider (`tool-selection-v2`), `check_arguments(…, previous)` son ça�
 yok (MCP'den keşif). Bütün tur tek süre; token yalnız MCP başlığına gider (testte modele gitmediği doğrulanır). Uçtan uca deneme için
 .NET API ve MCP server `BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z` ile açık olmalı. Tool seçimi ve açıklama aynı `explainer.stream_message`'ı kullanır.
 
+Önerilen sorular (CHAT-06, `ai/service/suggestions.py`): açıklanmış cevabın `suggestions`'ı sabit `follow_ups` tablosundan (araç → 2–3 öneri,
+az önce çalışan çağrı önerilmez); `OfferedStore` bunları çağrılarıyla **yalnız bir sonraki mesaj** için (10 dk, `sha256(token)`) tutar ve
+aynı metin (harf katlanmış, sondaki ?.! yok) gelirse araç model seçmeden çalışır (bekleyen sorudan sonra bakılır). Kapsam dışı cevapta 3 sabit
+soru, geri soruda öneri yok. Başlangıçlar `GET /v1/suggestions` (`StarterQuestions`: üç modelsiz MCP kontrolü, ≤ 5 sn, sırayla ilk 3).
+Yeni araç eklenince tabloya satır; öneri metni ya ölçümdeki bir takip vakası ya da ölçülmüş tam soru olmalı (`test_suggestions` denetler).
+
 MCP istemcisi (MCP-b, `ai/service/mcp_gateway.py`, `mcp` 2.3.0): `BANKINGAI_MCP_URL` (yoksa `http://127.0.0.1:5249/mcp`; yanlış biçimde
 servis açılmaz). Protokol `2026-07-28`'e sabit (el sıkışma/keşif isteği yok); her çağrı kendi kısa olay döngüsünde (`anyio.run`, sohbet
 senkron). **Tuzaklar:** (1) SDK `structuredContent`'i float'a çevirir (145.00 → 145.0); sonuç **metin içeriğinden** `Decimal` ile okunur.
@@ -177,7 +183,8 @@ gidiyordu, özet aracının açıklamasındaki "ilk tercih" bunu düzeltti (eski
 
 Sohbet kapısı (AI-14b + AI-07, .NET): iPhone yalnız .NET'e konuşur. `POST /api/assistant/messages` → `ICustomerCheck` (silinmiş
 müşteri model çalışmadan 401) → `IAssistantClient` (`Api/Assistant/AssistantClient`, typed `HttpClient`) aynı `Authorization`
-başlığıyla `/v1/chat`'e → `AssistantReply`; `GET /api/assistant/status` hep 200 `{available}`. AI hataları `AssistantException`
+başlığıyla `/v1/chat`'e → `AssistantReply` (`Suggestions` dahil, eksikse 502); `GET /api/assistant/status` hep 200 `{available}`;
+`GET /api/assistant/suggestions` → `/v1/suggestions` (hatalar mesajınkiyle aynı, hız sınırı dışında). AI hataları `AssistantException`
 (`Unavailable`/`Timeout`/`Failed`) → `ApiExceptionHandler`'da 503/504/502. Ayarlar `BANKINGAI_AI_URL` (yoksa `http://127.0.0.1:8000/`),
 `BANKINGAI_AI_TIMEOUT_SECONDS` (35). Müşteri başına dakikada 10 mesaj: **`UseRateLimiter` `UseAuthorization`'dan sonra** gelmeli
 (anahtar token'daki müşteri; önce gelirse `GetCustomerId` patlar). Mesaj ve token loglanmaz. Testler gerçek model yerine

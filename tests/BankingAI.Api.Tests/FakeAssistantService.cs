@@ -19,8 +19,11 @@ internal sealed class FakeAssistantService(Func<HttpRequestMessage, Cancellation
         {"type":"answer","answer":"Dün 145,00 TL harcadınız.",
          "toolCalls":[{"tool":"get_spending_summary","arguments":{"period":"Yesterday"}}],
          "facts":[{"label":"Toplam harcama","text":"145,00 TL"}],
+         "suggestions":["Kategorilere göre?","Peki işyerlerine göre?"],
          "model":"qwen3.5:4b"}
         """;
+
+    public const string SampleSuggestions = """{"suggestions":["Bu ay ne kadar harcadım?","Aboneliklerim neler?"]}""";
 
     private readonly ConcurrentQueue<RecordedRequest> requests = new();
     private readonly TaskCompletionSource cancelled = new(TaskCreationOptions.RunContinuationsAsynchronously);

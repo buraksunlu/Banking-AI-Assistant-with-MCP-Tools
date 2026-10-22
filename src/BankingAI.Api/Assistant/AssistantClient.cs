@@ -20,13 +20,21 @@ public interface IAssistantClient
     Task<AssistantReply> SendAsync(string message, string bearerToken, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The questions to show when the chat opens, for the customer of the bearer token (CHAT-06).
+    /// </summary>
+    /// <exception cref="AssistantException">No questions could be produced.</exception>
+    /// <exception cref="CustomerNotFoundException">The AI service was refused the token.</exception>
+    Task<AssistantSuggestions> GetSuggestionsAsync(string bearerToken, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Whether the AI service and its model are ready. Never throws for an unreachable or slow service.
     /// </summary>
     Task<bool> IsReadyAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
-/// <see cref="IAssistantClient"/> over HTTP to the FastAPI service (<c>POST /v1/chat</c>, <c>GET /health/ready</c>).
+/// <see cref="IAssistantClient"/> over HTTP to the FastAPI service (<c>POST /v1/chat</c>, <c>GET /v1/suggestions</c>,
+/// <c>GET /health/ready</c>).
 /// The message and the token are never logged (decision AI-14b K9-A); the log tells a turn's type, tools, model, time
 /// and error code instead.
 /// </summary>
@@ -49,14 +57,38 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
     /// <inheritdoc />
     public async Task<AssistantReply> SendAsync(string message, string bearerToken, CancellationToken cancellationToken = default)
     {
-        // Our own deadline on top of the caller's: when the client leaves, the call is cancelled as well, and the two
-        // causes stay apart because only this one is turned into a 504.
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(settings.Timeout);
         using var request = new HttpRequestMessage(HttpMethod.Post, "v1/chat")
         {
             Content = JsonContent.Create(new ChatRequest(message), options: Json)
         };
+        var (body, elapsedMs) = await ExchangeAsync(request, bearerToken, cancellationToken);
+
+        var reply = Parse(body, out var model);
+        logger.LogInformation(
+            "Assistant reply {Type} via [{Tools}] by {Model} in {ElapsedMs} ms for a {Length}-character message",
+            reply.Type, string.Join(", ", reply.ToolCalls.Select(c => c.Tool)), model, elapsedMs, message.Length);
+        return reply;
+    }
+
+    /// <inheritdoc />
+    public async Task<AssistantSuggestions> GetSuggestionsAsync(string bearerToken, CancellationToken cancellationToken = default)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "v1/suggestions");
+        var (body, elapsedMs) = await ExchangeAsync(request, bearerToken, cancellationToken);
+
+        var suggestions = ParseSuggestions(body);
+        logger.LogInformation("Assistant starters: {Count} in {ElapsedMs} ms", suggestions.Suggestions.Count, elapsedMs);
+        return suggestions;
+    }
+
+    // One call to the AI service with the caller's token; a reply other than 200 becomes the error the client acts on.
+    private async Task<(string Body, long ElapsedMs)> ExchangeAsync(
+        HttpRequestMessage request, string bearerToken, CancellationToken cancellationToken)
+    {
+        // Our own deadline on top of the caller's: when the client leaves, the call is cancelled as well, and the two
+        // causes stay apart because only this one is turned into a 504.
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(settings.Timeout);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
         var started = Stopwatch.GetTimestamp();
 
@@ -83,12 +115,7 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
             var elapsedMs = (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds;
             if (response.StatusCode != HttpStatusCode.OK)
                 throw Failure(response.StatusCode, body, elapsedMs);
-
-            var reply = Parse(body, out var model);
-            logger.LogInformation(
-                "Assistant reply {Type} via [{Tools}] by {Model} in {ElapsedMs} ms for a {Length}-character message",
-                reply.Type, string.Join(", ", reply.ToolCalls.Select(c => c.Tool)), model, elapsedMs, message.Length);
-            return reply;
+            return (body, elapsedMs);
         }
     }
 
@@ -148,20 +175,41 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
         }
 
         model = reply?.Model;
-        if (reply is { Type: not null, Answer: not null, ToolCalls: not null, Facts: not null }
+        if (reply is { Type: not null, Answer: not null, ToolCalls: not null, Facts: not null, Suggestions: not null }
             && ReplyTypes.TryGetValue(reply.Type, out var type)
             && reply.ToolCalls.All(c => c is { Tool: not null, Arguments: not null })
-            && reply.Facts.All(f => f is { Label: not null, Text: not null }))
+            && reply.Facts.All(f => f is { Label: not null, Text: not null })
+            && reply.Suggestions.All(s => s is not null))
         {
             return new AssistantReply(
                 type, reply.Answer,
                 // Checked just above; the compiler cannot follow the checks inside All().
                 reply.ToolCalls.Select(c => new AssistantToolCall(c!.Tool!, c.Arguments!)).ToList(),
-                reply.Facts.Select(f => new AssistantFact(f!.Label!, f.Text!)).ToList());
+                reply.Facts.Select(f => new AssistantFact(f!.Label!, f.Text!)).ToList(),
+                reply.Suggestions.Select(s => s!).ToList());
         }
 
         logger.LogWarning("AI service reply does not match the chat contract");
         throw new AssistantException(AssistantFailure.Failed, "The AI service reply does not match the chat contract.");
+    }
+
+    private AssistantSuggestions ParseSuggestions(string body)
+    {
+        SuggestionsResponse? reply;
+        try
+        {
+            reply = JsonSerializer.Deserialize<SuggestionsResponse>(body, Json);
+        }
+        catch (JsonException)
+        {
+            reply = null;
+        }
+
+        if (reply is { Suggestions: not null } && reply.Suggestions.All(s => s is not null))
+            return new AssistantSuggestions(reply.Suggestions.Select(s => s!).ToList());
+
+        logger.LogWarning("AI service starters do not match the contract");
+        throw new AssistantException(AssistantFailure.Failed, "The AI service starters do not match the contract.");
     }
 
     // The AI service's problem bodies carry only a code and a Turkish title, never customer data, so the code may be logged.
@@ -185,7 +233,10 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
     // as a contract mismatch instead of becoming a silent default.
     private sealed record ChatRequest(string Message);
 
-    private sealed record ChatResponse(string? Type, string? Answer, List<ChatToolCall?>? ToolCalls, List<ChatFact?>? Facts, string? Model);
+    private sealed record ChatResponse(
+        string? Type, string? Answer, List<ChatToolCall?>? ToolCalls, List<ChatFact?>? Facts, List<string?>? Suggestions, string? Model);
+
+    private sealed record SuggestionsResponse(List<string?>? Suggestions);
 
     private sealed record ChatToolCall(string? Tool, Dictionary<string, string>? Arguments);
 

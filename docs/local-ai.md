@@ -762,3 +762,61 @@ mesaj ─► (CHAT-03) bekleyen soru? ─► takip mi? (CHAT-02)
 Sınırlar: kurallar kelime listesidir (yeni yazılışlar modele düşer, model de yanılabilir: R03); grup yanlışsa doğru araç hiç görünmez
 (geri soru yok); iki grup arasında karışık soru ("bütçemi aşmamak için aboneliklerimi azaltsam") planlamaya gider; araç eklenince
 `GROUPS` tablosuna yazılmalı (yazılmazsa her grupta görünür, güvenli taraf).
+
+# Önerilen sorular (CHAT-06, 22 Ekim 2026) — arka uç (PR1)
+
+Asistan her açıklanmış cevabın altında 2–3 takip sorusu, sohbet açılırken de müşterinin verisine göre en fazla 3 başlangıç sorusu
+önerir. Öneriyi model üretmez: takipler sabit bir tablodan, başlangıçlar üç evet/hayır kontrolünden gelir (`ai/service/suggestions.py`).
+iPhone ekranı PR2'dedir (docs/ios.md).
+
+Kullanıcı kararları: K1-A (iki PR: önce AI servisi + .NET, sonra iPhone), K2-A (tablo Python'da, `routing.GROUPS`'un yanında), K3-C
+(sunulan öneri çağrısıyla hatırlanır, aynı metin gelirse model seçmeden çalışır), K4-B (başlangıçlar AI servisinde, MCP ile, modelsiz;
+.NET köprüsü), K5-A (aşağıdaki tablo), K6-B (yalnız açıklanmış cevapta; kapsam dışı cevapta 3 sabit soru), K7-A (cevapta yalnız metin
+listesi), K8-A (modelsiz testler + kısa canlı deneme; tam ölçüm yok).
+
+```text
+mesaj ─► bekleyen soru? (CHAT-03) ─► sunulan öneri mi? ──evet──► araç (kod seçti) ─┐
+                                        └─hayır─► yönlendirme → model seçer → araç ─┤
+                                                       açıklama (model) + yeni öneriler (tablo) ◄┘
+```
+
+- **Takip tablosu** (`follow_ups`): P = son çağrının dönemi; az önce çalışan çağrının aynısı önerilmez ("Ya son 3 ayda?" son 3 ay
+  sorusundan sonra çıkmaz), en fazla 3.
+
+| Son araç | Öneriler → çalışacak çağrı |
+|---|---|
+| özet (P) | Kategorilere göre? · Peki işyerlerine göre? · P bu ay/geçen aysa "Bir önceki ayla karşılaştır" (MonthToDate / PreviousFullMonth), değilse "En büyük harcamalarım neler?" |
+| kategori (P) | Peki işyerlerine göre? · En büyük harcamalarım neler? · P bu aysa "Peki geçen ay?" |
+| tek işyeri (m, P) | Ya son 3 ayda? (aynı işyeri) · Peki işyerlerine göre? |
+| işyeri dağılımı / en büyükler (P) | Kategorilere göre? ve diğeri |
+| karşılaştırma | Kategorilere göre? (bu ay/geçen ay) · 6 aylık göster |
+| aylık seri | Geçen aya göre harcamam arttı mı? · Geçen ay en çok hangi kategoriye harcadım? |
+| düzenli ↔ yaklaşan | Önümüzdeki 7 günde hangi ödemelerim çıkacak? ↔ Aboneliklerim neler? |
+| bütçe | Bu ay en çok hangi işyerine harcadım? · Kategorilere göre? (bu ay) |
+| tasarruf | Son 6 ayda harcamam aylara göre nasıl değişti? · Geçen ay en çok hangi kategoriye harcadım? |
+
+- **Kodla eşleşme (K3-C)**: `OfferedStore` sunulanları `sha256(token)` altında 10 dk, **yalnız bir sonraki mesaj** için tutar (bekleyen
+  soru gibi). Eşleşme Türkçe harf katlanmış, boşluk ve sondaki ?.! yok sayılarak birebir metinledir. Eşleşen öneri model seçimi ve araç
+  listesi olmadan çalışır (MCP server argümanları yine kontrol eder); açıklamayı model yazar, çağrı CHAT-02 bağlamı olur. Başka metin,
+  başka token ya da 10 dk sonrası normal yoldur. Kısa metinler ölçümdeki takip vakalarıdır (F03, F04, F05, F07, F11), tam sorular ölçülmüş
+  vakalardır (`test_suggestions` ikisini de denetler): elle yazılan ya da geç gelen öneri de doğru gruba gider.
+- **Başlangıçlar** (`StarterQuestions`, `GET /v1/suggestions`): kullanıcının token'ıyla üç MCP çağrısı (yaklaşan 7 gün, bu ayın özeti,
+  düzenli ödemeler; toplam ≤ 5 sn); yalnız listenin boş olup olmadığına bakılır, rakama değil. Sırayla koşulu tutan ilk 3: 7 günde ödeme var
+  → S22 · bu ay harcama var → S08 · düzenli ödeme var → S19 · her zaman S09 · her zaman S26. Başlangıçlar normal yoldan gider (bellekte tutulmaz).
+- **Cevap**: `/v1/chat` cevabında `suggestions: [...]` (0–3, K7-A); hatalar sohbetinkiyle aynı (`/v1/suggestions` da 401/503/504).
+
+**Beklenen değerler (demo DB, 10 Ekim 2026)**: Ada → S22, S08, S19 (Netflix 12 Ekim, +2 gün; Ekim 735,00 TL; Netflix + Spotify); Deniz ve
+Ege → S08, S09, S26 (bu ay 11.350,00 / 840,00 TL; düzenli ödeme yok); harcaması ve düzenli ödemesi olmayan müşteri → S09, S26.
+
+**Uçtan uca deneme** (22 Ekim 2026, gerçek .NET API + MCP server + AI servisi + `qwen3.5:4b`, Ada, demo anı): başlangıçlar 0,3 sn'de Ada'nın
+üç sorusu; "Dün ne harcadım?" (model seçti, soğuk ilk tur 9,7 sn) → öneriler "Kategorilere göre?", "Peki işyerlerine göre?", "En büyük
+harcamalarım neler?"; "Kategorilere göre?" → `get_category_breakdown(Yesterday)` model seçmeden (4,2 sn, yalnız açıklama); "Peki işyerlerine
+göre?" → `get_merchant_breakdown(Yesterday)` (2,9 sn); "Deniz'e 100 TL transfer yap" → kapsam dışı + 3 sabit soru (anında).
+
+**Bulgu**: eski takip zinciri testindeki "Ya son 3 ayda?" artık sunulan öneri olduğu için kod doğru işyeriyle çalıştırıyor; model bu
+vakada önceki işyerine dönebiliyordu (CHAT-02 canlı denemesi). Testin model yolunu sınaması için mesajı "Peki son 3 ayda?" oldu.
+
+Sınırlar: öneriler araca göredir, sonucun içeriğine göre değil (tek kategorili sonuçta da "Kategorilere göre?" çıkabilir; denemede
+işyeri dağılımının açıklaması "sınıflandırılmamış kategorisinde" dedi, anlam kontrolü kodda yok: AI-10); öneri yalnız bir sonraki mesaj
+ve 10 dk için kodla eşleşir; başlangıçlar her açılışta 3 MCP sorgusu yapar ve hız sınırında değildir; tamamen yeni müşteride "her zaman"
+soruları da "harcama bulunamadı" cevabı verir.
