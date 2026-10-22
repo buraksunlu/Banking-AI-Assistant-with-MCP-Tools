@@ -115,14 +115,28 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/api/assistant/status
 Authorization: Bearer {{token}}
 
-### "Dün ne harcadım?" — beklenen: 200, type Answer, 145,00 TL (get_spending_summary, Yesterday)
+### Başlangıç soruları (CHAT-06) — Ada için beklenen: 200, "Önümüzdeki 7 günde hangi ödemelerim çıkacak?",
+### "Bu ay ne kadar harcadım?", "Aboneliklerim neler?" (Netflix 12 Ekim'de, Ekim'de harcama var, düzenli ödeme var)
+GET {{baseUrl}}/api/assistant/suggestions
+Authorization: Bearer {{token}}
+
+### "Dün ne harcadım?" — beklenen: 200, type Answer, 145,00 TL (get_spending_summary, Yesterday);
+### suggestions: "Kategorilere göre?", "Peki işyerlerine göre?", "En büyük harcamalarım neler?"
 POST {{baseUrl}}/api/assistant/messages
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
 { "message": "Dün ne harcadım?" }
 
-### Kapsam dışı — beklenen: 200, type OutOfScope, örnek sorular
+### Öneriye dokunmak (yukarıdakinden sonra, 10 dk içinde) — beklenen: get_category_breakdown, Yesterday, model araç seçmeden
+POST {{baseUrl}}/api/assistant/messages
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "message": "Kategorilere göre?" }
+
+### Kapsam dışı — beklenen: 200, type OutOfScope, örnek sorular; suggestions: "Bu ay ne kadar harcadım?",
+### "Geçen ay en çok hangi kategoriye harcadım?", "Geçen ay toplam ne kadar harcadım?"
 POST {{baseUrl}}/api/assistant/messages
 Authorization: Bearer {{token}}
 Content-Type: application/json

@@ -30,13 +30,21 @@ public sealed record AssistantFact(string Label, string Text);
 
 /// <summary>
 /// Reply of <c>POST /api/assistant/messages</c>. The figures in <c>answer</c> come from <c>facts</c>, which the
-/// backend computed; the model only chose the tool and wrote the sentence.
+/// backend computed; the model only chose the tool and wrote the sentence. <c>suggestions</c> are up to three questions
+/// to offer under the reply, from a fixed table (CHAT-06); sent back as written, one runs the call it stands for.
 /// </summary>
 public sealed record AssistantReply(
     AssistantReplyType Type,
     string Answer,
     IReadOnlyList<AssistantToolCall> ToolCalls,
-    IReadOnlyList<AssistantFact> Facts);
+    IReadOnlyList<AssistantFact> Facts,
+    IReadOnlyList<string> Suggestions);
+
+/// <summary>
+/// Reply of <c>GET /api/assistant/suggestions</c>: up to three questions to show when the chat opens, chosen from the
+/// customer's own data without a model (CHAT-06).
+/// </summary>
+public sealed record AssistantSuggestions(IReadOnlyList<string> Suggestions);
 
 /// <summary>
 /// Reply of <c>GET /api/assistant/status</c>: whether the chat screen can take questions right now.

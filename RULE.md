@@ -1512,6 +1512,10 @@ COMPLETED
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
+- Önerilen sorular CHAT-06 (22 Ekim 2026, docs/local-ai.md "Önerilen sorular"): PR1 arka uç tamam — `suggestions.py` (takip tablosu,
+  sunulan önerinin kodla eşleşmesi: aynı metin model seçmeden çalışır, yalnız bir sonraki mesaj ve 10 dk; başlangıçlar üç modelsiz MCP
+  kontrolünden), `/v1/chat` cevabında `suggestions`, `GET /v1/suggestions`, .NET `GET /api/assistant/suggestions` (hız sınırı dışında).
+  Kararlar K1-A, K2-A, K3-C, K4-B, K5-A, K6-B, K7-A, K8-A. PR2: iPhone düğmeleri.
 
 NEXT
 - Kullanıcı seçer (22 Ekim): AI-16 model belleği (12,7 GB, ısınma); KIND-06 iade; hesap ekranları (IOS-04…); yeni

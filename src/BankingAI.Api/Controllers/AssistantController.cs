@@ -69,4 +69,19 @@ public sealed class AssistantController(ICustomerCheck customers, IAssistantClie
         await customers.EnsureExistsAsync(User.GetCustomerId(), cancellationToken);
         return Ok(new AssistantStatus(await assistant.IsReadyAsync(cancellationToken)));
     }
+
+    /// <summary>
+    /// <c>GET /api/assistant/suggestions</c>: up to three questions to show when the chat opens, chosen from the
+    /// customer's data (CHAT-06). Not under the message limit: no model runs for it.
+    /// </summary>
+    [HttpGet("suggestions")]
+    [ProducesResponseType<AssistantSuggestions>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status502BadGateway, Description = "No valid list came out (assistant_failed).")]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable, Description = "The assistant is not running (assistant_unavailable).")]
+    [ProducesResponseType(StatusCodes.Status504GatewayTimeout, Description = "The assistant did not answer in time (assistant_timeout).")]
+    public async Task<ActionResult<AssistantSuggestions>> GetSuggestionsAsync(CancellationToken cancellationToken)
+    {
+        await customers.EnsureExistsAsync(User.GetCustomerId(), cancellationToken);
+        return Ok(await assistant.GetSuggestionsAsync(Request.BearerToken(), cancellationToken));
+    }
 }

@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from answer_check import AnswerRejected
-from app import create_app, get_chat_service, get_explainer, get_readiness, get_tools_ready
+from app import create_app, get_chat_service, get_explainer, get_readiness, get_starter_questions, get_tools_ready
 from chat import ChatReply, ChatService, LangChainClarificationWriter, LangChainToolSelector, ToolCall
 from contracts import Fact
 from explainer import LangChainExplainer
@@ -303,9 +303,18 @@ def test_chat_returns_the_reply_in_the_agreed_shape():
         "answer": "9 Ekim 2026'da toplam 145,00 TL harcadınız.",
         "toolCalls": [{"tool": "get_spending_summary", "arguments": {"period": "Yesterday"}}],
         "facts": [{"label": "Dönem", "text": "9 Ekim 2026"}, {"label": "Toplam harcama", "text": "145,00 TL"}],
+        "suggestions": [],
         "model": "qwen3.5:4b",
     }
     assert fake.calls == [("Dün ne harcadım?", "abc")]
+
+
+def test_chat_returns_the_offered_follow_ups():
+    reply = ChatReply("answer", "9 Ekim 2026'da toplam 145,00 TL harcadınız.", [], [], ["Kategorilere göre?", "Peki işyerlerine göre?"])
+
+    response = chat_client(FakeChat(reply)).post("/v1/chat", json={"message": "Dün?"}, headers={"Authorization": "Bearer abc"})
+
+    assert response.json()["suggestions"] == ["Kategorilere göre?", "Peki işyerlerine göre?"]
 
 
 
@@ -367,3 +376,58 @@ def test_service_wires_the_real_chat_parts():
     assert isinstance(service.writer, LangChainClarificationWriter)
     assert isinstance(service.gateway, McpToolGateway)
     assert service.gateway.settings.url == "http://mcp.test:9000/mcp"
+
+
+# Starters (CHAT-06 K4-B)
+
+
+class FakeStarters:
+    def __init__(self, questions=None, error=None):
+        self.questions, self.error, self.calls = questions or [], error, []
+
+    def for_token(self, token):
+        self.calls.append(token)
+        if self.error:
+            raise self.error
+        return self.questions
+
+
+def starters_client(fake) -> TestClient:
+    app = create_app(ENV)
+    app.dependency_overrides[get_starter_questions] = lambda: fake
+    return TestClient(app)
+
+
+def test_suggestions_returns_the_starters_for_the_callers_token():
+    fake = FakeStarters(["Bu ay ne kadar harcadım?", "Aboneliklerim neler?"])
+
+    response = starters_client(fake).get("/v1/suggestions", headers={"Authorization": "Bearer abc"})
+
+    assert response.status_code == 200, response.text
+    assert response.json() == {"suggestions": ["Bu ay ne kadar harcadım?", "Aboneliklerim neler?"]}
+    assert fake.calls == ["abc"]
+
+
+@pytest.mark.parametrize("header", [None, "Basic abc", "Bearer "])
+def test_suggestions_need_a_bearer_token(header):
+    fake = FakeStarters()
+    headers = {} if header is None else {"Authorization": header}
+    assert_problem(starters_client(fake).get("/v1/suggestions", headers=headers), 401, "unauthorized", "Giriş gerekli.")
+    assert fake.calls == []
+
+
+@pytest.mark.parametrize(
+    ("error", "status", "code"),
+    [(SessionInvalid("expired"), 401, "session_invalid"), (BackendUnavailable("down"), 503, "backend_unavailable"),
+     (BackendTimeout("slow"), 504, "ai_timeout")],
+)
+def test_suggestion_errors_are_the_chats(error, status, code):
+    response = starters_client(FakeStarters(error=error)).get("/v1/suggestions", headers={"Authorization": "Bearer abc"})
+    assert (response.status_code, response.json()["code"]) == (status, code)
+
+
+def test_service_wires_the_real_starters():
+    from suggestions import StarterQuestions
+    app = create_app(ENV)
+    assert isinstance(app.state.starters, StarterQuestions) and app.state.starters.gateway is app.state.tools
+

@@ -69,10 +69,18 @@ class ToolCallOut(BaseModel):
 
 
 class ChatResponse(BaseModel):
-    """The reply of one chat turn; ``toolCalls`` and ``facts`` say what the answer is based on (AI-11, CHAT-07)."""
+    """The reply of one chat turn; ``toolCalls`` and ``facts`` say what the answer is based on (AI-11, CHAT-07),
+    ``suggestions`` are the questions to offer under it (CHAT-06)."""
 
     type: str
     answer: str
     tool_calls: list[ToolCallOut] = Field(serialization_alias="toolCalls")
     facts: list[Fact]
+    suggestions: list[str]
     model: str
+
+
+class SuggestionsResponse(BaseModel):
+    """The questions to show when the chat opens (CHAT-06)."""
+
+    suggestions: list[str]

@@ -22,7 +22,8 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
 from answer_check import AnswerRejected
-from contracts import ChatRequest, ChatResponse, ExplanationRequest, ExplanationResponse, HealthResponse, ToolCallOut
+from contracts import (ChatRequest, ChatResponse, ExplanationRequest, ExplanationResponse, HealthResponse, SuggestionsResponse,
+                       ToolCallOut)
 from chat import ChatService, LangChainClarificationWriter, LangChainIntentClassifier, LangChainToolSelector
 from explainer import Explainer, LangChainExplainer
 from ollama_client import (
@@ -38,6 +39,7 @@ from ollama_client import (
 )
 from mcp_gateway import McpSettings, McpToolGateway
 from routing import Router
+from suggestions import StarterQuestions
 from tools import BackendTimeout, BackendUnavailable, SessionInvalid, ToolCallRejected
 
 logger = logging.getLogger("bankingai.ai")
@@ -109,6 +111,7 @@ def create_app(
     app.state.chat_service = ChatService(LangChainToolSelector(settings), app.state.tools, app.state.explainer, settings,
                                          writer=LangChainClarificationWriter(settings),
                                          router=Router(LangChainIntentClassifier(settings)))
+    app.state.starters = StarterQuestions(app.state.tools)
 
     app.add_exception_handler(RequestValidationError, _validation_failed)
     app.add_exception_handler(HTTPException, _http_error)
@@ -151,7 +154,14 @@ def create_app(
         return ChatResponse(
             type=reply.type, answer=reply.answer,
             tool_calls=[ToolCallOut(tool=c.tool, arguments={k: _as_text(v) for k, v in c.arguments.items()}) for c in reply.tool_calls],
-            facts=reply.facts, model=request.app.state.settings.model)
+            facts=reply.facts, suggestions=reply.suggestions, model=request.app.state.settings.model)
+
+    @app.get("/v1/suggestions", response_model=SuggestionsResponse)
+    def suggestions(
+        token: str = Depends(bearer_token), starters: StarterQuestions = Depends(get_starter_questions),
+    ) -> SuggestionsResponse:
+        """The questions to show when the chat opens, chosen from the user's data without a model (CHAT-06 K4-B)."""
+        return SuggestionsResponse(suggestions=starters.for_token(token))
 
     return app
 
@@ -191,6 +201,11 @@ def _refuse_cloud_tracing(env: Mapping[str, str]) -> None:
 def get_chat_service(request: Request) -> ChatService:
     """Dependency: the chat service the endpoint uses (tests replace it)."""
     return request.app.state.chat_service
+
+
+def get_starter_questions(request: Request) -> StarterQuestions:
+    """Dependency: the starters the suggestions endpoint uses (tests replace it)."""
+    return request.app.state.starters
 
 
 def get_explainer(request: Request) -> Explainer:

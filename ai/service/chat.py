@@ -1,13 +1,15 @@
-"""One chat turn: the model picks a tool, the backend computes, the model explains (AI-14a, MCP-b, CHAT-03, CHAT-02, CHAT-01).
+"""One chat turn: the model picks a tool, the backend computes, the model explains (AI-14a, MCP-b, CHAT-03, CHAT-02, CHAT-01,
+CHAT-06).
 
-    waiting question? → route (code; the model only without a matching rule) → tools (MCP server), narrowed to the route's
+    waiting question? → offered follow-up? → route (code; the model only without a matching rule) → tools (MCP server), narrowed to the route's
     group → tool selection (model, with the last call when the message is a follow-up) → grounding (code) → tool call (MCP
-    server checks and computes) → facts (code) → explanation (model) → last call kept
+    server checks and computes) → facts (code) → explanation (model) → last call kept, follow-ups offered
 
 A period, count or figure (budget amount, currency, cut; MCP-17/18) the user did not say, or a merchant name that fits several
 merchants, is asked back instead of guessed (CHAT-03); the reply completes the remembered call without a second selection, and
 a figure still unsaid after it is asked next. A short follow-up ("Peki geçen ay?") is read
-with the last call; an argument must then be in the message or carried over unchanged (CHAT-02). The answer's figures are
+with the last call; an argument must then be in the message or carried over unchanged (CHAT-02). A follow-up offered under
+the last answer, sent back as it was written, runs the call it stands for without a tool selection (CHAT-06). The answer's figures are
 never carried over: every turn is computed again. The whole turn shares one time limit. The
 user's token only goes to the MCP server (and, as a digest, keys the waiting question), never to a model.
 """
@@ -15,7 +17,7 @@ user's token only goes to the MCP server (and, as a digest, keys the waiting que
 import json
 import logging
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 from langchain_ollama import ChatOllama
@@ -31,6 +33,7 @@ from ollama_client import OllamaError, OllamaSettings
 from prompts import (CLARIFY_TEXT, INTENT_SCHEMA, OUT_OF_SCOPE_TEXT, build_clarify_messages, build_intent_messages,
                      build_tool_messages)
 from routing import Router, narrow
+from suggestions import OUT_OF_SCOPE_SUGGESTIONS, OfferedStore, follow_ups, match
 from tools import ToolArgumentsRejected, ToolGateway
 
 logger = logging.getLogger("bankingai.ai")
@@ -46,12 +49,14 @@ class ToolCall:
 
 @dataclass(frozen=True)
 class ChatReply:
-    """The answer of one turn; ``type`` is "answer", "clarification" or "outOfScope"."""
+    """The answer of one turn; ``type`` is "answer", "clarification" or "outOfScope"; ``suggestions`` are the questions to
+    offer under it (CHAT-06)."""
 
     type: str
     answer: str
     tool_calls: list[ToolCall]
     facts: list[Fact]
+    suggestions: list[str] = field(default_factory=list)
 
 
 class ToolSelector(Protocol):
@@ -139,7 +144,7 @@ class ChatService:
 
     def __init__(self, selector: ToolSelector, gateway: ToolGateway, explainer, settings: OllamaSettings,
                  writer: ClarificationWriter | None = None, waiting: PendingStore | None = None,
-                 history: ConversationStore | None = None, router: Router | None = None):
+                 history: ConversationStore | None = None, router: Router | None = None, offered: OfferedStore | None = None):
         self.selector, self.gateway, self.explainer, self.settings = selector, gateway, explainer, settings
         # Without a classifier the router uses its rules and the spending group (tests; CHAT-01 K3-A).
         self.router = router or Router()
@@ -147,6 +152,7 @@ class ChatService:
         self.writer = writer
         self.waiting = waiting or PendingStore()
         self.history = history or ConversationStore()
+        self.offered = offered or OfferedStore()
         self.clock = time.monotonic
 
     def answer(self, message: str, token: str) -> ChatReply:
@@ -157,6 +163,8 @@ class ChatService:
         # A reply to the question asked last time completes that call: no listing, no selection (K3-A). Anything else is a
         # new question, and the old one is dropped either way (K5-A).
         waiting = self.waiting.take(token)
+        # Like the waiting question, an offer lasts for one message: whatever comes next, it is gone.
+        offered = self.offered.take(token)
         if waiting is not None:
             arguments = resolve(waiting, message)
             if arguments is not None:
@@ -167,6 +175,12 @@ class ChatService:
                     return self._ask(_ask_figure(waiting.tool, arguments, later[0], later[1:], question), [], token, deadline)
                 return self._run(ToolCall(waiting.tool, arguments), question, token, deadline)
 
+        # The text of an offered follow-up stands for the call it was built from (CHAT-06 K3-C): code chose the tool, so the
+        # model is not asked again; the MCP server still checks the arguments.
+        chosen = match(offered, message)
+        if chosen is not None:
+            return self._run(ToolCall(chosen.tool, dict(chosen.arguments)), message, token, deadline)
+
         # Only a short or "peki…" message is read with the last call (K4-B); a full question stands on its own, as before.
         # The follow-up itself is what is explained and kept: a growing chain of questions led both the model (back to an
         # older merchant) and the explanation ("geçen ay" for this month) astray in the live trial.
@@ -174,13 +188,13 @@ class ChatService:
         route = self.router.route(message, context.tool if context else None, deadline)
         if route.out_of_scope:
             # A request to move money or to advise is answered before any tool or model is involved (CHAT-01 K5-B).
-            return ChatReply("outOfScope", OUT_OF_SCOPE_TEXT, [], [])
+            return _out_of_scope()
         # Listed first: when the tools cannot answer, the single local model is not kept busy for nothing.
         tools = narrow(self.gateway.list_tools(token, deadline), route)
         calls = self.selector.select(message, tools, deadline, context)
         if not calls:
             # The model's own text is never shown here: it might promise a transfer it cannot make (K5-A).
-            return ChatReply("outOfScope", OUT_OF_SCOPE_TEXT, [], [])
+            return _out_of_scope()
         if len(calls) > 1:
             # Running only one would show half an answer as a whole one (K2-A); several tools come with CHAT-04.
             return ChatReply("clarification", CLARIFY_TEXT, calls, [])
@@ -216,7 +230,10 @@ class ChatService:
         answer = self.explainer.explain(question, outcome.facts, deadline=deadline)
         # Kept only after an explained answer: the call, never its figures (CHAT-02 K2-A).
         self.history.remember(token, LastCall(call.tool, call.arguments, question))
-        return ChatReply("answer", answer, used, outcome.facts)
+        # Only under an explained answer (K6-B): under a question asked back they would lead away from it.
+        suggestions = follow_ups(call.tool, call.arguments)
+        self.offered.put(token, suggestions)
+        return ChatReply("answer", answer, used, outcome.facts, [s.text for s in suggestions])
 
     @staticmethod
     def _question_for(call: ToolCall, unsaid: tuple[str, ...], schema: dict, message: str) -> Pending:
@@ -246,6 +263,11 @@ class ChatService:
                 logger.info("No model question (%s); the fixed question is used", type(error).__name__)
         self.waiting.put(token, pending)
         return ChatReply("clarification", text, used, [])
+
+
+def _out_of_scope() -> ChatReply:
+    # Full questions every customer gets an answer to (K6-B); they take the normal path, so they are not remembered.
+    return ChatReply("outOfScope", OUT_OF_SCOPE_TEXT, [], [], list(OUT_OF_SCOPE_SUGGESTIONS))
 
 
 def _ask_figure(tool: str, arguments: dict, argument: str, later: tuple[str, ...], question: str) -> Pending:

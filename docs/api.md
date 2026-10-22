@@ -26,6 +26,7 @@ Makine okunur sözleşme: `docs/openapi/v1.json`; tarayıcıda `http://localhost
 | `GET /api/analytics/merchants`, `merchant-group-spending` | evet | uygulandı | ANA-10 |
 | `GET /api/transactions` (bütün hesaplarda filtreli arama) | evet | uygulandı | ANA-09 (3. parça) |
 | `POST /api/assistant/messages`, `GET /api/assistant/status` (sohbet asistanı) | evet | uygulandı | AI-14b + AI-07 |
+| `GET /api/assistant/suggestions` (sohbet açılışında önerilen sorular) | evet | uygulandı | CHAT-06 |
 
 Ortak davranış: müşteri yalnız token'dan gelir (istekte müşteri parametresi yoktur); başka müşterinin
 kaynağı olmayan kaynakla birebir aynı `404`'ü alır; GUID olmayan kimlik `400`'dür.
@@ -682,7 +683,8 @@ iPhone ──Bearer──► POST /api/assistant/messages ── token → müş
   olamaz, tanınmayan alan (ör. `customerId`) 400. Geçersiz mesaj AI servisine hiç gitmez.
 - Cevap `AssistantReply`: `type` (`Answer` / `Clarification` / `OutOfScope`, tam adla), `answer` (Türkçe, Markdown
   olabilir), `toolCalls` (çalışan sorgu + kontrol edilmiş argümanlar; AI-11/CHAT-07 için) ve `facts` (cevabın dayandığı,
-  backend'in hesaplayıp biçimlendirdiği kalemler). Modelin adı dışarı verilmez, logda kalır (K2-A).
+  backend'in hesaplayıp biçimlendirdiği kalemler) ve `suggestions` (CHAT-06: cevabın altında önerilecek 0–3 soru, sabit tablodan;
+  aynen geri gönderilen öneri model araç seçmeden çalışır, docs/local-ai.md "Önerilen sorular"). Modelin adı dışarı verilmez, logda kalır (K2-A).
 - Müşteri **başına** dakikada 10 mesaj (SEC-06, K6-A); aşınca 429 + `Retry-After`. Sınır token'daki müşteriye
   bakar; bu yüzden `UseRateLimiter` kimlik doğrulamanın **arkasındadır** (tokensız istek sayaca girmeden 401 alır).
 - Hata eşlemesi (K5-A; iPhone'un yapacağı şeye göre üç kod, AI servisinin kendi kodu yalnız logda):
@@ -702,6 +704,14 @@ iPhone ──Bearer──► POST /api/assistant/messages ── token → müş
 Sohbet ekranı açılırken çağrılır (K4-C). Her zaman 200 `{ "available": true | false }` (K8-A): AI servisinin
 `/health/ready`'si 5 sn içinde 200 dönmezse `false`. Token AI servisine gitmez. Silinmiş müşteri burada da 401
 `session_invalid` alır.
+
+### `GET /api/assistant/suggestions` (CHAT-06)
+
+Sohbet ekranı açılırken çağrılır: `{ "suggestions": ["…", "…", "…"] }` (en fazla 3), müşterinin verisine göre modelsiz seçilir
+(yaklaşan ödeme, bu ayın harcaması, düzenli ödeme; kurallar docs/local-ai.md). Token AI servisine aynen gider (`GET /v1/suggestions`,
+oradan MCP server'a). Hata eşlemesi mesajlarınkiyle aynı (yukarıdaki tablo; `suggestions` eksik/null/null öğe 502); silinmiş müşteri
+AI servisine gitmeden 401 `session_invalid`. Model çalışmadığı için dakikada 10 mesaj sınırına **girmez** (açılış soruları mesaj
+hakkını yemesin). Ada (demo anı): "Önümüzdeki 7 günde hangi ödemelerim çıkacak?", "Bu ay ne kadar harcadım?", "Aboneliklerim neler?".
 
 ### Ayarlar (AI-07)
 
