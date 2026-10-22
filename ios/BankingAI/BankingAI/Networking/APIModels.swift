@@ -59,3 +59,20 @@ struct AssistantSuggestions: Decodable, Equatable {
 struct AssistantStatus: Decodable, Equatable {
     let available: Bool
 }
+
+/// Whether an account is the customer's own or their shop's (the API writes the exact names).
+enum AccountType: String, Decodable {
+    case personal = "Personal"
+    case business = "Business"
+}
+
+/// One item of `GET /api/accounts`. `createdAt` is not decoded: the screen does not show it, the order already comes from
+/// the API, and its microseconds are more than `.iso8601` accepts on older systems.
+struct Account: Decodable, Equatable, Identifiable {
+    let id: UUID
+    let accountName: String
+    let accountNumber: String
+    let currencyCode: String
+    let accountType: AccountType
+    let balance: Decimal
+}

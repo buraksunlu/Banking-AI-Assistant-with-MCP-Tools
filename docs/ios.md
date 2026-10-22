@@ -149,3 +149,50 @@ isteğin sunucuya ulaşmasını ve iptal sayacını kısa süre (`waitUntil`, �
 - Öneriler yalnız son cevabın altında; eski cevaplarınkiler kaybolur.
 - Başlangıç soruları ekran her boş açıldığında yeniden istenir.
 - Öneri düğmeleri erişilebilirlikte normal düğme olarak okunur.
+
+## iOS-d: hesaplar (IOS-04; 22 Ekim 2026)
+
+Ana ekranın gövdesi artık müşterinin hesap listesi: selamlamanın altında "Hesaplarım", en altta her zaman erişilebilen "Asistana sor".
+Backend değişmedi; liste `GET /api/accounts`'tan (API-05) gelir, sırası sunucunundur (en eski önce, eşitse hesap numarası).
+
+```text
+HomeView ── AccountsSection ── .task (yalnız liste hiç gelmediyse) ──► AccountsViewModel.load() ──► APIClient ──► GET /api/accounts
+   │            └─ state: loading → ProgressView | empty → "Henüz hesabınız yok" | failed → "Tekrar dene" | loaded → AccountRow…
+   └─ .refreshable (aşağı çek) ──► AccountsViewModel.load()
+```
+
+- `Accounts/AccountsViewModel`: dört durum (`loading`, `loaded`, `empty`, `failed`) + `refreshError`. 401 ve iptal hiçbir şey göstermez
+  (401 oturumu `APIClient`'ta zaten kapatır).
+- `Accounts/AccountRow`: tek hesap kartı (simge, ad, numara, bakiye, işletme hesabında "İşletme" etiketi).
+- `Formatting/Money`: tutar yazımı AI servisindeki `formatting.money` ile aynı (`577.490,18 TL`, `500,00 USD`). Yalnız gösterim;
+  mobilde hesap yapılmaz (IOS-10).
+- `Account` modeli `createdAt`'i çözmez: ekranda yok, sıra zaten sunucudan geliyor, mikro saniyeli değeri eski sistemlerin `.iso8601`'i
+  reddedebilir. `balance` `Decimal`'e kayıpsız çözülür; bilinmeyen `accountType` sözleşme hatasıdır ("Beklenmeyen bir cevap alındı").
+- Vurgu rengi (`AccentColor`): açık modda koyu lacivert, koyu modda açık mavi. Kartlar `secondarySystemGroupedBackground` üstünde
+  (düz `.background` koyu modda ekranla aynı siyah).
+
+Kullanıcı kararları:
+
+- **K1-D — ana ekranın gövdesi, ayrı parçalar:** liste kendi ViewModel'i ve görünümüyle; IOS-07 son işlemleri yanına ekler.
+- **K2-A — tam hesap numarası** (sentetik ve müşterinin kendi numarası; maskeleme başkasının adı içindir).
+- **K3-A — sohbetle aynı tutar yazımı** (TRY → "TL", diğerleri kodla).
+- **K4-A — düz liste, sunucu sırası**; işletme hesabı etiketle. Para birimi başına toplam yok.
+- **K5-A — aşağı çekip yenileme + "Tekrar dene"**; sohbetten dönünce yeniden istenmez (sohbet bakiyeyi değiştiremez).
+- **K6-A — yenileme hatası listeyi silmez:** eski liste kalır, üstte turuncu bant; başarılı yenileme bandı kaldırır. Tam ekran hata
+  yalnız liste hiç gelmediyse.
+- **K7-B — küçük cila:** vurgu rengi, kart görünümü, kalın ve eşit genişlikli rakamlar.
+- **K8-A — hesaba dokunulmaz** (hesap detayı ve işlem listesi IOS-05).
+
+### Test ve doğrulama (IOS-04)
+
+85 test durumu (önceki 66 + `AccountsViewModelTests` 12: Ada'nın gerçek cevabı sırası ve bakiyeleri `Decimal` olarak birebir, istek ve
+token, işletme hesabı, bilinmeyen tür, boş liste, sunucu hatası, ulaşılamayan sunucu, 401, iptal, yenileme hatasında liste kalır, başarılı
+yenileme bandı kaldırır, hatadan sonra "Tekrar dene"; `MoneyTests` 7 elle hesaplanmış tutar). 7 kasıtlı bozma yakalandı (sıra ters → 3 test, 401 hata gösterir → 1, iptal hata gösterir → 1, yenileme listeyi siler → 1, token gönderilmez → 2, İngilizce sayı biçimi → 7 durum, TRY "TL" olmaz → 4 durum).
+Simülatörde beklenen: Ada → Ada boş TRY 0,00 TL, Ada günlük TRY 577.490,18 TL, Ada USD 500,00 USD; Deniz → Deniz aile TRY 522.900,00 TL,
+Kahve Durağı – Kadıköy 2.595,00 TL "İşletme"; Ege → Ege seyahat EUR 1.000,00 EUR, Ege günlük TRY 273.380,00 TL.
+
+### Sınırlar (IOS-04)
+
+- Hesaba dokunulamaz (IOS-05); para birimi başına toplam yok.
+- Bakiye yalnız ilk açılışta ve aşağı çekince güncellenir; sohbetten dönünce istenmez.
+- Kesirli saniye: `createdAt` gerekirse (ör. IOS-05) tarih çözücüsü kesirli saniyeyi de kabul edecek biçimde genişletilmeli.

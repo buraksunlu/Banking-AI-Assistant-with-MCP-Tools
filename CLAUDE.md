@@ -106,7 +106,8 @@ olarak `MainActor` (Xcode 26 ayarı). Token yalnız Keychain'de; token'lı çağ
 Testlerde ağ `MockURLProtocol` ile, test başına ayrı uydurma sunucu adıyla (paralel güvenli). Sohbet (AI-08): `ChatViewModel` ana
 ekranın `@State`'inde yaşar (geçmiş yalnız bellekte, çıkışta silinir); yalnız sohbet isteği 40 sn bekler (30 → 35 → 40); 503 bant + kapalı
 giriş, diğer hatalar balonda "Tekrar dene" (aynı balon); Durdur ve ekrandan çıkış isteği iptal eder. Öneriler (CHAT-06): `suggestions` son cevabın altında, gönderince boşalır; boş sohbette
-`open()` başlangıç sorularını ister (hata/boş → `ChatViewModel.examples`). Demo şifresini Claude yazmaz/okumaz:
+`open()` başlangıç sorularını ister (hata/boş → `ChatViewModel.examples`). Hesaplar (IOS-04) ana ekranın gövdesidir (`AccountsViewModel`);
+tutar her ekranda `Formatting/Money` ile yazılır (sohbetle aynı: `577.490,18 TL`), mobilde hesap yapılmaz. Demo şifresini Claude yazmaz/okumaz:
 simülatörde girişi kullanıcı yapar.
 
 Console CLI (`src/BankingAI.Cli`), seed sırası önemlidir:
