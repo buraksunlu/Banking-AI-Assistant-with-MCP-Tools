@@ -32,6 +32,13 @@ extension APIRequest where Response == AssistantStatus {
     }
 }
 
+extension APIRequest where Response == AssistantSuggestions {
+    /// `GET /api/assistant/suggestions`: the starter questions of an empty chat, chosen from the user's data (CHAT-06).
+    static var assistantSuggestions: APIRequest<AssistantSuggestions> {
+        APIRequest(method: "GET", path: "api/assistant/suggestions", body: nil, requiresToken: true)
+    }
+}
+
 extension APIRequest where Response == AssistantReply {
     /// `POST /api/assistant/messages`: one question to the assistant.
     static func assistantMessage(_ text: String) -> APIRequest<AssistantReply> {

@@ -5,8 +5,9 @@ import Observation
 /// without a screen.
 @Observable
 final class ChatViewModel {
-    /// Shown while the chat is empty; a tap sends one (decision AI-08 K9-A). The same questions the out-of-scope reply suggests.
-    static let examples = ["Bu ay ne kadar harcadım?", "Geçen ay en çok hangi kategoriye harcadım?", "Son 3 ayda Starbucks'a ne kadar harcadım?"]
+    /// Shown in an empty chat when the starter questions cannot be had (decision AI-08 K9-A, CHAT-06 K4-B). The same three the
+    /// out-of-scope reply offers: every customer gets an answer to them (CHAT-06 K5-A).
+    static let examples = ["Bu ay ne kadar harcadım?", "Geçen ay en çok hangi kategoriye harcadım?", "Geçen ay toplam ne kadar harcadım?"]
 
     /// The API's limit for one message (AssistantMessageRequest), counted the same way.
     static let maxLength = 500
@@ -16,6 +17,11 @@ final class ChatViewModel {
     private(set) var isWaiting = false
     /// nil until the status is known; false shows the banner and closes the input.
     private(set) var isAvailable: Bool?
+    /// The questions offered under the last answer (CHAT-06 K1-B); emptied as soon as anything is sent, because the server
+    /// recognises its offer in the next message only.
+    private(set) var suggestions: [String] = []
+    /// The questions of an empty chat; empty while they are still being asked for.
+    private(set) var starters: [String] = []
     @ObservationIgnored private let api: APIClient
     @ObservationIgnored private var pending: Task<Void, Never>?
 
@@ -41,6 +47,21 @@ final class ChatViewModel {
         if let status = try? await api.send(.assistantStatus) {
             isAvailable = status.available
         }
+    }
+
+    /// What the screen asks for when it opens: the status and, for an empty chat only, the starters, side by side (CHAT-06 K3-B).
+    func open() async {
+        async let status: Void = checkStatus()
+        if messages.isEmpty {
+            await loadStarters()
+        }
+        await status
+    }
+
+    /// The starter questions; the fixed examples when there are none (K4-B). Never touches the banner: only the status does.
+    private func loadStarters() async {
+        let loaded = (try? await api.send(.assistantSuggestions))?.suggestions ?? []
+        starters = loaded.isEmpty ? Self.examples : loaded
     }
 
     func sendDraft() async {
@@ -73,6 +94,7 @@ final class ChatViewModel {
     private func ask(_ id: UUID) async {
         guard let text = messages.first(where: { $0.id == id })?.text else { return }
         isWaiting = true
+        suggestions = []
         // A task of its own, so stop() can cancel exactly this request.
         let task = Task { [api] in
             do {
@@ -93,6 +115,7 @@ final class ChatViewModel {
     private func received(_ reply: AssistantReply, for id: UUID) {
         setState(.sent, for: id)
         messages.append(ChatMessage(role: .assistant, text: reply.answer))
+        suggestions = reply.suggestions
     }
 
     private func failed(_ error: APIError, for id: UUID) {

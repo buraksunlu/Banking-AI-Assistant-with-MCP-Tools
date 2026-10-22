@@ -42,10 +42,17 @@ enum AssistantReplyType: String, Decodable {
 }
 
 /// Reply of `POST /api/assistant/messages`. The API also sends the tools and figures used; the app does not show them yet
-/// (IOS-11, decision AI-08 K13-A), so they are not decoded.
+/// (IOS-11, decision AI-08 K13-A), so they are not decoded. `suggestions` are the questions to offer under the answer
+/// (CHAT-06); required, so a reply without them is a contract mismatch rather than "none" (K6-A).
 struct AssistantReply: Decodable, Equatable {
     let type: AssistantReplyType
     let answer: String
+    let suggestions: [String]
+}
+
+/// Reply of `GET /api/assistant/suggestions`: the questions to show when the chat opens (CHAT-06).
+struct AssistantSuggestions: Decodable, Equatable {
+    let suggestions: [String]
 }
 
 /// Reply of `GET /api/assistant/status`: whether the chat can take questions right now.

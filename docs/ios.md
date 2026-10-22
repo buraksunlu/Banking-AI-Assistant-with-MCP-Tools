@@ -86,7 +86,8 @@ HomeView ──"Asistana sor"──► ChatView ──► ChatViewModel ──�
 - **Cevap:** satır içi Markdown (K8-A, `inlineOnlyPreservingWhitespace`: kalın/italik/bağlantı, satır sonları korunur); bozuk Markdown
   düz metin olarak gösterilir. `Answer`, `Clarification`, `OutOfScope` aynı balonda. API'nin gönderdiği araç ve rakam kalemleri çözülmez
   (K13-A; "nasıl hesaplandı" paneli IOS-11).
-- **Boş sohbet (K9-A):** üç örnek soru, dokununca gönderilir (kapsam dışı cevabının önerdiği sorularla aynı).
+- **Boş sohbet (K9-A):** üç örnek soru, dokununca gönderilir (kapsam dışı cevabının önerdiği sorularla aynı). CHAT-06'dan beri bunlar
+  yalnız yedek: önce sunucunun başlangıç soruları istenir (aşağıda "Önerilen sorular").
 
 ### Test ve doğrulama (AI-08)
 
@@ -107,3 +108,44 @@ durduruluyor; AI servisi kapalıyken bant + kapalı yazı alanı + pasif "Tekrar
 - Kaynak ve rakam paneli yok (IOS-11).
 - Soğuk model: model 5 dk kullanılmayınca bellekten çıkar; harici SSD'den yüklenirken ilk soru 504 alabilir ("Tekrar dene" çalışır).
 - Akarak gösterme (stream) yok: cevap tek seferde gelir.
+
+## iOS-c: önerilen sorular (CHAT-06 PR2; 22 Ekim 2026)
+
+Arka uç (PR1, docs/local-ai.md "Önerilen sorular") her açıklanmış cevapla `suggestions` ve sohbet açılışı için
+`GET /api/assistant/suggestions` veriyor; iPhone bunları yalnız gösterir ve dokunulanı **metni aynen** gönderir (sunucu o metni tanıyıp
+aracı model seçmeden çalıştırır). Hangi sorunun geleceğine iPhone karar vermez.
+
+```text
+ChatView ──dokunma──► ChatViewModel.send(metin) ──► APIClient ──► POST /api/assistant/messages
+   ▲ suggestions (son cevabın altında) / starters (boş sohbet)       ◄── reply.suggestions
+   └── .task { open() } ──► GET /api/assistant/status  +  (sohbet boşsa) GET /api/assistant/suggestions
+```
+
+Kullanıcı kararları:
+
+- **K1-B — tek liste:** `ChatViewModel.suggestions` her cevapta yenilenir, bir şey gönderilir gönderilmez boşalır (sunucu da teklifini
+  yalnız bir sonraki mesajda tanır). Hata, Durdur ve geri soruda liste boş.
+- **K2-A — son balonun altında:** alt alta küçük düğmeler (`.bordered`, `.small`), yalnız son mesaj asistanınsa; beklerken pasif.
+- **K3-B — başlangıçlar yalnız boş sohbette**, durum kontrolüyle yan yana (`open()`); geçmiş varsa istek gitmez.
+- **K4-B — yüklenirken gösterge, olmazsa yedek:** `starters` boşken `ProgressView`; hata (503/504/bozuk) ya da boş liste → sabit üç örnek.
+  Başlangıç hatası bandı açmaz; bandı yalnız durum kontrolü açar.
+- **K5-A — yedek örnekler** arka ucun kapsam dışı cevabındaki üç soru (her müşteri cevap alır; eski listedeki Starbucks sorusu çıktı).
+- **K6-A — `suggestions` zorunlu:** alanı olmayan cevap "Beklenmeyen bir cevap alındı" + "Tekrar dene" (sessizce "öneri yok" sayılmaz).
+
+### Test ve doğrulama (CHAT-06)
+
+66 test durumu (önceki 54 + `ChatSuggestionTests` 12: cevabın önerileri, dokunulan metnin aynen gitmesi, gönderince boşalması,
+hata ve geri soruda boş liste, alanı olmayan cevap, boş sohbette başlangıç + durum, dört yedek durumu, geçmişte başlangıç isteği yok).
+6 kasıtlı bozma yakalandı (gönderince temizlememe, öneri koymama, geçmişte de isteme, yedeksiz bırakma, alanı isteğe bağlı yapma,
+Durdur'un iptal etmemesi).
+
+**Bulgu (kararsız test):** `stoppingCancelsTheRequestAndShowsNoError` yeni testlerle birlikte yaklaşık her iki koşuda bir kırmızıydı.
+URLSession iptali uydurma sunucuya kendi kuyruğunda, görev hata verdikten biraz sonra bildiriyor; test sayacı hemen okuyordu. Test artık
+isteğin sunucuya ulaşmasını ve iptal sayacını kısa süre (`waitUntil`, ≤ 2 sn) bekliyor; düzeltmeden sonra 10/10 ve bozmayı hâlâ yakalıyor.
+Ürün kodu değişmedi.
+
+### Sınırlar (CHAT-06)
+
+- Öneriler yalnız son cevabın altında; eski cevaplarınkiler kaybolur.
+- Başlangıç soruları ekran her boş açıldığında yeniden istenir.
+- Öneri düğmeleri erişilebilirlikte normal düğme olarak okunur.

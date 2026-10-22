@@ -14,13 +14,18 @@ struct ChatView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 12) {
                         if model.messages.isEmpty {
-                            examples
+                            starters
                         }
                         ForEach(model.messages) { message in
                             MessageBubble(message: message, canRetry: model.canSend) {
                                 Task { await model.retry(message.id) }
                             }
                             .id(message.id)
+                            // Only under the last answer: the server knows only that offer (CHAT-06 K1-B, K2-A).
+                            if message.role == .assistant && message.id == model.messages.last?.id && !model.suggestions.isEmpty {
+                                questions(model.suggestions)
+                                    .controlSize(.small)
+                            }
                         }
                         if model.isWaiting {
                             typing
@@ -44,7 +49,7 @@ struct ChatView: View {
         }
         .navigationTitle("Asistan")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await model.checkStatus() }
+        .task { await model.open() }
         // Leaving the screen or the app stops a pending question (decision AI-08 K5-C).
         .onDisappear { model.stop() }
         .onChange(of: scenePhase) {
@@ -66,14 +71,25 @@ struct ChatView: View {
         .background(Color.orange.opacity(0.15))
     }
 
-    private var examples: some View {
+    private var starters: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Harcamalarınızla ilgili sorabilirsiniz:")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            ForEach(ChatViewModel.examples, id: \.self) { example in
-                Button(example) {
-                    Task { await model.send(example) }
+            if model.starters.isEmpty {
+                ProgressView()
+            } else {
+                questions(model.starters)
+            }
+        }
+    }
+
+    /// Questions to tap; a tap sends the text exactly as shown.
+    private func questions(_ texts: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(texts, id: \.self) { text in
+                Button(text) {
+                    Task { await model.send(text) }
                 }
                 .buttonStyle(.bordered)
                 .disabled(!model.canSend)
