@@ -1,10 +1,12 @@
 import SwiftUI
 
-/// The signed-in home screen: the greeting from `GET /api/me`, the customer's accounts (IOS-04, decision K1-D), the way to
-/// the assistant and sign-out. Recent transactions (IOS-07) will join the accounts here.
+/// The signed-in home screen: the greeting from `GET /api/me`, the customer's accounts (IOS-04, decision K1-D), the newest
+/// transactions with the way to all of them (IOS-07), the way to the assistant and sign-out.
 struct HomeView: View {
     @State var model: HomeViewModel
     @State var accounts: AccountsViewModel
+    @State var recent: RecentTransactionsViewModel
+    @State var history: TransactionHistoryViewModel
     /// Lives as long as this screen, so going back and forth keeps the conversation; signing out ends both (K4-D).
     @State var chat: ChatViewModel
 
@@ -22,11 +24,19 @@ struct HomeView: View {
                         ProgressView()
                     }
                     AccountsSection(model: accounts)
+                    RecentTransactionsSection(model: recent)
                 }
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
-            .refreshable { await accounts.load() }
+            .refreshable {
+                async let accountsLoaded: Void = accounts.load()
+                async let recentLoaded: Void = recent.load()
+                _ = await (accountsLoaded, recentLoaded)
+            }
+            .navigationDestination(for: TransactionHistoryRoute.self) { _ in
+                TransactionHistoryView(model: history)
+            }
             // Stays in reach below a long account list.
             .safeAreaInset(edge: .bottom) {
                 NavigationLink {

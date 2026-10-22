@@ -5,6 +5,8 @@ import Foundation
 struct RecordedRequest {
     let method: String
     let path: String
+    /// The query string as sent (`limit=5`), nil when there is none.
+    let query: String?
     let authorization: String?
     let body: String?
     let timeout: TimeInterval
@@ -67,7 +69,7 @@ final class MockURLProtocol: URLProtocol {
         let host: String = request.url?.host() ?? ""
         // URLSession hands a protocol the body as a stream, not as httpBody.
         let body: Data? = request.httpBody ?? request.httpBodyStream.map(Self.readAll)
-        let sent = RecordedRequest(method: request.httpMethod ?? "", path: request.url?.path() ?? "",
+        let sent = RecordedRequest(method: request.httpMethod ?? "", path: request.url?.path() ?? "", query: request.url?.query(),
                                    authorization: request.value(forHTTPHeaderField: "Authorization"),
                                    body: body.map { String(decoding: $0, as: UTF8.self) }, timeout: request.timeoutInterval)
         let route: Route? = Self.record(sent, host: host)
@@ -142,6 +144,23 @@ final class InMemorySessionStorage: SessionStorage {
     func load() -> StoredSession? { stored }
     func save(_ session: StoredSession) { stored = session }
     func clear() { stored = nil }
+}
+
+/// Answers in the order given, one per request; the last one repeats.
+final class Answers: @unchecked Sendable {
+    private let lock = NSLock()
+    private var queue: [@Sendable () throws -> MockURLProtocol.Answer]
+
+    init(_ answers: [@Sendable () throws -> MockURLProtocol.Answer]) {
+        queue = answers
+    }
+
+    func next(_ request: URLRequest) throws -> MockURLProtocol.Answer {
+        lock.lock()
+        let answer = queue.count > 1 ? queue.removeFirst() : queue[0]
+        lock.unlock()
+        return try answer()
+    }
 }
 
 /// A JSON answer.

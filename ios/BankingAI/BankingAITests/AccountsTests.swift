@@ -20,23 +20,6 @@ private let denizAccounts = """
 
 private let unreachableMessage = "Sunucuya ulaşılamıyor; bağlantıyı kontrol edip tekrar deneyin."
 
-/// Answers in the order given, one per request; the last one repeats.
-private final class Answers: @unchecked Sendable {
-    private let lock = NSLock()
-    private var queue: [@Sendable () throws -> MockURLProtocol.Answer]
-
-    init(_ answers: [@Sendable () throws -> MockURLProtocol.Answer]) {
-        queue = answers
-    }
-
-    func next(_ request: URLRequest) throws -> MockURLProtocol.Answer {
-        lock.lock()
-        let answer = queue.count > 1 ? queue.removeFirst() : queue[0]
-        lock.unlock()
-        return try answer()
-    }
-}
-
 private func accounts(_ state: AccountsViewModel.State) -> [Account] {
     if case .loaded(let accounts) = state { return accounts }
     return []
