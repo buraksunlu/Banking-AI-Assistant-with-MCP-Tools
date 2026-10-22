@@ -1509,13 +1509,13 @@ COMPLETED
   son çağrının grubu; kural yoksa `intent-v1` JSON sınıflayıcı, ≤ 5 sn; karar yoksa genel grup). İki grup (K2-C): üç küçük grup S15/F01'i
   her koşuda bozdu. Ölçüm 4b: 67/71 → 68/71, eski vakalarda bozulan yok; 4b kalır. Bulgu: model belleği araç sayısından bağımsız
   12,7 GB'a büyüyor (AI-16).
+- Önerilen sorular CHAT-06 (22 Ekim 2026, docs/local-ai.md "Önerilen sorular", docs/ios.md "iOS-c"): arka uç `suggestions.py` (takip
+  tablosu; sunulan öneri aynı metinle gelirse model seçmeden çalışır, yalnız bir sonraki mesaj ve 10 dk; başlangıçlar üç modelsiz MCP
+  kontrolünden), `/v1/chat` `suggestions`, `GET /api/assistant/suggestions` (hız sınırı dışında); iPhone son cevabın altında düğmeler,
+  boş sohbette başlangıç soruları (olmazsa sabit üç örnek). Kararlar PR1 K1-A…K8-A, PR2 K1-B, K2-A, K3-B, K4-B, K5-A, K6-A.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
-- Önerilen sorular CHAT-06 (22 Ekim 2026, docs/local-ai.md "Önerilen sorular"): PR1 arka uç tamam — `suggestions.py` (takip tablosu,
-  sunulan önerinin kodla eşleşmesi: aynı metin model seçmeden çalışır, yalnız bir sonraki mesaj ve 10 dk; başlangıçlar üç modelsiz MCP
-  kontrolünden), `/v1/chat` cevabında `suggestions`, `GET /v1/suggestions`, .NET `GET /api/assistant/suggestions` (hız sınırı dışında).
-  Kararlar K1-A, K2-A, K3-C, K4-B, K5-A, K6-B, K7-A, K8-A. PR2: iPhone düğmeleri.
 
 NEXT
 - Kullanıcı seçer (22 Ekim): AI-16 model belleği (12,7 GB, ısınma); KIND-06 iade; hesap ekranları (IOS-04…); yeni
