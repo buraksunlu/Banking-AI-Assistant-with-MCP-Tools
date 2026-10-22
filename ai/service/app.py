@@ -23,7 +23,7 @@ from starlette.exceptions import HTTPException
 
 from answer_check import AnswerRejected
 from contracts import ChatRequest, ChatResponse, ExplanationRequest, ExplanationResponse, HealthResponse, ToolCallOut
-from chat import ChatService, LangChainClarificationWriter, LangChainToolSelector
+from chat import ChatService, LangChainClarificationWriter, LangChainIntentClassifier, LangChainToolSelector
 from explainer import Explainer, LangChainExplainer
 from ollama_client import (
     ModelNotFound,
@@ -37,6 +37,7 @@ from ollama_client import (
     warm_up as load_model,
 )
 from mcp_gateway import McpSettings, McpToolGateway
+from routing import Router
 from tools import BackendTimeout, BackendUnavailable, SessionInvalid, ToolCallRejected
 
 logger = logging.getLogger("bankingai.ai")
@@ -106,7 +107,8 @@ def create_app(
     # service's own logger is not configured, and uvicorn prints its INFO lines next to its own startup lines.
     logging.getLogger("uvicorn.error").info("MCP server: %s", app.state.tools.settings.url)
     app.state.chat_service = ChatService(LangChainToolSelector(settings), app.state.tools, app.state.explainer, settings,
-                                         writer=LangChainClarificationWriter(settings))
+                                         writer=LangChainClarificationWriter(settings),
+                                         router=Router(LangChainIntentClassifier(settings)))
 
     app.add_exception_handler(RequestValidationError, _validation_failed)
     app.add_exception_handler(HTTPException, _http_error)

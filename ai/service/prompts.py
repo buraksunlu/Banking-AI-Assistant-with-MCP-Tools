@@ -99,6 +99,23 @@ def build_tool_messages(message: str, previous=None) -> list[dict]:
     return messages
 
 
+INTENT_PROMPT_VERSION = "intent-v1"
+
+# CHAT-01 K1-C: asked only when no word rule matched. The groups are given with their meanings (the AI-01 structured-output
+# pattern, 5 of 5); the answer is held to the schema by Ollama's "format", and the router accepts only a known group.
+INTENT_SYSTEM_PROMPT = ("Kullanıcının bankacılık sorusunu üç gruptan birine ayır ve yalnız JSON yaz. spending: harcama tutarı, "
+                        "kategoriler, işyerleri, en büyük harcamalar, dönem karşılaştırması ya da aylara göre değişim. payments: "
+                        "abonelikler, her ay tekrarlanan ödemeler ya da yaklaşan ödemeler. planning: kullanıcının söylediği bir "
+                        "bütçe ya da bir harcamayı azaltınca ne kadar biriktireceği.")
+INTENT_SCHEMA = {"type": "object", "properties": {"intent": {"type": "string", "enum": ["spending", "payments", "planning"]}},
+                 "required": ["intent"]}
+
+
+def build_intent_messages(message: str) -> list[dict]:
+    """The chat messages for classifying one message into a tool group (CHAT-01)."""
+    return [{"role": "system", "content": INTENT_SYSTEM_PROMPT}, {"role": "user", "content": _neutralize(message)}]
+
+
 CLARIFY_PROMPT_VERSION = "clarify-v1"
 
 # CHAT-03 K4-B: the model only words the question; the options come from the backend or a fixed list, and the code checks

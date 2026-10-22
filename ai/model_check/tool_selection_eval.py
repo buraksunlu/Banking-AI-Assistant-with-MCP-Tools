@@ -10,6 +10,9 @@ CHAT-03 adds the grounding check of the chat: a "clarify" case passes only when 
 guessing (S27-S31), and every other case fails if the check would ask a needless question. CHAT-02 adds follow-ups
 (F01-F14): the case's previous call is given to the selector when the message counts as a follow-up, and the grounding check
 accepts what was carried over unchanged, as in the chat. MCP-17/18 add the budget and savings cases (S35-S47, F15-F16).
+CHAT-01 routes every case as the chat does (word rules, the model's group only without a matching rule) and shows the model
+only the route's tools; --no-routing measures the full list as before, and R01-R08 are wordings the rules were not written
+from. --pause waits between cases, for a machine that heats up under a long run.
 A case passes when the model
 chose exactly the expected tool with exactly the expected arguments (merchant names without case), or no tool when none
 may be chosen.
@@ -30,6 +33,7 @@ from conversation import LastCall, is_follow_up  # noqa: E402
 from grounding import check_arguments  # noqa: E402
 from mcp_gateway import McpSettings, McpToolGateway  # noqa: E402
 from ollama_client import OllamaError, OllamaSettings  # noqa: E402
+from routing import Route, Router, narrow  # noqa: E402
 
 CASES_FILE = Path(__file__).with_name("tool_selection_cases.json")
 
@@ -68,26 +72,38 @@ def demo_token() -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--model", help="Ollama model (default: BANKINGAI_LLM_MODEL or qwen3.5:4b)")
+    parser.add_argument("--no-routing", action="store_true", help="show the model every tool, as before CHAT-01")
+    parser.add_argument("--pause", type=float, default=0.0, help="seconds to wait before each case")
     args = parser.parse_args()
 
     model = args.model or os.environ.get("BANKINGAI_LLM_MODEL") or "qwen3.5:4b"
     settings = OllamaSettings.from_env({**os.environ, "BANKINGAI_LLM_MODEL": model})
     definitions = McpToolGateway(McpSettings.from_env(os.environ)).list_tools(demo_token(), time.monotonic() + 10)
     selector = chat.LangChainToolSelector(settings)
+    router = Router(chat.LangChainIntentClassifier(settings))
     schemas = {d["function"]["name"]: d["function"].get("parameters", {}) for d in definitions}
     data = json.loads(CASES_FILE.read_text(encoding="utf-8"))
 
-    print(f"## Tool-selection eval: {model}, prompt {prompts.TOOL_PROMPT_VERSION}, {len(definitions)} tools\n")
-    print("| Case | Result | Time (s) | Chosen |")
-    print("|---|---|---|---|")
-    passed = 0
+    routing = "no routing" if args.no_routing else f"routing, prompt {prompts.INTENT_PROMPT_VERSION}"
+    print(f"## Tool-selection eval: {model}, prompt {prompts.TOOL_PROMPT_VERSION}, {len(definitions)} tools, {routing}\n")
+    print("| Case | Result | Time (s) | Route | Chosen |")
+    print("|---|---|---|---|---|")
+    passed, total_time = 0, 0.0
     for case in data["cases"]:
+        time.sleep(args.pause)
         started = time.monotonic()
+        route = Route(())
         try:
             given = case.get("context")
             context = LastCall(given["tool"], given["arguments"], given["question"]) \
                 if given and is_follow_up(case["message"]) else None
-            calls = selector.select(case["message"], definitions, time.monotonic() + settings.timeout_seconds, context)
+            deadline = time.monotonic() + settings.timeout_seconds
+            shown = definitions
+            if not args.no_routing:
+                route = router.route(case["message"], context.tool if context else None, deadline)
+                shown = [] if route.out_of_scope else narrow(definitions, route)
+            # Out of scope by rule: the chat answers without the model, which is "no tool" here.
+            calls = selector.select(case["message"], shown, deadline, context) if shown else []
             chosen = ", ".join(f"{c.tool}({json.dumps(c.arguments, ensure_ascii=False)})" for c in calls) or "(no tool)"
             asked = asks_back(calls, schemas, case["message"], context.arguments if context else None)
             if asked:
@@ -96,8 +112,12 @@ def main() -> int:
         except OllamaError as error:
             chosen, ok = f"{type(error).__name__}: {error}", False
         passed += ok
-        print(f"| {case['id']} | {'pass' if ok else 'FAIL'} | {time.monotonic() - started:.1f} | {chosen} |")
-    print(f"\n**{passed}/{len(data['cases'])}**")
+        seconds = time.monotonic() - started
+        total_time += seconds
+        where = ("full" if args.no_routing else "out of scope" if route.out_of_scope
+                 else f"{'+'.join(route.groups)} ({route.source})")
+        print(f"| {case['id']} | {'pass' if ok else 'FAIL'} | {seconds:.1f} | {where} | {chosen} |")
+    print(f"\n**{passed}/{len(data['cases'])}**, average {total_time / len(data['cases']):.1f} s per case")
     return 0 if passed == len(data["cases"]) else 1
 
 

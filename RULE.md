@@ -1357,7 +1357,7 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   kullanıcıyla netleşir; açıkça istenen varlık korunur. Eksik veride kazanan uydurulmaz.
 
 ==================================================
-29. MEVCUT PROJE DURUMU — 21 EKİM 2026
+29. MEVCUT PROJE DURUMU — 22 EKİM 2026
 ==================================================
 
 COMPLETED
@@ -1504,12 +1504,17 @@ COMPLETED
   rakamları (tutar, para birimi, oran) mesajda aranır; söylenmeyen sabit metinle sorulur ve zincirlenir. Ölçüm: seçim 60/63 (eski 48 tam;
   uzun kategori açıklaması eski araçların dönemini bozmuştu), cevap doğruluğu 14/15 (A12'nin
   cevap şartı soruyla uyumsuzdu, düzeltildi).
+- Niyete göre araç daraltma CHAT-01 (21-22 Ekim 2026, docs/local-ai.md "Niyete göre araç daraltma"): `routing.Router` (kod önce:
+  kapsam dışı → sabit metin, modelsiz; planlama kelimesi → bütçe/tasarruf araçları; harcama/ödeme kelimesi → MCP-08'in 9 aracı; takipte
+  son çağrının grubu; kural yoksa `intent-v1` JSON sınıflayıcı, ≤ 5 sn; karar yoksa genel grup). İki grup (K2-C): üç küçük grup S15/F01'i
+  her koşuda bozdu. Ölçüm 4b: 67/71 → 68/71, eski vakalarda bozulan yok; 4b kalır. Bulgu: model belleği araç sayısından bağımsız
+  12,7 GB'a büyüyor (AI-16).
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Kullanıcı seçer (21 Ekim): CHAT-01 niyete göre araç daraltma (11 araçta seçim kırılganlaştı); hesap ekranları (IOS-04…); yeni
+- Kullanıcı seçer (22 Ekim): AI-16 model belleği (12,7 GB, ısınma); KIND-06 iade; hesap ekranları (IOS-04…); yeni
   MCP araçları (MCP-03…26); SEC-07 kısa ömürlü yalnız-MCP token'ı. Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,
