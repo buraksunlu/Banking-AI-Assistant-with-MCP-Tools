@@ -705,3 +705,60 @@ mesaj ─► (CHAT-03) bekleyen soru? ─► …
 Sınırlar: yalnız bir önceki çağrı; önceki cevaba atıf ("bunun yarısı") yok; bağlam yalnız bellekte; 4 kelimeyi aşan ve "peki/ya" ile
 başlamayan takip ("Kahve Durağı için de aynısını göster") bağlam almaz; "Bir önceki ayla karşılaştır" bazen "bu ay"a göre değil son tam
 aya göre karşılaştırır (iki tür de kabul ediliyor).
+
+# Niyete göre araç daraltma (CHAT-01, 21-22 Ekim 2026)
+
+Sorun (MCP-17/18 ölçümü): 11 araçla model her turda bütün açıklamaları okuyor; bütçe araçları listeye girince eski sorular yanlış araca
+ya da döneme kaydı (53/63), ancak açıklama yamalarıyla 60/63'e döndü. Her yeni araçta aynı yama döngüsü.
+
+Kullanıcı kararları: K1-C (önce kelime kuralları, kural yoksa model), K2-C (iki grup; ilk seçilen K2-B ölçümde elendi, aşağıda), K3-A
+(model karar veremezse genel grup), K5-B (açık kapsam dışı istek modelsiz), K6-A (takipte önce mesajın kendi kuralı, yoksa son çağrının
+grubu).
+
+```text
+mesaj ─► (CHAT-03) bekleyen soru? ─► takip mi? (CHAT-02)
+   ─► routing.Router.route (kod)
+        kapsam dışı kuralı (transfer yap, hisse, kripto, fıkra…) ─► sabit "kapsam dışı" metni (model ve MCP çağrılmaz)
+        planlama kelimesi (bütçe, limit, tasarruf, azalt, yarıya…) ─► planning: check_budget, simulate_savings
+        harcama/ödeme kelimesi (harca, kategori, en büyük, abonelik, yaklaşan…) ─► general: MCP-08'in 9 aracı
+        takip ve kural yok ─► son çağrının grubu
+        hiçbiri ─► LangChainIntentClassifier (intent-v1, JSON şeması, ≤ 5 sn, ≤ 30 token) ─► spending/payments → general, planning
+                   hata, süre ya da tanınmayan cevap ─► general
+   ─► narrow(MCP listesi, grup) ─► araç seçici (tool-selection-v2) ─► … (eskisi gibi)
+```
+
+- **`routing.py`**: `GROUPS` tablosu (araç adları MCP server'ınki), kurallar Türkçe harf katlanmış metinde (`answer_check.fold_turkish`).
+  Planlama kelimesi harcama kelimesinden önce bakılır ("Starbucks harcamamı yarıya indirsem" tasarruf sorusudur). Tabloda olmayan araç
+  her grupta gösterilir: sunucuya eklenen yeni araç sessizce kaybolmaz.
+- **`chat.LangChainIntentClassifier`**: Ollama `format` ile şemaya bağlı tek alanlı JSON; değerler anlamlarıyla prompt'ta (AI-01 kalıbı).
+  Yalnız kural eşleşmeyince sorulur, ayrı 5 sn'lik süre turun süresini yemez.
+- **`chat.ChatService`**: yönlendirme araç listesinden önce; seçici yalnız grubun araçlarını görür, listede olmayan araç çalışmaz.
+- **Ölçüm aracı**: `tool_selection_eval.py` artık sohbet gibi yönlendirir (`Route` sütunu: grup ve kaynağı); `--no-routing` eski tam
+  liste, `--pause N` vakalar arası bekleme (makine ısınmasın). R01–R08: kurallar yazılırken bakılmamış yazılışlar (R08 hiçbir kurala
+  uymaz, grubu model seçer).
+
+**Ölçüm** (`qwen3.5:4b`, 71 vaka, tek koşu):
+
+| | Yönlendiricisiz | Üç grup (K2-B) | İki grup (K2-C) |
+|---|---|---|---|
+| Toplam | 67/71 | 66/71 | **68/71** |
+| Eski 63 vaka | 60/63 | 59/63 | **61/63** |
+| R01–R08 | 7/8 | 7/8 | 7/8 |
+| Vaka başına | 4,7 sn | 4,4 sn | 4,0 sn |
+
+- **K2-B neden elendi:** harcama/ödeme/planlama diye üç küçük grupta (7 araçlık harcama listesi) S15 ("Geçen ayki en büyük
+  harcamalarım") ve F01 ("Peki geçen ay?") her koşuda bozuldu. Liste kısalsa da bileşimi değişince küçük model bazı kararlarını
+  değiştiriyor; daraltma tek başına isabet getirmiyor. K2-C eski sorulara MCP-08'de 48/48 ölçülmüş 9 araçlık listeyi geri veriyor:
+  S15 ve F01 ayrıca 5'er tekrarda 5/5.
+- Kalan hatalar: S40, S43 yönlendiricisiz de hatalı (MCP-17/18'den bilinen planlama vakaları). R03 ("2.000 TL sınır belirledim")
+  kurallarda "sınır" olmadığı için genel gruba gidiyor; kural sonuca bakılarak düzeltilmedi (ölçüm kurallara uydurulmasın).
+- Kazanç: açık kapsam dışı istekler anında (eskiden 10–15 sn model turu); model sınıflayıcı kural dışı R07/R08'i doğru gruba gönderdi;
+  S46 düzeldi. Hız farkı küçük ve tek koşu.
+- AI-01 kuralı ("4b %90 altına düşerse 9b"): 4b %95,8 → `qwen3.5:4b` kalır; 9b bu maddede ölçülmedi.
+- **Bellek bulgusu (ayrı madde AI-16):** model yüklenince ~4 GB, ölçüm boyunca 12,6–12,7 GB'a büyüyor; araç sayısıyla ilgili değil
+  (yönlendiricili/yönlendiricisiz aynı) ve Ollama bağlamı 4096 token gösterirken de böyle. Plandaki "kısa liste = az bellek" gerekçesi
+  tutmadı.
+
+Sınırlar: kurallar kelime listesidir (yeni yazılışlar modele düşer, model de yanılabilir: R03); grup yanlışsa doğru araç hiç görünmez
+(geri soru yok); iki grup arasında karışık soru ("bütçemi aşmamak için aboneliklerimi azaltsam") planlamaya gider; araç eklenince
+`GROUPS` tablosuna yazılmalı (yazılmazsa her grupta görünür, güvenli taraf).

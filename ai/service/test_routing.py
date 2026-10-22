@@ -1,0 +1,140 @@
+import json
+from pathlib import Path
+
+import pytest
+
+from ollama_client import OllamaTimeout
+from routing import GENERAL, GROUPS, PLANNING, Route, Router, group_of, narrow
+
+# CHAT-01: the tools a turn shows the model. Decisions K1-C (word rules first, the model only when none matches), K2-C (two
+# groups: the nine tools of MCP-08 and the two planning tools; K2-B's three groups broke S15 and F01 on every run), K3-A (the
+# general group when the model cannot tell), K5-B (clear out-of-scope requests answered without a model), K6-A (a follow-up's
+# own rule first, else the last call's group). Expected values by hand.
+
+CASES_FILE = Path(__file__).resolve().parent.parent / "model_check" / "tool_selection_cases.json"
+
+
+class FakeClassifier:
+    def __init__(self, answer="spending", error=None):
+        self.answer, self.error, self.calls = answer, error, []
+
+    def classify(self, message, deadline):
+        self.calls.append((message, deadline))
+        if self.error:
+            raise self.error
+        return self.answer
+
+
+def route(message, previous=None, classifier=None):
+    return Router(classifier or FakeClassifier(error=AssertionError("the model must not be asked"))).route(message, previous, 30.0)
+
+
+@pytest.mark.parametrize(("message", "groups"), [
+    ("Dün ne harcadım?", (GENERAL,)),
+    ("Geçen ay en çok hangi kategoriye harcadım?", (GENERAL,)),
+    ("Faturalara ne kadar harcadım?", (GENERAL,)),
+    ("Son 3 ayda Starbucks'a ne kadar verdim?", (GENERAL,)),
+    ("Geçen aya göre nasılım?", (GENERAL,)),
+    ("Harcamam aylara göre nasıl değişti?", (GENERAL,)),
+    ("Transferlerim harcamaya dahil mi?", (GENERAL,)),          # a question about transfers, not a request
+    ("Aboneliklerim neler?", (GENERAL,)),                      # payment words keep the model's classifier out of it
+    ("Önümüzdeki 7 günde hangi ödemelerim var?", (GENERAL,)),
+    ("Netflix'e her ay ne ödüyorum?", (GENERAL,)),
+    ("Bu ay 1.000 TL bütçem var, ne durumdayım?", (PLANNING,)),
+    ("Bu ay 2.000 TL limit koydum, aşar mıyım?", (PLANNING,)),
+    ("Starbucks için bu ay 300 lira ayırdım, ne kadar kaldı?", (PLANNING,)),  # eval S37: "ne kadar" is there too
+    ("Starbucks harcamamı yarıya indirsem ne kazanırım?", (PLANNING,)),  # "harca" is there too: the specific group wins
+    ("Market masrafımı %15 kıssam ne olur?", (PLANNING,)),
+    ("Bütçemi aşmamak için aboneliklerimi azaltsam?", (PLANNING,)),      # a cut in the subscriptions: savings
+])
+def test_word_rules_choose_the_groups(message, groups):
+    assert route(message) == Route(groups, source="rule")
+
+
+@pytest.mark.parametrize("message", ["Deniz'e 100 TL transfer yap", "Anneme para gönder", "Hangi hisseye yatırım yapayım?",
+                                     "Kripto alayım mı?", "Bana bir fıkra anlat", "Bir şaka yap"])
+def test_clear_out_of_scope_requests_need_no_model(message):
+    assert route(message) == Route((), out_of_scope=True, source="rule")
+
+
+@pytest.mark.parametrize(("message", "previous", "groups"), [
+    ("Peki geçen ay?", "check_budget", (PLANNING,)),
+    ("Peki geçen ay?", "get_spending_summary", (GENERAL,)),
+    ("Ya bu hafta?", "get_upcoming_payments", (GENERAL,)),
+])
+def test_a_follow_up_without_its_own_rule_keeps_the_last_calls_group(message, previous, groups):
+    assert route(message, previous) == Route(groups, source="previous")
+
+
+@pytest.mark.parametrize(("message", "previous", "groups"), [
+    ("Aboneliklerim neler?", "check_budget", (GENERAL,)),
+    ("Bir önceki ayla karşılaştır", "check_budget", (GENERAL,)),
+    ("Peki 1.500 TL bütçe olsa?", "check_budget", (PLANNING,)),
+])
+def test_a_follow_ups_own_rule_comes_first(message, previous, groups):
+    assert route(message, previous) == Route(groups, source="rule")
+
+
+def test_the_model_is_asked_only_when_no_rule_matches():
+    classifier = FakeClassifier(answer="payments")
+
+    result = Router(classifier, clock=lambda: 0.0).route("Ayda sabit olarak neye para gidiyor?", None, 30.0)
+
+    # The model still names three kinds (intent-v1); spending and payments share the general group.
+    assert result == Route((GENERAL,), source="model")
+    # At most 5 s for the question: a slow model falls back to the spending group instead of eating the turn.
+    assert classifier.calls == [("Ayda sabit olarak neye para gidiyor?", 5.0)]
+
+
+@pytest.mark.parametrize("classifier", [FakeClassifier(error=OllamaTimeout("slow")), FakeClassifier(answer="transfers"),
+                                        FakeClassifier(answer=None)])
+def test_without_a_usable_model_answer_the_general_group_is_used(classifier):
+    assert Router(classifier).route("Ayda sabit olarak neye para gidiyor?", None, 30.0) == Route((GENERAL,), source="fallback")
+
+
+def test_without_a_classifier_the_general_group_is_used():
+    assert Router(None).route("Ayda sabit olarak neye para gidiyor?", None, 30.0) == Route((GENERAL,), source="fallback")
+
+
+def test_the_model_can_send_a_question_to_planning():
+    result = Router(FakeClassifier(answer="planning")).route("Ayda kenara ne koyabilirim?", None, 30.0)
+    assert result == Route((PLANNING,), source="model")
+
+
+def test_the_groups_cover_the_eleven_published_tools_once_each():
+    names = [name for tools in GROUPS.values() for name in tools]
+    assert len(names) == len(set(names)) == 11
+    assert len(GROUPS[GENERAL]) == 9 and group_of("check_budget") == PLANNING and group_of("unknown_tool") is None
+
+
+def tool(name):
+    return {"type": "function", "function": {"name": name, "parameters": {}}}
+
+
+def test_narrowing_keeps_the_groups_tools_and_any_tool_the_table_does_not_know():
+    tools = [tool("get_spending_summary"), tool("check_budget"), tool("simulate_savings"), tool("get_recurring_payments"),
+             tool("get_spending_overview")]
+
+    names = [t["function"]["name"] for t in narrow(tools, Route((PLANNING,), source="rule"))]
+
+    # A tool added on the server but not to the table is never hidden: it would silently become unreachable.
+    assert names == ["check_budget", "simulate_savings", "get_spending_overview"]
+
+
+def test_every_eval_case_finds_its_tool_by_the_rules_alone():
+    # The 63 tool-selection cases (MCP-17/18) before CHAT-01: the word rules must route every one of them to a group that holds
+    # its expected tool, with no model at all; the "clarify" and out-of-scope ones may land anywhere but out of scope.
+    cases = json.loads(CASES_FILE.read_text(encoding="utf-8"))["cases"]
+    misses = []
+    for case in cases:
+        if case["id"].startswith("R"):
+            continue
+        previous = case["context"]["tool"] if case.get("context") else None
+        result = Router(None).route(case["message"], previous, 30.0)
+        expected = case["expected"]
+        if expected in (None, "clarify"):
+            continue
+        tools = {e["tool"] for e in (expected if isinstance(expected, list) else [expected])}
+        if result.out_of_scope or not tools <= result.tools():
+            misses.append((case["id"], case["message"], result))
+    assert misses == []

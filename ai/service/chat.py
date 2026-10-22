@@ -1,7 +1,8 @@
-"""One chat turn: the model picks a tool, the backend computes, the model explains (AI-14a, MCP-b, CHAT-03, CHAT-02).
+"""One chat turn: the model picks a tool, the backend computes, the model explains (AI-14a, MCP-b, CHAT-03, CHAT-02, CHAT-01).
 
-    waiting question? → tools (MCP server) → tool selection (model, with the last call when the message is a follow-up) →
-    grounding (code) → tool call (MCP server checks and computes) → facts (code) → explanation (model) → last call kept
+    waiting question? → route (code; the model only without a matching rule) → tools (MCP server), narrowed to the route's
+    group → tool selection (model, with the last call when the message is a follow-up) → grounding (code) → tool call (MCP
+    server checks and computes) → facts (code) → explanation (model) → last call kept
 
 A period, count or figure (budget amount, currency, cut; MCP-17/18) the user did not say, or a merchant name that fits several
 merchants, is asked back instead of guessed (CHAT-03); the reply completes the remembered call without a second selection, and
@@ -11,6 +12,7 @@ never carried over: every turn is computed again. The whole turn shares one time
 user's token only goes to the MCP server (and, as a digest, keys the waiting question), never to a model.
 """
 
+import json
 import logging
 import time
 from dataclasses import dataclass
@@ -26,7 +28,9 @@ from explainer import stream_message
 from facts import outcome_for
 from grounding import check_arguments
 from ollama_client import OllamaError, OllamaSettings
-from prompts import CLARIFY_TEXT, OUT_OF_SCOPE_TEXT, build_clarify_messages, build_tool_messages
+from prompts import (CLARIFY_TEXT, INTENT_SCHEMA, OUT_OF_SCOPE_TEXT, build_clarify_messages, build_intent_messages,
+                     build_tool_messages)
+from routing import Router, narrow
 from tools import ToolArgumentsRejected, ToolGateway
 
 logger = logging.getLogger("bankingai.ai")
@@ -63,6 +67,8 @@ MAX_TOOL_CALL_TOKENS = 200
 MAX_QUESTION_TOKENS = 120
 # The question is a nicety: when the model is slow, the fixed question is shown instead of keeping the user waiting.
 QUESTION_SECONDS = 8.0
+# {"intent": "payments"} is about 10 tokens; the cap keeps a model that starts writing prose from using the turn.
+MAX_INTENT_TOKENS = 30
 
 
 class ClarificationWriter(Protocol):
@@ -107,13 +113,36 @@ class LangChainClarificationWriter:
         return str(stream_message(self.llm, messages, deadline, self.clock, self.settings).content).strip()
 
 
+class LangChainIntentClassifier:
+    """The tool group of a message no word rule matched (CHAT-01 K1-C), held to a JSON schema."""
+
+    def __init__(self, settings: OllamaSettings):
+        self.settings = settings
+        self.llm = ChatOllama(
+            model=settings.model, base_url=settings.base_url, reasoning=False, temperature=0, keep_alive=settings.keep_alive,
+            num_predict=MAX_INTENT_TOKENS, format=INTENT_SCHEMA, client_kwargs={"timeout": settings.timeout_seconds},
+        )
+        self.clock = time.monotonic
+
+    def classify(self, message: str, deadline: float) -> str | None:
+        """The group the model chose; None when its answer is not the schema's shape (the router then uses its fallback)."""
+        text = str(stream_message(self.llm, build_intent_messages(message), deadline, self.clock, self.settings).content)
+        try:
+            intent = json.loads(text).get("intent")
+        except (json.JSONDecodeError, AttributeError):
+            return None
+        return intent if isinstance(intent, str) else None
+
+
 class ChatService:
     """Runs one chat turn."""
 
     def __init__(self, selector: ToolSelector, gateway: ToolGateway, explainer, settings: OllamaSettings,
                  writer: ClarificationWriter | None = None, waiting: PendingStore | None = None,
-                 history: ConversationStore | None = None):
+                 history: ConversationStore | None = None, router: Router | None = None):
         self.selector, self.gateway, self.explainer, self.settings = selector, gateway, explainer, settings
+        # Without a classifier the router uses its rules and the spending group (tests; CHAT-01 K3-A).
+        self.router = router or Router()
         # Without a writer every question is the fixed one (tests, and the fallback of K4-B).
         self.writer = writer
         self.waiting = waiting or PendingStore()
@@ -138,12 +167,16 @@ class ChatService:
                     return self._ask(_ask_figure(waiting.tool, arguments, later[0], later[1:], question), [], token, deadline)
                 return self._run(ToolCall(waiting.tool, arguments), question, token, deadline)
 
-        # Listed first: when the tools cannot answer, the single local model is not kept busy for nothing.
-        tools = self.gateway.list_tools(token, deadline)
         # Only a short or "peki…" message is read with the last call (K4-B); a full question stands on its own, as before.
         # The follow-up itself is what is explained and kept: a growing chain of questions led both the model (back to an
         # older merchant) and the explanation ("geçen ay" for this month) astray in the live trial.
         context = self.history.recall(token) if is_follow_up(message) else None
+        route = self.router.route(message, context.tool if context else None, deadline)
+        if route.out_of_scope:
+            # A request to move money or to advise is answered before any tool or model is involved (CHAT-01 K5-B).
+            return ChatReply("outOfScope", OUT_OF_SCOPE_TEXT, [], [])
+        # Listed first: when the tools cannot answer, the single local model is not kept busy for nothing.
+        tools = narrow(self.gateway.list_tools(token, deadline), route)
         calls = self.selector.select(message, tools, deadline, context)
         if not calls:
             # The model's own text is never shown here: it might promise a transfer it cannot make (K5-A).

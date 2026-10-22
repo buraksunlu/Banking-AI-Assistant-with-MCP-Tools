@@ -139,8 +139,11 @@ sürümle eklenir. Starlette'in `TestClient`'ı `httpx` yerine `httpx2` ister.
 `ModelNotFound`, `OllamaTimeout`, `OllamaBadResponse`); `check_ready()` modeli yüklemez. Testler gerçek Ollama yerine sahte HTTP
 sunucusu kullanır; gerçek Ollama testleri Ollama kapalıysa atlanır.
 
-Sohbet (AI-14a, MCP-b): `POST /v1/chat` (Bearer zorunlu) → `chat.ChatService`: `mcp_gateway.McpToolGateway.list_tools` (her turda,
-kullanıcının token'ıyla; MCP kapalıysa model çalışmaz) → `LangChainToolSelector` (o turun listesiyle `bind_tools`, `tool-selection-v1`) →
+Sohbet (AI-14a, MCP-b): `POST /v1/chat` (Bearer zorunlu) → `chat.ChatService`: CHAT-01 `routing.Router` (kod önce: kapsam dışı kuralı →
+sabit metin, modelsiz; planlama kelimesi → `planning` grubu, harcama/ödeme kelimesi → `general` = MCP-08'in 9 aracı; takipte son çağrının
+grubu; kural yoksa `LangChainIntentClassifier` `intent-v1`, ≤ 5 sn, karar yoksa `general`) → `mcp_gateway.McpToolGateway.list_tools` (her
+turda, kullanıcının token'ıyla; MCP kapalıysa model çalışmaz), `narrow` ile grubun araçları (tabloda olmayan araç her grupta; yeni araç
+`routing.GROUPS`'a yazılır) → `LangChainToolSelector` (o turun listesiyle `bind_tools`, `tool-selection-v1`) →
 araç adı listede mi → `McpToolGateway.call` (argümanları MCP server şemaya göre kontrol eder; `invalid_arguments` → sabit geri soru) →
 `facts.outcome_for` (`formatting.py` ile Türkçe metin; yok merchant modelsiz sabit cevap) → açıklama. CHAT-03: seçimden sonra
 `grounding.check_arguments` (dönem/sayı mesajda yoksa araç çalışmaz, geri soru; isteğe bağlı dayanaksız argüman düşer), belirsiz merchant
@@ -161,9 +164,10 @@ ExceptionGroup gelir; `_cause` ilk yaprağı alır. (4) SDK bir çağrının çe
 `anyio.fail_after` (toplam) hem HTTP zaman aşımıyla (istek başına) sınırlı. Hazır olma (`/health/ready`) MCP server'ın tokensız
 `/health`'ine de bakar. Testlerde `FakeMcp` gerçek sunucunun 2026-07-28 cevaplarını (`resultType`, `ttlMs`, `cacheScope`) taklit eder;
 gerçek .NET server açıksa (ve demo anındaysa) iki test daha çalışır. Araç seçim ölçümü:
-`ai/.venv/bin/python ai/model_check/tool_selection_eval.py` (63 vaka; S27–S31 geri soru, S35–S47 bütçe/tasarruf, F01–F16 takip, MCP server + Ollama açık, `.env` yüklü; MCP server yeni kodla
+`ai/.venv/bin/python ai/model_check/tool_selection_eval.py` (71 vaka; S27–S31 geri soru, S35–S47 bütçe/tasarruf, F01–F16 takip, R01–R08
+kural dışı yazılış; varsayılan sohbet gibi yönlendirir, `--no-routing` tam liste, `--pause N` vaka arası bekleme; MCP server + Ollama açık, `.env` yüklü; MCP server yeni kodla
 yeniden başlatılmış olmalı). Araç ekleyince/açıklama değişince önce ve sonra çalıştırılır (MCP-08 K2-A: eski vakalar bozulmaz, toplam
-≥ %90). Sohbet cevabında araç argümanları **yazı** olarak döner (`app._as_text`: sözleşme ve .NET DTO `dict[str, str]`); araç seçici
+≥ %90; CHAT-01'de 4b 68/71). Sohbet cevabında araç argümanları **yazı** olarak döner (`app._as_text`: sözleşme ve .NET DTO `dict[str, str]`); araç seçici
 `num_predict=200` (metin yazan model süreyi doldurmasın). Her yeni araca `facts.outcome_for`'da kalem üretici gerekir; ham
 `rawDescription` asla kalem olmaz. MCP-17/18: kullanıcının kendi rakamları (bütçe tutarı, para birimi, azaltma oranı) `grounding`'de
 mesajda aranır ("1.000" = 1000, "5 bin", "yarı" = 50); söylenmeyen ya da yanlış okunan sorulur. Bu sorular hep sabit metindir (model
@@ -436,7 +440,8 @@ API-15 (OpenAPI sözleşmesi, Scalar, örnekler). API bölümü tamam. AI-01 (lo
 `ai/model_check` ölçümü, docs/local-ai.md), AI-02 (`ai/service/ollama_client.py`), AI-03 (FastAPI servisi `ai/service/app.py`), AI-04 (LangChain `ChatOllama`), AI-05 (prompt `explanation-v1`), AI-06 (çıktı doğrulama, değerlendirme 13/15), ANA-20 (gün/hafta dönemleri), AI-14a/14b + AI-07 + SEC-06 (uçtan uca sohbet:
 FastAPI `/v1/chat` + .NET `POST /api/assistant/messages`), MCP-a (MCP-01/02 + MCP-05/07/25 server tarafı: `BankingAI.McpServer`,
 `BankingAI.Hosting`), MCP-b (MCP-12/13/14: AI servisi araçları MCP'den keşfedip çalıştırır, REST köprüsü silindi); sıradaki: kullanıcı
-seçer (todo "Şu anki sonraki adım"). iOS-a (IOS-01/13: `ios/BankingAI`, giriş + Keychain), AI-08 (sohbet ekranı), AI-15 (soğuk model ısıtma), MCP-08 (altı yeni araç, 9 araç), MCP-17/18 (bütçe ve tasarruf araçları, 11 araç; seçim 60/63, cevap doğruluğu 14/15) CHAT-03 (belirsizlikte geri soru) ve CHAT-02 (takip soruları) ve SYN-15 (gerçekçi yıl: 6 persona, 1.710 işlem) tamam.
+seçer (todo "Şu anki sonraki adım"). iOS-a (IOS-01/13: `ios/BankingAI`, giriş + Keychain), AI-08 (sohbet ekranı), AI-15 (soğuk model ısıtma), MCP-08 (altı yeni araç, 9 araç), MCP-17/18 (bütçe ve tasarruf araçları, 11 araç; seçim 60/63, cevap doğruluğu 14/15) CHAT-03 (belirsizlikte geri soru) ve CHAT-02 (takip soruları) ve SYN-15 (gerçekçi yıl: 6 persona, 1.710 işlem) ve CHAT-01 (niyete göre
+araç daraltma, iki grup; seçim 68/71) tamam.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
 içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d. 19 Ekim 2026 todo taraması: AI-14 (uçtan uca

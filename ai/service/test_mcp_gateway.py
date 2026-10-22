@@ -305,7 +305,8 @@ def test_real_server_lists_the_published_tools():
     names = {d["function"]["name"] for d in McpToolGateway(McpSettings.from_env(os.environ)).list_tools(_real_token(), soon())}
     assert names == {"get_spending_summary", "get_category_breakdown", "get_merchant_spending",  # MCP-a
                      "get_merchant_breakdown", "get_highest_transactions", "compare_spending", "get_monthly_trend",  # MCP-08
-                     "get_recurring_payments", "get_upcoming_payments"}
+                     "get_recurring_payments", "get_upcoming_payments",
+                     "check_budget", "simulate_savings"}  # MCP-17/18
 
 
 @real

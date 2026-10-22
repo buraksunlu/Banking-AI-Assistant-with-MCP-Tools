@@ -121,7 +121,8 @@ def test_a_tool_call_is_run_and_explained():
 
     assert reply == ChatReply("answer", ANSWER, [SUMMARY_YESTERDAY], YESTERDAY_FACTS)
     assert gateway.list_calls == [(TOKEN, 30.0)]
-    assert selector.calls == [("Dün ne harcadım?", DEFINITIONS, 30.0)]
+    # CHAT-01: the model is shown the general group only, not the planning tools the server lists too.
+    assert selector.calls == [("Dün ne harcadım?", general_tools(), 30.0)]
     assert gateway.calls == [("get_spending_summary", {"period": "Yesterday"}, TOKEN, 30.0)]
     assert explainer.calls == [("Dün ne harcadım?", YESTERDAY_FACTS, 30.0)]
 
@@ -587,6 +588,99 @@ def test_a_guessed_cut_is_asked_and_the_reply_completes_it():
 
     assert asked.answer == "Ne kadar azaltmayı düşünüyorsunuz? Örneğin %10, %25 ya da %50."
     assert gateway.calls[0][:2] == ("simulate_savings", {"merchant": "Starbucks", "reductionPercent": 30})
+
+
+# CHAT-01: the router narrows what the model is shown.
+
+
+def general_tools():
+    from routing import GENERAL, GROUPS
+    return [d for d in DEFINITIONS if d["function"]["name"] in GROUPS[GENERAL]]
+
+
+def shown(selector, turn=0):
+    return [d["function"]["name"] for d in selector.calls[turn][1]]
+
+
+def test_a_budget_question_shows_only_the_planning_tools():
+    call = ToolCall("check_budget", {"amount": 3000, "currencyCode": "TRY"})
+    chat, selector, gateway, explainer = service([call], gateway=FakeGateway(BUDGET_RESULT))
+
+    chat.answer("Bu ay 3.000 TL bütçem var, ne durumdayım?", TOKEN)
+
+    assert shown(selector) == ["check_budget", "simulate_savings"]
+
+
+def test_a_clear_out_of_scope_request_runs_no_model_and_lists_no_tools():
+    chat, selector, gateway, explainer = service([SUMMARY_YESTERDAY])
+
+    reply = chat.answer("Deniz'e 100 TL transfer yap", TOKEN)
+
+    assert reply == ChatReply("outOfScope", OUT_OF_SCOPE_TEXT, [], [])
+    assert (selector.calls, gateway.list_calls, gateway.calls) == ([], [], [])
+
+
+def test_a_follow_up_without_words_of_its_own_keeps_the_last_calls_group():
+    first = ToolCall("check_budget", {"amount": 3000, "currencyCode": "TRY"})
+    second = ToolCall("check_budget", {"amount": 4000, "currencyCode": "TRY"})
+    chat, selector, gateway, explainer = service([], gateway=FakeGateway(BUDGET_RESULT), turns=[[first], [second]])
+
+    chat.answer("Bu ay 3.000 TL bütçem var, ne durumdayım?", TOKEN)
+    chat.answer("Peki 4.000 TL olsa?", TOKEN)
+
+    assert shown(selector, 1) == ["check_budget", "simulate_savings"]
+    assert gateway.calls[1][:2] == ("check_budget", {"amount": 4000, "currencyCode": "TRY"})
+
+
+def test_a_tool_the_model_was_not_shown_is_not_run():
+    chat, selector, gateway, explainer = service([ToolCall("check_budget", {"amount": 145, "currencyCode": "TRY"})])
+
+    reply = chat.answer("Dün ne harcadım?", TOKEN)
+
+    assert (reply.type, reply.answer, gateway.calls) == ("clarification", CLARIFY_TEXT, [])
+
+
+def test_the_router_asks_its_classifier_only_without_a_matching_rule():
+    class Classifier:
+        calls = []
+
+        def classify(self, message, deadline):
+            self.calls.append(message)
+            return "planning"
+
+    from routing import Router
+    classifier = Classifier()
+    chat, selector, gateway, explainer = service([])
+    chat.router = Router(classifier, clock=chat.clock)
+
+    chat.answer("Dün ne harcadım?", TOKEN)
+    chat.answer("Ayda sabit olarak neye para gidiyor?", TOKEN)
+
+    assert classifier.calls == ["Ayda sabit olarak neye para gidiyor?"]
+    assert shown(selector, 1) == ["check_budget", "simulate_savings"]
+
+
+def test_the_classifier_asks_for_one_group_in_a_fixed_shape():
+    from chat import MAX_INTENT_TOKENS, LangChainIntentClassifier
+    from prompts import INTENT_SCHEMA
+    from test_explainer import FakeOllamaStream, chunk, final
+
+    with FakeOllamaStream([chunk('{"intent": "payments"}'), final()]) as fake:
+        classifier = LangChainIntentClassifier(OllamaSettings(fake.url, "qwen3.5:4b", 5.0))
+        assert classifier.classify("Ayda sabit olarak neye para gidiyor?", classifier.clock() + 5.0) == "payments"
+    body = fake.requests[0][1]
+    assert (body["format"], body["options"]["num_predict"], body["keep_alive"]) == (INTENT_SCHEMA, MAX_INTENT_TOKENS, "30m")
+    assert "Ayda sabit olarak neye para gidiyor?" in body["messages"][-1]["content"]
+
+
+@pytest.mark.parametrize("text", ["payments", '{"intent": 3}', '{"other": "payments"}', ""])
+def test_an_answer_outside_the_shape_is_no_group(text):
+    from chat import LangChainIntentClassifier
+    from test_explainer import FakeOllamaStream, chunk, final
+
+    with FakeOllamaStream([chunk(text), final()]) as fake:
+        classifier = LangChainIntentClassifier(OllamaSettings(fake.url, "qwen3.5:4b", 5.0))
+        assert classifier.classify("Ayda sabit olarak neye para gidiyor?", classifier.clock() + 5.0) is None
 
 
 def test_bridge_errors_are_not_hidden():
