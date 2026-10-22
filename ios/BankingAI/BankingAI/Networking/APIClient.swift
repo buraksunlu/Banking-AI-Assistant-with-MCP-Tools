@@ -25,6 +25,13 @@ extension APIRequest where Response == MeResponse {
     }
 }
 
+extension APIRequest where Response == [Account] {
+    /// `GET /api/accounts`: every account of the customer, oldest first; `[]` when there are none.
+    static var accounts: APIRequest<[Account]> {
+        APIRequest(method: "GET", path: "api/accounts", body: nil, requiresToken: true)
+    }
+}
+
 extension APIRequest where Response == AssistantStatus {
     /// `GET /api/assistant/status`: asked when the chat screen opens (decision AI-08 K7-A).
     static var assistantStatus: APIRequest<AssistantStatus> {

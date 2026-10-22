@@ -27,7 +27,8 @@ struct RootView: View {
 
     var body: some View {
         if session.isSignedIn {
-            HomeView(model: HomeViewModel(api: api, session: session), chat: ChatViewModel(api: api))
+            HomeView(model: HomeViewModel(api: api, session: session), accounts: AccountsViewModel(api: api),
+                     chat: ChatViewModel(api: api))
         } else {
             LoginView(model: LoginViewModel(api: api, session: session))
         }
