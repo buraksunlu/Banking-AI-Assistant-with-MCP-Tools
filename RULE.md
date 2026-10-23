@@ -947,7 +947,9 @@ COMPLETED
   kodun okuyamadığı tarih ifadesi ("geçen salı", "3 gün önce", "geçen yıl", "Eylül'ün ilk haftası") `LangChainDateInterpreter`'a gider
   (`date-v4`, JSON şemalı, kodun hazırladığı takvim tablosu, ≤ 5 sn); aralık `dates.check_range` ile denetlenir ve kodun okuduğu tarih gibi
   çalışır. Ölçüm `ai/model_check/date_eval.py` **10/10** (v1 2/10 → v2 8/10 → v3 9/10 → v4 10/10). Canlıda Murat'ın rakamları SQL ile aynı.
-  CHAT-08 tamam (PR1 #37, PR2 #38, PR3). Testler: Python 781 modelsiz.
+  CHAT-08 tamam (PR1 #37, PR2 #38, PR3 #41; #39 yanlışlıkla ölü dala girdi, #41 ile yeniden açıldı). Testler: Python 781 modelsiz.
+  Birleşmiş `main`'de (`861fb4f`, 23 Ekim 2026) araç seçim ölçümü **68/71**, ortalama 2,0 sn; eski vakalarda bozulan yok, kalan hatalar
+  bilinen S40, S43, R03. Göreli tarih ölçümü (`date_eval.py`) `main`'de yeniden çalıştırılmadı (dalda 10/10).
 
 IN PROGRESS
 - üzerinde çalışılan feature
@@ -1554,7 +1556,7 @@ IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- CHAT-08 PR2 (kodla okunan tarih kalıpları + akış) ve PR3 (göreli tarih yorumlayıcısı + 10 vakalık ölçüm). Kullanıcı seçer (23 Ekim): AI-16 model belleği (12,7 GB, ısınma); KIND-06 iade; işlem detayı (IOS-06; IOS-05 tamam); yeni
+- Kullanıcı seçer (23 Ekim; CHAT-08 ve IOS-05 tamam): AI-16 model belleği (12,7 GB, ısınma); KIND-06 iade; işlem detayı (IOS-06; IOS-05 tamam); yeni
   MCP araçları (MCP-03…26); SEC-07 kısa ömürlü yalnız-MCP token'ı. Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,
