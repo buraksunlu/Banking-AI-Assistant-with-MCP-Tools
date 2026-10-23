@@ -34,6 +34,13 @@ extension APIRequest where Response == [Account] {
     }
 }
 
+extension APIRequest where Response == Account {
+    /// Reads an account opened from its home card, checking ownership on the server.
+    static func account(_ id: UUID) -> APIRequest<Account> {
+        APIRequest(method: "GET", path: "api/accounts/\(id.uuidString)", body: nil, requiresToken: true)
+    }
+}
+
 extension APIRequest where Response == TransactionSearchResult {
     /// `GET /api/transactions`: the newest transactions of every account. No period: the API's default (the last three
     /// months of the business day, which the phone does not know) decides (IOS-07 K11-D).
@@ -45,11 +52,17 @@ extension APIRequest where Response == TransactionSearchResult {
     /// `GET /api/transactions?period=AllTime`: the whole history of every account, newest first (API-17). `cursor` is the
     /// previous page's `nextCursor`; without it the newest page comes.
     static func history(limit: Int, cursor: String? = nil) -> APIRequest<TransactionSearchResult> {
-        var query = [URLQueryItem(name: "period", value: "AllTime"), URLQueryItem(name: "limit", value: String(limit))]
+        history(accountID: nil, filter: .allTime, limit: limit, cursor: cursor)
+    }
+
+    /// The same paging contract for one account's statement and the customer's whole history.
+    static func history(accountID: UUID?, filter: TransactionFilter, limit: Int, cursor: String? = nil) -> APIRequest<TransactionSearchResult> {
+        var query = filter.query + [URLQueryItem(name: "limit", value: String(limit))]
         if let cursor {
             query.append(URLQueryItem(name: "cursor", value: cursor))
         }
-        return APIRequest(method: "GET", path: "api/transactions", query: query, body: nil, requiresToken: true)
+        let path = accountID.map { "api/accounts/\($0.uuidString)/transactions" } ?? "api/transactions"
+        return APIRequest(method: "GET", path: path, query: query, body: nil, requiresToken: true)
     }
 }
 
@@ -153,6 +166,9 @@ final class APIClient {
         }
         guard let body = try? decoder.decode(ProblemBody.self, from: data), let code = body.code, let title = body.title else {
             return .invalidResponse(status: response.statusCode)
+        }
+        if response.statusCode == 400, let errors = body.errors, !errors.isEmpty {
+            return .validation(title: title, errors: errors)
         }
         let retryAfter = response.value(forHTTPHeaderField: "Retry-After").flatMap { Int($0) }
         return .problem(status: response.statusCode, code: code, title: title, retryAfterSeconds: retryAfter)

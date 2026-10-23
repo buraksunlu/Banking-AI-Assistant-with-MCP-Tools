@@ -272,3 +272,50 @@ imleciyle devam (`theNextPageFollowsTheCursorOfTheLastPage`, tekrar ayıklama te
 imleçsiz istek, başlıkta bütün geçmişin aralığı. Kasıtlı bozma: sonraki sayfa imleçsiz istenir → 3 test kırmızı.
 
 Sınır: son işlemler kartı son 3 aya bakar (o aralıkta işlem yoksa kart boş görünür).
+
+
+## iOS-g: hesap detayı ve tarih filtresi (IOS-05; 23 Ekim 2026)
+
+Kararlar: **K1-A, K2-C, K3-A, K4-B, K5-B, K6-B, K7-A, K8-B, K9-B, K10-B**.
+
+- Hesap kartı → `AccountDetailView`: üstte hesap adı/numarası, kişisel/işletme türü ve **güncel bakiye**; altta o hesabın hareketleri.
+  Kartın verisi hemen görünür, `GET /api/accounts/{id}` ayrıca yeniler. Bakiye seçilen dönemden hesaplanmaz; iki okuma tek atomik
+  snapshot değildir. Hesap bilgisi yenilenemezse son bilgi korunur ve tekrar deneme gösterilir.
+- `TransactionHistoryViewModel(api:accountID:)` aynı imleçli listeyi hesap veya bütün müşteri kapsamında çalıştırır.
+  `GET /api/accounts/{id}/transactions?period=AllTime&limit=20`, sonra aynı filtre + önceki `nextCursor`.
+  İlk seçim **Tüm geçmiş**; liste en yeni önce, backend sırasındadır. `totalCount` API'den gösterilir.
+- **Dönem paneli:** Tüm geçmiş / Bu ay / Geçen ay / Son 3 ay / Son 6 ay / Özel tarih aralığı. Taslak seçim ayrıdır;
+  `Uygula` ilk sayfayı getirir, başarıda satırlar/dönem/imleç birlikte değişir ve panel kapanır. Hata veya Vazgeç eski sonucu korur.
+  Başarısız filtre hatası panelde, başarısız sayfa/yenileme hatası listede gösterilir. Filtre yalnız hesap detayındadır;
+  mevcut "Tüm işlemler" ekranına filtre eklenmedi.
+- Hazır dönemleri **backend iş saatiyle** çözer. Özel aralık günleri sabit Gregorian/UTC takvim taşıyıcısıyla `YYYY-MM-DD`
+  yazılır (saat anı olarak dönüştürülmez); iki uç gün dahildir. Başlangıç > bitiş ve >24 ay yerelde de reddedilir.
+  Gelecek tarih kararı backend'indir; telefon bugünü demo günü kabul edilmez. `ProblemBody.errors` isteğe bağlı çözülür,
+  `APIError.validation` alan mesajını gösterir. Backend sözleşmesi/migration değişmedi.
+- Filtre değişince eski istek iptal edilir, sorgu nesliyle geç gelen sonuç düşürülür; eski imleç yeni filtreye taşınmaz.
+  `retry()` başarısız işlemin imlecini saklar: yenileme hatasında ilk sayfayı, sayfa hatasında aynı sonraki sayfayı tekrar ister.
+- Aşağı çekme hesap başlığını ve seçili dönemin ilk sayfasını yeniler. Aynı detayın `open()` çağrısı tekrarlanırsa filtre/liste
+  korunur; hesaba yeni giriş yeni model ve AllTime oluşturur. Hesap veya hareket isteğinde 404 bütün detayı erişilemez yapar;
+  401 mevcut oturum mekanizmasına gider. Boş hesap ve boş filtre sonucu farklı metin alır.
+- `Shared/ListLoader` + `ListState`: Accounts/RecentTransactions'ın dört durum ve yenileme davranışı ortaklaştırıldı;
+  ekranların public model yüzeyi ve mevcut testleri korundu. Sayfalı liste bundan ayrıdır. `TransactionRows` iki ekranda aynı
+  satır/yükleme/hata/sayfalama görünümünü sağlar. View'da ağ kodu ve mobil finansal hesap yoktur.
+
+```text
+AccountsSection → AccountDetailView (@State model)
+                   ├─ AccountDetailViewModel → APIClient.account(id)
+                   └─ TransactionHistoryViewModel(accountID)
+                        ├─ TransactionRows
+                        └─ TransactionFilterSheet → TransactionFilter → APIClient.history(...)
+AccountsViewModel / RecentTransactionsViewModel → ListLoader
+```
+
+Doğrulama: 151 Swift Testing test durumu (önceki 125 + yeni 26). Önce eksik hesap detayı/filtre API'leri nedeniyle derleme
+kırmızı görüldü; uygulama sonrası bütün paket yeşil. Yeni testler hesap kapsamı/token, karttan güncelleme, bağımsız başlık hatası,
+404/401, filtre/ilk sayfa/imleç, başarısız filtrede eski sonuç, özel günler, API tarih hatası, geç gelen istek, iptal, yenileme
+tekrarı, filtreli boş sonuç, yeni detay ömrü ve 24 ay/artık gün sınırlarını kapsar.
+
+Görsel kontrol: geçici simülatör test düzeneğinde sahte ağla hesap detayı, özel tarih paneli ve büyük erişilebilirlik yazı boyutunda koyu görünüm render edilip incelendi. Geçici düzenek kaldırıldı.
+
+Sınırlar: işlem satırı henüz açılmaz (IOS-06), detayda işlem türü/merchant/tutar filtresi yok, filtre tüm müşteri listesinde yok.
+Gerçek API kapalıyken doğrulama sahte ağla yapılmıştır; demo verisiyle canlı uçtan uca kontrol ayrıca yapılmalıdır.

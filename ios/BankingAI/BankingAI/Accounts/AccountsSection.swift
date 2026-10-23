@@ -35,7 +35,13 @@ struct AccountsSection: View {
                         .background(Color.orange.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
                 }
                 ForEach(accounts) { account in
-                    AccountRow(account: account)
+                    NavigationLink {
+                        AccountDetailView(model: model.detail(for: account))
+                    } label: {
+                        AccountRow(account: account)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Hesap bilgilerini ve hareketlerini açar")
                 }
             }
         }

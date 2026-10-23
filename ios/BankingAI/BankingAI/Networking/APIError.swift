@@ -10,6 +10,8 @@ enum APIError: Error, Equatable {
     case cancelled
     /// An answer outside the contract: an error without a problem body, or JSON that does not decode.
     case invalidResponse(status: Int)
+    /// Field errors returned for an invalid date range or another rejected request.
+    case validation(title: String, errors: [String: [String]])
 }
 
 extension APIError {
@@ -26,6 +28,15 @@ extension APIError {
             "İstek durduruldu."
         case .invalidResponse:
             "Beklenmeyen bir cevap alındı; tekrar deneyin."
+        case .validation(let title, let errors):
+            errors.isEmpty ? title : errors.keys.sorted().flatMap { errors[$0] ?? [] }.joined(separator: "\n")
         }
+    }
+
+    /// Session expiry is handled by APIClient; cancellation needs no screen error.
+    var isSilent: Bool {
+        if case .cancelled = self { return true }
+        if case .problem(status: 401, _, _, _) = self { return true }
+        return false
     }
 }

@@ -1366,6 +1366,13 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- IOS-05 hesap detayı ve tarih filtresi (23 Ekim 2026; docs/ios.md "iOS-g"): karttan AccountDetailView, başlangıç verisi + hesap
+  yenileme; güncel bakiye dönemden bağımsız. Hesaba ait imleçli liste (20), AllTime varsayılan; beş hazır dönem ve özel aralık,
+  alt panelde Uygula/Vazgeç. Başarıda liste/dönem/imleç birlikte değişir, iptal/geç cevap nesil kontrolü, hata eski sonucu korur;
+  yenileme tekrarı ilk sayfadan. ListLoader/ListState hesaplar ve son işlemler için, TransactionRows iki sayfalı ekran için ortak.
+  ProblemBody.errors + APIError.validation, 404/401 ve boş durum ayrımı. Backend/migration değişmedi; filtre yalnız hesap detayında.
+  Kararlar K1-A K2-C K3-A K4-B K5-B K6-B K7-A K8-B K9-B K10-B; 151 iOS test durumu (+26), mevcut testler değişmeden yeşil.
+  Gerçek API kapalı: sahte ağla test; canlı demo kontrolü bekler. İşlem detayı IOS-06.
 - Proje yapısı (API-01a/01b, API-02): BankingAI.Data kütüphanesi, BankingAI.Cli
   (migrate/show/seed/users), BankingAI.Application (servisler), BankingAI.Api (controller
   tabanlı, DI ile istek başına DbContext, açılışta migration yok) ve üç test projesi; hepsi
@@ -1542,7 +1549,7 @@ IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- CHAT-08 PR2 (kodla okunan tarih kalıpları + akış) ve PR3 (göreli tarih yorumlayıcısı + 10 vakalık ölçüm). Kullanıcı seçer (23 Ekim): AI-16 model belleği (12,7 GB, ısınma); KIND-06 iade; hesap detayı (IOS-05…, imleçli liste hazır); yeni
+- CHAT-08 PR2 (kodla okunan tarih kalıpları + akış) ve PR3 (göreli tarih yorumlayıcısı + 10 vakalık ölçüm). Kullanıcı seçer (23 Ekim): AI-16 model belleği (12,7 GB, ısınma); KIND-06 iade; işlem detayı (IOS-06; IOS-05 tamam); yeni
   MCP araçları (MCP-03…26); SEC-07 kısa ömürlü yalnız-MCP token'ı. Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,
