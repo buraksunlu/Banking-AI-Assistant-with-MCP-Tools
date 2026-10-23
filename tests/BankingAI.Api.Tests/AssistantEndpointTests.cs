@@ -58,9 +58,43 @@ public sealed class AssistantEndpointTests
                 {"type":"Answer","answer":"Dün 145,00 TL harcadınız.",
                  "toolCalls":[{"tool":"get_spending_summary","arguments":{"period":"Yesterday"}}],
                  "facts":[{"label":"Toplam harcama","text":"145,00 TL"}],
-                 "suggestions":["Kategorilere göre?","Peki işyerlerine göre?"]}
+                 "suggestions":["Kategorilere göre?","Peki işyerlerine göre?"],
+                 "links":[{"title":"İşlemleri gör","query":{"period":"Yesterday","from":null,"to":null,"kind":"Purchase",
+                           "accountType":"Personal","categoryCode":null,"merchant":null}}]}
                 """)!.ToJsonString(),
             body.ToJsonString());
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task A_custom_period_link_carries_the_days_the_answer_used()
+    {
+        // CHAT-08 + CHAT-07: the date the code read ("1-5 Eylül") is what the list shows.
+        var reply = """
+            {"type":"answer","answer":"Dönem: 1-5 Eylül 2026. 5.116,50 TL harcadınız.",
+             "toolCalls":[{"tool":"get_spending_summary","arguments":{"period":"Custom","from":"2026-09-01","to":"2026-09-05"}}],
+             "facts":[],"suggestions":[],"model":"m"}
+            """;
+
+        var (status, body) = await AskAsync(FakeAssistantService.Answering(reply));
+
+        var query = Assert.Single(body["links"]!.AsArray())!["query"]!;
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(("Custom", "2026-09-01", "2026-09-05"),
+            (query["period"]!.GetValue<string>(), query["from"]!.GetValue<string>(), query["to"]!.GetValue<string>()));
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("""{"type":"answer","answer":"x","toolCalls":[{"tool":"get_spending_summary","arguments":{"period":"Yesterdayy"}}],"facts":[],"suggestions":[],"model":"m"}""")]
+    [InlineData("""{"type":"answer","answer":"x","toolCalls":[{"tool":"compare_spending","arguments":{"comparison":"PreviousFullMonth"}}],"facts":[],"suggestions":[],"model":"m"}""")]
+    [InlineData("""{"type":"clarification","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"model":"m"}""")]
+    public async Task A_reply_without_a_matching_list_still_succeeds_with_no_links(string reply)
+    {
+        var (status, body) = await AskAsync(FakeAssistantService.Answering(reply));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Empty(body["links"]!.AsArray());
     }
 
     [Theory]

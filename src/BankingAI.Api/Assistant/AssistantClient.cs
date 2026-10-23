@@ -188,7 +188,9 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
                 // Checked just above; the compiler cannot follow the checks inside All().
                 reply.ToolCalls.Select(c => new AssistantToolCall(c!.Tool!, c.Arguments!)).ToList(),
                 reply.Facts.Select(f => new AssistantFact(f!.Label!, f.Text!)).ToList(),
-                reply.Suggestions.Select(s => s!).ToList());
+                reply.Suggestions.Select(s => s!).ToList(),
+                // Built by the controller from the checked tool calls (CHAT-07), never read from the AI service.
+                []);
         }
 
         logger.LogWarning("AI service reply does not match the chat contract");

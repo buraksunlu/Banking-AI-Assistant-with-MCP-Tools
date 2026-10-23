@@ -461,6 +461,56 @@ public sealed class TransactionSearchServiceTests
         Assert.Equal("USD", Assert.Single(dollarsOnly.Items).CurrencyCode);
     }
 
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Account_type_narrows_the_search_to_personal_or_business_accounts()
+    {
+        // CHAT-07: a chat answer counts Personal accounts only, so its link must be able to say the same.
+        // Deniz in October 2026: 4 rows on personal accounts, 3 on the shop account (hand-counted).
+        var all = await SearchAsync(new(Deniz, PeriodKind.ThisMonth));
+        var personal = await SearchAsync(new(Deniz, PeriodKind.ThisMonth, AccountType: AccountType.Personal));
+        var business = await SearchAsync(new(Deniz, PeriodKind.ThisMonth, AccountType: AccountType.Business));
+
+        Assert.Equal((7, 4, 3), (all.TotalCount, personal.TotalCount, business.TotalCount));
+        Assert.All(business.Items, i => Assert.Equal(DenizShopAccount, i.AccountId));
+        Assert.DoesNotContain(personal.Items, i => i.AccountId == DenizShopAccount);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Account_type_and_account_filters_intersect_and_an_empty_intersection_is_an_empty_list()
+    {
+        var shopAsPersonal = await SearchAsync(new(Deniz, PeriodKind.ThisMonth,
+            AccountId: DenizShopAccount, AccountType: AccountType.Personal));
+        var shopAsBusiness = await SearchAsync(new(Deniz, PeriodKind.ThisMonth,
+            AccountId: DenizShopAccount, AccountType: AccountType.Business));
+
+        Assert.Equal((0, 3), (shopAsPersonal.TotalCount, shopAsBusiness.TotalCount));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task A_merchant_is_matched_only_among_the_merchants_of_the_chosen_account_type()
+    {
+        // Ada has no Business account, so a Business search knows no merchants at all: "Starbucks" is not found,
+        // while the Personal search finds it. Candidates must follow the same scope as the rows.
+        var personal = await SearchAsync(new(Ada, PeriodKind.ThisMonth, Merchant: "Starbucks", AccountType: AccountType.Personal));
+        var business = await SearchAsync(new(Ada, PeriodKind.ThisMonth, Merchant: "Starbucks", AccountType: AccountType.Business));
+
+        Assert.Equal(MerchantMatchStatus.Matched, personal.MerchantMatch!.Status);
+        Assert.Equal(2, personal.TotalCount);
+        Assert.Equal((MerchantMatchStatus.NotFound, 0), (business.MerchantMatch!.Status, business.TotalCount));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task An_undefined_account_type_names_its_field()
+    {
+        var error = await Assert.ThrowsAsync<ArgumentException>(() => SearchAsync(new(Ada, PeriodKind.ThisMonth, AccountType: (AccountType)9)));
+
+        Assert.Equal("AccountType", error.ParamName);
+    }
+
     // Exact decimals from text: a double literal such as 1.005 would not survive the conversion unchanged.
     private static decimal? Amount(string? value) => value is null ? null : decimal.Parse(value, CultureInfo.InvariantCulture);
 

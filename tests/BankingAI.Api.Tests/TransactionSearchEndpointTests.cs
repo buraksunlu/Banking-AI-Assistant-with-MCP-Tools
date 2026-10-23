@@ -217,6 +217,8 @@ public sealed class TransactionSearchEndpointTests
     [InlineData("maxAmount=-5&currencyCode=TRY", "maxAmount", "'-5' geçerli bir değer değil.")]
     [InlineData("minAmount=200&maxAmount=100&currencyCode=TRY", "minAmount", "En az tutar en çok tutardan büyük olamaz.")]
     [InlineData("minAmount=100", "currencyCode", "Tutar filtresi için para birimi (currencyCode) verilmeli.")]
+    [InlineData("accountType=personal", "accountType", "Personal veya Business olmalı.")]
+    [InlineData("accountType=1", "accountType", "Personal veya Business olmalı.")]
     [InlineData("currencyCode=JPY", "currencyCode", "TRY/USD/EUR/GBP olmalı.")]
     [InlineData("currencyCode=try", "currencyCode", "TRY/USD/EUR/GBP olmalı.")]
     public async Task Search_parameters_are_checked(string query, string field, string message)
@@ -240,5 +242,17 @@ public sealed class TransactionSearchEndpointTests
 
         Assert.True(response.Status == HttpStatusCode.BadRequest, response.Body?.ToJsonString());
         Assert.Equal([message], response.Body!["errors"]!["period"]!.AsArray().Select(m => m!.GetValue<string>()));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Account_type_narrows_the_search_like_a_chat_link_does()
+    {
+        // CHAT-07: Deniz in October 2026 has 4 rows on personal accounts and 3 on the shop account (hand-counted).
+        var personal = Ok(await GetAsync("?period=ThisMonth&accountType=Personal", Deniz));
+        var business = Ok(await GetAsync("?period=ThisMonth&accountType=Business", Deniz));
+
+        Assert.Equal((4, 3), (Counts(personal).TotalCount, Counts(business).TotalCount));
+        Assert.All(Items(business), i => Assert.Equal(DenizShopAccount.ToString(), i!["accountId"]!.GetValue<string>()));
     }
 }
