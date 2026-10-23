@@ -1559,7 +1559,7 @@ NEXT
 - CHAT-07 PR1 arka uç tamam (23 Ekim 2026, dal `chat-07a-links-backend`; docs/api.md): cevaba `links` (.NET `AssistantLinks`, kontrol edilmiş
   `toolCalls`'tan; okunamayan argüman bağlantısız bırakır, cevap bozulmaz) ve aramaya `accountType` filtresi (harcama rakamları yalnız
   Personal hesapları sayar; liste aynı kapsamı ister). `Custom` dönem bağlantıda `from`/`to` ile gider, istemci `period` göndermez.
-  PR2 (iPhone) bekliyor; IOS-05 özel tarih filtresi `period=Custom` gönderdiği için API'de 400 alır, PR2'den önce düzeltilmeli.
+  PR2 (iPhone) bekliyor; IOS-05 özel tarih filtresi `period=Custom` gönderdiği için API'de 400 alıyordu; `fix/ios-custom-period` ile düzeltildi (yalnız `from`/`to`).
 - Kullanıcı seçer (23 Ekim; CHAT-08 ve IOS-05 tamam): AI-16 model belleği (12,7 GB, ısınma); KIND-06 iade; işlem detayı (IOS-06; IOS-05 tamam); yeni
   MCP araçları (MCP-03…26); SEC-07 kısa ömürlü yalnız-MCP token'ı. Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.

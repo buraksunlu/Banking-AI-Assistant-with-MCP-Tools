@@ -225,6 +225,7 @@ public sealed class TransactionsEndpointTests
     [InlineData("?from=2024-01-01&to=2026-10-10")]           // custom range above 24 months
     [InlineData("?period=LastMonth&from=2026-10-01&to=2026-10-10")]
     [InlineData("?period=Custom")]                           // custom only through from/to
+    [InlineData("?period=Custom&from=2026-09-01&to=2026-09-05")] // the name and the days together: the IOS-05 phone bug
     [InlineData("?period=2")]                                // names only, like enums in JSON
     [InlineData("?period=Foo")]
     [InlineData("?from=2026-13-01&to=2026-10-10")]

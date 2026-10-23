@@ -29,8 +29,8 @@ enum TransactionFilter: Equatable, Hashable {
         case .last3Months: name = "Last3Months"
         case .last6Months: name = "Last6Months"
         case .custom(let from, let to):
-            return [URLQueryItem(name: "period", value: "Custom"), URLQueryItem(name: "from", value: from),
-                    URLQueryItem(name: "to", value: to)]
+            // The API takes a named period or both days, never both; a range is days only, without a period name.
+            return [URLQueryItem(name: "from", value: from), URLQueryItem(name: "to", value: to)]
         }
         return [URLQueryItem(name: "period", value: name)]
     }
