@@ -12,7 +12,7 @@ private let accountJSON = #"{"id":"20000000-0000-0000-0000-000000000001","accoun
 private func page(_ id: Int, cursor: String? = nil, start: String = "2025-04-05", total: Int = 48) -> String {
     let token = cursor.map { "\"\($0)\"" } ?? "null"
     let rows = id == 0 ? "" : """
-    {"id":"30000000-0000-0000-0000-\(String(format: "%012d", id))","accountName":"Günlük","localDate":"2026-10-09",
+    {"id":"30000000-0000-0000-0000-\(String(format: "%012d", id))","accountName":"Günlük","occurredAtUtc":"2026-10-09T10:00:00.123456+00:00","localDate":"2026-10-09",
     "kind":"Purchase","direction":"Debit","amount":145.00,"currencyCode":"TRY","merchant":null,"categoryCode":null,
     "categoryDisplayName":null,"rawDescription":"POS TEST","counterparty":null,"counterpartyIsOwnAccount":false}
     """

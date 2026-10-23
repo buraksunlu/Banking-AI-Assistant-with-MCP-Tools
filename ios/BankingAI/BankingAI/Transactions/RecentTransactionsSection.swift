@@ -39,9 +39,12 @@ struct RecentTransactionsSection: View {
                 }
                 VStack(spacing: 0) {
                     ForEach(items) { item in
-                        TransactionRow(item: item)
-                            .padding(.horizontal)
-                            .padding(.vertical, 10)
+                        NavigationLink(value: item) {
+                            TransactionRow(item: item)
+                                .padding(.horizontal)
+                                .padding(.vertical, 10)
+                        }
+                        .buttonStyle(.plain)
                         if item.id != items.last?.id {
                             Divider()
                                 .padding(.leading, 64)

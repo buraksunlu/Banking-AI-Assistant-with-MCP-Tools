@@ -408,3 +408,20 @@ struct TransactionDisplayTests {
         #expect(TransactionDisplay.date(localDate) == expected)
     }
 }
+
+@Suite("TransactionDetail (IOS-06)")
+struct TransactionDetailTests {
+    @Test func timeIsShownInTheCustomersZoneFromMicrosecondText() {
+        let istanbul = TimeZone(identifier: "Europe/Istanbul")!
+        let berlin = TimeZone(identifier: "Europe/Berlin")!
+        #expect(TransactionDisplay.time(utc: "2026-10-06T09:00:00.123456+00:00", in: istanbul) == "12:00")
+        #expect(TransactionDisplay.time(utc: "2026-10-06T09:00:00+00:00", in: berlin) == "11:00")
+        #expect(TransactionDisplay.time(utc: "2026-10-06T22:30:00Z", in: istanbul) == "01:30")
+    }
+
+    @Test func textThatIsNotAUtcInstantGivesNoTime() {
+        let zone = TimeZone(identifier: "Europe/Istanbul")!
+        #expect(TransactionDisplay.time(utc: "bozuk", in: zone) == nil)
+        #expect(TransactionDisplay.time(utc: "2026-10-06T09:00:00+03:00", in: zone) == nil)
+    }
+}

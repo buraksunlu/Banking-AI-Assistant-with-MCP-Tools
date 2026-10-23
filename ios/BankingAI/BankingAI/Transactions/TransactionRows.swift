@@ -5,7 +5,9 @@ struct TransactionRows: View {
     let model: TransactionHistoryViewModel
 
     var body: some View {
-        ForEach(model.items) { item in TransactionRow(item: item) }
+        ForEach(model.items) { item in
+            NavigationLink(value: item) { TransactionRow(item: item) }
+        }
         if model.isEmpty {
             ContentUnavailableView(model.emptyMessage, systemImage: "list.bullet.rectangle")
         }
