@@ -7,6 +7,7 @@ struct HomeView: View {
     @State var accounts: AccountsViewModel
     @State var recent: RecentTransactionsViewModel
     @State var history: TransactionHistoryViewModel
+    @State var category: CategoryBreakdownViewModel
     /// Lives as long as this screen, so going back and forth keeps the conversation; signing out ends both (K4-D).
     @State var chat: ChatViewModel
 
@@ -25,6 +26,13 @@ struct HomeView: View {
                     }
                     AccountsSection(model: accounts)
                     RecentTransactionsSection(model: recent)
+                    NavigationLink(value: AnalyticsRoute()) {
+                        Label("Harcama analizi", systemImage: "chart.pie")
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+                    }
+                    .buttonStyle(.plain)
                 }
                 .padding()
             }
@@ -36,6 +44,9 @@ struct HomeView: View {
             }
             .navigationDestination(for: TransactionHistoryRoute.self) { _ in
                 TransactionHistoryView(model: history)
+            }
+            .navigationDestination(for: AnalyticsRoute.self) { _ in
+                AnalyticsView(category: category)
             }
             .navigationDestination(for: TransactionItem.self) { item in
                 TransactionDetailView(item: item)

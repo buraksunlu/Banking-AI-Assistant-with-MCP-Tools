@@ -1544,6 +1544,9 @@ COMPLETED
   işlem listelerinde; analytics 400) iş gününün sonuna kadar, dönemin başı en eski işlemin yerel günü. Kararlar K1-B K2-A K3-A K4-A K5-A
   K6-A. iPhone "Tüm işlemler" bütün geçmişi imleçle gezer, tekrar ayıklaması kalktı. Testler: Application 332, Data 84, Api 478,
   McpServer 131; iOS 125. Gerçek API'de Ada 49 / Selin 646 işlem tekrarsız.
+- Kategori grafiği IOS-08 PR1 (23 Ekim 2026, docs/ios.md "iOS-i"): ana ekranda "Harcama analizi" kartı, `AnalyticsView` içinde `GET /api/analytics/category-breakdown`
+  halkası (Swift Charts `SectorMark`), dört adlı dönem (Bu ay / Geçen ay / Son 3 ay / Bu yıl), para birimi başına ayrı halka (toplanmaz), Sınıflandırılmamış
+  ayrı gri dilim, kategori koduna sabit renk. Telefon yüzde ve toplam hesaplamaz. Backend değişmedi. 212 iOS test durumu. Aylık grafik PR2.
 - Belirli tarih ve aralık CHAT-08, PR1 altyapı (23 Ekim 2026, dal `chat-08-dates-backend`; docs/mcp.md "Tarih aralığı", docs/api.md,
   docs/local-ai.md "Müşterinin günü"): MCP'de beş dönem aracı isteğe bağlı `from`/`to` ve `Custom` dönem alır (`ToolDate`: yalnız
   `YYYY-MM-DD` gerçek gün; aralık kuralları `PeriodResolver`'da). `ICustomerCheck` artık `CustomerDay` (müşterinin bugünü + saat dilimi)
