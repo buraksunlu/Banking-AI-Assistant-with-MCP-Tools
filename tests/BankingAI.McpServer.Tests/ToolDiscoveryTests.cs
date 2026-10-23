@@ -20,17 +20,17 @@ public sealed class ToolDiscoveryTests
     private static readonly Dictionary<string, (string Description, string[] Arguments, string[] Required)> Published = new()
     {
         ["get_spending_summary"] = ("Bir dönemdeki toplam harcamayı para birimi başına döndürür; \"ne harcadım / ne kadar harcadım\" gibi genel "
-            + "harcama soruları için ilk tercih. " + PeriodHelp, ["period"], ["period"]),
-        ["get_category_breakdown"] = ("Bir dönemdeki harcamanın kategorilere dağılımını döndürür. " + PeriodHelp, ["period"], ["period"]),
+            + "harcama soruları için ilk tercih. " + PeriodHelp, ["from", "period", "to"], ["period"]),
+        ["get_category_breakdown"] = ("Bir dönemdeki harcamanın kategorilere dağılımını döndürür. " + PeriodHelp, ["from", "period", "to"], ["period"]),
         ["get_merchant_spending"] = (
             "Bir dönemde tek bir işyerine (merchant) yapılan harcamayı döndürür. merchant: kullanıcının söylediği işyeri adı. " + PeriodHelp,
-            ["merchant", "period"], ["merchant", "period"]),
+            ["from", "merchant", "period", "to"], ["merchant", "period"]),
         ["get_merchant_breakdown"] = (
             "Bir dönemdeki harcamanın işyerlerine (merchant) dağılımını en çoktan aza döndürür; \"en çok nereye harcadım\" soruları için. "
-            + PeriodHelp, ["period"], ["period"]),
+            + PeriodHelp, ["from", "period", "to"], ["period"]),
         ["get_highest_transactions"] = (
             "Bir dönemdeki en yüksek tutarlı 5 harcamayı döndürür; yalnız \"en büyük / en pahalı harcamam\" soruları için, toplam harcama için değil. " + PeriodHelp,
-            ["period"], ["period"]),
+            ["from", "period", "to"], ["period"]),
         ["compare_spending"] = (
             "Harcamayı önceki dönemle karşılaştırır: iki dönemin toplamı, fark ve değişime yol açan kategoriler. comparison: "
             + "PreviousFullMonth=geçen ay ile ondan önceki ay (\"geçen aya göre\"), MonthToDate=bu ayın bugüne kadarki kısmı ile geçen "
@@ -92,7 +92,7 @@ public sealed class ToolDiscoveryTests
 
     [Fact]
     [Trait("Category", "PostgreSQL")]
-    public async Task No_tool_takes_a_customer_an_account_or_dates_and_only_the_listed_arguments_are_required()
+    public async Task No_tool_takes_a_customer_or_an_account_and_only_the_listed_arguments_are_required()
     {
         var tools = await ToolsAsync();
 
@@ -109,7 +109,7 @@ public sealed class ToolDiscoveryTests
 
     [Fact]
     [Trait("Category", "PostgreSQL")]
-    public async Task The_period_lists_exactly_the_eleven_names_and_never_a_custom_range()
+    public async Task The_period_lists_the_eleven_names_and_Custom_for_a_range_the_service_read()
     {
         var tools = (await ToolsAsync()).Where(t => t.JsonSchema.GetProperty("properties").TryGetProperty("period", out _)).ToList();
 
@@ -119,9 +119,21 @@ public sealed class ToolDiscoveryTests
             var period = t.JsonSchema.GetProperty("properties").GetProperty("period");
             Assert.Equal(
                 ["Today", "Yesterday", "ThisWeek", "LastWeek", "Last7Days", "Last30Days",
-                 "ThisMonth", "LastMonth", "Last3Months", "Last6Months", "ThisYear"],
+                 "ThisMonth", "LastMonth", "Last3Months", "Last6Months", "ThisYear", "Custom"],
                 period.GetProperty("enum").EnumerateArray().Select(v => v.GetString()));
         });
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task The_dates_are_optional_text_and_null_means_left_out()
+    {
+        var tools = (await ToolsAsync()).Where(t => t.JsonSchema.GetProperty("properties").TryGetProperty("from", out _)).ToList();
+
+        Assert.Equal(5, tools.Count);
+        Assert.All(tools, t => Assert.All(new[] { "from", "to" }, name =>
+            Assert.Equal(["string", "null"],
+                t.JsonSchema.GetProperty("properties").GetProperty(name).GetProperty("type").EnumerateArray().Select(v => v.GetString()))));
     }
 
     [Fact]

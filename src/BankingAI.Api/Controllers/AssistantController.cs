@@ -54,8 +54,8 @@ public sealed class AssistantController(ICustomerCheck customers, IAssistantClie
     public async Task<ActionResult<AssistantReply>> SendAsync(AssistantMessageRequest request, CancellationToken cancellationToken)
     {
         // Checked before the model runs: a deleted customer must not keep the single local model busy.
-        await customers.EnsureExistsAsync(User.GetCustomerId(), cancellationToken);
-        return Ok(await assistant.SendAsync(request.Message, Request.BearerToken(), cancellationToken));
+        var day = await customers.EnsureExistsAsync(User.GetCustomerId(), cancellationToken);
+        return Ok(await assistant.SendAsync(request.Message, day, Request.BearerToken(), cancellationToken));
     }
 
     /// <summary>

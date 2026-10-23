@@ -3,18 +3,21 @@ using BankingAI.Data;
 
 namespace BankingAI.Application.Customers;
 
+/// <summary>The customer's own calendar: today's date in their time zone, and the zone's id (CHAT-08 K9-C).</summary>
+public sealed record CustomerDay(DateOnly Today, string TimeZone);
+
 /// <summary>
 /// Confirms that the customer of a request still exists, for endpoints that would otherwise not touch the
-/// database (the assistant). Controllers depend on this contract rather than on the class.
+/// database (the assistant), and tells their day. Controllers depend on this contract rather than on the class.
 /// </summary>
 public interface ICustomerCheck
 {
     /// <summary>
-    /// Returns when the customer exists.
+    /// Returns the customer's day when the customer exists; "today" is the business clock's, in the customer's time zone.
     /// </summary>
     /// <exception cref="ArgumentException">The customer id is empty.</exception>
     /// <exception cref="CustomerNotFoundException">The customer does not exist (a stale token).</exception>
-    Task EnsureExistsAsync(Guid customerId, CancellationToken cancellationToken = default);
+    Task<CustomerDay> EnsureExistsAsync(Guid customerId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -27,6 +30,9 @@ public sealed class CustomerCheck(BankingDbContext db, PeriodResolver periodReso
     private readonly CustomerScope _customer = new(db, periodResolver);
 
     /// <inheritdoc />
-    public async Task EnsureExistsAsync(Guid customerId, CancellationToken cancellationToken = default) =>
-        await _customer.ResolveAccountsAsync(customerId, accountId: null, personalOnly: false, cancellationToken);
+    public async Task<CustomerDay> EnsureExistsAsync(Guid customerId, CancellationToken cancellationToken = default)
+    {
+        var (timeZone, _) = await _customer.ResolveAccountsAsync(customerId, accountId: null, personalOnly: false, cancellationToken);
+        return new CustomerDay(periodResolver.TodayIn(timeZone), timeZone);
+    }
 }

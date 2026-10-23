@@ -32,7 +32,10 @@ def token(customer: str) -> str:
 
 
 def chat(base: str, bearer: str, message: str) -> dict:
-    request = urllib.request.Request(f"{base}/v1/chat", json.dumps({"message": message}).encode(),
+    # The customer's day comes from the .NET API in the real chain (CHAT-08 K9-C); here it is the demo moment, which is the same
+    # calendar day in every persona's time zone.
+    body = {"message": message, "today": "2026-10-10", "timeZone": "Europe/Istanbul"}
+    request = urllib.request.Request(f"{base}/v1/chat", json.dumps(body).encode(),
                                      {"Content-Type": "application/json", "Authorization": f"Bearer {bearer}"})
     with urllib.request.urlopen(request, timeout=45) as response:
         return json.loads(response.read())

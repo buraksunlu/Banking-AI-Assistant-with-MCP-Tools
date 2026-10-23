@@ -529,6 +529,15 @@ docs/api.md "Sohbet asistanı"). .NET token'ı doğrular, müşterinin hâlâ va
 çalıştırmamak için, K10-A), müşteri başına dakikada 10 mesaj sınırını uygular (SEC-06) ve mesajı **aynı**
 `Authorization` başlığıyla AI servisinin `/v1/chat`'ine iletir. Python tarafı değişmedi.
 
+## Müşterinin günü (CHAT-08 K9-C, PR1)
+
+`POST /v1/chat` gövdesi `{message, today, timeZone}` olur ve ikisi de zorunludur: `today` yalnız `YYYY-MM-DD` ve gerçek bir
+gün, `timeZone` bilinen bir IANA adı (aksi 400 `validation_failed`, alan adıyla). Tek çağıran .NET API'dir; gün orada iş saatinden
+ve müşterinin kaydından gelir (docs/api.md "Sohbet asistanı"), iPhone göndermez, AI servisi kendi saatine bakmaz. `ChatService.answer`
+bunu `dates.CustomerDay` olarak alır (PR1'de yalnız taşınır; tarih okuyan kalıplar PR2'de). Aynı PR'da araç seçici beş dönem aracının
+`from`/`to` alanlarını ve `Custom` dönemini **görmez** (`routing.hide_dates`, tanımların kalanı ve açıklamalar aynen); modelin yine de
+yazdığı `from`/`to` çağrıdan düşer. Ölçüm betikleri (`tool_selection_eval`, `answer_eval`) gerçek sohbetle aynı listeyi/gövdeyi kullanır.
+
 ## Kararlar (hepsi kullanıcı kararı, 19 Ekim 2026)
 
 K1-A `POST /api/assistant/messages` · K2-A .NET'in kendi DTO'su (`type` tam adla, `answer`, `toolCalls`, `facts`; `model`

@@ -32,7 +32,8 @@ from grounding import check_arguments
 from ollama_client import OllamaError, OllamaSettings
 from prompts import (CLARIFY_TEXT, INTENT_SCHEMA, OUT_OF_SCOPE_TEXT, build_clarify_messages, build_intent_messages,
                      build_tool_messages)
-from routing import Router, narrow
+from dates import CustomerDay
+from routing import DATE_FIELDS, Router, hide_dates, narrow
 from suggestions import OUT_OF_SCOPE_SUGGESTIONS, OfferedStore, follow_ups, match
 from tools import ToolArgumentsRejected, ToolGateway
 
@@ -155,8 +156,8 @@ class ChatService:
         self.offered = offered or OfferedStore()
         self.clock = time.monotonic
 
-    def answer(self, message: str, token: str) -> ChatReply:
-        """The reply to ``message`` for the user whose token is given."""
+    def answer(self, message: str, token: str, day: CustomerDay | None = None) -> ChatReply:
+        """The reply to ``message`` for the user whose token is given; ``day`` is the customer's today and time zone (CHAT-08)."""
         # One limit for the whole turn: listing, selection, tool call and explanation all take from it (AI-06 K5-B, AI-14).
         deadline = self.clock() + self.settings.timeout_seconds
 
@@ -190,7 +191,8 @@ class ChatService:
             # A request to move money or to advise is answered before any tool or model is involved (CHAT-01 K5-B).
             return _out_of_scope()
         # Listed first: when the tools cannot answer, the single local model is not kept busy for nothing.
-        tools = narrow(self.gateway.list_tools(token, deadline), route)
+        # The model chooses a named period only: dates are read by code, never by it (CHAT-08 K2-B).
+        tools = hide_dates(narrow(self.gateway.list_tools(token, deadline), route))
         calls = self.selector.select(message, tools, deadline, context)
         if not calls:
             # The model's own text is never shown here: it might promise a transfer it cannot make (K5-A).
@@ -199,7 +201,8 @@ class ChatService:
             # Running only one would show half an answer as a whole one (K2-A); several tools come with CHAT-04.
             return ChatReply("clarification", CLARIFY_TEXT, calls, [])
 
-        call = calls[0]
+        # A date the model wrote although it was not shown the field is not the user's word.
+        call = ToolCall(calls[0].tool, {k: v for k, v in calls[0].arguments.items() if k not in DATE_FIELDS})
         schemas = {tool["function"]["name"]: tool["function"].get("parameters", {}) for tool in tools}
         if call.tool not in schemas:
             return ChatReply("clarification", CLARIFY_TEXT, calls, [])

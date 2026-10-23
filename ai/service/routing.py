@@ -74,6 +74,27 @@ def group_of(tool: str) -> str | None:
     return next((group for group, tools in GROUPS.items() if tool in tools), None)
 
 
+# CHAT-08 K2-B: the five period tools take a range for the code that read the user's dates; the model never chooses dates (ANA-20).
+DATE_FIELDS = ("from", "to")
+CUSTOM_PERIOD = "Custom"
+
+
+def hide_dates(tools: list[dict]) -> list[dict]:
+    """The tools as the model is shown them: without the date range and without the ``Custom`` period; the input is not changed."""
+    return [_without_dates(tool) for tool in tools]
+
+
+def _without_dates(tool: dict) -> dict:
+    function = tool["function"]
+    properties = function.get("parameters", {}).get("properties", {})
+    if not any(name in properties for name in DATE_FIELDS) and CUSTOM_PERIOD not in properties.get("period", {}).get("enum", []):
+        return tool
+    shown = {name: rule for name, rule in properties.items() if name not in DATE_FIELDS}
+    if "period" in shown and "enum" in shown["period"]:
+        shown["period"] = {**shown["period"], "enum": [p for p in shown["period"]["enum"] if p != CUSTOM_PERIOD]}
+    return {**tool, "function": {**function, "parameters": {**function["parameters"], "properties": shown}}}
+
+
 def narrow(tools: list[dict], route: Route) -> list[dict]:
     """The listed tools of the route's groups, in the server's order, plus every tool the table does not know."""
     allowed = route.tools()

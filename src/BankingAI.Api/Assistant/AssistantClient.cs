@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using BankingAI.Application;
+using BankingAI.Application.Customers;
 
 namespace BankingAI.Api.Assistant;
 
@@ -13,11 +14,12 @@ namespace BankingAI.Api.Assistant;
 public interface IAssistantClient
 {
     /// <summary>
-    /// Sends one chat message with the caller's bearer token and returns the assistant's reply.
+    /// Sends one chat message with the caller's bearer token and returns the assistant's reply. <paramref name="day"/> is the
+    /// customer's own today and time zone: the AI service reads dates against it and keeps no clock of its own (CHAT-08 K9-C).
     /// </summary>
     /// <exception cref="AssistantException">No reply could be produced.</exception>
     /// <exception cref="CustomerNotFoundException">The AI service was refused the token.</exception>
-    Task<AssistantReply> SendAsync(string message, string bearerToken, CancellationToken cancellationToken = default);
+    Task<AssistantReply> SendAsync(string message, CustomerDay day, string bearerToken, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// The questions to show when the chat opens, for the customer of the bearer token (CHAT-06).
@@ -55,11 +57,11 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
     };
 
     /// <inheritdoc />
-    public async Task<AssistantReply> SendAsync(string message, string bearerToken, CancellationToken cancellationToken = default)
+    public async Task<AssistantReply> SendAsync(string message, CustomerDay day, string bearerToken, CancellationToken cancellationToken = default)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "v1/chat")
         {
-            Content = JsonContent.Create(new ChatRequest(message), options: Json)
+            Content = JsonContent.Create(new ChatRequest(message, day.Today, day.TimeZone), options: Json)
         };
         var (body, elapsedMs) = await ExchangeAsync(request, bearerToken, cancellationToken);
 
@@ -231,7 +233,7 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
 
     // The AI service's wire format (ai/service/contracts.py). Every field is nullable so a missing one is caught above
     // as a contract mismatch instead of becoming a silent default.
-    private sealed record ChatRequest(string Message);
+    private sealed record ChatRequest(string Message, DateOnly Today, string TimeZone);
 
     private sealed record ChatResponse(
         string? Type, string? Answer, List<ChatToolCall?>? ToolCalls, List<ChatFact?>? Facts, List<string?>? Suggestions, string? Model);

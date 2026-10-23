@@ -145,7 +145,7 @@ sürümle eklenir. Starlette'in `TestClient`'ı `httpx` yerine `httpx2` ister.
 `ModelNotFound`, `OllamaTimeout`, `OllamaBadResponse`); `check_ready()` modeli yüklemez. Testler gerçek Ollama yerine sahte HTTP
 sunucusu kullanır; gerçek Ollama testleri Ollama kapalıysa atlanır.
 
-Sohbet (AI-14a, MCP-b): `POST /v1/chat` (Bearer zorunlu) → `chat.ChatService`: CHAT-01 `routing.Router` (kod önce: kapsam dışı kuralı →
+Sohbet (AI-14a, MCP-b): `POST /v1/chat` (Bearer zorunlu; gövde `{message, today, timeZone}`, ikisi de .NET'ten, CHAT-08 PR1: müşterinin günü) → `chat.ChatService`: CHAT-01 `routing.Router` (kod önce: kapsam dışı kuralı →
 sabit metin, modelsiz; planlama kelimesi → `planning` grubu, harcama/ödeme kelimesi → `general` = MCP-08'in 9 aracı; takipte son çağrının
 grubu; kural yoksa `LangChainIntentClassifier` `intent-v1`, ≤ 5 sn, karar yoksa `general`) → `mcp_gateway.McpToolGateway.list_tools` (her
 turda, kullanıcının token'ıyla; MCP kapalıysa model çalışmaz), `narrow` ile grubun araçları (tabloda olmayan araç her grupta; yeni araç
@@ -159,7 +159,7 @@ araç adı listede mi → `McpToolGateway.call` (argümanları MCP server şemay
 `conversation.ConversationStore`'da (10 dk; ortak `memory.TokenMemory`); `is_follow_up` (≤ 4 kelime ya da peki/ya…) mesajlar seçiciye
 bağlamla gider (`tool-selection-v2`), `check_arguments(…, previous)` son çağrıdan aynen geleni kabul eder, söylenmeyen işyeri son
 çağrınınki olur; bağlama ve açıklamaya yalnız son mesaj gider (zincirleşen soru modeli ve açıklamayı yanıltıyordu). Araç tanımı Python'da
-yok (MCP'den keşif). Bütün tur tek süre; token yalnız MCP başlığına gider (testte modele gitmediği doğrulanır). Uçtan uca deneme için
+yok (MCP'den keşif); modelin listesinden `routing.hide_dates` beş dönem aracının `from`/`to`'sunu ve `Custom` dönemini çıkarır (tarihi model seçmez, CHAT-08). Bütün tur tek süre; token yalnız MCP başlığına gider (testte modele gitmediği doğrulanır). Uçtan uca deneme için
 .NET API ve MCP server `BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z` ile açık olmalı. Tool seçimi ve açıklama aynı `explainer.stream_message`'ı kullanır.
 
 Önerilen sorular (CHAT-06, `ai/service/suggestions.py`): açıklanmış cevabın `suggestions`'ı sabit `follow_ups` tablosundan (araç → 2–3 öneri,

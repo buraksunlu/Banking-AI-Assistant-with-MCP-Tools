@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from ollama_client import OllamaTimeout
-from routing import GENERAL, GROUPS, PLANNING, Route, Router, group_of, narrow
+from routing import GENERAL, GROUPS, PLANNING, Route, Router, group_of, hide_dates, narrow
 
 # CHAT-01: the tools a turn shows the model. Decisions K1-C (word rules first, the model only when none matches), K2-C (two
 # groups: the nine tools of MCP-08 and the two planning tools; K2-B's three groups broke S15 and F01 on every run), K3-A (the
@@ -138,3 +138,32 @@ def test_every_eval_case_finds_its_tool_by_the_rules_alone():
         if result.out_of_scope or not tools <= result.tools():
             misses.append((case["id"], case["message"], result))
     assert misses == []
+
+
+# --- CHAT-08: dates are never the model's to choose ----------------------------------------------------------------------
+
+def _tool(name, properties):
+    return {"type": "function", "function": {"name": name, "description": "Açıklama.",
+                                             "parameters": {"type": "object", "properties": properties, "required": ["period"]}}}
+
+
+def test_hide_dates_removes_the_range_and_the_custom_period_and_nothing_else():
+    ranged = _tool("get_spending_summary", {"period": {"type": "string", "enum": ["Today", "ThisMonth", "Custom"]},
+                                            "from": {"type": ["string", "null"]}, "to": {"type": ["string", "null"]}})
+    plain = _tool("get_monthly_trend", {"months": {"type": "integer", "minimum": 1, "maximum": 12}})
+
+    shown = hide_dates([ranged, plain])
+
+    assert shown[0]["function"]["parameters"]["properties"] == {"period": {"type": "string", "enum": ["Today", "ThisMonth"]}}
+    assert shown[0]["function"]["parameters"]["required"] == ["period"]
+    assert shown[0]["function"]["description"] == "Açıklama."
+    assert shown[1] == plain
+
+
+def test_hide_dates_leaves_the_listed_tools_untouched():
+    ranged = _tool("get_spending_summary", {"period": {"type": "string", "enum": ["Today", "Custom"]}, "from": {"type": "string"}})
+
+    hide_dates([ranged])
+
+    assert "from" in ranged["function"]["parameters"]["properties"]
+    assert ranged["function"]["parameters"]["properties"]["period"]["enum"] == ["Today", "Custom"]

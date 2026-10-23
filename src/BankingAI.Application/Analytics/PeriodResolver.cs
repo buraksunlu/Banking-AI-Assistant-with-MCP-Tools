@@ -143,6 +143,9 @@ public sealed class PeriodResolver(TimeProvider timeProvider)
     // Weeks start on Monday (K2-A), as in Türkiye and ISO 8601; DayOfWeek counts Sunday as 0.
     private static DateOnly WeekStart(DateOnly day) => day.AddDays(-(((int)day.DayOfWeek + 6) % 7));
 
+    /// <summary>Today's date in the given time zone, by the same clock the periods use (CHAT-08).</summary>
+    public DateOnly TodayIn(string timeZoneId) => Today(FindTimeZone(timeZoneId));
+
     private DateOnly Today(TimeZoneInfo timeZone) =>
         // "Bugün" sunucu saatinden değil, müşterinin saat diliminden belirlenir.
         DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(timeProvider.GetUtcNow(), timeZone).DateTime);
