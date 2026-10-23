@@ -128,3 +128,44 @@ def test_the_customer_day_holds_the_calendar_the_api_sent():
     day = CustomerDay(TODAY, "Europe/Istanbul")
 
     assert (day.today, day.time_zone) == (TODAY, "Europe/Istanbul")
+
+
+# --- CHAT-08 PR3: what the second step is given ----------------------------------------------------------------------------
+
+from dates import check_range  # noqa: E402
+
+
+@pytest.mark.parametrize(
+    "message",
+    ["Eylül'ün ilk haftası ne harcadım?", "Eylül'ün son haftasında ne harcadım?", "Eylül başında ne harcadım?",
+     "Ekim sonu ne harcadım?", "Kasım ortasında ne harcadım?"],
+)
+def test_a_part_of_a_month_is_not_the_whole_month(message):
+    # Read as "Eylül" it would answer for thirty days when the user asked for seven.
+    assert read_dates(message, TODAY).kind == "unreadable"
+
+
+def test_since_the_new_year_is_one_expression():
+    message = "Yılbaşından beri ne harcadım?"
+    reading = read_dates(message, TODAY)
+
+    assert (reading.kind, message[slice(*reading.span)]) == ("unreadable", "Yılbaşından beri")
+
+
+@pytest.mark.parametrize(
+    ("start", "end", "kind"),
+    [
+        ("2026-10-06", "2026-10-06", "found"),
+        ("2025-01-01", "2025-12-31", "found"),
+        ("2026-10-10", "2026-10-10", "found"),
+        ("2026-10-11", "2026-10-11", "invalid"),
+        ("2026-10-06", "2026-10-05", "invalid"),
+        ("2024-01-01", "2026-10-05", "invalid"),
+        ("2026-02-30", "2026-03-01", "invalid"),
+        ("06.10.2026", "2026-10-06", "invalid"),
+        ("2026-10-06", "", "invalid"),
+        ("", "", "invalid"),
+    ],
+)
+def test_a_range_the_model_wrote_is_checked_like_one_the_user_wrote(start, end, kind):
+    assert check_range(start, end, TODAY).kind == kind
