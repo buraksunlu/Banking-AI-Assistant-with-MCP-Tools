@@ -1,5 +1,7 @@
 using System.Net;
+using System.Text;
 using System.Text.Json.Nodes;
+using BankingAI.Hosting.Time;
 using Xunit;
 using static BankingAI.Application.Tests.DemoData;
 
@@ -42,7 +44,8 @@ public sealed class TransactionsEndpointTests
         var period = page["period"]!.AsObject();
         Assert.Equal(("Custom", "2026-10-01", "2026-10-10"),
             (period["kind"]!.GetValue<string>(), period["startDate"]!.GetValue<string>(), period["endDate"]!.GetValue<string>()));
-        Assert.Equal(["period", "totalCount", "hasMore", "items"], page.Select(p => p.Key));
+        Assert.Equal(["period", "totalCount", "hasMore", "nextCursor", "items"], page.Select(p => p.Key));
+        Assert.Null(page["nextCursor"]);
 
         // Items are the shared TransactionItem: the outgoing transfer shows the masked counterparty.
         var transfer = page["items"]!.AsArray().Single(i => i!["id"]!.GetValue<Guid>() == Tx(711))!.AsObject();
@@ -53,15 +56,83 @@ public sealed class TransactionsEndpointTests
 
     [Fact]
     [Trait("Category", "PostgreSQL")]
-    public async Task Pages_with_limit_and_offset()
+    public async Task Pages_follow_the_cursor()
     {
         var first = JsonNode.Parse((await GetAsync(AdaTry("?from=2026-10-01&to=2026-10-10&limit=3"), Ada)).Body)!.AsObject();
-        var last = JsonNode.Parse((await GetAsync(AdaTry("?from=2026-10-01&to=2026-10-10&limit=3&offset=6"), Ada)).Body)!.AsObject();
+        var second = JsonNode.Parse((await GetAsync(AdaTry($"?from=2026-10-01&to=2026-10-10&limit=3&cursor={Cursor(first)}"), Ada)).Body)!.AsObject();
+        var last = JsonNode.Parse((await GetAsync(AdaTry($"?from=2026-10-01&to=2026-10-10&limit=3&cursor={Cursor(second)}"), Ada)).Body)!.AsObject();
 
         Assert.Equal(AdaOctober[..3], Ids(first));
-        Assert.Equal((8, true), (first["totalCount"]!.GetValue<int>(), first["hasMore"]!.GetValue<bool>()));
+        Assert.Equal(AdaOctober[3..6], Ids(second));
         Assert.Equal(AdaOctober[6..], Ids(last));
+        Assert.Equal((8, true), (first["totalCount"]!.GetValue<int>(), first["hasMore"]!.GetValue<bool>()));
         Assert.Equal((8, false), (last["totalCount"]!.GetValue<int>(), last["hasMore"]!.GetValue<bool>()));
+        Assert.Null(last["nextCursor"]);
+    }
+
+    private static string Cursor(JsonObject page) => page["nextCursor"]!.GetValue<string>();
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task All_time_is_the_accounts_whole_history()
+    {
+        // The business clock is the demo moment, so rows other tests add right now stay outside "until today".
+        await using var api = TestApi.Create((BusinessClock.DemoNowKey, BusinessClockTests.DemoNow));
+        using var client = api.CreateClient().WithToken(TestTokens.Create(Ada));
+
+        var page = JsonNode.Parse(await client.GetStringAsync(AdaTry("?period=AllTime&limit=50")))!.AsObject();
+
+        // 48 of Ada's 49 transactions; the 49th, the oldest, is the USD account's opening funding.
+        Assert.Equal((48, 48, false), (page["totalCount"]!.GetValue<int>(), Ids(page).Length, page["hasMore"]!.GetValue<bool>()));
+        var period = page["period"]!.AsObject();
+        Assert.Equal(("AllTime", "2025-04-05", "2026-10-10"),
+            (period["kind"]!.GetValue<string>(), period["startDate"]!.GetValue<string>(), period["endDate"]!.GetValue<string>()));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task A_transaction_added_while_paging_does_not_repeat_a_row()
+    {
+        // The bug of offset paging (API-17): the new row pushed 10.00 from the first page onto the second.
+        await using var user = await TestUser.CreateAsync();
+        await using var api = TestApi.Create();
+        using var client = api.CreateClient().WithToken(TestTokens.Create(user.CustomerId));
+        var account = await OpenAccountAsync(client);
+        await AddAsync(client, account, """{"kind":"Salary","amount":1000,"description":"Maaş ödemesi"}""");
+        await AddAsync(client, account, Purchase("10"));
+        await AddAsync(client, account, Purchase("20"));
+
+        var first = JsonNode.Parse(await client.GetStringAsync($"/api/accounts/{account}/transactions?period=AllTime&limit=2"))!.AsObject();
+        await AddAsync(client, account, Purchase("30"));
+        var second = JsonNode.Parse(await client.GetStringAsync(
+            $"/api/accounts/{account}/transactions?period=AllTime&limit=2&cursor={Cursor(first)}"))!.AsObject();
+
+        Assert.Equal(["20.00", "10.00"], Amounts(first));
+        Assert.Equal(["1000.00"], Amounts(second));
+        Assert.Equal((4, false), (second["totalCount"]!.GetValue<int>(), second["hasMore"]!.GetValue<bool>()));
+    }
+
+    private static string Purchase(string amount) =>
+        $$"""{"kind":"Purchase","amount":{{amount}},"description":"POS 4412 STARBUCKS KADIKOY","merchant":"Starbucks"}""";
+
+    private static string[] Amounts(JsonObject page) => page["items"]!.AsArray().Select(i => i!["amount"]!.ToJsonString()).ToArray();
+
+    private static async Task<Guid> OpenAccountAsync(HttpClient client)
+    {
+        var response = await client.PostAsync("/api/accounts",
+            new StringContent("""{"accountName":"API-17 test","currencyCode":"TRY"}""", Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        return JsonNode.Parse(await response.Content.ReadAsStringAsync())!["id"]!.GetValue<Guid>();
+    }
+
+    private static async Task AddAsync(HttpClient client, Guid accountId, string json)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/api/accounts/{accountId}/transactions")
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
+        request.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+        Assert.Equal(HttpStatusCode.Created, (await client.SendAsync(request)).StatusCode);
     }
 
     [Fact]
@@ -146,8 +217,8 @@ public sealed class TransactionsEndpointTests
     [Trait("Category", "PostgreSQL")]
     [InlineData("?limit=0")]
     [InlineData("?limit=51")]
-    [InlineData("?offset=-1")]
-    [InlineData("?offset=10001")]
+    [InlineData("?cursor=abc")]
+    [InlineData("?period=AllTime&from=2026-10-01&to=2026-10-10")]
     [InlineData("?from=2026-10-01")]                         // both dates or neither
     [InlineData("?to=2026-10-10")]
     [InlineData("?from=2026-10-10&to=2026-10-01")]           // from after to

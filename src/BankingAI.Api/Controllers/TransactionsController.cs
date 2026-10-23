@@ -14,9 +14,11 @@ namespace BankingAI.Api.Controllers;
 
 /// <summary>
 /// One page of an account's transactions: the resolved period, how many transactions it holds, whether more
-/// pages follow, and the items (the shared <see cref="TransactionItem"/>, newest first).
+/// pages follow and the cursor that asks for the next one (null on the last page), and the items (the shared
+/// <see cref="TransactionItem"/>, newest first).
 /// </summary>
-public sealed record TransactionPage(ResolvedPeriod Period, int TotalCount, bool HasMore, IReadOnlyList<TransactionItem> Items);
+public sealed record TransactionPage(
+    ResolvedPeriod Period, int TotalCount, bool HasMore, string? NextCursor, IReadOnlyList<TransactionItem> Items);
 
 /// <summary>
 /// The logged-in customer's transactions: an account's list, the search over all accounts, single transactions and
@@ -36,8 +38,9 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
 
     /// <summary>
     /// <c>GET /api/accounts/{accountId}/transactions</c>: a page of the account's transactions, newest first.
-    /// Either a symbolic <paramref name="period"/> or both <paramref name="from"/> and <paramref name="to"/>
-    /// (local dates, inclusive); neither means the last three months. Another customer's account is a 404.
+    /// Either a symbolic <paramref name="period"/> (<c>AllTime</c> is the whole history) or both <paramref name="from"/>
+    /// and <paramref name="to"/> (local dates, inclusive); neither means the last three months. The next page is asked
+    /// for with the previous page's <c>nextCursor</c> (API-17). Another customer's account is a 404.
     /// </summary>
     [HttpGet("api/accounts/{accountId}/transactions")]
     public async Task<ActionResult<TransactionPage>> ListAsync(
@@ -46,17 +49,17 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
         [FromQuery] DateOnly? from,
         [FromQuery] DateOnly? to,
         [FromQuery] int limit = TransactionSearchService.DefaultLimit,
-        [FromQuery] int offset = 0,
+        [FromQuery] string? cursor = null,
         CancellationToken cancellationToken = default)
     {
-        var kind = PeriodParameters.Resolve(period, from, to, DefaultPeriod);
+        var kind = PeriodParameters.Resolve(period, from, to, DefaultPeriod, allowAllTime: true);
 
-        // Limit/offset bounds and date rules are the service's and the period resolver's; their errors, like a
+        // The limit, the cursor and date rules are the service's and the period resolver's; their errors, like a
         // missing or foreign account, are answered by ApiExceptionHandler.
         var result = await search.SearchAsync(
-            new TransactionSearchQuery(User.GetCustomerId(), kind, from, to, accountId, Limit: limit, Offset: offset),
+            new TransactionSearchQuery(User.GetCustomerId(), kind, from, to, accountId, Limit: limit, Cursor: cursor),
             cancellationToken);
-        return Ok(new TransactionPage(result.Period, result.TotalCount, result.HasMore, result.Items));
+        return Ok(new TransactionPage(result.Period, result.TotalCount, result.HasMore, result.NextCursor, result.Items));
     }
 
     /// <summary>
@@ -64,7 +67,8 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
     /// statement, newest first, with optional filters: kind, direction, category or only unclassified purchases, merchant
     /// (matched against the customer's own merchants, never guessed), one account, a currency and an inclusive amount
     /// range in it (ANA-11). Without a period the last three months are searched, like an account's list (decision
-    /// K1-B); the answer names its period.
+    /// K1-B); <c>AllTime</c> is the whole history. The answer names its period; the next page is asked for with the
+    /// previous page's <c>nextCursor</c> (API-17).
     /// </summary>
     [HttpGet("api/transactions")]
     public async Task<ActionResult<TransactionSearchResult>> SearchAsync(
@@ -78,18 +82,18 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
         [FromQuery] bool onlyUnclassified = false,
         [FromQuery] string? merchant = null,
         [FromQuery] int limit = TransactionSearchService.DefaultLimit,
-        [FromQuery] int offset = 0,
+        [FromQuery] string? cursor = null,
         [FromQuery] string? minAmount = null,
         [FromQuery] string? maxAmount = null,
         [FromQuery] string? currencyCode = null,
         CancellationToken cancellationToken = default) =>
         // Filter combinations, paging bounds and account ownership are the service's rules.
         Ok(await search.SearchAsync(
-            new TransactionSearchQuery(User.GetCustomerId(), PeriodParameters.Resolve(period, from, to, DefaultPeriod),
+            new TransactionSearchQuery(User.GetCustomerId(), PeriodParameters.Resolve(period, from, to, DefaultPeriod, allowAllTime: true),
                 from, to, accountId,
                 ExactEnum.Parse<TransactionKind>(kind, nameof(kind), "Purchase, Sale, Transfer, Salary veya OpeningFunding olmalı."),
                 ExactEnum.Parse<TransactionDirection>(direction, nameof(direction), "Debit veya Credit olmalı."),
-                categoryCode, onlyUnclassified, merchant, limit, offset,
+                categoryCode, onlyUnclassified, merchant, limit, cursor,
                 AmountParameter.Parse(minAmount, nameof(minAmount)), AmountParameter.Parse(maxAmount, nameof(maxAmount)), currencyCode),
             cancellationToken));
 

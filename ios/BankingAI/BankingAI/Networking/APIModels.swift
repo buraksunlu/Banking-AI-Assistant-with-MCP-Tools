@@ -112,7 +112,8 @@ struct TransactionItem: Decodable, Equatable, Identifiable {
     let counterpartyIsOwnAccount: Bool
 }
 
-/// The days a search covered, as local dates; without a period the API searches the last three months.
+/// The days a search covered, as local dates; without a period the API searches the last three months, with `AllTime` from
+/// the day of the oldest transaction.
 struct SearchedPeriod: Decodable, Equatable {
     let startDate: String
     let endDate: String
@@ -123,5 +124,7 @@ struct TransactionSearchResult: Decodable, Equatable {
     let period: SearchedPeriod
     let totalCount: Int
     let hasMore: Bool
+    /// Asks for the page after this one; nil on the last page (API-17).
+    let nextCursor: String?
     let items: [TransactionItem]
 }

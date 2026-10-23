@@ -1933,7 +1933,7 @@
           "Transactions"
         ],
         "summary": "A page of the account's transactions, newest first",
-        "description": "`GET /api/accounts/{accountId}/transactions`: a page of the account's transactions, newest first.\nEither a symbolic period or both from and to\n(local dates, inclusive); neither means the last three months. Another customer's account is a 404.",
+        "description": "`GET /api/accounts/{accountId}/transactions`: a page of the account's transactions, newest first.\nEither a symbolic period (`AllTime` is the whole history) or both from\nand to (local dates, inclusive); neither means the last three months. The next page is asked\nfor with the previous page's `nextCursor` (API-17). Another customer's account is a 404.",
         "parameters": [
           {
             "name": "accountId",
@@ -1981,16 +1981,10 @@
             }
           },
           {
-            "name": "offset",
+            "name": "cursor",
             "in": "query",
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32",
-              "default": 0
+              "type": "string"
             }
           }
         ],
@@ -2161,7 +2155,7 @@
           "Transactions"
         ],
         "summary": "Searches all of the customer's accounts (a Business shop account included) like…",
-        "description": "`GET /api/transactions`: searches all of the customer's accounts (a Business shop account included) like a\nstatement, newest first, with optional filters: kind, direction, category or only unclassified purchases, merchant\n(matched against the customer's own merchants, never guessed), one account, a currency and an inclusive amount\nrange in it (ANA-11). Without a period the last three months are searched, like an account's list (decision\nK1-B); the answer names its period.",
+        "description": "`GET /api/transactions`: searches all of the customer's accounts (a Business shop account included) like a\nstatement, newest first, with optional filters: kind, direction, category or only unclassified purchases, merchant\n(matched against the customer's own merchants, never guessed), one account, a currency and an inclusive amount\nrange in it (ANA-11). Without a period the last three months are searched, like an account's list (decision\nK1-B); `AllTime` is the whole history. The answer names its period; the next page is asked for with the\nprevious page's `nextCursor` (API-17).",
         "parameters": [
           {
             "name": "period",
@@ -2244,16 +2238,10 @@
             }
           },
           {
-            "name": "offset",
+            "name": "cursor",
             "in": "query",
             "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32",
-              "default": 0
+              "type": "string"
             }
           },
           {
@@ -3527,7 +3515,8 @@
           "LastWeek",
           "Last7Days",
           "Last30Days",
-          "ThisYear"
+          "ThisYear",
+          "AllTime"
         ],
         "type": "string"
       },
@@ -4015,6 +4004,7 @@
           "period",
           "totalCount",
           "hasMore",
+          "nextCursor",
           "items"
         ],
         "type": "object",
@@ -4033,6 +4023,12 @@
           "hasMore": {
             "type": "boolean"
           },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "items": {
             "type": "array",
             "items": {
@@ -4040,7 +4036,7 @@
             }
           }
         },
-        "description": "One page of an account's transactions: the resolved period, how many transactions it holds, whether more\npages follow, and the items (the shared TransactionItem, newest first)."
+        "description": "One page of an account's transactions: the resolved period, how many transactions it holds, whether more\npages follow and the cursor that asks for the next one (null on the last page), and the items (the shared\nTransactionItem, newest first)."
       },
       "TransactionSearchResult": {
         "required": [
@@ -4048,6 +4044,7 @@
           "merchantMatch",
           "totalCount",
           "hasMore",
+          "nextCursor",
           "items"
         ],
         "type": "object",
@@ -4075,6 +4072,12 @@
           },
           "hasMore": {
             "type": "boolean"
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "items": {
             "type": "array",

@@ -10,12 +10,13 @@ public static class PeriodParameters
 {
     /// <summary>
     /// The period the query asks for, or <paramref name="fallback"/> when it names none. Without a fallback a
-    /// period is required.
+    /// period is required. <see cref="PeriodKind.AllTime"/> is accepted only where <paramref name="allowAllTime"/>
+    /// says so: a transaction list pages through the whole history, an analysis does not (API-17).
     /// </summary>
     /// <exception cref="ArgumentException">
     /// Incomplete, conflicting or unknown period parameters; the parameter name is the client's field name.
     /// </exception>
-    public static PeriodKind Resolve(string? period, DateOnly? from, DateOnly? to, PeriodKind? fallback)
+    public static PeriodKind Resolve(string? period, DateOnly? from, DateOnly? to, PeriodKind? fallback, bool allowAllTime = false)
     {
         if ((from is null) != (to is null))
             throw new ArgumentException("Başlangıç ve bitiş tarihi birlikte verilmeli.", nameof(from));
@@ -30,7 +31,10 @@ public static class PeriodParameters
 
         // Exact names only. Refusing every value with a digit refused "Last3Months" too (a bug from API-09). A custom
         // range comes from dates only.
-        return ExactEnum.Parse<PeriodKind>(period, nameof(period), "ThisMonth, LastMonth, Last3Months, Last6Months, Today, Yesterday, ThisWeek, LastWeek, Last7Days, Last30Days veya ThisYear olmalı.", PeriodKind.Custom)!.Value;
+        const string names = "ThisMonth, LastMonth, Last3Months, Last6Months, Today, Yesterday, ThisWeek, LastWeek, Last7Days, Last30Days";
+        return allowAllTime
+            ? ExactEnum.Parse(period, nameof(period), $"{names}, ThisYear veya AllTime olmalı.", PeriodKind.Custom)!.Value
+            : ExactEnum.Parse(period, nameof(period), $"{names} veya ThisYear olmalı.", PeriodKind.Custom, PeriodKind.AllTime)!.Value;
     }
 
     /// <summary>

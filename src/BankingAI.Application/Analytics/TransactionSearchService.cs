@@ -6,14 +6,15 @@ using Microsoft.EntityFrameworkCore;
 namespace BankingAI.Application.Analytics;
 
 // A statement-like search: every kind (salary, transfers, sales, purchases) and, by default, all of
-// the customer's accounts including a Business shop account. The period is mandatory so a query
-// is always bounded; there is deliberately no free-text search. MinAmount/MaxAmount are inclusive
-// and need CurrencyCode (ANA-11): a threshold is never compared across currencies.
+// the customer's accounts including a Business shop account. The period is mandatory; AllTime (API-17)
+// is the whole history up to today, asked for by name. There is deliberately no free-text search.
+// MinAmount/MaxAmount are inclusive and need CurrencyCode (ANA-11): a threshold is never compared
+// across currencies. Cursor is the previous page's NextCursor; without it the newest page comes.
 public sealed record TransactionSearchQuery(
     Guid CustomerId, PeriodKind Period, DateOnly? From = null, DateOnly? To = null, Guid? AccountId = null,
     TransactionKind? Kind = null, TransactionDirection? Direction = null,
     string? CategoryCode = null, bool OnlyUnclassified = false, string? Merchant = null,
-    int Limit = 20, int Offset = 0,
+    int Limit = 20, string? Cursor = null,
     decimal? MinAmount = null, decimal? MaxAmount = null, string? CurrencyCode = null);
 
 // A DTO, never the entity. Counterparty is a masked person ("Deniz M***"), a shop's account name,
@@ -25,25 +26,34 @@ public sealed record TransactionItem(
     string? Counterparty, bool CounterpartyIsOwnAccount);
 
 // MerchantMatch is set only when a merchant filter was given; Ambiguous/NotFound return no rows.
+// TotalCount is the whole filtered result on every page; NextCursor is null on the last page.
 public sealed record TransactionSearchResult(
-    ResolvedPeriod Period, MerchantMatch? MerchantMatch, int TotalCount, bool HasMore, IReadOnlyList<TransactionItem> Items);
+    ResolvedPeriod Period, MerchantMatch? MerchantMatch, int TotalCount, bool HasMore, string? NextCursor,
+    IReadOnlyList<TransactionItem> Items);
 
 public sealed class TransactionSearchService(BankingDbContext db, PeriodResolver periodResolver)
 {
     public const int DefaultLimit = 20;
     public const int MaximumLimit = 50;
-    public const int MaximumOffset = 10_000;
 
     private readonly CustomerScope _scope = new(db, periodResolver);
 
     public async Task<TransactionSearchResult> SearchAsync(TransactionSearchQuery query, CancellationToken cancellationToken = default)
     {
         Validate(query);
-        var (period, timeZoneId, accounts) = await _scope.ResolveAsync(
-            query.CustomerId, query.Period, query.From, query.To, query.AccountId, personalOnly: false, cancellationToken);
+        var cursor = query.Cursor is null ? null : TransactionCursor.Parse(query.Cursor, nameof(query.Cursor));
+        var (timeZoneId, accounts) = await _scope.ResolveAccountsAsync(
+            query.CustomerId, query.AccountId, personalOnly: false, cancellationToken);
+        var allTime = query.Period == PeriodKind.AllTime;
+        // The whole history has no lower bound; its start is known only after counting, so until then it is today.
+        var period = allTime
+            ? periodResolver.ResolveAllTime(timeZoneId, oldestUtc: null)
+            : periodResolver.Resolve(query.Period, timeZoneId, query.From, query.To);
 
         var transactions = db.Transactions.AsNoTracking()
-            .Where(t => accounts.Contains(t.AccountId) && t.OccurredAt >= period.StartUtc && t.OccurredAt < period.EndUtc);
+            .Where(t => accounts.Contains(t.AccountId) && t.OccurredAt < period.EndUtc);
+        if (!allTime)
+            transactions = transactions.Where(t => t.OccurredAt >= period.StartUtc);
 
         if (query.Kind is { } kind)
             transactions = transactions.Where(t => t.Kind == kind);
@@ -69,17 +79,32 @@ public sealed class TransactionSearchService(BankingDbContext db, PeriodResolver
                 .ToListAsync(cancellationToken);
             merchantMatch = MerchantMatcher.Match(merchant, knownMerchants);
             if (merchantMatch.Status != MerchantMatchStatus.Matched)
-                return new TransactionSearchResult(period, merchantMatch, 0, false, []);
+                return new TransactionSearchResult(period, merchantMatch, 0, false, null, []);
             var canonical = merchantMatch.Merchant!;
             transactions = transactions.Where(t => t.NormalizedMerchant == canonical);
         }
 
-        var totalCount = await transactions.CountAsync(cancellationToken);
+        // One query for the count and, for AllTime, the oldest moment that starts the period. No rows, no group.
+        var totals = await transactions
+            .GroupBy(_ => 1)
+            .Select(g => new { Count = g.Count(), Oldest = g.Min(t => t.OccurredAt) })
+            .SingleOrDefaultAsync(cancellationToken);
+        if (allTime)
+            period = periodResolver.ResolveAllTime(timeZoneId, totals?.Oldest);
 
-        var items = await TransactionItemReader.ReadAsync(db, transactions, TransactionOrder.NewestFirst,
-            query.Offset, query.Limit, query.CustomerId, timeZoneId, cancellationToken);
+        // Keyset paging: rows strictly after the cursor in (OccurredAt, Id) order, the order of the list itself. Rows
+        // added meanwhile are newer, so they can no longer push a row of the previous page onto this one.
+        var page = cursor is null ? transactions
+            : transactions.Where(t => EF.Functions.LessThan(
+                ValueTuple.Create(t.OccurredAt, t.Id), ValueTuple.Create(cursor.OccurredAtUtc, cursor.Id)));
+        // One row more than asked tells whether another page follows without a second count.
+        var rows = await TransactionItemReader.ReadAsync(db, page, TransactionOrder.NewestFirst,
+            0, query.Limit + 1, query.CustomerId, timeZoneId, cancellationToken);
+        var hasMore = rows.Count > query.Limit;
+        var items = hasMore ? rows[..query.Limit] : rows;
 
-        return new TransactionSearchResult(period, merchantMatch, totalCount, query.Offset + items.Count < totalCount, items);
+        return new TransactionSearchResult(period, merchantMatch, totals?.Count ?? 0, hasMore,
+            hasMore ? TransactionCursor.After(items[^1]) : null, items);
     }
 
     /// <summary>
@@ -110,7 +135,8 @@ public sealed class TransactionSearchService(BankingDbContext db, PeriodResolver
     {
         ArgumentNullException.ThrowIfNull(query);
         InputRules.Require(query.Limit is >= 1 and <= MaximumLimit, nameof(query.Limit), $"1 ile {MaximumLimit} arasında olmalı.");
-        InputRules.Require(query.Offset is >= 0 and <= MaximumOffset, nameof(query.Offset), $"0 ile {MaximumOffset} arasında olmalı.");
+        InputRules.Require(query.Period != PeriodKind.AllTime || (query.From is null && query.To is null),
+            nameof(query.From), "Başlangıç/bitiş tarihi yalnızca Custom dönemde verilebilir.");
         InputRules.Require(query.Kind is null || Enum.IsDefined(query.Kind.Value), nameof(query.Kind), "Tanımlı işlem türü olmalı.");
         InputRules.Require(query.Direction is null || Enum.IsDefined(query.Direction.Value), nameof(query.Direction), "Debit veya Credit olmalı.");
         InputRules.Require(!(query.OnlyUnclassified && query.CategoryCode is not null),

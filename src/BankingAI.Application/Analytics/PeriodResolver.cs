@@ -26,6 +26,9 @@ public sealed class PeriodResolver(TimeProvider timeProvider)
     {
         if (!Enum.IsDefined(kind))
             throw new ArgumentException("Bilinmeyen dönem türü.", nameof(kind));
+        // A total over "everything" is not a question the analyses answer; only a transaction list pages through it.
+        if (kind == PeriodKind.AllTime)
+            throw new ArgumentException("Bütün geçmiş (AllTime) yalnızca işlem listesinde kullanılabilir.", "period");
         if (kind != PeriodKind.Custom && (from is not null || to is not null))
             throw new ArgumentException("Başlangıç/bitiş tarihi yalnızca Custom dönemde verilebilir.", nameof(from));
 
@@ -53,6 +56,21 @@ public sealed class PeriodResolver(TimeProvider timeProvider)
         };
 
         return Build(kind, start, end, timeZone);
+    }
+
+    /// <summary>
+    /// The whole history of a transaction list (API-17): from the customer's local day of
+    /// <paramref name="oldestUtc"/> through today, or only today when there is no transaction. Its start depends on
+    /// the data, so the list resolves it after counting; <see cref="Resolve"/> refuses it.
+    /// </summary>
+    public ResolvedPeriod ResolveAllTime(string timeZoneId, DateTimeOffset? oldestUtc)
+    {
+        var timeZone = FindTimeZone(timeZoneId);
+        var today = Today(timeZone);
+        var start = oldestUtc is { } oldest
+            ? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(oldest, timeZone).DateTime)
+            : today;
+        return Build(PeriodKind.AllTime, start < today ? start : today, today, timeZone);
     }
 
     public ComparisonPeriods ResolveComparison(ComparisonKind kind, string timeZoneId,

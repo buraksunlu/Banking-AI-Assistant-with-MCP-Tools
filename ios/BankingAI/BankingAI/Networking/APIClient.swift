@@ -35,12 +35,19 @@ extension APIRequest where Response == [Account] {
 }
 
 extension APIRequest where Response == TransactionSearchResult {
-    /// `GET /api/transactions`: the newest transactions of every account, `offset` of them skipped. No period: the API's
-    /// default (the last three months of the business day, which the phone does not know) decides (IOS-07 K11-D).
-    static func transactions(limit: Int, offset: Int = 0) -> APIRequest<TransactionSearchResult> {
-        var query = [URLQueryItem(name: "limit", value: String(limit))]
-        if offset > 0 {
-            query.append(URLQueryItem(name: "offset", value: String(offset)))
+    /// `GET /api/transactions`: the newest transactions of every account. No period: the API's default (the last three
+    /// months of the business day, which the phone does not know) decides (IOS-07 K11-D).
+    static func transactions(limit: Int) -> APIRequest<TransactionSearchResult> {
+        APIRequest(method: "GET", path: "api/transactions", query: [URLQueryItem(name: "limit", value: String(limit))],
+                   body: nil, requiresToken: true)
+    }
+
+    /// `GET /api/transactions?period=AllTime`: the whole history of every account, newest first (API-17). `cursor` is the
+    /// previous page's `nextCursor`; without it the newest page comes.
+    static func history(limit: Int, cursor: String? = nil) -> APIRequest<TransactionSearchResult> {
+        var query = [URLQueryItem(name: "period", value: "AllTime"), URLQueryItem(name: "limit", value: String(limit))]
+        if let cursor {
+            query.append(URLQueryItem(name: "cursor", value: cursor))
         }
         return APIRequest(method: "GET", path: "api/transactions", query: query, body: nil, requiresToken: true)
     }

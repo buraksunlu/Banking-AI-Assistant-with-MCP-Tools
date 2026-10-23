@@ -144,11 +144,11 @@ zamanlar** Purchase merchant'larına karşı çözülür:
 
 Ekstre gibi davranır: **bütün türler** (maaş, transfer, satış, alışveriş) ve varsayılan olarak
 müşterinin **bütün hesapları** (Business dükkân hesabı dahil; `CustomerScope(personalOnly: false)`).
-Kullanıcı kararları: dönem zorunlu (tarihsiz arama yok), sayfa varsayılan 20 / en fazla 50,
-maskeleme "Deniz M***", serbest metin araması yok.
+Kullanıcı kararları: dönem zorunlu (tarihsiz arama yok; API-17'den beri `AllTime` adıyla bütün geçmiş), sayfa varsayılan
+20 / en fazla 50, maskeleme "Deniz M***", serbest metin araması yok.
 
 Girdi `TransactionSearchQuery`: müşteri, dönem, isteğe bağlı hesap, `Kind`, `Direction`,
-`CategoryCode`, `OnlyUnclassified`, `Merchant`, `Limit` (1–50), `Offset` (0–10.000) ve ANA-11'den beri
+`CategoryCode`, `OnlyUnclassified`, `Merchant`, `Limit` (1–50), `Cursor` (API-17; önceki sayfanın `NextCursor`'ı) ve ANA-11'den beri
 `MinAmount`/`MaxAmount`/`CurrencyCode` (aşağıda).
 Bütün girdi kontrolleri DB'den önce yapılır.
 
@@ -157,8 +157,10 @@ Bütün girdi kontrolleri DB'den önce yapılır.
 | Bilinmeyen kategori kodu (`"YEMEK"`) | `ArgumentException`; "böyle kategori yok" ≠ "bu kategoride işlem yok" |
 | `CategoryCode` + `OnlyUnclassified` veya kategori filtresi + Purchase dışı `Kind` | Çelişki, `ArgumentException` |
 | Merchant | ANA-04 `MerchantMatcher`; Ambiguous/NotFound'da satır dönmez, `MerchantMatch` döner |
-| Sıra | `OccurredAt` azalan, eşitlikte `Id` azalan; sayfalar kararlı |
-| Sonuç | `TotalCount` (COUNT sorgusu) ve `HasMore` |
+| Sıra | `OccurredAt` azalan, eşitlikte `Id` azalan |
+| Sayfa (API-17) | imleç (keyset): `(OccurredAt, Id) < (imleçteki an, Id)`; arada eklenen işlem sayfa kenarını kaydırmaz, eşit an Id ile bölünür |
+| `AllTime` (API-17) | alt sınır yok, üst sınır iş gününün sonu; dönemin başı bulunan en eski işlemin yerel günü (yoksa bugün). Analizlerde `PeriodResolver.Resolve` reddeder |
+| Sonuç | `TotalCount` (bütün filtreli sonuç, her sayfada aynı), `HasMore` (`limit + 1` satırla), `NextCursor` (son sayfada null) |
 
 Çıktı entity değil `TransactionItem` DTO'sudur: hesap kimliği (`AccountId`, API-08) ve adı, UTC zaman ve müşterinin saat dilimine
 göre `LocalDate`, tür, yön, tutar, para birimi, merchant, kategori (Purchase'ta kategorisiz ise
@@ -171,7 +173,10 @@ Business hesap → dükkân hesap adı; kendi hesabı → hesap adı ve `Counter
 `RawDescription` banka POS metnidir ve LLM'e gidecektir; içindeki talimat benzeri metin veridir,
 komut değildir. Koruma MCP/prompt katmanında yapılacak (SEC-03).
 
-SQL: saat dilimi, COUNT ve tek sayfa sorgusu (3 komut; merchant filtresinde +1 merchant listesi).
+SQL: saat dilimi, COUNT (+ `AllTime` için en eski an, aynı sorguda) ve tek sayfa sorgusu (3 komut; merchant filtresinde +1
+merchant listesi). İmleç koşulu Npgsql'in satır karşılaştırmasıyla (`EF.Functions.LessThan(ValueTuple…)`) SQL'e çevrilir.
+İmleç `TransactionCursor`: sürüm baytı + UTC tick + Id, base64url; müşteri ya da filtre taşımaz (her sayfa yine kapsam ve
+filtreyle sorgulanır), bozuk imleç `ArgumentException` (`Cursor`).
 Hesap, kategori, karşı bacak, karşı hesap ve karşı müşteri aynı sorguda join'lenir; N+1 yoktur.
 Bu okuma ve maskeleme ANA-06'dan itibaren ortak `TransactionItemReader` (internal) içindedir;
 sıralama (`NewestFirst`/`LargestFirst`) join'lerden sonra son sorguda uygulanır.
@@ -183,7 +188,10 @@ satırlarla çoğalır (ilk uygulamada testler bunu yakaladı).
 | İstek | Sonuç |
 | --- | --- |
 | Ada, bu ay | 8 kayıt: 145 Sınıflandırılmamış; 300 gelen (Ege Y***); Starbucks 165; Kahve Durağı 95 (karşı taraf dükkân hesabı); Starbucks 210; maaş 45.000; 1.500 giden (Deniz M***); Kahve Durağı 120 |
-| Ada, bu ay, limit 3 / offset 6 | 3 kayıt + HasMore; 2 kayıt, HasMore yok |
+| Ada, bu ay, limit 3, imleçle | 604, 718, 603 / 715, 602, 601 / 711, 709 (son sayfada imleç yok) |
+| Ada, `AllTime` (limit 20) | 49 işlem, 20 / 20 / 9; dönem 1 Nis 2025 – 10 Eki 2026; en eskisi USD 500 açılış |
+| Can, `AllTime`, limit 3 | 16210, 16209, 19066 / 19065, …: aynı andaki iki transfer bacağı sayfa kenarında bölünür |
+| Ada TRY hesabı, `AllTime`, limit 48 | 48 kayıt, HasMore yok, imleç yok (tam sınır) |
 | Ada, Transfer + Debit | 1.500, Deniz M*** |
 | Ada, yalnız sınıflandırılmamış | `POS 6604 ONLINE ODEME 4471` |
 | Ada, FOOD | 165, 95, 210, 120 |

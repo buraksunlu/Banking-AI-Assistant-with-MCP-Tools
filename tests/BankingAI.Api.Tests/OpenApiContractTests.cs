@@ -50,7 +50,7 @@ public sealed class OpenApiContractTests
     [InlineData("TransactionDirection", new[] { "Debit", "Credit" })]
     [InlineData("AccountType", new[] { "Personal", "Business" })]
     [InlineData("PeriodKind", new[] { "ThisMonth", "LastMonth", "Last3Months", "Last6Months", "Custom",
-        "Today", "Yesterday", "ThisWeek", "LastWeek", "Last7Days", "Last30Days", "ThisYear" })]
+        "Today", "Yesterday", "ThisWeek", "LastWeek", "Last7Days", "Last30Days", "ThisYear", "AllTime" })]
     [InlineData("MerchantMatchStatus", new[] { "Matched", "Ambiguous", "NotFound" })]
     public async Task Enums_are_documented_by_their_exact_names(string schema, string[] names)
     {

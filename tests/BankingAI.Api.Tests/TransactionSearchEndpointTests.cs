@@ -53,7 +53,7 @@ public sealed class TransactionSearchEndpointTests
     {
         var body = Ok(await GetAsync("?period=ThisMonth", Ada));
 
-        Assert.Equal(["period", "merchantMatch", "totalCount", "hasMore", "items"], body.AsObject().Select(p => p.Key));
+        Assert.Equal(["period", "merchantMatch", "totalCount", "hasMore", "nextCursor", "items"], body.AsObject().Select(p => p.Key));
         Assert.Null(body["merchantMatch"]);
         Assert.Equal((8, false), Counts(body));
         Assert.Equal(
@@ -128,14 +128,37 @@ public sealed class TransactionSearchEndpointTests
     [Trait("Category", "PostgreSQL")]
     public async Task Pages_follow_the_full_list()
     {
-        var all = Items(Ok(await GetAsync("?period=ThisMonth", Ada))).Select(i => i!["id"]!.GetValue<string>()).ToArray();
+        var all = Ids(Ok(await GetAsync("?period=ThisMonth", Ada)));
         var first = Ok(await GetAsync("?period=ThisMonth&limit=3", Ada));
-        var last = Ok(await GetAsync("?period=ThisMonth&limit=3&offset=6", Ada));
+        var second = Ok(await GetAsync($"?period=ThisMonth&limit=3&cursor={first["nextCursor"]}", Ada));
+        var last = Ok(await GetAsync($"?period=ThisMonth&limit=3&cursor={second["nextCursor"]}", Ada));
 
         Assert.Equal((8, true), Counts(first));
-        Assert.Equal(all.Take(3), Items(first).Select(i => i!["id"]!.GetValue<string>()));
+        Assert.Equal(all.Take(3), Ids(first));
+        Assert.Equal(all.Skip(3).Take(3), Ids(second));
         Assert.Equal((8, false), Counts(last));
-        Assert.Equal(all.Skip(6), Items(last).Select(i => i!["id"]!.GetValue<string>()));
+        Assert.Equal(all.Skip(6), Ids(last));
+        Assert.Null(last["nextCursor"]);
+    }
+
+    private static string[] Ids(JsonNode body) => Items(body).Select(i => i!["id"]!.GetValue<string>()).ToArray();
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task All_time_pages_through_the_whole_history()
+    {
+        // API-17: what the iPhone's "Tüm işlemler" asks for. The last three months held 20 of Ada's 49 transactions.
+        var pages = new List<JsonNode> { Ok(await GetAsync("?period=AllTime", Ada)) };
+        // A cursor that does not move would loop forever; ten pages is far more than 49 rows need.
+        while (pages[^1]["nextCursor"] is { } cursor && pages.Count < 10)
+            pages.Add(Ok(await GetAsync($"?period=AllTime&cursor={cursor}", Ada)));
+
+        Assert.Equal([20, 20, 9], pages.Select(p => Items(p).Count));
+        Assert.All(pages, p => Assert.Equal(49, p["totalCount"]!.GetValue<int>()));
+        Assert.Equal(49, pages.SelectMany(Ids).Distinct().Count());
+        Assert.Equal(("AllTime", "2025-04-01", "2026-10-10"),
+            (pages[0]["period"]!["kind"]!.GetValue<string>(), pages[0]["period"]!["startDate"]!.GetValue<string>(),
+             pages[0]["period"]!["endDate"]!.GetValue<string>()));
     }
 
     [Fact]
@@ -183,8 +206,8 @@ public sealed class TransactionSearchEndpointTests
     [InlineData("kind=Transfer&categoryCode=FOOD", "kind", "Kategori filtreleri yalnızca Purchase işlemlerine uygulanır.")]
     [InlineData("limit=0", "limit", "1 ile 50 arasında olmalı.")]
     [InlineData("limit=51", "limit", "1 ile 50 arasında olmalı.")]
-    [InlineData("offset=-1", "offset", "0 ile 10000 arasında olmalı.")]
-    [InlineData("offset=10001", "offset", "0 ile 10000 arasında olmalı.")]
+    [InlineData("cursor=abc", "cursor", "Geçersiz sayfa imleci.")]
+    [InlineData("cursor=AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "cursor", "Geçersiz sayfa imleci.")]
     [InlineData("onlyUnclassified=evet", "onlyUnclassified", "'evet' geçerli bir değer değil.")]
     [InlineData("from=2026-10-01&to=2026-10-10", "period", "Dönem adı ile tarih aralığı birlikte verilemez.")]
     [InlineData("minAmount=0&currencyCode=TRY", "minAmount", "Tutar 0.01 ile parasal üst sınır arasında olmalı.")]
@@ -198,9 +221,24 @@ public sealed class TransactionSearchEndpointTests
     [InlineData("currencyCode=try", "currencyCode", "TRY/USD/EUR/GBP olmalı.")]
     public async Task Search_parameters_are_checked(string query, string field, string message)
     {
+        // Every case adds a valid period, so only the parameter under test is wrong.
         var response = await GetAsync($"?period=ThisMonth&{query}", Ada);
 
         Assert.True(response.Status == HttpStatusCode.BadRequest, response.Body?.ToJsonString());
         Assert.Equal([message], response.Body!["errors"]![field]!.AsArray().Select(m => m!.GetValue<string>()));
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("period=AllTime&from=2026-10-01&to=2026-10-10", "Dönem adı ile tarih aralığı birlikte verilemez.")]
+    // A list names AllTime among its periods; the analyses' message does not (DayAndWeekPeriodEndpointTests).
+    [InlineData("period=Foo",
+        "ThisMonth, LastMonth, Last3Months, Last6Months, Today, Yesterday, ThisWeek, LastWeek, Last7Days, Last30Days, ThisYear veya AllTime olmalı.")]
+    public async Task Period_parameters_are_checked(string query, string message)
+    {
+        var response = await GetAsync($"?{query}", Ada);
+
+        Assert.True(response.Status == HttpStatusCode.BadRequest, response.Body?.ToJsonString());
+        Assert.Equal([message], response.Body!["errors"]!["period"]!.AsArray().Select(m => m!.GetValue<string>()));
     }
 }
