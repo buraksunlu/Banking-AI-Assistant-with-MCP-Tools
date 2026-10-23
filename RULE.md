@@ -1525,12 +1525,19 @@ COMPLETED
   işlem listelerinde; analytics 400) iş gününün sonuna kadar, dönemin başı en eski işlemin yerel günü. Kararlar K1-B K2-A K3-A K4-A K5-A
   K6-A. iPhone "Tüm işlemler" bütün geçmişi imleçle gezer, tekrar ayıklaması kalktı. Testler: Application 332, Data 84, Api 478,
   McpServer 131; iOS 125. Gerçek API'de Ada 49 / Selin 646 işlem tekrarsız.
+- Belirli tarih ve aralık CHAT-08, PR1 altyapı (23 Ekim 2026, dal `chat-08-dates-backend`; docs/mcp.md "Tarih aralığı", docs/api.md,
+  docs/local-ai.md "Müşterinin günü"): MCP'de beş dönem aracı isteğe bağlı `from`/`to` ve `Custom` dönem alır (`ToolDate`: yalnız
+  `YYYY-MM-DD` gerçek gün; aralık kuralları `PeriodResolver`'da). `ICustomerCheck` artık `CustomerDay` (müşterinin bugünü + saat dilimi)
+  döndürür, .NET `AssistantClient` bunu `/v1/chat` gövdesine `today`/`timeZone` olarak koyar (iPhone değişmedi, OpenAPI değişmedi);
+  Python bu iki alanı zorunlu ve doğrulanmış alır (`dates.CustomerDay`). Araç seçen model `from`/`to`/`Custom`'u görmez
+  (`routing.hide_dates`); modelin yine de yazdığı tarih düşer. Davranış değişmedi: tarih okuyan kalıplar PR2'de. Kararlar K10-A K11-B K12-C
+  K13-C K14-A K15-B K16-A (üç PR). Testler: Application 335, Data 84, Api 480, McpServer 156; Python 657 modelsiz. 6 kasıtlı bozma yakalandı.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Kullanıcı seçer (23 Ekim): CHAT-08 (belirli tarih/aralık; plan PR #33'te); AI-16 model belleği (12,7 GB, ısınma); KIND-06 iade; hesap detayı (IOS-05…, imleçli liste hazır); yeni
+- CHAT-08 PR2 (kodla okunan tarih kalıpları + akış) ve PR3 (göreli tarih yorumlayıcısı + 10 vakalık ölçüm). Kullanıcı seçer (23 Ekim): AI-16 model belleği (12,7 GB, ısınma); KIND-06 iade; hesap detayı (IOS-05…, imleçli liste hazır); yeni
   MCP araçları (MCP-03…26); SEC-07 kısa ömürlü yalnız-MCP token'ı. Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,

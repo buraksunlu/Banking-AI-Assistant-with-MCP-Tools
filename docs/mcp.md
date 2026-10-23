@@ -39,12 +39,20 @@ iPhone ──Bearer──► BankingAI.Api ──aynı token──► AI servisi
 ## Araçlar
 
 Hepsi `ReadOnly = true`, `Destructive = false`. Argümanlar: `period` (11 ad: `Today`, `Yesterday`, `ThisWeek`,
-`LastWeek`, `Last7Days`, `Last30Days`, `ThisMonth`, `LastMonth`, `Last3Months`, `Last6Months`, `ThisYear`; `Custom` ve tarih
-yok), merchant aracında `merchant` (1–150 karakter), `compare_spending`'de `comparison` (`PreviousFullMonth` | `MonthToDate`;
+`LastWeek`, `Last7Days`, `Last30Days`, `ThisMonth`, `LastMonth`, `Last3Months`, `Last6Months`, `ThisYear`; CHAT-08'den beri
+bir de `Custom`, aşağıda), merchant aracında `merchant` (1–150 karakter), `compare_spending`'de `comparison` (`PreviousFullMonth` | `MonthToDate`;
 `Custom` yok), `get_monthly_trend`'de zorunlu `months` (tam sayı 1–12), `get_upcoming_payments`'ta isteğe bağlı `days` (tam sayı
 1–31, verilmezse 30), `check_budget`'te zorunlu `amount` (JSON sayısı) ve `currencyCode` (`TRY` | `USD` | `EUR` | `GBP`),
 `simulate_savings`'te zorunlu `reductionPercent` (tam sayı 1–100) ve isteğe bağlı `months` (1–12, verilmezse 6); ikisinde de isteğe
-bağlı `categoryCode` (11 kodluk kapalı küme, `ToolCategory`) ya da `merchant` (MCP-17/18). Müşteri, hesap ve tarih argümanı yoktur.
+bağlı `categoryCode` (11 kodluk kapalı küme, `ToolCategory`) ya da `merchant` (MCP-17/18). Müşteri ve hesap argümanı yoktur.
+
+**Tarih aralığı (CHAT-08 K2-B).** Dönem alan beş araçta (özet, kategori, tek işyeri, işyeri dağılımı, en büyükler) isteğe bağlı
+`from` ve `to` vardır (`["string", "null"]`) ve `period` `Custom` olabilir. Tarihi model seçmez (ANA-20): AI servisi bu üç değeri
+modelin gördüğü listeden gizler (`routing.hide_dates`), kullanıcının sözünden **kodla** okuduğu tarihi kendisi yazar. Sunucu yine
+de her çağrıyı denetler: `ToolCallFilter` metin tipini, `ToolDate` yalnız `YYYY-MM-DD` biçimindeki gerçek bir günü kabul eder
+(`2026-9-1`, `01.09.2026`, `2026-02-31`, saatli biçim reddedilir); aralık kuralları API'ninkidir (`PeriodResolver.ValidateCustom`:
+iki uç da zorunlu, başlangıç ≤ bitiş, bitiş gelecekte değil, en çok 24 ay; tarih yalnız `Custom` ile verilir) ve ihlal
+`invalid_arguments` olur. Karşılaştırma, aylık seri, ödemeler, bütçe ve tasarruf araçlarında tarih yoktur.
 
 | Araç | Servis | Sonuç (REST karşılığı) |
 | --- | --- | --- |

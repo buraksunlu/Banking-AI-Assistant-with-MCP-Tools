@@ -1,6 +1,7 @@
 import re
 import threading
 import time
+from datetime import date
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,6 +10,7 @@ from answer_check import AnswerRejected
 from app import create_app, get_chat_service, get_explainer, get_readiness, get_starter_questions, get_tools_ready
 from chat import ChatReply, ChatService, LangChainClarificationWriter, LangChainToolSelector, ToolCall
 from contracts import Fact
+from dates import CustomerDay
 from explainer import LangChainExplainer
 import ollama_client
 from mcp_gateway import McpToolGateway
@@ -270,12 +272,16 @@ def test_service_warms_up_through_ollama_by_default():
 # Chat (AI-14a)
 
 
+DAY = {"today": "2026-10-10", "timeZone": "Europe/Istanbul"}
+
+
 class FakeChat:
     def __init__(self, reply=None, error=None):
-        self.reply, self.error, self.calls = reply, error, []
+        self.reply, self.error, self.calls, self.days = reply, error, [], []
 
-    def answer(self, message, token):
+    def answer(self, message, token, day=None):
         self.calls.append((message, token))
+        self.days.append(day)
         if self.error:
             raise self.error
         return self.reply
@@ -294,7 +300,7 @@ def chat_client(fake) -> TestClient:
 
 def test_chat_returns_the_reply_in_the_agreed_shape():
     fake = FakeChat(CHAT_REPLY)
-    response = chat_client(fake).post("/v1/chat", json={"message": "Dün ne harcadım?"},
+    response = chat_client(fake).post("/v1/chat", json={"message": "Dün ne harcadım?", **DAY},
                                       headers={"Authorization": "Bearer abc"})
 
     assert response.status_code == 200, response.text
@@ -309,10 +315,18 @@ def test_chat_returns_the_reply_in_the_agreed_shape():
     assert fake.calls == [("Dün ne harcadım?", "abc")]
 
 
+def test_chat_passes_the_customers_day_to_the_service():
+    fake = FakeChat(CHAT_REPLY)
+
+    chat_client(fake).post("/v1/chat", json={"message": "Dün ne harcadım?", **DAY}, headers={"Authorization": "Bearer abc"})
+
+    assert fake.days == [CustomerDay(date(2026, 10, 10), "Europe/Istanbul")]
+
+
 def test_chat_returns_the_offered_follow_ups():
     reply = ChatReply("answer", "9 Ekim 2026'da toplam 145,00 TL harcadınız.", [], [], ["Kategorilere göre?", "Peki işyerlerine göre?"])
 
-    response = chat_client(FakeChat(reply)).post("/v1/chat", json={"message": "Dün?"}, headers={"Authorization": "Bearer abc"})
+    response = chat_client(FakeChat(reply)).post("/v1/chat", json={"message": "Dün?", **DAY}, headers={"Authorization": "Bearer abc"})
 
     assert response.json()["suggestions"] == ["Kategorilere göre?", "Peki işyerlerine göre?"]
 
@@ -323,7 +337,7 @@ def test_chat_writes_every_argument_as_text():
     reply = ChatReply("answer", "Temmuz 2026'da 514,98 TL harcadınız.",
                       [ToolCall("get_monthly_trend", {"months": 3}), ToolCall("some_tool", {"flag": True, "period": "ThisMonth"})], [])
 
-    response = chat_client(FakeChat(reply)).post("/v1/chat", json={"message": "Son 3 ay?"}, headers={"Authorization": "Bearer t"})
+    response = chat_client(FakeChat(reply)).post("/v1/chat", json={"message": "Son 3 ay?", **DAY}, headers={"Authorization": "Bearer t"})
 
     assert response.status_code == 200, response.text
     assert response.json()["toolCalls"] == [{"tool": "get_monthly_trend", "arguments": {"months": "3"}},
@@ -333,7 +347,7 @@ def test_chat_writes_every_argument_as_text():
 def test_chat_needs_a_bearer_token(header):
     fake = FakeChat(CHAT_REPLY)
     headers = {} if header is None else {"Authorization": header}
-    response = chat_client(fake).post("/v1/chat", json={"message": "Dün ne harcadım?"}, headers=headers)
+    response = chat_client(fake).post("/v1/chat", json={"message": "Dün ne harcadım?", **DAY}, headers=headers)
     assert_problem(response, 401, "unauthorized", "Giriş gerekli.")
     assert fake.calls == []
 
@@ -346,9 +360,17 @@ def test_chat_needs_a_bearer_token(header):
         ({"message": "a" * 501}, "message", "En fazla 500 karakter olmalı."),
         ({"message": "Dün?", "customerId": "1"}, "customerId", "Tanınmayan alan."),
         ({}, "message", "Zorunlu alan."),
+        # CHAT-08 K9-C: the customer's day comes from the .NET API, always, and is checked like any other input.
+        ({"message": "Dün?", "timeZone": "Europe/Istanbul"}, "today", "Zorunlu alan."),
+        ({"message": "Dün?", "today": "2026-10-10"}, "timeZone", "Zorunlu alan."),
+        ({"message": "Dün?", "today": "2026-02-31", "timeZone": "Europe/Istanbul"}, "today", "YYYY-MM-DD biçiminde geçerli bir gün olmalı."),
+        ({"message": "Dün?", "today": "10.10.2026", "timeZone": "Europe/Istanbul"}, "today", "YYYY-MM-DD biçiminde geçerli bir gün olmalı."),
+        ({"message": "Dün?", "today": "2026-10-10", "timeZone": "Mars/Olympus"}, "timeZone", "Tanınmayan saat dilimi."),
     ],
 )
 def test_chat_request_is_validated(payload, field, message):
+    # The cases above that do not test the day carry a valid one.
+    payload = {**({"today": "2026-10-10", "timeZone": "Europe/Istanbul"} if field not in ("today", "timeZone") else {}), **payload}
     response = chat_client(FakeChat(CHAT_REPLY)).post("/v1/chat", json=payload, headers={"Authorization": "Bearer abc"})
     problem = assert_problem(response, 400, "validation_failed", "İstek geçersiz.")
     assert problem["errors"] == {field: [message]}
@@ -364,7 +386,7 @@ def test_chat_request_is_validated(payload, field, message):
     ],
 )
 def test_bridge_errors_map_to_problems(error, status, code, title):
-    response = chat_client(FakeChat(error=error)).post("/v1/chat", json={"message": "Dün?"},
+    response = chat_client(FakeChat(error=error)).post("/v1/chat", json={"message": "Dün?", **DAY},
                                                        headers={"Authorization": "Bearer abc"})
     assert_problem(response, status, code, title)
 

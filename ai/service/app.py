@@ -150,7 +150,7 @@ def create_app(
         token: str = Depends(bearer_token), service: ChatService = Depends(get_chat_service),
     ) -> ChatResponse:
         """One chat turn: the model picks a tool, the MCP server computes, the model explains (AI-14a, MCP-b)."""
-        reply = service.answer(body.message, token)
+        reply = service.answer(body.message, token, body.day())
         return ChatResponse(
             type=reply.type, answer=reply.answer,
             tool_calls=[ToolCallOut(tool=c.tool, arguments={k: _as_text(v) for k, v in c.arguments.items()}) for c in reply.tool_calls],

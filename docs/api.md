@@ -684,7 +684,10 @@ iPhone ──Bearer──► POST /api/assistant/messages ── token → müş
 
 ### `POST /api/assistant/messages`
 
-- İstek `{ "message": "Dün ne harcadım?" }`: 1–500 karakter (`InputRules.Text`, DB gibi sayar, NUL reddedilir), boşluk
+- İstek `{ "message": "Dün ne harcadım?" }` (dış sözleşme değişmedi; iPhone tarih göndermez). API, AI servisine mesajla birlikte
+  müşterinin **kendi bugününü ve saat dilimini** iletir (`today` = `YYYY-MM-DD`, `timeZone`; CHAT-08 K9-C): `ICustomerCheck`
+  (`CustomerDay`) iş saatinden (`BANKINGAI_DEMO_NOW` dahil) müşterinin saat diliminde hesaplar, AI servisi kendi saatini kullanmaz.
+  Mesaj 1–500 karakter (`InputRules.Text`, DB gibi sayar, NUL reddedilir), boşluk
   olamaz, tanınmayan alan (ör. `customerId`) 400. Geçersiz mesaj AI servisine hiç gitmez.
 - Cevap `AssistantReply`: `type` (`Answer` / `Clarification` / `OutOfScope`, tam adla), `answer` (Türkçe, Markdown
   olabilir), `toolCalls` (çalışan sorgu + kontrol edilmiş argümanlar; AI-11/CHAT-07 için) ve `facts` (cevabın dayandığı,

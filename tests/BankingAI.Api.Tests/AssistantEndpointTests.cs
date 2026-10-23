@@ -92,10 +92,28 @@ public sealed class AssistantEndpointTests
 
         var request = Assert.Single(fake.Requests);
         Assert.Equal((HttpMethod.Post, "/v1/chat", $"Bearer {token}"), (request.Method, request.Path, request.Authorization));
-        // Only the text: the AI service learns the customer from the token, never from the body.
+        // The text and the customer's day (CHAT-08 K9-C); the AI service learns the customer from the token, never from the body.
         var sent = JsonNode.Parse(request.Body!)!.AsObject();
-        Assert.Equal(["message"], sent.Select(p => p.Key));
+        Assert.Equal(["message", "today", "timeZone"], sent.Select(p => p.Key));
         Assert.Equal("Dün ne harcadım?", sent["message"]!.GetValue<string>());
+    }
+
+    // CHAT-08 K9-C: "today" is the business clock's day in the customer's own time zone, so a date the AI service reads
+    // ("geçen salı") means what the analyses mean. At 21:30 UTC it is already 11 October in Istanbul, still 10 in Berlin.
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("10000000-0000-0000-0000-000000000001", "2026-10-11", "Europe/Istanbul")]
+    [InlineData("10000000-0000-0000-0000-000000000008", "2026-10-10", "Europe/Berlin")]
+    public async Task The_customers_own_day_and_time_zone_go_with_the_message(string customerId, string today, string timeZone)
+    {
+        var fake = FakeAssistantService.Answering();
+        await using var api = FakeAssistantService.Api(fake, settings: [(BankingAI.Hosting.Time.BusinessClock.DemoNowKey, "2026-10-10T21:30:00Z")]);
+        using var client = api.CreateClient().WithToken(TestTokens.Create(Guid.Parse(customerId)));
+
+        await PostAsync(client, Message("1-5 Eylül arası ne harcadım?"));
+
+        var sent = JsonNode.Parse(Assert.Single(fake.Requests).Body!)!.AsObject();
+        Assert.Equal((today, timeZone), (sent["today"]!.GetValue<string>(), sent["timeZone"]!.GetValue<string>()));
     }
 
     // --- The message ------------------------------------------------------------------------------------------------

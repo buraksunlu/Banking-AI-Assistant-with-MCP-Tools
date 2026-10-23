@@ -24,20 +24,23 @@ PERIOD_HELP = ("period: Today=bugün, Yesterday=dün, ThisWeek=bu hafta (pazarte
                "Last7Days=son 7 gün, Last30Days=son 30 gün, ThisMonth=bu ay, LastMonth=geçen ay, Last3Months=son 3 ay, "
                "Last6Months=son 6 ay, ThisYear=bu yıl.")
 PERIOD = {"type": "string", "enum": ["Today", "Yesterday", "ThisWeek", "LastWeek", "Last7Days", "Last30Days",
-                                     "ThisMonth", "LastMonth", "Last3Months", "Last6Months", "ThisYear"]}
+                                     "ThisMonth", "LastMonth", "Last3Months", "Last6Months", "ThisYear", "Custom"]}
+# CHAT-08: the five period tools publish an optional range for the AI service's own code; the model is never shown it.
+DATE = {"type": ["string", "null"]}
 DEFINITIONS = [
     {"type": "function", "function": {
         "name": "get_spending_summary", "description": "Bir dönemdeki toplam harcamayı para birimi başına döndürür. " + PERIOD_HELP,
-        "parameters": {"type": "object", "properties": {"period": PERIOD}, "required": ["period"]}}},
+        "parameters": {"type": "object", "properties": {"period": PERIOD, "from": DATE, "to": DATE}, "required": ["period"]}}},
     {"type": "function", "function": {
         "name": "get_category_breakdown", "description": "Bir dönemdeki harcamanın kategorilere dağılımını döndürür. " + PERIOD_HELP,
-        "parameters": {"type": "object", "properties": {"period": PERIOD}, "required": ["period"]}}},
+        "parameters": {"type": "object", "properties": {"period": PERIOD, "from": DATE, "to": DATE}, "required": ["period"]}}},
     {"type": "function", "function": {
         "name": "get_merchant_spending",
         "description": "Bir dönemde tek bir işyerine (merchant) yapılan harcamayı döndürür. merchant: kullanıcının söylediği işyeri adı. "
                        + PERIOD_HELP,
         "parameters": {"type": "object", "properties": {
-            "merchant": {"type": "string", "minLength": 1, "maxLength": 150}, "period": PERIOD}, "required": ["merchant", "period"]}}},
+            "merchant": {"type": "string", "minLength": 1, "maxLength": 150}, "period": PERIOD, "from": DATE, "to": DATE},
+            "required": ["merchant", "period"]}}},
 ]
 
 
@@ -597,8 +600,9 @@ def test_a_guessed_cut_is_asked_and_the_reply_completes_it():
 
 
 def general_tools():
-    from routing import GENERAL, GROUPS
-    return [d for d in DEFINITIONS if d["function"]["name"] in GROUPS[GENERAL]]
+    from routing import GENERAL, GROUPS, hide_dates
+    # What the model is shown: the general group, without the date range of the period tools (CHAT-08).
+    return hide_dates([d for d in DEFINITIONS if d["function"]["name"] in GROUPS[GENERAL]])
 
 
 def shown(selector, turn=0):
@@ -813,3 +817,31 @@ def test_a_fixed_merchant_reply_and_a_clarification_offer_nothing():
     assert (reply.type, reply.suggestions) == ("answer", [])
     assert chat.answer("Ya son 3 ayda?", TOKEN) and len(selector.calls) == 2
 
+
+
+# --- CHAT-08 PR1: the model never sees dates --------------------------------------------------------------------------
+
+def test_the_model_is_shown_no_dates_and_no_custom_period():
+    from routing import GENERAL, GROUPS
+    chat, selector, _, _ = service([SUMMARY_YESTERDAY])
+
+    chat.answer("Dün ne harcadım?", TOKEN)
+
+    _, tools, _ = selector.calls[0]
+    for tool in tools:
+        properties = tool["function"]["parameters"].get("properties", {})
+        assert "from" not in properties and "to" not in properties
+        assert "Custom" not in properties.get("period", {}).get("enum", [])
+    # Everything else the server published for the group is still there, descriptions word for word (they were measured as they are).
+    published = [d for d in DEFINITIONS if d["function"]["name"] in GROUPS[GENERAL]]
+    assert [t["function"]["name"] for t in tools] == [t["function"]["name"] for t in published]
+    assert [t["function"]["description"] for t in tools] == [t["function"]["description"] for t in published]
+
+
+def test_a_date_the_model_wrote_anyway_is_dropped_before_the_call():
+    stray = ToolCall("get_spending_summary", {"period": "Yesterday", "from": "2025-01-01", "to": "2025-01-31"})
+    chat, _, gateway, _ = service([stray])
+
+    chat.answer("Dün ne harcadım?", TOKEN)
+
+    assert gateway.calls[0][:2] == ("get_spending_summary", {"period": "Yesterday"})

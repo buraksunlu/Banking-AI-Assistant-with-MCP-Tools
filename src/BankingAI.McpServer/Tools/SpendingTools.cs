@@ -35,14 +35,16 @@ public sealed class SpendingTools(
     // own description said; "ilk tercih" brought it back (eval S01) without moving the highest-transaction cases.
     [Description("Bir dönemdeki toplam harcamayı para birimi başına döndürür; \"ne harcadım / ne kadar harcadım\" gibi genel harcama "
         + "soruları için ilk tercih. " + PeriodHelp)]
-    public Task<SpendingSummary> GetSpendingSummaryAsync(ToolPeriod period, CancellationToken cancellationToken) =>
-        ToolErrors.RunAsync(() => summaries.GetAsync(Spending(period), cancellationToken), logger);
+    public Task<SpendingSummary> GetSpendingSummaryAsync(
+        ToolPeriod period, string? from = null, string? to = null, CancellationToken cancellationToken = default) =>
+        ToolErrors.RunAsync(() => summaries.GetAsync(Spending(period, from, to), cancellationToken), logger);
 
     /// <summary><c>get_category_breakdown</c>: spending per category and currency, largest first.</summary>
     [McpServerTool(Name = "get_category_breakdown", ReadOnly = true, Destructive = false, UseStructuredContent = true)]
     [Description("Bir dönemdeki harcamanın kategorilere dağılımını döndürür. " + PeriodHelp)]
-    public Task<CategoryBreakdown> GetCategoryBreakdownAsync(ToolPeriod period, CancellationToken cancellationToken) =>
-        ToolErrors.RunAsync(() => categories.GetAsync(Spending(period), cancellationToken), logger);
+    public Task<CategoryBreakdown> GetCategoryBreakdownAsync(
+        ToolPeriod period, string? from = null, string? to = null, CancellationToken cancellationToken = default) =>
+        ToolErrors.RunAsync(() => categories.GetAsync(Spending(period, from, to), cancellationToken), logger);
 
     /// <summary>
     /// <c>get_merchant_spending</c>: spending at one merchant. The text is matched against the customer's own merchants;
@@ -52,14 +54,15 @@ public sealed class SpendingTools(
     [Description("Bir dönemde tek bir işyerine (merchant) yapılan harcamayı döndürür. merchant: kullanıcının söylediği işyeri adı. " + PeriodHelp)]
     public Task<MerchantSpendingResult> GetMerchantSpendingAsync(
         // 150 is the API's limit for a merchant name (Transactions.NormalizedMerchant); blank text is the service's rule.
-        [MinLength(1), MaxLength(150)] string merchant, ToolPeriod period, CancellationToken cancellationToken) =>
-        ToolErrors.RunAsync(() => merchants.GetSpendingAsync(Spending(period), merchant, cancellationToken), logger);
+        [MinLength(1), MaxLength(150)] string merchant, ToolPeriod period, string? from = null, string? to = null, CancellationToken cancellationToken = default) =>
+        ToolErrors.RunAsync(() => merchants.GetSpendingAsync(Spending(period, from, to), merchant, cancellationToken), logger);
 
     /// <summary><c>get_merchant_breakdown</c>: spending per merchant and currency, largest first (MCP-08).</summary>
     [McpServerTool(Name = "get_merchant_breakdown", ReadOnly = true, Destructive = false, UseStructuredContent = true)]
     [Description("Bir dönemdeki harcamanın işyerlerine (merchant) dağılımını en çoktan aza döndürür; \"en çok nereye harcadım\" soruları için. " + PeriodHelp)]
-    public Task<MerchantBreakdown> GetMerchantBreakdownAsync(ToolPeriod period, CancellationToken cancellationToken) =>
-        ToolErrors.RunAsync(() => merchants.GetBreakdownAsync(Spending(period), cancellationToken), logger);
+    public Task<MerchantBreakdown> GetMerchantBreakdownAsync(
+        ToolPeriod period, string? from = null, string? to = null, CancellationToken cancellationToken = default) =>
+        ToolErrors.RunAsync(() => merchants.GetBreakdownAsync(Spending(period, from, to), cancellationToken), logger);
 
     /// <summary>
     /// <c>get_highest_transactions</c>: the five largest purchases per currency (MCP-10, decision K4-A). The limit, the
@@ -67,8 +70,11 @@ public sealed class SpendingTools(
     /// </summary>
     [McpServerTool(Name = "get_highest_transactions", ReadOnly = true, Destructive = false, UseStructuredContent = true)]
     [Description("Bir dönemdeki en yüksek tutarlı 5 harcamayı döndürür; yalnız \"en büyük / en pahalı harcamam\" soruları için, toplam harcama için değil. " + PeriodHelp)]
-    public Task<HighestTransactions> GetHighestTransactionsAsync(ToolPeriod period, CancellationToken cancellationToken) =>
-        ToolErrors.RunAsync(() => highest.GetAsync(new HighestTransactionsQuery(CustomerId, ToPeriodKind(period)), cancellationToken), logger);
+    public Task<HighestTransactions> GetHighestTransactionsAsync(
+        ToolPeriod period, string? from = null, string? to = null, CancellationToken cancellationToken = default) =>
+        ToolErrors.RunAsync(() => highest.GetAsync(
+            new HighestTransactionsQuery(CustomerId, ToPeriodKind(period), ToolDate.Read(from, nameof(from)), ToolDate.Read(to, nameof(to))),
+            cancellationToken), logger);
 
     /// <summary><c>compare_spending</c>: two periods, the change and the categories that caused it (MCP-09).</summary>
     [McpServerTool(Name = "compare_spending", ReadOnly = true, Destructive = false, UseStructuredContent = true)]
@@ -90,10 +96,12 @@ public sealed class SpendingTools(
     public Task<SpendingTrend> GetMonthlyTrendAsync([Range(1, 12)] int months, CancellationToken cancellationToken) =>
         ToolErrors.RunAsync(() => comparisons.GetMonthlyTrendAsync(new SpendingTrendQuery(CustomerId, months), cancellationToken), logger);
 
-    // The customer comes from the token only (K2-A); no tool has a customer, account or date argument.
+    // The customer comes from the token only (K2-A); no tool has a customer or account argument.
     private Guid CustomerId => httpContext.HttpContext!.User.GetCustomerId();
 
-    private SpendingQuery Spending(ToolPeriod period) => new(CustomerId, ToPeriodKind(period), From: null, To: null, AccountId: null);
+    // The range rules (Custom only, both ends, not in the future, at most 24 months) are PeriodResolver's, as for the API.
+    private SpendingQuery Spending(ToolPeriod period, string? from, string? to) =>
+        new(CustomerId, ToPeriodKind(period), ToolDate.Read(from, nameof(from)), ToolDate.Read(to, nameof(to)), AccountId: null);
 
     // The names are the same in both enums, so the conversion is by name.
     private static PeriodKind ToPeriodKind(ToolPeriod period) => Enum.Parse<PeriodKind>(period.ToString());

@@ -33,7 +33,7 @@ from conversation import LastCall, is_follow_up  # noqa: E402
 from grounding import check_arguments  # noqa: E402
 from mcp_gateway import McpSettings, McpToolGateway  # noqa: E402
 from ollama_client import OllamaError, OllamaSettings  # noqa: E402
-from routing import Route, Router, narrow  # noqa: E402
+from routing import Route, Router, hide_dates, narrow  # noqa: E402
 
 CASES_FILE = Path(__file__).with_name("tool_selection_cases.json")
 
@@ -78,7 +78,8 @@ def main() -> int:
 
     model = args.model or os.environ.get("BANKINGAI_LLM_MODEL") or "qwen3.5:4b"
     settings = OllamaSettings.from_env({**os.environ, "BANKINGAI_LLM_MODEL": model})
-    definitions = McpToolGateway(McpSettings.from_env(os.environ)).list_tools(demo_token(), time.monotonic() + 10)
+    # As the chat shows them: the date range of the period tools is the code's, never the model's (CHAT-08).
+    definitions = hide_dates(McpToolGateway(McpSettings.from_env(os.environ)).list_tools(demo_token(), time.monotonic() + 10))
     selector = chat.LangChainToolSelector(settings)
     router = Router(chat.LangChainIntentClassifier(settings))
     schemas = {d["function"]["name"]: d["function"].get("parameters", {}) for d in definitions}

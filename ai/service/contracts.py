@@ -4,14 +4,38 @@ The service only receives text the backend has already computed and formatted; i
 amounts, identifiers or a customer id (AI-09, AI-13).
 """
 
+import re
+from datetime import date
 from typing import Annotated
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+
+from dates import CustomerDay
 
 
 def _not_blank(value: str) -> str:
     if not value.strip():
         raise ValueError("Boş olamaz.")
+    return value
+
+
+def _iso_day(value: str) -> str:
+    # Exactly YYYY-MM-DD and a real day: date.fromisoformat alone would also accept other ISO forms ("20261010").
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        raise ValueError("YYYY-MM-DD biçiminde geçerli bir gün olmalı.")
+    try:
+        date.fromisoformat(value)
+    except ValueError:
+        raise ValueError("YYYY-MM-DD biçiminde geçerli bir gün olmalı.") from None
+    return value
+
+
+def _known_zone(value: str) -> str:
+    try:
+        ZoneInfo(value)
+    except (ZoneInfoNotFoundError, ValueError, OSError):
+        raise ValueError("Tanınmayan saat dilimi.") from None
     return value
 
 
@@ -56,9 +80,16 @@ class HealthResponse(BaseModel):
 
 
 class ChatRequest(_Request):
-    """One message of the user (AI-14a). The customer comes from the token, never from the body."""
+    """One message of the user (AI-14a). The customer comes from the token, never from the body; ``today`` and ``timeZone``
+    are the customer's own calendar, sent by the .NET API (CHAT-08 K9-C), never the iPhone."""
 
     message: Question
+    today: Annotated[str, AfterValidator(_iso_day)]
+    time_zone: Annotated[str, AfterValidator(_known_zone)] = Field(alias="timeZone")
+
+    def day(self) -> CustomerDay:
+        """The customer's day, parsed."""
+        return CustomerDay(date.fromisoformat(self.today), self.time_zone)
 
 
 class ToolCallOut(BaseModel):
