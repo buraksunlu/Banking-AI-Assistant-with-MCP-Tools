@@ -514,7 +514,7 @@ Sıradaki (kullanıcı seçer; müşteri her zaman token'dan gelir):
   ölçümü) 21 Ekim 2026'da tamam. MCP-17/18 (bütçe/tasarruf araçları, 11 araç) 21 Ekim 2026'da, CHAT-01 (niyete göre araç daraltma, iki grup) 22 Ekim 2026'da tamam. Sırada (kullanıcı seçer): AI-16 (model belleği), KIND-06 (iade),
   arama/hesaplar MCP-06/03, işlem detayı (IOS-06; IOS-05 hesap detayı ve tarih filtresi tamam), SEC-07, DB-01 (ayrı test veritabanı; veri büyüdükçe daha anlamlı).
   API-17 (imleçli sayfalama + bütün geçmiş) 23 Ekim 2026'da tamam; iPhone "Tüm işlemler" bütün geçmişi gösteriyor.
-- **Kısmen yapıldı:** CHAT-08 (belirli tarih ve tarih aralığıyla soru): Tamam (23 Ekim 2026, üç PR); kararlar maddede.
+- **Kısmen yapıldı:** CHAT-08 (belirli tarih ve tarih aralığıyla soru): Tamam (23 Ekim 2026, üç PR: #37, #38, #41); kararlar maddede. `main`'de araç seçimi 68/71, eski vakalarda bozulan yok.
 - **Küçük ve bağımsız:** CHAT-06 (önerilen sorular; arka uç + iPhone) 22 Ekim 2026'da, ANA-20 (gün/hafta dönemleri) 19 Ekim 2026'da tamamlandı.
 - **Omurgadan sonra (17 Ekim kararı):** 15c sohbet yetenekleri (CHAT-01–07) → 12c yeni analizler (ANA-15–19, ANA-21) +
   MCP-19–26 → 15d içgörü kartları (INS-01–03) + IOS-12. Kalıcı bütçe/hedef (12d, BUD-01–04) 19 Ekim kararıyla eklendi;
