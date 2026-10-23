@@ -55,7 +55,9 @@ public sealed class AssistantController(ICustomerCheck customers, IAssistantClie
     {
         // Checked before the model runs: a deleted customer must not keep the single local model busy.
         var day = await customers.EnsureExistsAsync(User.GetCustomerId(), cancellationToken);
-        return Ok(await assistant.SendAsync(request.Message, day, Request.BearerToken(), cancellationToken));
+        var reply = await assistant.SendAsync(request.Message, day, Request.BearerToken(), cancellationToken);
+        // The links come from the tool calls the AI service reports, built here so the model never writes one (CHAT-07).
+        return Ok(reply with { Links = AssistantLinks.For(reply) });
     }
 
     /// <summary>

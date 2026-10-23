@@ -352,6 +352,7 @@ hesabı `400` almaz.
 | `limit` / `cursor` | 1–50 (varsayılan 20) / önceki sayfanın `nextCursor`'ı (API-17) |
 | `currencyCode` | isteğe bağlı, birebir `TRY`/`USD`/`EUR`/`GBP` (`try`, `JPY` → `400`) |
 | `minAmount` / `maxAmount` | isteğe bağlı, **dahil** sınırlar (ANA-11); verilirse `currencyCode` zorunlu (eşik para birimleri arasında karşılaştırılmaz); `min ≤ max`; 0,01–üst sınır, en fazla 2 ondalık |
+| `accountType` | isteğe bağlı, tam olarak `Personal` ya da `Business` (`personal`, `1` → 400); hesaplar bu türe daralır, `accountId` ile **kesişir** (uyumsuz çift hata değil, boş liste), merchant adayları da aynı kapsamdan gelir (CHAT-07: harcama rakamları yalnız şahsi hesapları sayar, sohbet bağlantısı aynısını ister) |
 
 **Tutar yazımı:** yalnız rakam ve nokta (`500`, `500.50`). Virgül, binlik ayırıcı, işaret ve boşluk `400` alır
 (`'500,50' geçerli bir değer değil.`). Neden: ASP.NET'in kendi decimal bağlaması binlik ayırıcıya izin verir ve `500,50`'yi
@@ -693,6 +694,13 @@ iPhone ──Bearer──► POST /api/assistant/messages ── token → müş
   olabilir), `toolCalls` (çalışan sorgu + kontrol edilmiş argümanlar; AI-11/CHAT-07 için) ve `facts` (cevabın dayandığı,
   backend'in hesaplayıp biçimlendirdiği kalemler) ve `suggestions` (CHAT-06: cevabın altında önerilecek 0–3 soru, sabit tablodan;
   aynen geri gönderilen öneri model araç seçmeden çalışır, docs/local-ai.md "Önerilen sorular"). Modelin adı dışarı verilmez, logda kalır (K2-A).
+  `links` (CHAT-07, her zaman var, çoğu zaman boş): cevabın altındaki "İşlemleri gör" düğmeleri. Bağlantıyı **model değil .NET**
+  kurar (`Api/Assistant/AssistantLinks`, kontrol edilmiş `toolCalls`'tan): `{ title, query: { period, from, to, kind, accountType,
+  categoryCode, merchant } }`, `GET /api/transactions`'ın aynı rakamı veren sorgusudur. Özet, kategori, işyeri dağılımı, en büyük
+  harcamalar, tek işyeri ve bütçe kontrolü bağlantı alır (`kind = Purchase`, `accountType = Personal`; bütçe hep `ThisMonth`, işyeri
+  kategoriden önce gelir); karşılaştırma, aylık seri, düzenli/yaklaşan ödeme ve tasarruf almaz (tek bir satır listesi yok). Okunamayan
+  argüman (`Yesterdayy`, tek uçlu tarih) bağlantısız bırakır, cevabı bozmaz; yalnız `Answer` bağlantı taşır. **`Custom` dönemde
+  istemci `period` göndermez, yalnız `from` ve `to` gönderir** (arama ikisini birlikte kabul etmez).
 - Müşteri **başına** dakikada 10 mesaj (SEC-06, K6-A); aşınca 429 + `Retry-After`. Sınır token'daki müşteriye
   bakar; bu yüzden `UseRateLimiter` kimlik doğrulamanın **arkasındadır** (tokensız istek sayaca girmeden 401 alır).
 - Hata eşlemesi (K5-A; iPhone'un yapacağı şeye göre üç kod, AI servisinin kendi kodu yalnız logda):

@@ -10,12 +10,14 @@ namespace BankingAI.Application.Analytics;
 // is the whole history up to today, asked for by name. There is deliberately no free-text search.
 // MinAmount/MaxAmount are inclusive and need CurrencyCode (ANA-11): a threshold is never compared
 // across currencies. Cursor is the previous page's NextCursor; without it the newest page comes.
+// AccountType narrows the accounts (CHAT-07: a chat answer counts Personal accounts only, so its link asks for the
+// same); it intersects with AccountId, and the merchant candidates follow the same narrowed scope.
 public sealed record TransactionSearchQuery(
     Guid CustomerId, PeriodKind Period, DateOnly? From = null, DateOnly? To = null, Guid? AccountId = null,
     TransactionKind? Kind = null, TransactionDirection? Direction = null,
     string? CategoryCode = null, bool OnlyUnclassified = false, string? Merchant = null,
     int Limit = 20, string? Cursor = null,
-    decimal? MinAmount = null, decimal? MaxAmount = null, string? CurrencyCode = null);
+    decimal? MinAmount = null, decimal? MaxAmount = null, string? CurrencyCode = null, AccountType? AccountType = null);
 
 // A DTO, never the entity. Counterparty is a masked person ("Deniz M***"), a shop's account name,
 // or the customer's own account name (CounterpartyIsOwnAccount); full names never leave the service.
@@ -44,6 +46,8 @@ public sealed class TransactionSearchService(BankingDbContext db, PeriodResolver
         var cursor = query.Cursor is null ? null : TransactionCursor.Parse(query.Cursor, nameof(query.Cursor));
         var (timeZoneId, accounts) = await _scope.ResolveAccountsAsync(
             query.CustomerId, query.AccountId, personalOnly: false, cancellationToken);
+        if (query.AccountType is { } accountType)
+            accounts = accounts.Where(id => db.Accounts.Any(a => a.Id == id && a.AccountType == accountType));
         var allTime = query.Period == PeriodKind.AllTime;
         // The whole history has no lower bound; its start is known only after counting, so until then it is today.
         var period = allTime
@@ -138,6 +142,7 @@ public sealed class TransactionSearchService(BankingDbContext db, PeriodResolver
         InputRules.Require(query.Period != PeriodKind.AllTime || (query.From is null && query.To is null),
             nameof(query.From), "Başlangıç/bitiş tarihi yalnızca Custom dönemde verilebilir.");
         InputRules.Require(query.Kind is null || Enum.IsDefined(query.Kind.Value), nameof(query.Kind), "Tanımlı işlem türü olmalı.");
+        InputRules.Require(query.AccountType is null || Enum.IsDefined(query.AccountType.Value), nameof(query.AccountType), "Personal veya Business olmalı.");
         InputRules.Require(query.Direction is null || Enum.IsDefined(query.Direction.Value), nameof(query.Direction), "Debit veya Credit olmalı.");
         InputRules.Require(!(query.OnlyUnclassified && query.CategoryCode is not null),
             nameof(query.CategoryCode), "Kategori kodu ile yalnızca sınıflandırılmamış filtresi birlikte kullanılamaz.");

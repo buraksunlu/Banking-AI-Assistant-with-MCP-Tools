@@ -2155,7 +2155,7 @@
           "Transactions"
         ],
         "summary": "Searches all of the customer's accounts (a Business shop account included) like…",
-        "description": "`GET /api/transactions`: searches all of the customer's accounts (a Business shop account included) like a\nstatement, newest first, with optional filters: kind, direction, category or only unclassified purchases, merchant\n(matched against the customer's own merchants, never guessed), one account, a currency and an inclusive amount\nrange in it (ANA-11). Without a period the last three months are searched, like an account's list (decision\nK1-B); `AllTime` is the whole history. The answer names its period; the next page is asked for with the\nprevious page's `nextCursor` (API-17).",
+        "description": "`GET /api/transactions`: searches all of the customer's accounts (a Business shop account included) like a\nstatement, newest first, with optional filters: kind, direction, category or only unclassified purchases, merchant\n(matched against the customer's own merchants, never guessed), one account, a currency and an inclusive amount\nrange in it (ANA-11), or only the Personal or only the Business accounts (CHAT-07: the spending figures count\nPersonal accounts only, so a chat link asks for the same). Without a period the last three months are searched, like an account's list (decision\nK1-B); `AllTime` is the whole history. The answer names its period; the next page is asked for with the\nprevious page's `nextCursor` (API-17).",
         "parameters": [
           {
             "name": "period",
@@ -2260,6 +2260,13 @@
           },
           {
             "name": "currencyCode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "accountType",
             "in": "query",
             "schema": {
               "type": "string"
@@ -2467,6 +2474,22 @@
         },
         "description": "One backend figure the answer is based on, already formatted for people (\"Toplam harcama\" / \"145,00 TL\")."
       },
+      "AssistantLink": {
+        "required": [
+          "title",
+          "query"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "query": {
+            "$ref": "#/components/schemas/TransactionLinkQuery"
+          }
+        },
+        "description": "A button under a chat answer (CHAT-07): the title to show and the list it opens."
+      },
       "AssistantMessageRequest": {
         "required": [
           "message"
@@ -2487,7 +2510,8 @@
           "answer",
           "toolCalls",
           "facts",
-          "suggestions"
+          "suggestions",
+          "links"
         ],
         "type": "object",
         "properties": {
@@ -2514,9 +2538,15 @@
             "items": {
               "type": "string"
             }
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistantLink"
+            }
           }
         },
-        "description": "Reply of `POST /api/assistant/messages`. The figures in `answer` come from `facts`, which the\nbackend computed; the model only chose the tool and wrote the sentence. `suggestions` are up to three questions\nto offer under the reply, from a fixed table (CHAT-06); sent back as written, one runs the call it stands for."
+        "description": "Reply of `POST /api/assistant/messages`. The figures in `answer` come from `facts`, which the\nbackend computed; the model only chose the tool and wrote the sentence. `suggestions` are up to three questions\nto offer under the reply, from a fixed table (CHAT-06); sent back as written, one runs the call it stands for.\n`links` are the buttons under an answer that open the list of transactions behind its figure (CHAT-07); the\nbackend builds them from the checked tool calls and the AI service never sees them."
       },
       "AssistantReplyType": {
         "enum": [
@@ -3998,6 +4028,56 @@
           "OpeningFunding"
         ],
         "type": "string"
+      },
+      "TransactionLinkQuery": {
+        "required": [
+          "period",
+          "from",
+          "to",
+          "kind",
+          "accountType",
+          "categoryCode",
+          "merchant"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/PeriodKind"
+          },
+          "from": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "to": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TransactionKind"
+          },
+          "accountType": {
+            "$ref": "#/components/schemas/AccountType"
+          },
+          "categoryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "merchant": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "The transaction-list query behind a chat answer's link: what `GET /api/transactions` is asked so the list\nshows the rows the answer's figure was computed from. `From`/`To` are set only for `Custom`."
       },
       "TransactionPage": {
         "required": [

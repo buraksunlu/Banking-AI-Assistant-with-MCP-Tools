@@ -32,13 +32,16 @@ public sealed record AssistantFact(string Label, string Text);
 /// Reply of <c>POST /api/assistant/messages</c>. The figures in <c>answer</c> come from <c>facts</c>, which the
 /// backend computed; the model only chose the tool and wrote the sentence. <c>suggestions</c> are up to three questions
 /// to offer under the reply, from a fixed table (CHAT-06); sent back as written, one runs the call it stands for.
+/// <c>links</c> are the buttons under an answer that open the list of transactions behind its figure (CHAT-07); the
+/// backend builds them from the checked tool calls and the AI service never sees them.
 /// </summary>
 public sealed record AssistantReply(
     AssistantReplyType Type,
     string Answer,
     IReadOnlyList<AssistantToolCall> ToolCalls,
     IReadOnlyList<AssistantFact> Facts,
-    IReadOnlyList<string> Suggestions);
+    IReadOnlyList<string> Suggestions,
+    IReadOnlyList<AssistantLink> Links);
 
 /// <summary>
 /// Reply of <c>GET /api/assistant/suggestions</c>: up to three questions to show when the chat opens, chosen from the
