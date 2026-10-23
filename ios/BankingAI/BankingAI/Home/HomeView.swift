@@ -8,6 +8,7 @@ struct HomeView: View {
     @State var recent: RecentTransactionsViewModel
     @State var history: TransactionHistoryViewModel
     @State var category: CategoryBreakdownViewModel
+    @State var monthly: MonthlyTrendViewModel
     /// Lives as long as this screen, so going back and forth keeps the conversation; signing out ends both (K4-D).
     @State var chat: ChatViewModel
 
@@ -46,7 +47,7 @@ struct HomeView: View {
                 TransactionHistoryView(model: history)
             }
             .navigationDestination(for: AnalyticsRoute.self) { _ in
-                AnalyticsView(category: category)
+                AnalyticsView(category: category, monthly: monthly)
             }
             .navigationDestination(for: TransactionItem.self) { item in
                 TransactionDetailView(item: item)

@@ -259,3 +259,28 @@ struct CategorySpending: Decodable, Equatable, Identifiable {
 
     var id: String { categoryCode ?? AnalyticsDisplay.uncategorizedID }
 }
+
+/// `GET /api/analytics/monthly-trend`: one block per currency, never added together. The `months` list of windows and the
+/// `merchantMatch` field of the answer are not decoded; the chart draws the months of each currency.
+struct MonthlyTrend: Decodable, Equatable {
+    let currencies: [CurrencyTrend]
+}
+
+/// One currency's months, oldest first. A month without spending is in the list with an amount of 0.
+struct CurrencyTrend: Decodable, Equatable, Identifiable {
+    let currencyCode: String
+    let months: [MonthlySpending]
+
+    var id: String { currencyCode }
+}
+
+/// One calendar month. `isPartial` is the month still running: its amount is not comparable with a whole month.
+struct MonthlySpending: Decodable, Equatable, Identifiable {
+    let year: Int
+    let month: Int
+    let isPartial: Bool
+    let amount: Decimal
+    let transactionCount: Int
+
+    var id: String { String(format: "%04d-%02d", year, month) }
+}

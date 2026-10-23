@@ -1,20 +1,30 @@
 import SwiftUI
 
-/// The "Harcama analizi" screen (IOS-08): the category ring now, the monthly chart next to it in the following step.
+/// The "Harcama analizi" screen (IOS-08): the category ring and, below it, the monthly bars.
 struct AnalyticsView: View {
     let category: CategoryBreakdownViewModel
+    let monthly: MonthlyTrendViewModel
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
                 CategoryBreakdownSection(model: category)
+                MonthlyTrendSection(model: monthly)
             }
             .padding()
         }
         .background(Color(.systemGroupedBackground))
         .navigationTitle("Harcama analizi")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await category.load() }
-        .refreshable { await category.load() }
+        .task {
+            async let categoryLoaded: Void = category.load()
+            async let monthlyLoaded: Void = monthly.load()
+            _ = await (categoryLoaded, monthlyLoaded)
+        }
+        .refreshable {
+            async let categoryLoaded: Void = category.load()
+            async let monthlyLoaded: Void = monthly.load()
+            _ = await (categoryLoaded, monthlyLoaded)
+        }
     }
 }

@@ -25,4 +25,4 @@ tutar her ekranda `Formatting/Money` ile yazılır (sohbetle aynı: `577.490,18 
 imleçle gezer (API-17; son işlemler kartı dönemsiz, son 3 ay). İşlem satırının metni yalnız
 `Transactions/TransactionDisplay`'de (gün `localDate`'ten, işaret `direction`'dan); sorgu parametreleri `APIRequest.query` ile (yola "?" yazılmaz). Demo şifresini Claude yazmaz/okumaz:
 simülatörde girişi kullanıcı yapar.
-Grafikler (IOS-08) `Analytics/` altındadır: rakam, toplam ve yüzde backend'den gelir, telefon yalnız çizer ve yazar; kategori rengi `AnalyticsDisplay.tone`'da sabit (kategorisiz hep gri), dönemler `AnalyticsPeriod` adlarıyla gönderilir (telefon tarih hesaplamaz), para birimleri ayrı grafiktir.
+Grafikler (IOS-08) `Analytics/` altındadır: rakam, toplam ve yüzde backend'den gelir, telefon yalnız çizer ve yazar; kategori rengi `AnalyticsDisplay.tone`'da sabit (kategorisiz hep gri), dönemler `AnalyticsPeriod` adlarıyla gönderilir (telefon tarih hesaplamaz), para birimleri ayrı grafiktir. Aylık grafikte (`MonthlyTrendViewModel`) devam eden ay (`isPartial`) tam ayla karıştırılmaz, harcamasız ay atlanmaz, tutar eksende yuvarlanıp yazılmaz.

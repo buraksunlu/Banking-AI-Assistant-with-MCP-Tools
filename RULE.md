@@ -1547,6 +1547,8 @@ COMPLETED
 - Kategori grafiği IOS-08 PR1 (23 Ekim 2026, docs/ios.md "iOS-i"): ana ekranda "Harcama analizi" kartı, `AnalyticsView` içinde `GET /api/analytics/category-breakdown`
   halkası (Swift Charts `SectorMark`), dört adlı dönem (Bu ay / Geçen ay / Son 3 ay / Bu yıl), para birimi başına ayrı halka (toplanmaz), Sınıflandırılmamış
   ayrı gri dilim, kategori koduna sabit renk. Telefon yüzde ve toplam hesaplamaz. Backend değişmedi. 212 iOS test durumu. Aylık grafik PR2.
+- Aylık grafik IOS-08 PR2 (23 Ekim 2026, docs/ios.md "iOS-j"): analiz ekranında kategori halkasının altında `GET /api/analytics/monthly-trend?months=6`
+  çubukları (7 çubuk, para birimi başına ayrı, devam eden ay soluk, harcamasız ay sıfır çubuk, değer ekseni yok). Backend değişmedi. 232 iOS test durumu. IOS-08 tamam.
 - Belirli tarih ve aralık CHAT-08, PR1 altyapı (23 Ekim 2026, dal `chat-08-dates-backend`; docs/mcp.md "Tarih aralığı", docs/api.md,
   docs/local-ai.md "Müşterinin günü"): MCP'de beş dönem aracı isteğe bağlı `from`/`to` ve `Custom` dönem alır (`ToolDate`: yalnız
   `YYYY-MM-DD` gerçek gün; aralık kuralları `PeriodResolver`'da). `ICustomerCheck` artık `CustomerDay` (müşterinin bugünü + saat dilimi)
