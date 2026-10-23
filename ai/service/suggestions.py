@@ -119,10 +119,19 @@ def follow_ups(tool: str, arguments: dict) -> list[Suggestion]:
         return []
     try:
         rows = build(arguments)
+        if arguments.get("period") == "Custom":
+            # CHAT-08 K7-A: an offered question about the same days runs over the same days.
+            rows = [_over_range(row, arguments) for row in rows]
     except KeyError:
         # An argument the table needs is missing (a tool whose schema changed on the server): nothing is offered.
         return []
     return [r for r in rows if (r.tool, r.arguments) != (tool, arguments)][:MAX_SUGGESTIONS]
+
+
+def _over_range(row: Suggestion, arguments: dict) -> Suggestion:
+    if row.arguments.get("period") != "Custom":
+        return row
+    return Suggestion(row.text, row.tool, {**row.arguments, "from": arguments["from"], "to": arguments["to"]})
 
 
 def _plain(text: str) -> str:

@@ -15,6 +15,9 @@
     {"id": "A12", "customer": "murat", "messages": ["Bu ay market bütçem 8.000 TL, bu hızla aşar mıyım?"], "type": "answer", "tool": "check_budget", "facts": ["5.133,00 TL (2 işlem)", "Kalan: 2.867,00 TL", "15.912,30 TL", "Tahmini aşım: 7.912,30 TL"], "answer": ["7.912,30"]},
     {"id": "A13", "customer": "elif", "messages": ["Bu ay toplam 1.500 euro bütçem var, ne durumdayım?"], "type": "answer", "tool": "check_budget", "facts": ["1-10 Ekim 2026", "1.555,03 EUR (4 işlem)", "Bütçe aşımı: 55,03 EUR", "4.820,59 EUR"], "answer": ["55,03"]},
     {"id": "A14", "customer": "selin", "messages": ["Yeme içme harcamamı %20 azaltırsam ne kadar biriktiririm?"], "type": "answer", "tool": "simulate_savings", "facts": ["Ağustos 2026: 0,00 TL", "Aylık ortalama: 3.187,50 TL", "Tahmini aylık tasarruf: 637,50 TL", "Tahmini yıllık tasarruf: 7.650,00 TL"], "answer": ["637,50"]},
-    {"id": "A15", "customer": "zeynep", "messages": ["Harcamalarımı yüzde 10 azaltsam yılda ne kazanırım?"], "type": "answer", "tool": "simulate_savings", "facts": ["Tahmini yıllık tasarruf (TRY): 12.718,80 TL", "Tahmini yıllık tasarruf (USD): 45,59 USD", "Farklı para birimleri toplanmaz"], "answer": ["12.718,80"]}
+    {"id": "A15", "customer": "zeynep", "messages": ["Harcamalarımı yüzde 10 azaltsam yılda ne kazanırım?"], "type": "answer", "tool": "simulate_savings", "facts": ["Tahmini yıllık tasarruf (TRY): 12.718,80 TL", "Tahmini yıllık tasarruf (USD): 45,59 USD", "Farklı para birimleri toplanmaz"], "answer": ["12.718,80"]},
+    {"id": "A16", "customer": "murat", "messages": ["1-5 Eylül arası ne kadar harcadım?"], "type": "answer", "tool": "get_spending_summary", "facts": ["5.116,50 TL"], "answer": ["5.116,50"]},
+    {"id": "A17", "customer": "murat", "messages": ["1-5 Eylül arası ne kadar harcadım?", "Peki 6-10 Eylül?"], "type": "answer", "tool": "get_spending_summary", "facts": ["3.759,90 TL"], "answer": ["3.759,90"]},
+    {"id": "A18", "customer": "murat", "messages": ["Eylül'de ne kadar harcadım?"], "type": "answer", "tool": "get_spending_summary", "facts": ["53.388,39 TL"], "answer": ["53.388,39"]}
   ]
 }

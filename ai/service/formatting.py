@@ -6,7 +6,7 @@ Deterministic and independent of the machine's locale: the model never formats, 
 from datetime import date
 from decimal import Decimal
 
-_MONTHS = ("Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+MONTH_NAMES = ("Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
            "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık")
 
 # How people write the currency in Turkish; the others keep their ISO code ("120,00 USD").
@@ -29,12 +29,12 @@ def percent(value: Decimal) -> str:
 
 def day(value: date) -> str:
     """2026-10-10 → "10 Ekim 2026"."""
-    return f"{value.day} {_MONTHS[value.month - 1]} {value.year}"
+    return f"{value.day} {MONTH_NAMES[value.month - 1]} {value.year}"
 
 
 def month(year: int, number: int) -> str:
     """2026, 7 → "Temmuz 2026"."""
-    return f"{_MONTHS[number - 1]} {year}"
+    return f"{MONTH_NAMES[number - 1]} {year}"
 
 
 def period(start: date, end: date) -> str:
@@ -44,7 +44,7 @@ def period(start: date, end: date) -> str:
     if start.year != end.year:
         return f"{day(start)} - {day(end)}"
     if start.month != end.month:
-        return f"{start.day} {_MONTHS[start.month - 1]} - {day(end)}"
+        return f"{start.day} {MONTH_NAMES[start.month - 1]} - {day(end)}"
     return f"{start.day}-{day(end)}"
 
 

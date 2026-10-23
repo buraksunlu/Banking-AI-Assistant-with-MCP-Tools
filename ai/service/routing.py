@@ -45,6 +45,10 @@ _GENERAL_WORDS = re.compile(
     r"|\ben\s+(?:büyük|pahali|yüksek|çok)|\bverdim|\bödedim|\bgitti|alişveriş|\bmasraf|\bne\s+kadar"
     r"|abonel|düzenli|yaklaşan|önümüzdeki|\böde(?:me|yece|necek)|\bödüyor|sabit\s+gider")
 
+# CHAT-08 K6-C: words that make a message a question about spending; with them and no period, "which period?" is asked instead of
+# the out-of-scope reply (a "ne kadar" alone could be a balance question).
+_SPENDING_WORDS = re.compile(r"harca|\bverdim|\bödedim|\bgitti|alişveriş|\bmasraf")
+
 # The model's question is a shortcut: a slow answer falls back to the general group instead of eating the turn.
 INTENT_SECONDS = 5.0
 
@@ -67,6 +71,11 @@ class IntentClassifier(Protocol):
     """Asks the model which group a message belongs to; returns one of the group names."""
 
     def classify(self, message: str, deadline: float) -> str: ...
+
+
+def is_spending_question(message: str) -> bool:
+    """True when the words of the message ask what was spent ("ne harcadım", "ne kadar verdim")."""
+    return _SPENDING_WORDS.search(fold_turkish(message)) is not None
 
 
 def group_of(tool: str) -> str | None:

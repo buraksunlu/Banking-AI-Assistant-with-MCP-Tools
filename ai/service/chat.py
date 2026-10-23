@@ -28,12 +28,12 @@ from contracts import Fact
 from conversation import ConversationStore, LastCall, is_follow_up
 from explainer import stream_message
 from facts import outcome_for
-from grounding import check_arguments
 from ollama_client import OllamaError, OllamaSettings
 from prompts import (CLARIFY_TEXT, INTENT_SCHEMA, OUT_OF_SCOPE_TEXT, build_clarify_messages, build_intent_messages,
                      build_tool_messages)
-from dates import CustomerDay
-from routing import DATE_FIELDS, Router, hide_dates, narrow
+from dates import CustomerDay, DateReading, period_line, read_dates, with_span_replaced
+from grounding import check_arguments, mentions_period
+from routing import DATE_FIELDS, Router, hide_dates, is_spending_question, narrow
 from suggestions import OUT_OF_SCOPE_SUGGESTIONS, OfferedStore, follow_ups, match
 from tools import ToolArgumentsRejected, ToolGateway
 
@@ -166,8 +166,18 @@ class ChatService:
         waiting = self.waiting.take(token)
         # Like the waiting question, an offer lasts for one message: whatever comes next, it is gone.
         offered = self.offered.take(token)
-        if waiting is not None:
-            arguments = resolve(waiting, message)
+        completed = False
+        if waiting is not None and waiting.tool == "":
+            # A period asked before any tool was chosen (K12-C): the reply is added to the question and the whole goes the
+            # normal way, dates and all.
+            phrase = _period_phrase(waiting, message, day)
+            if phrase is not None:
+                message, completed = f"{waiting.original} ({phrase})", True
+        elif waiting is not None:
+            asked_again = self._date_reply(waiting, message, day, token, deadline)
+            if asked_again is not None:
+                return asked_again
+            arguments = _date_arguments(waiting, message, day) or resolve(waiting, message)
             if arguments is not None:
                 question = f"{waiting.question} ({message})"
                 # "3000" answered the amount; the currency the model guessed as well is asked next, not run.
@@ -185,16 +195,27 @@ class ChatService:
         # Only a short or "peki…" message is read with the last call (K4-B); a full question stands on its own, as before.
         # The follow-up itself is what is explained and kept: a growing chain of questions led both the model (back to an
         # older merchant) and the explanation ("geçen ay" for this month) astray in the live trial.
-        context = self.history.recall(token) if is_follow_up(message) else None
+        context = self.history.recall(token) if not completed and is_follow_up(message) else None
         route = self.router.route(message, context.tool if context else None, deadline)
         if route.out_of_scope:
             # A request to move money or to advise is answered before any tool or model is involved (CHAT-01 K5-B).
             return _out_of_scope()
+
+        # The dates the user wrote are read by code (CHAT-08): the model is shown a period name in their place and never
+        # chooses a date (ANA-20); the range is put into the call below.
+        reading = read_dates(message, day.today) if day is not None else DateReading("none")
+        if reading.kind in ("invalid", "unreadable"):
+            return self._ask(ask_period("", {}, message, note=_note(reading), original=_without(message, reading.span)), [], token, deadline)
+        shown = with_span_replaced(message, reading.span, "bu ay") if reading.kind == "found" else message
+        context, carried = _mask_range(context)
+
         # Listed first: when the tools cannot answer, the single local model is not kept busy for nothing.
-        # The model chooses a named period only: dates are read by code, never by it (CHAT-08 K2-B).
-        tools = hide_dates(narrow(self.gateway.list_tools(token, deadline), route))
-        calls = self.selector.select(message, tools, deadline, context)
+        listed = narrow(self.gateway.list_tools(token, deadline), route)
+        calls = self.selector.select(shown, hide_dates(listed), deadline, context)
         if not calls:
+            if is_spending_question(message) and not mentions_period(shown):
+                # A spending question whose period is missing is not out of scope: it is asked (CHAT-08 K6-C).
+                return self._ask(ask_period("", {}, message, original=message), [], token, deadline)
             # The model's own text is never shown here: it might promise a transfer it cannot make (K5-A).
             return _out_of_scope()
         if len(calls) > 1:
@@ -203,15 +224,35 @@ class ChatService:
 
         # A date the model wrote although it was not shown the field is not the user's word.
         call = ToolCall(calls[0].tool, {k: v for k, v in calls[0].arguments.items() if k not in DATE_FIELDS})
-        schemas = {tool["function"]["name"]: tool["function"].get("parameters", {}) for tool in tools}
+        schemas = {tool["function"]["name"]: tool["function"].get("parameters", {}) for tool in listed}
         if call.tool not in schemas:
             return ChatReply("clarification", CLARIFY_TEXT, calls, [])
+        takes_dates = "from" in schemas[call.tool].get("properties", {})
+        if reading.kind == "found" and not takes_dates:
+            # Running it without the dates would answer for another period (K11-B).
+            return _date_unsupported()
 
         # A period or count the user did not say is the model's guess: asked back, the tool does not run (K1-C, K2-A).
-        grounding = check_arguments(call.arguments, schemas[call.tool], message, context.arguments if context else None)
+        grounding = check_arguments(call.arguments, schemas[call.tool], shown, context.arguments if context else None)
         if grounding.missing is not None:
             return self._ask(self._question_for(call, grounding.unsaid, schemas[call.tool], message), [], token, deadline)
-        return self._run(ToolCall(call.tool, grounding.arguments), message, token, deadline)
+        arguments = grounding.arguments
+        if reading.kind == "found":
+            arguments = {**arguments, "period": "Custom", "from": reading.start.isoformat(), "to": reading.end.isoformat()}
+        elif carried and takes_dates and arguments.get("period") == MASKED_PERIOD and not mentions_period(message):
+            # The follow-up kept the period it was shown ("bu ay"), so it means the range of the last call (CHAT-08 K7-A).
+            arguments = {**arguments, "period": "Custom", **carried}
+        return self._run(ToolCall(call.tool, arguments), message, token, deadline)
+
+    def _date_reply(self, waiting: Pending, message: str, day: CustomerDay | None, token: str, deadline: float) -> ChatReply | None:
+        """The question asked again when the reply to a period question is a date that cannot be used; None otherwise."""
+        if waiting.kind != "period" or day is None:
+            return None
+        reading = read_dates(message, day.today)
+        if reading.kind in ("invalid", "unreadable") and _is_reply(message, reading):
+            pending = ask_period(waiting.tool, waiting.arguments, waiting.question, note=_note(reading))
+            return self._ask(pending, [], token, deadline)
+        return None
 
     def _run(self, call: ToolCall, question: str, token: str, deadline: float) -> ChatReply:
         try:
@@ -231,6 +272,9 @@ class ChatService:
             return ChatReply(kind, text, used, outcome.facts)
 
         answer = self.explainer.explain(question, outcome.facts, deadline=deadline)
+        # After the answer check, by code: the user sees which days were meant, whatever the model wrote (CHAT-08 K16-A).
+        if (line := period_line(call.arguments)) is not None:
+            answer = f"{line}\n\n{answer}"
         # Kept only after an explained answer: the call, never its figures (CHAT-02 K2-A).
         self.history.remember(token, LastCall(call.tool, call.arguments, question))
         # Only under an explained answer (K6-B): under a question asked back they would lead away from it.
@@ -266,6 +310,69 @@ class ChatService:
                 logger.info("No model question (%s); the fixed question is used", type(error).__name__)
         self.waiting.put(token, pending)
         return ChatReply("clarification", text, used, [])
+
+
+# The period a follow-up is shown instead of the last call's date range (CHAT-08 K7-A): a name the model was measured with.
+MASKED_PERIOD = "ThisMonth"
+
+DATE_UNSUPPORTED_TEXT = ("Bu soruyu belirli bir tarih ya da tarih aralığı için cevaplayamıyorum. Belirli tarihler için toplam harcamanıza, "
+                         "kategorilere, işyerlerine ve en büyük harcamalarınıza bakabilirim; diğer sorularda bu ay, geçen ay gibi "
+                         "dönemleri kullanabilirsiniz.")
+
+
+def _date_unsupported() -> ChatReply:
+    # Fixed text and the same questions every customer gets an answer to (K11-B); no tool ran, so no figure is in it.
+    return ChatReply("outOfScope", DATE_UNSUPPORTED_TEXT, [], [], list(OUT_OF_SCOPE_SUGGESTIONS))
+
+
+def _note(reading: DateReading) -> str:
+    return reading.reason if reading.kind == "invalid" else "Tarihi anlayamadım."
+
+
+def _without(message: str, span: tuple[int, int] | None) -> str:
+    """The question without its date words, to which the reply to "which period?" is added; a message that was only a date asks
+    about spending."""
+    rest = " ".join((with_span_replaced(message, span, "") if span else message).split())
+    return rest or "Ne kadar harcadım?"
+
+
+def _is_reply(message: str, reading: DateReading) -> bool:
+    # A reply is the date and at most a word or two ("1-5 Eylül olsun"); a longer message is a question of its own.
+    return len(with_span_replaced(message, reading.span, "").split()) <= 2
+
+
+def _period_phrase(waiting: Pending, message: str, day: CustomerDay | None) -> str | None:
+    """The reply to a period asked before any tool, as words to add to the question; None when it is not an answer."""
+    if day is not None:
+        reading = read_dates(message, day.today)
+        if reading.kind != "none" and _is_reply(message, reading):
+            return message.strip()
+    arguments = resolve(waiting, message)
+    if arguments is None:
+        return None
+    # A number stands for the option it numbers; a typed period is its own words.
+    label = next((option.label for option in waiting.options if option.value == arguments[waiting.argument]), None)
+    return label or message.strip()
+
+
+def _date_arguments(waiting: Pending, message: str, day: CustomerDay | None) -> dict | None:
+    """The completed call when a date is the reply to a period question of a chosen tool; None for any other reply."""
+    if waiting.kind != "period" or day is None:
+        return None
+    reading = read_dates(message, day.today)
+    if reading.kind != "found" or not _is_reply(message, reading):
+        return None
+    return {**waiting.arguments, "period": "Custom", "from": reading.start.isoformat(), "to": reading.end.isoformat()}
+
+
+def _mask_range(context: LastCall | None) -> tuple[LastCall | None, dict | None]:
+    """The last call as the model is shown it, and the range to restore. A range is shown as a named period: the model never
+    sees a date, and can only keep it ("Peki işyerlerine göre?") or replace it by a period the user names."""
+    if context is None or context.arguments.get("period") != "Custom":
+        return context, None
+    carried = {k: context.arguments[k] for k in DATE_FIELDS if k in context.arguments}
+    shown = {k: v for k, v in context.arguments.items() if k not in DATE_FIELDS}
+    return LastCall(context.tool, {**shown, "period": MASKED_PERIOD}, context.question), carried
 
 
 def _out_of_scope() -> ChatReply:

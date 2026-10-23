@@ -53,6 +53,10 @@ class Pending:
     minimum: int | None = None
     maximum: int | None = None
     later: tuple[str, ...] = ()
+    # CHAT-08: a question with no tool yet has ``tool == ""`` and keeps the user's question without its date words in
+    # ``original``; the reply is added to it and the whole is a new question (K12-C). ``note`` says why a date was refused.
+    original: str = ""
+    note: str = ""
 
     @property
     def numbered(self) -> bool:
@@ -62,13 +66,14 @@ class Pending:
     @property
     def model_worded(self) -> bool:
         """True when the model may word the question (CHAT-03 K4-B); a figure question is always the fixed text."""
-        return self.kind in ("period", "count", "merchant")
+        return self.kind in ("period", "count", "merchant") and not self.note
 
 
-def ask_period(tool: str, arguments: dict, question: str) -> Pending:
-    """The question for a period the user did not name."""
+def ask_period(tool: str, arguments: dict, question: str, note: str = "", original: str = "") -> Pending:
+    """The question for a period the user did not name; ``note`` is the reason a date they wrote was refused (CHAT-08 K5-B)."""
     rest = {k: v for k, v in arguments.items() if k != "period"}
-    return Pending(tool, rest, "period", "period", tuple(Option(label, value) for label, value in PERIOD_OPTIONS), question)
+    return Pending(tool, rest, "period", "period", tuple(Option(label, value) for label, value in PERIOD_OPTIONS), question,
+                   original=original, note=note)
 
 
 def ask_count(tool: str, arguments: dict, argument: str, minimum: int, maximum: int, question: str) -> Pending:
@@ -135,7 +140,7 @@ def template(pending: Pending) -> str:
         return f"‘{pending.asked}’ birden fazla işyeriyle eşleşti: {choices}. Hangisini kastettiniz?"
     if pending.kind == "currency":
         return f"Bütçeniz hangi para biriminde? {choices}"
-    return f"Hangi dönem için? {choices}"
+    return f"{pending.note + ' ' if pending.note else ''}Hangi dönem için? {choices}"
 
 
 def check_question(text: str, pending: Pending) -> bool:
