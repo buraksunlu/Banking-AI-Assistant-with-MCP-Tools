@@ -82,10 +82,17 @@ _ONE_MONTH_RANGE = re.compile(
 _ONE_DAY = re.compile(_day("1") + rf"\s+(?P<m>{_MONTH}){_ENDING}{_AY}" + _year(""))
 _WHOLE_MONTH = re.compile(rf"(?<![a-z0-9])(?P<m>{_MONTH}){_ENDING}{_AY}" + _year(""))
 
+# A part of a month ("Eylül'ün ilk haftası", "Ekim sonu") is not the month: it goes to the second step, never to the whole month.
+_MONTH_PART = re.compile(
+    rf"(?<![a-z0-9])(?:{_MONTH})['’]?[a-z]*\s+(?:(?:ilk|son)\s+hafta[a-z]*|(?:basi|sonu|ortasi)[a-z]*)")
+
+# The weekday names the second step's calendar is written with (date.weekday(): Monday is 0).
+WEEKDAYS = ("Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar")
+
 # Looks like a date, is not a pattern above: weekdays, "N days ago", "last year", holidays, slash and short forms.
 _UNREADABLE = re.compile(
     r"(?<![a-z])(?:gecen\s+)?(?:pazartesi|sali|carsamba|persembe|cumartesi|cuma|pazar)(?:ya|ye|yi|da|de|dan|den|si)?(?![a-z])"
-    r"|(?<![a-z])(?:evvelsi|yilbasi|bayram[a-z]*|hafta\s*sonu[a-z]*|gecen\s+(?:yil|sene)|"
+    r"|(?<![a-z])(?:evvelsi|yilbasi[a-z]*(?:\s+beri)?|bayram[a-z]*|hafta\s*sonu[a-z]*|gecen\s+(?:yil|sene)|"
     r"\d+\s*(?:gun|hafta|ay|yil|sene)\s+once)(?![a-z])"
     r"|(?<![\d.,/])\d{1,2}/\d{1,2}(?:/\d{2,4})?(?![\d/])"
     r"|(?<![\d.,])\d{1,2}\.\d{1,2}\.\d{2}(?!\d)")
@@ -94,6 +101,9 @@ _UNREADABLE = re.compile(
 def read_dates(message: str, today: date) -> DateReading:
     """The dates ``message`` writes, relative to the customer's ``today``; see the module description for the four kinds."""
     text = fold_turkish(message).translate(_ASCII)
+    part = _MONTH_PART.search(text)
+    if part:
+        return DateReading("unreadable", span=part.span())
     for pattern, build in ((_NUMERIC_RANGE, _numeric_range), (_NUMERIC_DAY, _numeric_day), (_TWO_MONTHS, _two_months),
                            (_ONE_MONTH_RANGE, _one_month_range), (_ONE_DAY, _one_day), (_WHOLE_MONTH, _whole_month)):
         match = pattern.search(text)
@@ -101,6 +111,18 @@ def read_dates(message: str, today: date) -> DateReading:
             return replace(build(match.groupdict(), today), span=match.span())
     unreadable = _UNREADABLE.search(text)
     return DateReading("unreadable", span=unreadable.span()) if unreadable else _NONE
+
+
+def check_range(start: str, end: str, today: date) -> DateReading:
+    """A range written as two ``YYYY-MM-DD`` texts (what the second step's model answers) under the rules of a range the user
+    wrote: real days, start not after end, not in the future, at most 24 months; "found" or "invalid" with a reason."""
+    try:
+        days = [date.fromisoformat(text) for text in (start, end) if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text)]
+    except ValueError:
+        return _invalid("Bu tarih geçerli bir gün değil.")
+    if len(days) != 2:
+        return _invalid("Bu tarih geçerli bir gün değil.")
+    return _checked(days[0], days[1], today)
 
 
 def period_line(arguments: dict) -> str | None:
