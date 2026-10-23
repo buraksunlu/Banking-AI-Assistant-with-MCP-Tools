@@ -17,7 +17,7 @@ user's token only goes to the MCP server (and, as a digest, keys the waiting que
 import json
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Protocol
 
 from langchain_ollama import ChatOllama
@@ -29,9 +29,9 @@ from conversation import ConversationStore, LastCall, is_follow_up
 from explainer import stream_message
 from facts import outcome_for
 from ollama_client import OllamaError, OllamaSettings
-from prompts import (CLARIFY_TEXT, INTENT_SCHEMA, OUT_OF_SCOPE_TEXT, build_clarify_messages, build_intent_messages,
-                     build_tool_messages)
-from dates import CustomerDay, DateReading, period_line, read_dates, with_span_replaced
+from prompts import (CLARIFY_TEXT, DATE_SCHEMA, INTENT_SCHEMA, OUT_OF_SCOPE_TEXT, build_clarify_messages, build_date_messages,
+                     build_intent_messages, build_tool_messages)
+from dates import CustomerDay, DateReading, check_range, period_line, read_dates, with_span_replaced
 from grounding import check_arguments, mentions_period
 from routing import DATE_FIELDS, Router, hide_dates, is_spending_question, narrow
 from suggestions import OUT_OF_SCOPE_SUGGESTIONS, OfferedStore, follow_ups, match
@@ -75,6 +75,10 @@ MAX_QUESTION_TOKENS = 120
 QUESTION_SECONDS = 8.0
 # {"intent": "payments"} is about 10 tokens; the cap keeps a model that starts writing prose from using the turn.
 MAX_INTENT_TOKENS = 30
+# {"understood": true, "from": "2026-10-06", "to": "2026-10-06"} is about 35 tokens.
+MAX_DATE_TOKENS = 60
+# The second step for a date is a nicety too: a slow model means the period is asked instead.
+DATE_SECONDS = 5.0
 
 
 class ClarificationWriter(Protocol):
@@ -140,12 +144,45 @@ class LangChainIntentClassifier:
         return intent if isinstance(intent, str) else None
 
 
+class LangChainDateInterpreter:
+    """The second step for a date expression code could not read (CHAT-08 K1-C): the model gives a range, code checks it."""
+
+    def __init__(self, settings: OllamaSettings):
+        self.settings = settings
+        self.llm = ChatOllama(
+            model=settings.model, base_url=settings.base_url, reasoning=False, temperature=0, keep_alive=settings.keep_alive,
+            num_predict=MAX_DATE_TOKENS, format=DATE_SCHEMA, client_kwargs={"timeout": settings.timeout_seconds},
+        )
+        self.clock = time.monotonic
+
+    def interpret(self, expression: str, day: CustomerDay, deadline: float) -> DateReading | None:
+        """The checked range ("found", or "invalid" with a reason); None when the model did not understand or did not follow the shape."""
+        text = str(stream_message(self.llm, build_date_messages(expression, day), deadline, self.clock, self.settings).content)
+        try:
+            answer = json.loads(text)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(answer, dict) or answer.get("understood") is not True:
+            return None
+        start, end = answer.get("from"), answer.get("to")
+        if not isinstance(start, str) or not isinstance(end, str):
+            return None
+        return check_range(start, end, day.today)
+
+
+class DateInterpreter(Protocol):
+    """Turns a date expression into a checked range for the customer's day."""
+
+    def interpret(self, expression: str, day: CustomerDay, deadline: float) -> DateReading | None: ...
+
+
 class ChatService:
     """Runs one chat turn."""
 
     def __init__(self, selector: ToolSelector, gateway: ToolGateway, explainer, settings: OllamaSettings,
                  writer: ClarificationWriter | None = None, waiting: PendingStore | None = None,
-                 history: ConversationStore | None = None, router: Router | None = None, offered: OfferedStore | None = None):
+                 history: ConversationStore | None = None, router: Router | None = None, offered: OfferedStore | None = None,
+                 interpreter: DateInterpreter | None = None):
         self.selector, self.gateway, self.explainer, self.settings = selector, gateway, explainer, settings
         # Without a classifier the router uses its rules and the spending group (tests; CHAT-01 K3-A).
         self.router = router or Router()
@@ -154,6 +191,8 @@ class ChatService:
         self.waiting = waiting or PendingStore()
         self.history = history or ConversationStore()
         self.offered = offered or OfferedStore()
+        # Without one a date code cannot read is asked back (tests, and the fallback of K1-C).
+        self.interpreter = interpreter
         self.clock = time.monotonic
 
     def answer(self, message: str, token: str, day: CustomerDay | None = None) -> ChatReply:
@@ -174,10 +213,15 @@ class ChatService:
             if phrase is not None:
                 message, completed = f"{waiting.original} ({phrase})", True
         elif waiting is not None:
-            asked_again = self._date_reply(waiting, message, day, token, deadline)
-            if asked_again is not None:
-                return asked_again
-            arguments = _date_arguments(waiting, message, day) or resolve(waiting, message)
+            if waiting.kind == "period" and day is not None:
+                reading = self._read(message, day, deadline)
+                if reading.kind in ("invalid", "unreadable") and _is_reply(message, reading):
+                    pending = ask_period(waiting.tool, waiting.arguments, waiting.question, note=_note(reading))
+                    return self._ask(pending, [], token, deadline)
+                date_arguments = _date_arguments(waiting, message, reading)
+            else:
+                date_arguments = None
+            arguments = date_arguments or resolve(waiting, message)
             if arguments is not None:
                 question = f"{waiting.question} ({message})"
                 # "3000" answered the amount; the currency the model guessed as well is asked next, not run.
@@ -203,7 +247,7 @@ class ChatService:
 
         # The dates the user wrote are read by code (CHAT-08): the model is shown a period name in their place and never
         # chooses a date (ANA-20); the range is put into the call below.
-        reading = read_dates(message, day.today) if day is not None else DateReading("none")
+        reading = self._read(message, day, deadline) if day is not None else DateReading("none")
         if reading.kind in ("invalid", "unreadable"):
             return self._ask(ask_period("", {}, message, note=_note(reading), original=_without(message, reading.span)), [], token, deadline)
         shown = with_span_replaced(message, reading.span, "bu ay") if reading.kind == "found" else message
@@ -244,15 +288,17 @@ class ChatService:
             arguments = {**arguments, "period": "Custom", **carried}
         return self._run(ToolCall(call.tool, arguments), message, token, deadline)
 
-    def _date_reply(self, waiting: Pending, message: str, day: CustomerDay | None, token: str, deadline: float) -> ChatReply | None:
-        """The question asked again when the reply to a period question is a date that cannot be used; None otherwise."""
-        if waiting.kind != "period" or day is None:
-            return None
+    def _read(self, message: str, day: CustomerDay, deadline: float) -> DateReading:
+        """The dates in ``message``: by code, and for an expression code cannot read the model's range, checked by code again."""
         reading = read_dates(message, day.today)
-        if reading.kind in ("invalid", "unreadable") and _is_reply(message, reading):
-            pending = ask_period(waiting.tool, waiting.arguments, waiting.question, note=_note(reading))
-            return self._ask(pending, [], token, deadline)
-        return None
+        if reading.kind != "unreadable" or self.interpreter is None:
+            return reading
+        try:
+            interpreted = self.interpreter.interpret(message[slice(*reading.span)], day, min(deadline, self.clock() + DATE_SECONDS))
+        except OllamaError as error:
+            logger.info("No model reading of a date (%s); the period is asked", type(error).__name__)
+            return reading
+        return reading if interpreted is None else replace(interpreted, span=reading.span)
 
     def _run(self, call: ToolCall, question: str, token: str, deadline: float) -> ChatReply:
         try:
@@ -355,11 +401,8 @@ def _period_phrase(waiting: Pending, message: str, day: CustomerDay | None) -> s
     return label or message.strip()
 
 
-def _date_arguments(waiting: Pending, message: str, day: CustomerDay | None) -> dict | None:
+def _date_arguments(waiting: Pending, message: str, reading: DateReading) -> dict | None:
     """The completed call when a date is the reply to a period question of a chosen tool; None for any other reply."""
-    if waiting.kind != "period" or day is None:
-        return None
-    reading = read_dates(message, day.today)
     if reading.kind != "found" or not _is_reply(message, reading):
         return None
     return {**waiting.arguments, "period": "Custom", "from": reading.start.isoformat(), "to": reading.end.isoformat()}

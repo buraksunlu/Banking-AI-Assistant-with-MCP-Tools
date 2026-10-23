@@ -555,6 +555,25 @@ Yıl yazılmadıysa en yakın geçmiş yıl (K4-A: 10 Ekim 2026'da "1 Eylül" = 
 
 Sorulan dönem **araçsız** da bekleyebilir (K12-C, `Pending.tool == ""`): geçersiz/okunamayan tarih ya da araç seçilemeyen harcama sorusu ("Ne harcadım?", `routing.is_spending_question`) için soru, tarih sözcükleri çıkarılmış hâliyle saklanır; cevap ("geçen ay", "2", "1-5 Eylül") ona eklenir ve bütün mesaj yeni soru gibi normal yoldan geçer. Araç seçilmiş ama dönemi eksik sorulara tarih de cevap olabilir. Takipte (K7-A) son çağrının aralığı modele "bu ay" diye gösterilir; model onu aynen bırakır ve kullanıcı dönem söylemediyse kod aralığı geri koyar, "Peki geçen ay?" kendi dönemini, "Peki 6-10 Eylül?" yeni aralığı alır; sunulan öneriler aynı aralıkla çalışır. `answer_eval` A16–A18 (Murat: 1-5 Eylül 5.116,50 TL, 6-10 Eylül 3.759,90 TL, Eylül 53.388,39 TL).
 
+### İkinci adım: göreli tarihler (CHAT-08 PR3, 23 Ekim 2026)
+
+Kodun okuyamadığı ama tarihe benzeyen ifade ("geçen salı", "3 gün önce", "evvelsi gün", "geçen hafta sonu", "geçen yıl", "yılbaşından beri",
+"Eylül'ün ilk haftası", "Ekim sonu") `unreadable` olur ve `LangChainDateInterpreter`'a gider (araç seçiciden ayrı, küçük bir adım; CHAT-01
+sınıflayıcısı gibi: JSON şemasına bağlı `{understood, from, to}`, en çok 60 token, ≤ 5 sn). Modele **yalnız ifadenin kendisi** gider (mesajın
+geri kalanı değil) ve kodun hazırladığı takvim: bugün + haftanın günü + yıl, her haftanın gününün bugünden önceki en son tarihi
+("geçen salı: 2026-10-06" biçiminde, kullanıcının sözleriyle) ve son 14 gün. Gün adı hesabı model işi değil, tablodan bakmadır.
+Modelin cevabı `dates.check_range` ile gerçek gün, başlangıç ≤ bitiş, gelecek değil, ≤ 24 ay diye denetlenir; denetimi geçerse sohbet kodun
+okuduğu bir tarihle aynı yoldan gider (model "bu ay" görür, çağrı `Custom` olur, cevabın başında `Dönem: 6 Ekim 2026.`); geçmezse
+nedeni söylenir, anlaşılmadıysa ("bayramda", "o zamanlar") ya da model kapalıysa/yavaşsa "Tarihi anlayamadım." + dönem sorusu. Ayın bir
+parçası ("Eylül'ün ilk haftası", "Ekim sonu") bütün ay diye okunmaz, buraya gelir. Dönem sorusuna verilen cevap da ("geçen salı") aynı
+yoldan okunur.
+
+Ölçüm `ai/.venv/bin/python ai/model_check/date_eval.py [--pause 1]` (10 vaka, bugün 10 Ekim 2026 Cumartesi, elle hesaplanmış aralıklar; iki
+ifade anlaşılmamalı). Eşik 9/10. Prompt sürümleri: `date-v1` **2/10** (model "anlaşılmadı"ya sığındı), `date-v2` 8/10 (gün adlarında bir
+gün kayma), `date-v3` 9/10 ("geçen salı" hâlâ pazartesi), `date-v4` **10/10** (tablo kullanıcının sözleriyle). Canlı (Murat): "geçen salı" →
+6 Ekim 3.290,50 TL, "3 gün önce" → 7 Ekim 449,90 TL, "Eylül'ün ilk haftasında" → 1-7 Eylül 5.566,40 TL (SQL ile aynı). Bilinen sınır:
+"geçen salı" bugünden önceki en son salıdır (bu hafta içindeki salı dahil).
+
 ## Kararlar (hepsi kullanıcı kararı, 19 Ekim 2026)
 
 K1-A `POST /api/assistant/messages` · K2-A .NET'in kendi DTO'su (`type` tam adla, `answer`, `toolCalls`, `facts`; `model`

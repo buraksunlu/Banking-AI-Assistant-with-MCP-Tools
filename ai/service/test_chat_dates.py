@@ -9,7 +9,8 @@ from decimal import Decimal
 
 from chat import ChatReply, ToolCall
 from clarification import PERIOD_OPTIONS
-from dates import CustomerDay
+from dates import CustomerDay, DateReading, check_range
+from ollama_client import OllamaUnavailable
 from prompts import OUT_OF_SCOPE_TEXT
 from suggestions import OUT_OF_SCOPE_SUGGESTIONS
 from test_chat import ANSWER, THIS_MONTH_SUMMARY, TOKEN, YESTERDAY, YESTERDAY_CATEGORIES, FakeGateway, service
@@ -141,7 +142,7 @@ def test_a_date_in_the_future_is_asked_back():
     assert reply.type == "clarification" and "henüz gelmedi" in reply.answer and selector.calls == []
 
 
-def test_a_date_code_cannot_read_is_asked_back_until_the_second_step_exists():
+def test_a_date_code_cannot_read_is_asked_back_when_there_is_no_second_step():
     chat, selector, _, _ = dated()
 
     reply = chat.answer("Geçen salı ne harcadım?", TOKEN, DAY)
@@ -294,3 +295,93 @@ def test_an_offered_follow_up_keeps_the_range():
     assert len(selector.calls) == 1
     assert gateway.calls[1][:2] == ("get_category_breakdown", FIRST_FIVE_DAYS)
     assert reply.answer.startswith("Dönem: 1-5 Eylül 2026.")
+
+
+# --- The second step (PR3, K1-C, K3-D1) -----------------------------------------------------------------------------------------
+
+class FakeInterpreter:
+    def __init__(self, result=None, error=None):
+        self.result, self.error, self.calls = result, error, []
+
+    def interpret(self, expression, day, deadline):
+        self.calls.append((expression, day))
+        if self.error:
+            raise self.error
+        return self.result
+
+
+LAST_TUESDAY = check_range("2026-10-06", "2026-10-06", DAY.today)
+
+
+def with_interpreter(interpreter, **options):
+    chat, selector, gateway, explainer = dated(**options)
+    chat.interpreter = interpreter
+    return chat, selector, gateway, explainer, interpreter
+
+
+def test_a_date_the_model_reads_is_run_like_one_code_read():
+    chat, selector, gateway, _, interpreter = with_interpreter(FakeInterpreter(LAST_TUESDAY), results=YESTERDAY)
+
+    reply = chat.answer("Geçen salı ne harcadım?", TOKEN, DAY)
+
+    assert interpreter.calls == [("Geçen salı", DAY)]
+    # Only the words of the date go to the second step, and the first model sees a period name, as for any date.
+    assert selector.calls[0][0] == "bu ay ne harcadım?"
+    assert gateway.calls[0][1] == {"period": "Custom", "from": "2026-10-06", "to": "2026-10-06"}
+    # The user sees which day it was taken to be (K16-A).
+    assert reply.answer.startswith("Dönem: 6 Ekim 2026.\n\n")
+
+
+def test_an_expression_the_model_does_not_understand_is_asked_back():
+    chat, selector, gateway, _, interpreter = with_interpreter(FakeInterpreter(None))
+
+    reply = chat.answer("Bayramda ne harcadım?", TOKEN, DAY)
+
+    assert (reply.type, selector.calls, gateway.calls) == ("clarification", [], [])
+    assert reply.answer.startswith("Tarihi anlayamadım.")
+
+
+def test_a_range_the_checks_refuse_is_asked_back_with_the_reason():
+    future = check_range("2026-10-11", "2026-10-11", DAY.today)
+    chat, selector, gateway, _, _ = with_interpreter(FakeInterpreter(future))
+
+    reply = chat.answer("Geçen salı ne harcadım?", TOKEN, DAY)
+
+    assert reply.type == "clarification" and "henüz gelmedi" in reply.answer and gateway.calls == []
+
+
+def test_a_model_that_is_down_means_the_period_is_asked():
+    chat, _, gateway, _, _ = with_interpreter(FakeInterpreter(error=OllamaUnavailable("down")))
+
+    reply = chat.answer("Geçen salı ne harcadım?", TOKEN, DAY)
+
+    assert reply.type == "clarification" and gateway.calls == []
+
+
+def test_the_second_step_is_not_asked_for_what_code_can_read_or_for_no_date():
+    chat, _, _, _, interpreter = with_interpreter(FakeInterpreter(LAST_TUESDAY), calls=[[THIS_MONTH], [THIS_MONTH]],
+                                                  results=[SEPTEMBER_FIRST_FIVE, THIS_MONTH_SUMMARY])
+
+    chat.answer("1-5 Eylül arası ne kadar harcadım?", TOKEN, DAY)
+    chat.answer("Bu ay ne kadar harcadım?", TOKEN, DAY)
+
+    assert interpreter.calls == []
+
+
+def test_a_relative_date_may_answer_the_question_about_a_missing_period():
+    chat, selector, gateway, _, interpreter = with_interpreter(FakeInterpreter(LAST_TUESDAY), results=YESTERDAY)
+    chat.answer("Ne kadar harcadım?", TOKEN, DAY)
+
+    reply = chat.answer("geçen salı", TOKEN, DAY)
+
+    assert len(selector.calls) == 1
+    assert gateway.calls[0][1] == {"period": "Custom", "from": "2026-10-06", "to": "2026-10-06"}
+    assert reply.answer.startswith("Dönem: 6 Ekim 2026.")
+
+
+def test_the_real_service_has_the_second_step():
+    from app import create_app
+    from chat import LangChainDateInterpreter
+    from test_app import ENV
+
+    assert isinstance(create_app(ENV).state.chat_service.interpreter, LangChainDateInterpreter)
