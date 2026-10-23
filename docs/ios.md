@@ -387,5 +387,7 @@ Doğrulama: 212 Swift Testing test durumu (önceki 185; +27: `CategoryBreakdownV
 hepsi yakalandı (dönem gitmez → 17 test, Sınıflandırılmamış gri değil, kenar sonraki dilime gider, dönem geri dönmez, geç cevap kabul edilir,
 dönem değişince seçim kalır, dokunuş seçimi bırakmaz, yüzde tek hane, yenileme hatası halkayı siler).
 
+Canlı kontrol (23 Ekim 2026, simülatör + gerçek API, Ada): kart, dört dönem, dilim seçimi ve koyu mod elle doğrulandı. Kart ilk sürümde "Son işlemler"in altındaydı ve görünmedi; selamlamanın hemen altına taşındı.
+
 Sınırlar: özel tarih aralığı yok (yalnız dört adlı dönem); dilime dokununca işlem listesi açılmaz (bağlantı için kategori filtresi doğrulanmalı);
 halka yalnız açılışta ve aşağı çekince yenilenir; aylık grafik PR2'dedir.

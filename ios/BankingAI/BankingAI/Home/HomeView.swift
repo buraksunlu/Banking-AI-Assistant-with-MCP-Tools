@@ -24,8 +24,6 @@ struct HomeView: View {
                     } else {
                         ProgressView()
                     }
-                    AccountsSection(model: accounts)
-                    RecentTransactionsSection(model: recent)
                     NavigationLink(value: AnalyticsRoute()) {
                         Label("Harcama analizi", systemImage: "chart.pie")
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -33,6 +31,8 @@ struct HomeView: View {
                             .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
                     }
                     .buttonStyle(.plain)
+                    AccountsSection(model: accounts)
+                    RecentTransactionsSection(model: recent)
                 }
                 .padding()
             }
