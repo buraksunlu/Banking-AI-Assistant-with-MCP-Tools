@@ -17,7 +17,7 @@ struct ChatView: View {
                             starters
                         }
                         ForEach(model.messages) { message in
-                            MessageBubble(message: message, canRetry: model.canSend) {
+                            MessageBubble(message: message, canRetry: model.canSend, list: model.transactions(for:)) {
                                 Task { await model.retry(message.id) }
                             }
                             .id(message.id)

@@ -5,6 +5,8 @@ import SwiftUI
 struct MessageBubble: View {
     let message: ChatMessage
     let canRetry: Bool
+    /// The list a link under this answer opens; built when the button is tapped (CHAT-07).
+    let list: (AssistantLink) -> TransactionHistoryViewModel
     let retry: () -> Void
 
     var body: some View {
@@ -18,6 +20,18 @@ struct MessageBubble: View {
                                 in: RoundedRectangle(cornerRadius: 18))
                     .foregroundStyle(message.role == .user ? Color.white : Color.primary)
                     .textSelection(.enabled)
+                // Under its own answer for good, unlike the suggestions: the list is the proof of this answer's figure.
+                ForEach(message.links, id: \.self) { link in
+                    // A link with its own destination, not a value: a value link pushed after the chat's own destination link
+                    // makes the unnamed stack pop straight back (found on the simulator, not by any unit test).
+                    NavigationLink {
+                        LinkedTransactionsView(link: link, model: list(link))
+                    } label: {
+                        Label(link.title, systemImage: "list.bullet.rectangle")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
                 status
             }
             if message.role == .assistant { Spacer(minLength: 48) }

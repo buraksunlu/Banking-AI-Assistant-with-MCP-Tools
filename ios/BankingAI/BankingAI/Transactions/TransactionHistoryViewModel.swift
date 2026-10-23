@@ -6,7 +6,7 @@ import Observation
 final class TransactionHistoryViewModel {
     static let pageSize = 20
     private(set) var items: [TransactionItem] = []
-    private(set) var filter: TransactionFilter = .allTime
+    private(set) var filter: TransactionFilter
     private(set) var totalCount = 0
     private(set) var hasMore = true
     private(set) var isLoading = false
@@ -18,14 +18,18 @@ final class TransactionHistoryViewModel {
     private(set) var loadedOnce = false
     @ObservationIgnored private var nextCursor: String?
     @ObservationIgnored private let accountID: UUID?
+    @ObservationIgnored private let criteria: TransactionCriteria
     @ObservationIgnored private let api: APIClient
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var pending: Task<TransactionSearchResult, Error>?
     @ObservationIgnored private var failedCursor: String?
 
-    init(api: APIClient, accountID: UUID? = nil) {
+    /// `filter` and `criteria` start the list on a chat link's search (CHAT-07); without them it is the whole history.
+    init(api: APIClient, accountID: UUID? = nil, filter: TransactionFilter = .allTime, criteria: TransactionCriteria = .none) {
         self.api = api
         self.accountID = accountID
+        self.filter = filter
+        self.criteria = criteria
     }
 
     /// True only after a successful empty response, never after an initial error.
@@ -82,7 +86,7 @@ final class TransactionHistoryViewModel {
         isLoading = true
         if applying { filterError = nil }
         else { errorMessage = nil }
-        let request = APIRequest<TransactionSearchResult>.history(accountID: accountID, filter: selection,
+        let request = APIRequest<TransactionSearchResult>.history(accountID: accountID, filter: selection, criteria: criteria,
                                                                   limit: Self.pageSize, cursor: cursor)
         let task = Task { try await api.send(request) }
         pending = task
