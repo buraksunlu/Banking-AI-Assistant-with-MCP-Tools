@@ -33,6 +33,10 @@ struct AccountRow: View {
                         .foregroundStyle(.tint)
                 }
             }
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+                .accessibilityHidden(true)
         }
         .padding()
         // The grouped pair: in dark mode plain `.background` is as black as the screen behind the cards.

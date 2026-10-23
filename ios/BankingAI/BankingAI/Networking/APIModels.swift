@@ -27,6 +27,7 @@ struct ProblemBody: Decodable {
     let title: String?
     let status: Int?
     let code: String?
+    let errors: [String: [String]]?
 }
 
 /// Body of `POST /api/assistant/messages`: only the user's text; the customer comes from the token.
