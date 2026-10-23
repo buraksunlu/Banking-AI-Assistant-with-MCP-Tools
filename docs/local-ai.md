@@ -538,6 +538,23 @@ bunu `dates.CustomerDay` olarak alır (PR1'de yalnız taşınır; tarih okuyan k
 `from`/`to` alanlarını ve `Custom` dönemini **görmez** (`routing.hide_dates`, tanımların kalanı ve açıklamalar aynen); modelin yine de
 yazdığı `from`/`to` çağrıdan düşer. Ölçüm betikleri (`tool_selection_eval`, `answer_eval`) gerçek sohbetle aynı listeyi/gövdeyi kullanır.
 
+## Tarihli sorular (CHAT-08 PR2, 23 Ekim 2026)
+
+`dates.read_dates(mesaj, bugün)` kullanıcının yazdığı tarihi **kodla**, modelsiz okur ve dört sonuçtan birini verir (`DateReading`):
+
+| Sonuç | Ne zaman | Sohbette ne olur |
+|---|---|---|
+| `found` | "1 Eylül", "1-5 Eylül", "1 Eylül - 5 Eylül", "1 Eylül ile 5 Eylül arası", "1 Eylül'den 5 Eylül'e kadar", "Eylül'de" / "Eylül ayında", isteğe bağlı yıl, tam `gg.aa.yyyy` (tek gün ya da aralık) | aşağıdaki akış |
+| `invalid` | "31 Şubat", gelecek, bitiş < başlangıç, 24 aydan uzun | neden söylenerek dönem sorulur (K5-B) |
+| `unreadable` | "geçen salı", "3 gün önce", "geçen yıl", "bayram", "03/09" | "Tarihi anlayamadım." + dönem sorusu; PR3'te yorumlayıcı model adımına gidecek (K1-C) |
+| `none` | tarih yok | eski akış |
+
+Yıl yazılmadıysa en yakın geçmiş yıl (K4-A: 10 Ekim 2026'da "1 Eylül" = 2026-09-01, "15 Kasım" = 2025-11-15, "28 Aralık - 3 Ocak" = 2025-12-28 … 2026-01-03); devam eden ay bugüne kadardır. Metin Türkçe harf katlanarak ve ASCII yazılışıyla ("eylul") aranır; konumlar mesajdaki konumlarla aynıdır.
+
+`found` akışı (`chat.py`): tarih sözcükleri mesajdan çıkarılıp yerine **"bu ay"** konur ve araç seçici yalnız bunu görür (K10-A: ölçülmüş kalıp bozulmaz, model tarih görmez); seçilen aracın dönemi `Custom` + `from`/`to` ile **kod** tarafından ezilir; açıklama kullanıcının kendi sorusuna yazılır; cevabın başına kodla `Dönem: 1-5 Eylül 2026.` satırı eklenir (K16-A, cevap kontrolünden sonra). Seçilen araçta `from` yoksa (karşılaştırma, aylık seri, ödemeler, bütçe, tasarruf) araç **çalışmaz**, sabit "belirli tarihle cevaplayamıyorum" cevabı gelir (K11-B).
+
+Sorulan dönem **araçsız** da bekleyebilir (K12-C, `Pending.tool == ""`): geçersiz/okunamayan tarih ya da araç seçilemeyen harcama sorusu ("Ne harcadım?", `routing.is_spending_question`) için soru, tarih sözcükleri çıkarılmış hâliyle saklanır; cevap ("geçen ay", "2", "1-5 Eylül") ona eklenir ve bütün mesaj yeni soru gibi normal yoldan geçer. Araç seçilmiş ama dönemi eksik sorulara tarih de cevap olabilir. Takipte (K7-A) son çağrının aralığı modele "bu ay" diye gösterilir; model onu aynen bırakır ve kullanıcı dönem söylemediyse kod aralığı geri koyar, "Peki geçen ay?" kendi dönemini, "Peki 6-10 Eylül?" yeni aralığı alır; sunulan öneriler aynı aralıkla çalışır. `answer_eval` A16–A18 (Murat: 1-5 Eylül 5.116,50 TL, 6-10 Eylül 3.759,90 TL, Eylül 53.388,39 TL).
+
 ## Kararlar (hepsi kullanıcı kararı, 19 Ekim 2026)
 
 K1-A `POST /api/assistant/messages` · K2-A .NET'in kendi DTO'su (`type` tam adla, `answer`, `toolCalls`, `facts`; `model`

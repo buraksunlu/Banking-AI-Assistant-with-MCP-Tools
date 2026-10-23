@@ -938,6 +938,11 @@ Her önemli geliştirme sonunda mevcut proje durumunu takip et.
 
 COMPLETED
 - bitmiş feature'lar
+- Belirli tarih ve aralık CHAT-08, PR2 kalıplar + akış (23 Ekim 2026, dal `chat-08-dates-read`; docs/local-ai.md "Tarihli sorular"):
+  `dates.read_dates` (modelsiz; tek gün, aralık, ay, tam `gg.aa.yyyy`; yıl yoksa en yakın geçmiş; geçersiz/okunamayan ayrı), araç seçici tarih
+  yerine "bu ay" görür (K10-A) ve dönem kodla `Custom` + tarihlerle ezilir, cevabın başına kodla `Dönem: …` satırı (K16-A), tarihsiz araçta
+  sabit cevap (K11-B), araçsız bekleyen dönem sorusu (K12-C) ve takipte aralığın korunması (K7-A). Testler: Python 747 modelsiz (+90).
+  Canlı (gerçek MCP + model, Murat): 1-5 Eylül 5.116,50 TL, 6-10 Eylül 3.759,90 TL, Eylül 53.388,39 TL.
 
 IN PROGRESS
 - üzerinde çalışılan feature

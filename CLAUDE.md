@@ -159,7 +159,7 @@ araç adı listede mi → `McpToolGateway.call` (argümanları MCP server şemay
 `conversation.ConversationStore`'da (10 dk; ortak `memory.TokenMemory`); `is_follow_up` (≤ 4 kelime ya da peki/ya…) mesajlar seçiciye
 bağlamla gider (`tool-selection-v2`), `check_arguments(…, previous)` son çağrıdan aynen geleni kabul eder, söylenmeyen işyeri son
 çağrınınki olur; bağlama ve açıklamaya yalnız son mesaj gider (zincirleşen soru modeli ve açıklamayı yanıltıyordu). Araç tanımı Python'da
-yok (MCP'den keşif); modelin listesinden `routing.hide_dates` beş dönem aracının `from`/`to`'sunu ve `Custom` dönemini çıkarır (tarihi model seçmez, CHAT-08). Bütün tur tek süre; token yalnız MCP başlığına gider (testte modele gitmediği doğrulanır). Uçtan uca deneme için
+yok (MCP'den keşif); modelin listesinden `routing.hide_dates` beş dönem aracının `from`/`to`'sunu ve `Custom` dönemini çıkarır (tarihi model seçmez, CHAT-08). Tarihi `dates.read_dates` kodla okur ("1-5 Eylül", "Eylül'de"; modelsiz): araç seçici tarih yerine "bu ay" görür, kod dönemi `Custom` + `from`/`to` ile ezer, cevabın başına `Dönem: …` satırı ekler; geçersiz/okunamayan tarih ve araç seçilemeyen harcama sorusu araçsız dönem sorusuna gider (`Pending.tool == ""`). Bütün tur tek süre; token yalnız MCP başlığına gider (testte modele gitmediği doğrulanır). Uçtan uca deneme için
 .NET API ve MCP server `BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z` ile açık olmalı. Tool seçimi ve açıklama aynı `explainer.stream_message`'ı kullanır.
 
 Önerilen sorular (CHAT-06, `ai/service/suggestions.py`): açıklanmış cevabın `suggestions`'ı sabit `follow_ups` tablosundan (araç → 2–3 öneri,
