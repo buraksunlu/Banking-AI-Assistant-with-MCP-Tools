@@ -37,6 +37,9 @@ struct HomeView: View {
             .navigationDestination(for: TransactionHistoryRoute.self) { _ in
                 TransactionHistoryView(model: history)
             }
+            .navigationDestination(for: TransactionItem.self) { item in
+                TransactionDetailView(item: item)
+            }
             // Stays in reach below a long account list.
             .safeAreaInset(edge: .bottom) {
                 NavigationLink {
@@ -56,5 +59,6 @@ struct HomeView: View {
             }
             .task { await model.load() }
         }
+        .environment(\.customerTimeZone, model.timeZone)
     }
 }

@@ -62,4 +62,20 @@ struct TransactionDisplay {
         guard parts.count == 3, (1...12).contains(parts[1]), (1...31).contains(parts[2]) else { return localDate }
         return "\(parts[2]) \(months[parts[1] - 1]) \(parts[0])"
     }
+
+    /// "13:05" in the customer's time zone from the API's UTC instant ("2026-10-06T09:00:00.123456+00:00"); nil when the
+    /// text is not a UTC instant. Read by hand: the microseconds defeat the standard ISO 8601 parsers on older iOS.
+    static func time(utc: String, in zone: TimeZone) -> String? {
+        guard utc.count >= 19, utc.hasSuffix("+00:00") || utc.hasSuffix("Z") else { return nil }
+        let reader = DateFormatter()
+        reader.locale = Locale(identifier: "en_US_POSIX")
+        reader.timeZone = TimeZone(secondsFromGMT: 0)
+        reader.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        guard let instant = reader.date(from: String(utc.prefix(19))) else { return nil }
+        let writer = DateFormatter()
+        writer.locale = Locale(identifier: "en_US_POSIX")
+        writer.timeZone = zone
+        writer.dateFormat = "HH:mm"
+        return writer.string(from: instant)
+    }
 }

@@ -178,11 +178,13 @@ enum TransactionDirection: String, Decodable {
     case credit = "Credit"
 }
 
-/// One transaction as every list of the API returns it (`TransactionItem`, docs/api.md). `occurredAtUtc` is not decoded:
-/// the screens show the backend's `localDate`, the day in the customer's own time zone (decision IOS-07 K5-A).
-struct TransactionItem: Decodable, Equatable, Identifiable {
+/// One transaction as every list of the API returns it (`TransactionItem`, docs/api.md). The rows show the backend's
+/// `localDate`, the day in the customer's own time zone (decision IOS-07 K5-A); `occurredAtUtc` is kept as text and only the
+/// detail screen turns it into a local time (IOS-06), because the API writes microseconds older iOS date parsers reject.
+struct TransactionItem: Decodable, Equatable, Hashable, Identifiable {
     let id: UUID
     let accountName: String
+    let occurredAtUtc: String
     /// The local day as the API writes it, "2026-10-08".
     let localDate: String
     let kind: TransactionKind

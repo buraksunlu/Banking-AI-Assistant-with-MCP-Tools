@@ -29,7 +29,7 @@ private func linkPage(cursor: String? = nil, total: Int = 4) -> String {
     let token = cursor.map { "\"\($0)\"" } ?? "null"
     return """
     {"period":{"startDate":"2026-10-01","endDate":"2026-10-10"},"totalCount":\(total),"hasMore":\(cursor != nil),"nextCursor":\(token),
-    "items":[{"id":"30000000-0000-0000-0000-000000000001","accountName":"Murat aile TRY","localDate":"2026-10-09","kind":"Purchase",
+    "items":[{"id":"30000000-0000-0000-0000-000000000001","accountName":"Murat aile TRY","occurredAtUtc":"2026-10-09T10:00:00.123456+00:00","localDate":"2026-10-09","kind":"Purchase",
     "direction":"Debit","amount":2658.50,"currencyCode":"TRY","merchant":"Akaryakıt İstasyonu","categoryCode":"FUEL",
     "categoryDisplayName":"Yakıt","rawDescription":"POS TEST","counterparty":null,"counterpartyIsOwnAccount":false}]}
     """

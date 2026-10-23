@@ -5,6 +5,8 @@ import Observation
 @Observable
 final class HomeViewModel {
     private(set) var greeting: String?
+    /// The customer's own IANA time zone from `GET /api/me`; the detail screen shows times in it.
+    private(set) var timeZone: TimeZone?
     private(set) var errorMessage: String?
     @ObservationIgnored private let api: APIClient
     @ObservationIgnored private let session: SessionStore
@@ -19,6 +21,7 @@ final class HomeViewModel {
         do {
             let me = try await api.send(.me)
             greeting = "Merhaba, \(me.firstName)!"
+            timeZone = TimeZone(identifier: me.timeZone)
         } catch let error as APIError {
             // A 401 has already signed out (APIClient); the login screen replaces this one, nothing to show here.
             if case .problem(status: 401, _, _, _) = error { return }
