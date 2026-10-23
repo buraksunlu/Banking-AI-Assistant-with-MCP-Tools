@@ -3,6 +3,8 @@ import Foundation
 /// The period sent to the API; named periods are resolved by the business clock, never the phone's clock.
 enum TransactionFilter: Equatable, Hashable {
     case allTime, thisMonth, lastMonth, last3Months, last6Months
+    /// Named only by chat links (CHAT-07); the filter panel offers `presets`.
+    case today, yesterday, thisWeek, lastWeek, last7Days, last30Days, thisYear
     case custom(from: String, to: String)
 
     static let presets: [TransactionFilter] = [.allTime, .thisMonth, .lastMonth, .last3Months, .last6Months]
@@ -15,6 +17,13 @@ enum TransactionFilter: Equatable, Hashable {
         case .lastMonth: "Geçen ay"
         case .last3Months: "Son 3 ay"
         case .last6Months: "Son 6 ay"
+        case .today: "Bugün"
+        case .yesterday: "Dün"
+        case .thisWeek: "Bu hafta"
+        case .lastWeek: "Geçen hafta"
+        case .last7Days: "Son 7 gün"
+        case .last30Days: "Son 30 gün"
+        case .thisYear: "Bu yıl"
         case .custom: "Özel tarih aralığı"
         }
     }
@@ -28,6 +37,13 @@ enum TransactionFilter: Equatable, Hashable {
         case .lastMonth: name = "LastMonth"
         case .last3Months: name = "Last3Months"
         case .last6Months: name = "Last6Months"
+        case .today: name = "Today"
+        case .yesterday: name = "Yesterday"
+        case .thisWeek: name = "ThisWeek"
+        case .lastWeek: name = "LastWeek"
+        case .last7Days: name = "Last7Days"
+        case .last30Days: name = "Last30Days"
+        case .thisYear: name = "ThisYear"
         case .custom(let from, let to):
             // The API takes a named period or both days, never both; a range is days only, without a period name.
             return [URLQueryItem(name: "from", value: from), URLQueryItem(name: "to", value: to)]

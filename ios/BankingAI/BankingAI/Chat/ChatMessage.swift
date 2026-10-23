@@ -22,12 +22,15 @@ struct ChatMessage: Identifiable, Equatable {
     let role: Role
     let text: String
     var state: State
+    /// The buttons that came with an assistant answer (CHAT-07). They stay with their answer: they are its evidence.
+    let links: [AssistantLink]
 
-    init(role: Role, text: String, state: State = .sent, id: UUID = UUID()) {
+    init(role: Role, text: String, state: State = .sent, links: [AssistantLink] = [], id: UUID = UUID()) {
         self.id = id
         self.role = role
         self.text = text
         self.state = state
+        self.links = links
     }
 
     /// The text as shown: inline Markdown (bold, italic, links) applied (decision AI-08 K8-A).

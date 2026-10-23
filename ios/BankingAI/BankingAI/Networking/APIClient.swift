@@ -55,9 +55,11 @@ extension APIRequest where Response == TransactionSearchResult {
         history(accountID: nil, filter: .allTime, limit: limit, cursor: cursor)
     }
 
-    /// The same paging contract for one account's statement and the customer's whole history.
-    static func history(accountID: UUID?, filter: TransactionFilter, limit: Int, cursor: String? = nil) -> APIRequest<TransactionSearchResult> {
-        var query = filter.query + [URLQueryItem(name: "limit", value: String(limit))]
+    /// The same paging contract for one account's statement and the customer's whole history. `criteria` narrows the
+    /// customer's search further when a chat link opens it (CHAT-07); the period's fields come first, then the criteria's.
+    static func history(accountID: UUID?, filter: TransactionFilter, criteria: TransactionCriteria = .none, limit: Int,
+                        cursor: String? = nil) -> APIRequest<TransactionSearchResult> {
+        var query = filter.query + criteria.query + [URLQueryItem(name: "limit", value: String(limit))]
         if let cursor {
             query.append(URLQueryItem(name: "cursor", value: cursor))
         }

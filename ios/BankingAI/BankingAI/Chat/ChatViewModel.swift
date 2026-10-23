@@ -114,8 +114,13 @@ final class ChatViewModel {
 
     private func received(_ reply: AssistantReply, for id: UUID) {
         setState(.sent, for: id)
-        messages.append(ChatMessage(role: .assistant, text: reply.answer))
+        messages.append(ChatMessage(role: .assistant, text: reply.answer, links: reply.links))
         suggestions = reply.suggestions
+    }
+
+    /// The list a link under an answer opens: the same paged search, narrowed the way the backend wrote it (CHAT-07).
+    func transactions(for link: AssistantLink) -> TransactionHistoryViewModel {
+        TransactionHistoryViewModel(api: api, filter: link.filter, criteria: link.criteria)
     }
 
     private func failed(_ error: APIError, for id: UUID) {

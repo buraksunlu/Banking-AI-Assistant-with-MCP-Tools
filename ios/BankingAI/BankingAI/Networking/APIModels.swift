@@ -44,11 +44,96 @@ enum AssistantReplyType: String, Decodable {
 
 /// Reply of `POST /api/assistant/messages`. The API also sends the tools and figures used; the app does not show them yet
 /// (IOS-11, decision AI-08 K13-A), so they are not decoded. `suggestions` are the questions to offer under the answer
-/// (CHAT-06); required, so a reply without them is a contract mismatch rather than "none" (K6-A).
+/// (CHAT-06); required, so a reply without them is a contract mismatch rather than "none" (K6-A). `links` are the buttons
+/// under the answer (CHAT-07): required as a list too, but one link this app cannot read is dropped, not the whole answer
+/// (CHAT-07 K5-A), so an older app still shows what a newer API answers.
 struct AssistantReply: Decodable, Equatable {
     let type: AssistantReplyType
     let answer: String
     let suggestions: [String]
+    let links: [AssistantLink]
+
+    private enum Keys: String, CodingKey { case type, answer, suggestions, links }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: Keys.self)
+        type = try values.decode(AssistantReplyType.self, forKey: .type)
+        answer = try values.decode(String.self, forKey: .answer)
+        suggestions = try values.decode([String].self, forKey: .suggestions)
+        links = try values.decode([Skippable<AssistantLink>].self, forKey: .links).compactMap(\.value)
+    }
+}
+
+/// An element that may fail to decode without failing the list around it.
+private struct Skippable<Value: Decodable>: Decodable {
+    let value: Value?
+
+    init(from decoder: Decoder) throws {
+        value = try? Value(from: decoder)
+    }
+}
+
+/// The period a chat link names: the API's period names, `custom` carrying two days (docs/api.md, CHAT-07).
+enum LinkPeriod: String, Decodable {
+    case today = "Today", yesterday = "Yesterday", thisWeek = "ThisWeek", lastWeek = "LastWeek"
+    case last7Days = "Last7Days", last30Days = "Last30Days", thisMonth = "ThisMonth", lastMonth = "LastMonth"
+    case last3Months = "Last3Months", last6Months = "Last6Months", thisYear = "ThisYear", custom = "Custom"
+}
+
+/// The transaction search a link opens, as the backend wrote it.
+struct LinkQuery: Decodable, Hashable {
+    let period: LinkPeriod
+    let from: String?
+    let to: String?
+    let kind: TransactionKind
+    let accountType: AccountType
+    let categoryCode: String?
+    let merchant: String?
+
+    /// The filter the search runs with; nil when the days do not fit the period (a range needs two real days, a named
+    /// period takes none), so a link the phone would misread is never followed.
+    var filter: TransactionFilter? {
+        if period == .custom {
+            guard let from, let to, TransactionFilter.date(from) != nil, TransactionFilter.date(to) != nil else { return nil }
+            return .custom(from: from, to: to)
+        }
+        guard from == nil, to == nil else { return nil }
+        return switch period {
+        case .today: .today
+        case .yesterday: .yesterday
+        case .thisWeek: .thisWeek
+        case .lastWeek: .lastWeek
+        case .last7Days: .last7Days
+        case .last30Days: .last30Days
+        case .thisMonth: .thisMonth
+        case .lastMonth: .lastMonth
+        case .last3Months: .last3Months
+        case .last6Months: .last6Months
+        case .thisYear: .thisYear
+        case .custom: nil
+        }
+    }
+}
+
+/// A button under a chat answer: the title and the list it opens (CHAT-07). Built by the backend from the answer's checked
+/// tool call; the phone only asks the search the link names.
+struct AssistantLink: Decodable, Hashable {
+    let title: String
+    let query: LinkQuery
+    /// `query`'s period as the filter the list runs with, checked once when the link is read.
+    let filter: TransactionFilter
+
+    private enum Keys: String, CodingKey { case title, query }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: Keys.self)
+        title = try values.decode(String.self, forKey: .title)
+        query = try values.decode(LinkQuery.self, forKey: .query)
+        guard let filter = query.filter else {
+            throw DecodingError.dataCorruptedError(forKey: .query, in: values, debugDescription: "The period and its days do not fit.")
+        }
+        self.filter = filter
+    }
 }
 
 /// Reply of `GET /api/assistant/suggestions`: the questions to show when the chat opens (CHAT-06).

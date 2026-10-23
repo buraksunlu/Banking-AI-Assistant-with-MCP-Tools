@@ -324,3 +324,33 @@ Ders: istek biçimini yalnız sahte ağla doğrulamak yetmez, her yeni istek bi�
 
 Sınırlar: işlem satırı henüz açılmaz (IOS-06), detayda işlem türü/merchant/tutar filtresi yok, filtre tüm müşteri listesinde yok.
 Gerçek API kapalıyken doğrulama sahte ağla yapılmıştır; demo verisiyle canlı uçtan uca kontrol ayrıca yapılmalıdır.
+
+## iOS-h: cevaptan işlemlere bağlantı (CHAT-07 PR2; 23 Ekim 2026)
+
+Kararlar: **K1-A … K8-A**. Backend tarafı PR1'de (docs/api.md: `links`, `accountType`).
+
+- `AssistantReply.links` zorunlu bir listedir (eksikse sözleşme uyuşmazlığı, CHAT-06'daki `suggestions` gibi). Tek bir bağlantı okunamazsa
+  (bilinmeyen dönem/tür, `Custom` için eksik gün, isimli dönemde gün) **o bağlantı düşer, cevap kalır** (K5-A); `AssistantLink` kendi
+  `TransactionFilter`'ını okunurken bir kez çözer.
+- Düğme cevabın **kendi balonunun altında kalıcıdır** (K4-A; öneriler gibi silinmez: liste o cevabın rakamının kanıtıdır).
+- `TransactionFilter` yalnız bağlantıların kullandığı 7 isimli dönem aldı (Bugün, Dün, Bu hafta, Geçen hafta, Son 7/30 gün, Bu yıl); filtre
+  panelinin `presets` listesi aynı. `TransactionCriteria` (tür, hesap türü, kategori, işyeri) sorguya dönemden sonra sabit sırayla eklenir.
+  Özel aralık yalnız `from`/`to` gider.
+- `LinkedTransactionsView`: üstte tek satır "Bu ay · Harcamalar · Kişisel hesaplar" (özel aralıkta "Özel tarih aralığı"), altında backend'in çözdüğü
+  günler ve "N işlem"; satırlar mevcut `TransactionRows`. Toplam yok, telefon hesap yapmaz.
+- **Navigasyon tuzağı:** düğme `NavigationLink { LinkedTransactionsView … }` (hedefli). Aynı adsız `NavigationStack`'te sohbet hedefli linkle
+  açıldıktan sonra **değer-tabanlı** link itildiğinde yığın kendini geri sarıyordu (liste açılıp hemen kapanıyor, istek yine de gidiyordu).
+  Birim testleri navigasyonu görmez; sorun yalnız gerçek zincirde simülatörde bulundu.
+
+```text
+ChatView ─ MessageBubble ─ NavigationLink ─► LinkedTransactionsView(@State TransactionHistoryViewModel(filter, criteria))
+ChatViewModel.transactions(for: link) ─► TransactionHistoryViewModel ─► APIRequest.history(filter, criteria) ─► GET /api/transactions
+```
+
+Doğrulama: 185 Swift Testing test durumu (önceki 151). Eski chat testlerinin sahte cevaplarına `links` eklendi. Dört kasıtlı bozma yakalandı (işyeri
+sorgudan düşer; bağlantı yeni cevapla silinir; tek bozuk bağlantı cevabı düşürür; ölçütler dönemden önce yazılır). Gerçek zincirde (Murat, demo anı,
+yeni API): "Bu ay ne kadar harcadım?" → 8.241,40 TL / 4 işlem, liste 2.658,50 + 1.842,50 + 449,90 + 3.290,50 = 8.241,40; "1 Eylül ile 5 Eylül
+arası ne kadar harcadım" → 5.116,50 TL / 2 işlem, liste 3.476,00 + 1.640,50 = 5.116,50. Geri soru cevabında düğme çıkmadı.
+
+Sınırlar: kategori adı başlıkta yok (bütçe + kategori bağlantısı kategoriyi söylemeden süzer), liste toplamı yok, karşılaştırma/aylık seri/düzenli ve
+yaklaşan ödeme/tasarruf cevaplarında düğme yok (PR1 K3-B), satıra dokununca detay açılmaz (IOS-06).
