@@ -233,6 +233,10 @@ public sealed class TransactionSearchEndpointTests
     [Theory]
     [Trait("Category", "PostgreSQL")]
     [InlineData("period=AllTime&from=2026-10-01&to=2026-10-10", "Dönem adı ile tarih aralığı birlikte verilemez.")]
+    // A custom range is sent as days only; "Custom" is not a name to ask for (the phone sent both until IOS-05 was fixed).
+    [InlineData("period=Custom&from=2026-09-01&to=2026-09-05", "Dönem adı ile tarih aralığı birlikte verilemez.")]
+    [InlineData("period=Custom",
+        "ThisMonth, LastMonth, Last3Months, Last6Months, Today, Yesterday, ThisWeek, LastWeek, Last7Days, Last30Days, ThisYear veya AllTime olmalı.")]
     // A list names AllTime among its periods; the analyses' message does not (DayAndWeekPeriodEndpointTests).
     [InlineData("period=Foo",
         "ThisMonth, LastMonth, Last3Months, Last6Months, Today, Yesterday, ThisWeek, LastWeek, Last7Days, Last30Days, ThisYear veya AllTime olmalı.")]

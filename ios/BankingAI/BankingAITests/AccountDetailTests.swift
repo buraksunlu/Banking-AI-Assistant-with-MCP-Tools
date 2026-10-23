@@ -149,7 +149,8 @@ struct AccountHistoryTests {
         let app = TestApp { _ in json(200, page(1)) }
         let model = TransactionHistoryViewModel(api: app.api, accountID: accountID)
         _ = await model.apply(.custom(from: "2026-09-01", to: "2026-09-05"))
-        #expect(app.requests.last?.query == "period=Custom&from=2026-09-01&to=2026-09-05&limit=20")
+        // The API takes a named period or both days, never both: a range is sent as days only.
+        #expect(app.requests.last?.query == "from=2026-09-01&to=2026-09-05&limit=20")
     }
 
     @Test func validationExplainsTheDateAndDoesNotReplaceTheList() async {

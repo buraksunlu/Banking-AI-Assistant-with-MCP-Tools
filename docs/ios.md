@@ -317,5 +317,10 @@ tekrarı, filtreli boş sonuç, yeni detay ömrü ve 24 ay/artık gün sınırla
 
 Görsel kontrol: geçici simülatör test düzeneğinde sahte ağla hesap detayı, özel tarih paneli ve büyük erişilebilirlik yazı boyutunda koyu görünüm render edilip incelendi. Geçici düzenek kaldırıldı.
 
+**Düzeltme (23 Ekim 2026, dal `fix/ios-custom-period`):** özel aralık `period=Custom&from&to` gönderiyordu, API dönem adı ile tarihleri birlikte
+reddeder (400); sahte ağ testi bu yanlış sorguyu bekleyerek hatayı gizlemişti. Artık yalnız `from` ve `to` gider (`TransactionFilter.query`);
+API'de `period=Custom` (tarihli/tarihsiz) 400'ü testle sabitlendi. Gerçek API'ye karşı simülatörde (Murat) özel aralık hatasız uygulandı.
+Ders: istek biçimini yalnız sahte ağla doğrulamak yetmez, her yeni istek biçimi bir kez gerçek API'ye karşı denenir.
+
 Sınırlar: işlem satırı henüz açılmaz (IOS-06), detayda işlem türü/merchant/tutar filtresi yok, filtre tüm müşteri listesinde yok.
 Gerçek API kapalıyken doğrulama sahte ağla yapılmıştır; demo verisiyle canlı uçtan uca kontrol ayrıca yapılmalıdır.
