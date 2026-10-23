@@ -943,6 +943,11 @@ COMPLETED
   yerine "bu ay" görür (K10-A) ve dönem kodla `Custom` + tarihlerle ezilir, cevabın başına kodla `Dönem: …` satırı (K16-A), tarihsiz araçta
   sabit cevap (K11-B), araçsız bekleyen dönem sorusu (K12-C) ve takipte aralığın korunması (K7-A). Testler: Python 747 modelsiz (+90).
   Canlı (gerçek MCP + model, Murat): 1-5 Eylül 5.116,50 TL, 6-10 Eylül 3.759,90 TL, Eylül 53.388,39 TL.
+- Belirli tarih ve aralık CHAT-08, PR3 göreli tarih yorumlayıcısı (23 Ekim 2026, dal `chat-08-dates-relative`; docs/local-ai.md "İkinci adım"):
+  kodun okuyamadığı tarih ifadesi ("geçen salı", "3 gün önce", "geçen yıl", "Eylül'ün ilk haftası") `LangChainDateInterpreter`'a gider
+  (`date-v4`, JSON şemalı, kodun hazırladığı takvim tablosu, ≤ 5 sn); aralık `dates.check_range` ile denetlenir ve kodun okuduğu tarih gibi
+  çalışır. Ölçüm `ai/model_check/date_eval.py` **10/10** (v1 2/10 → v2 8/10 → v3 9/10 → v4 10/10). Canlıda Murat'ın rakamları SQL ile aynı.
+  CHAT-08 tamam (PR1 #37, PR2 #38, PR3). Testler: Python 781 modelsiz.
 
 IN PROGRESS
 - üzerinde çalışılan feature

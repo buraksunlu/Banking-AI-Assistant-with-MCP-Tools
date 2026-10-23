@@ -24,7 +24,8 @@ from starlette.exceptions import HTTPException
 from answer_check import AnswerRejected
 from contracts import (ChatRequest, ChatResponse, ExplanationRequest, ExplanationResponse, HealthResponse, SuggestionsResponse,
                        ToolCallOut)
-from chat import ChatService, LangChainClarificationWriter, LangChainIntentClassifier, LangChainToolSelector
+from chat import (ChatService, LangChainClarificationWriter, LangChainDateInterpreter, LangChainIntentClassifier,
+                  LangChainToolSelector)
 from explainer import Explainer, LangChainExplainer
 from ollama_client import (
     ModelNotFound,
@@ -110,7 +111,8 @@ def create_app(
     logging.getLogger("uvicorn.error").info("MCP server: %s", app.state.tools.settings.url)
     app.state.chat_service = ChatService(LangChainToolSelector(settings), app.state.tools, app.state.explainer, settings,
                                          writer=LangChainClarificationWriter(settings),
-                                         router=Router(LangChainIntentClassifier(settings)))
+                                         router=Router(LangChainIntentClassifier(settings)),
+                                         interpreter=LangChainDateInterpreter(settings))
     app.state.starters = StarterQuestions(app.state.tools)
 
     app.add_exception_handler(RequestValidationError, _validation_failed)

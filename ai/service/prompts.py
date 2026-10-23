@@ -3,10 +3,13 @@
 Change SYSTEM_PROMPT only together with PROMPT_VERSION, and rerun ai/model_check/explanation_eval.py before and after.
 """
 
+from datetime import timedelta
+
 from langchain_core.prompts import ChatPromptTemplate
 
 from answer_check import AnswerCheck
 from contracts import Fact
+from dates import WEEKDAYS
 
 PROMPT_VERSION = "explanation-v1"
 
@@ -97,6 +100,39 @@ def build_tool_messages(message: str, previous=None) -> list[dict]:
             f"Önceki soru: {previous.question}\nÖnceki araç çağrısı: {previous.tool}({call})\n") + FOLLOW_UP_RULE})
     messages.append({"role": "user", "content": _neutralize(message)})
     return messages
+
+
+DATE_PROMPT_VERSION = "date-v4"
+
+# CHAT-08 K3-D1: the second step for a date code cannot read. The model is given a calendar of the last two weeks, so a weekday is a
+# lookup; the answer is held to a JSON shape and code checks the range (dates.check_range) before anything runs.
+# v1 ("understood false when the expression does not point at a day") made the 4b model give up on 8 of 8 readable
+# expressions (2/10 in the first run); v2 spells every rule out and keeps "false" for what has no day at all (8/10: "geçen salı" and
+# "geçen hafta sonu" were one day off in the 14-day list); v3 also gives the most recent date of every weekday, ready to copy
+# (9/10; "geçen salı" still came out as the Monday); v4 writes that table with the user's own words ("geçen salı: …").
+DATE_SYSTEM_PROMPT = ("Kullanıcının yazdığı tarih ifadesini aşağıdaki takvime bakarak kesin tarihe çevir ve yalnız JSON yaz. Tarihler "
+                      "YYYY-MM-DD biçiminde olsun; tek gün için from ve to aynı gün olsun. Kurallar: 'N gün önce' bugünden N gün "
+                      "geridir. 'Evvelsi gün' 2 gün önce demektir. 'Geçen <gün adı>' (geçen salı) aşağıdaki 'en son "
+                      "günler' listesinde aynı sözlerle yazılıdır, oradaki tarihi aynen kullan. 'Geçen hafta sonu' listedeki cumartesi ile pazardır. 'Geçen yıl' bir önceki "
+                      "yılın 1 Ocak ile 31 Aralık arasıdır. 'Yılbaşından beri' bu yılın 1 Ocak günü ile bugün arasıdır. 'Bir ayın ilk "
+                      "haftası' o ayın 1'i ile 7'si arasıdır. Yalnızca takvimde hiçbir karşılığı olmayan ifadeler için ('bayramda', "
+                      "'o zamanlar', 'geçenlerde') understood false yaz, from ve to boş olsun; diğer her ifade için understood true yaz.")
+DATE_SCHEMA = {"type": "object", "properties": {"understood": {"type": "boolean"}, "from": {"type": "string"}, "to": {"type": "string"}},
+               "required": ["understood", "from", "to"]}
+CALENDAR_DAYS = 14
+
+
+def build_date_messages(expression: str, day) -> list[dict]:
+    """The chat messages for reading one date expression: the rules, today and the last two weeks, the expression itself."""
+    today = day.today
+    calendar = "\n".join(f"- {d.isoformat()} {WEEKDAYS[d.weekday()]}"
+                         for d in (today - timedelta(days=n) for n in range(CALENDAR_DAYS)))
+    # Per weekday, its latest date before today: "geçen salı" is a lookup, as the weekend is two of them.
+    latest = "\n".join(f"- geçen {name.lower()}: {(today - timedelta(days=(today.weekday() - number - 1) % 7 + 1)).isoformat()}"
+                       for number, name in enumerate(WEEKDAYS))
+    context = (f"Bugün {today.isoformat()} {WEEKDAYS[today.weekday()]}, yıl {today.year}. En son günler:\n{latest}\n"
+               f"Son {CALENDAR_DAYS} gün:\n{calendar}")
+    return [{"role": "system", "content": f"{DATE_SYSTEM_PROMPT}\n{context}"}, {"role": "user", "content": _neutralize(expression)}]
 
 
 INTENT_PROMPT_VERSION = "intent-v1"
