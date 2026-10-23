@@ -209,7 +209,7 @@ HomeView (.refreshable → hesaplar + son işlemler paralel)
  └─ RecentTransactionsSection ── .task ──► RecentTransactionsViewModel.load() ──► GET /api/transactions?limit=5
         └─ hasMore ise "Tüm işlemleri gör" ──NavigationLink(value:)──► TransactionHistoryView
                                                     └─ son satırdaki gösterge görününce ──► TransactionHistoryViewModel.loadMore()
-                                                                                             ──► GET /api/transactions?limit=20&offset=N
+                                                                                             ──► GET /api/transactions?period=AllTime&limit=20&cursor=… (API-17)
 TransactionRow ◄── TransactionDisplay (saf kurallar: başlık, "etiket · gün", işaretli tutar, simge)
 ```
 
@@ -219,8 +219,8 @@ TransactionRow ◄── TransactionDisplay (saf kurallar: başlık, "etiket · 
   maaşta "Maaş", satışta alıcı ya da "Satış", açılışta "Açılış bakiyesi"; etiket kategori adı / "Sınıflandırılmamış" ("Diğer" değil) /
   "Gelen transfer" / "Giden transfer" / "Gelir" / "Satış geliri" / "Açılış". Tutar `direction`'dan "+" ya da "−" (U+2212) + `Money`.
   Gün elle yazılır ("2026-10-08" → "8 Ekim 2026"): takvim/saat dilimi kullanılmaz, okunamayan değer olduğu gibi gösterilir.
-- `TransactionHistoryViewModel`: `offset` = gösterilen işlem sayısı; aynı anda ikinci sayfa istenmez; sayfa kenarında tekrar eden işlem
-  (offset kayması, API-17) bir kez gösterilir; sayfa hatasında liste kalır ve aynı sayfa yeniden istenir; aşağı çekince ve ekran her
+- `TransactionHistoryViewModel`: (API-17'den beri, iOS-f) bütün geçmiş, sonraki sayfa önceki sayfanın `nextCursor`'ıyla; aynı anda ikinci
+  sayfa istenmez; sayfa hatasında liste kalır ve aynı sayfa yeniden istenir; aşağı çekince ve ekran her
   açıldığında en yeni sayfadan başlar (eski liste yeni sayfa gelene kadar durur). Başlıkta API'nin çözdüğü tarih aralığı.
 
 Kullanıcı kararları: K1-A (tek arama isteği), K2-B (5 işlem + "Tüm işlemleri gör"), K3-A (işyeri, yoksa ham açıklama), K4-A (giden "−"
@@ -248,8 +248,27 @@ Simülatörde beklenen (veritabanından; karşı taraf adları docs/api.md maske
 
 ### Sınırlar (IOS-07)
 
-- "Tüm işlemler" yalnız API'nin varsayılan dönemi (son 3 ay); bütün geçmiş API-17'de.
-- Offset sayfalama: kaydırırken yeni işlem eklenirse sayfa kenarındaki işlem bir sonraki sayfada tekrar gelir ve bir kez gösterilir;
-  işlem silinmediği için atlama olmaz. İmleçli sayfalama API-17'de.
+- ~~"Tüm işlemler" yalnız son 3 ay; offset kayması~~ → API-17 ile kapandı (iOS-f).
 - Saat yok (IOS-06), işleme dokunulmaz (IOS-06), hesap adı satırda yok.
 - ViewModel kalıbı iki kopya (K10-C); IOS-05'te ortaklaşır.
+
+## iOS-f: bütün geçmiş ve imleçli sayfalama (API-17; 23 Ekim 2026)
+
+"Tüm işlemler" artık müşterinin bütün geçmişini gösterir (önce son 3 ay). Backend'de `period=AllTime` ve imleç (docs/api.md);
+telefonda tarih mantığı yok: dönemi ve "bugün"ü backend çözer, başlıkta cevabın aralığı yazılır ("1 Nisan 2025 – 10 Ekim 2026").
+
+- `APIRequest.history(limit:cursor:)`: `GET /api/transactions?period=AllTime&limit=20[&cursor=…]`. Son işlemler kartı
+  (`APIRequest.transactions(limit:)`, 5 işlem) dönemsiz kaldı (API'nin varsayılanı, son 3 ay).
+- `TransactionSearchResult.nextCursor`: son sayfada nil. `TransactionHistoryViewModel` imleci saklar; `hasMore` = imleç var mı. Yenileme
+  imleçsiz başa döner, sayfa hatasında aynı imleç yeniden istenir.
+- Kimliğe göre tekrar ayıklaması kalktı: imleçle sayfa kenarında tekrar sunucuda imkânsız (karar K6-A).
+- Metinler: boş liste "Henüz işlem yok", son sayfa "Bütün işlemler gösterildi.".
+
+Kararlar (API-17): K1-B (imleç offset'in yerini aldı, iki liste endpoint'inde), K2-A (açık ad `AllTime`, varsayılan son 3 ay kaldı),
+K3-A (dönem en eski işlemin günü – iş günü), K4-A (opak imleç), K5-A (`totalCount` + `hasMore` kaldı, `nextCursor` eklendi), K6-A (tek PR).
+
+Test: 125 test durumu (sayı değişmedi): istek sırası `period=AllTime&limit=20` → `…&cursor=c20` → `…&cursor=c40`, kısa sayfanın kendi
+imleciyle devam (`theNextPageFollowsTheCursorOfTheLastPage`, tekrar ayıklama testinin yerine), hata sonrası aynı imleç, yenilemede
+imleçsiz istek, başlıkta bütün geçmişin aralığı. Kasıtlı bozma: sonraki sayfa imleçsiz istenir → 3 test kırmızı.
+
+Sınır: son işlemler kartı son 3 aya bakar (o aralıkta işlem yoksa kart boş görünür).

@@ -107,7 +107,8 @@ Testlerde ağ `MockURLProtocol` ile, test başına ayrı uydurma sunucu adıyla 
 ekranın `@State`'inde yaşar (geçmiş yalnız bellekte, çıkışta silinir); yalnız sohbet isteği 40 sn bekler (30 → 35 → 40); 503 bant + kapalı
 giriş, diğer hatalar balonda "Tekrar dene" (aynı balon); Durdur ve ekrandan çıkış isteği iptal eder. Öneriler (CHAT-06): `suggestions` son cevabın altında, gönderince boşalır; boş sohbette
 `open()` başlangıç sorularını ister (hata/boş → `ChatViewModel.examples`). Hesaplar (IOS-04) ana ekranın gövdesidir (`AccountsViewModel`);
-tutar her ekranda `Formatting/Money` ile yazılır (sohbetle aynı: `577.490,18 TL`), mobilde hesap yapılmaz. İşlem satırının metni yalnız
+tutar her ekranda `Formatting/Money` ile yazılır (sohbetle aynı: `577.490,18 TL`), mobilde hesap yapılmaz. "Tüm işlemler" `APIRequest.history` ile bütün geçmişi
+imleçle gezer (API-17; son işlemler kartı dönemsiz, son 3 ay). İşlem satırının metni yalnız
 `Transactions/TransactionDisplay`'de (gün `localDate`'ten, işaret `direction`'dan); sorgu parametreleri `APIRequest.query` ile (yola "?" yazılmaz). Demo şifresini Claude yazmaz/okumaz:
 simülatörde girişi kullanıcı yapar.
 
@@ -299,7 +300,9 @@ configuration'lardaki DB CHECK/unique/FK kısıtları. Yeni kural eklerken dört
   `TransactionSearchService` ile döndürür (yeni sorgu yazma), işlem eklemeyi
   (`CreateAsync`, API-11, `POST /api/accounts/{accountId}/transactions` → 201 + Location `/api/transactions/{id}`)
   `ITransactionWriteService` ile yapar; route'lar farklı köklerde olduğu için sınıfta `[Route]` yok, her action tam
-  route'unu taşır. Dönem parametreleri her endpoint'te `Api/Queries/PeriodParameters` ile okunur (hata → `ArgumentException`
+  route'unu taşır. İşlem listeleri imleçle sayfalanır (API-17: `cursor` → `nextCursor`, opak `TransactionCursor`, SQL
+  `(OccurredAt, Id) < (…)`; offset yok); `period=AllTime` bütün geçmiştir ve yalnız işlem listelerinde geçerlidir
+  (`PeriodParameters.Resolve(…, allowAllTime: true)`; `PeriodResolver.Resolve` onu reddeder, başı `ResolveAllTime` en eski işlemden çözer). Dönem parametreleri her endpoint'te `Api/Queries/PeriodParameters` ile okunur (hata → `ArgumentException`
   → 400); query'deki enum'lar `Api/Queries/ExactEnum` ile yalnız tam adla. `AnalyticsController` (`/api/analytics/...`, ANA-09) analytics servislerini (Scoped, somut sınıf) çağırır; dönem
   zorunlu. İş saati (`Api/Time/BusinessClock`): `BANKINGAI_DEMO_NOW` verilirse analytics dönemleri ve yeni işlem zamanı o
   ana sabitlenir; `PeriodResolver` ve `TransactionWriteService` bunu kullanır, `TokenIssuer`/JWT gerçek `TimeProvider`'da
@@ -453,7 +456,7 @@ API-15 (OpenAPI sözleşmesi, Scalar, örnekler). API bölümü tamam. AI-01 (lo
 FastAPI `/v1/chat` + .NET `POST /api/assistant/messages`), MCP-a (MCP-01/02 + MCP-05/07/25 server tarafı: `BankingAI.McpServer`,
 `BankingAI.Hosting`), MCP-b (MCP-12/13/14: AI servisi araçları MCP'den keşfedip çalıştırır, REST köprüsü silindi); sıradaki: kullanıcı
 seçer (todo "Şu anki sonraki adım"). iOS-a (IOS-01/13: `ios/BankingAI`, giriş + Keychain), AI-08 (sohbet ekranı), AI-15 (soğuk model ısıtma), MCP-08 (altı yeni araç, 9 araç), MCP-17/18 (bütçe ve tasarruf araçları, 11 araç; seçim 60/63, cevap doğruluğu 14/15) CHAT-03 (belirsizlikte geri soru) ve CHAT-02 (takip soruları) ve SYN-15 (gerçekçi yıl: 6 persona, 1.710 işlem) ve CHAT-01 (niyete göre
-araç daraltma, iki grup; seçim 68/71) tamam.
+araç daraltma, iki grup; seçim 68/71) ve IOS-04/07 (iPhone hesaplar, son işlemler) ve API-17 (imleçli sayfalama + `AllTime`) tamam.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
 içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d. 19 Ekim 2026 todo taraması: AI-14 (uçtan uca

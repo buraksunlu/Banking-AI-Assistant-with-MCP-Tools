@@ -75,4 +75,18 @@ public sealed class DayAndWeekPeriodEndpointTests
             "ThisMonth, LastMonth, Last3Months, Last6Months, Today, Yesterday, ThisWeek, LastWeek, Last7Days, Last30Days veya ThisYear olmalı.",
             message);
     }
+
+    [Theory]
+    [InlineData("/api/analytics/spending-summary?period=AllTime")]
+    [InlineData("/api/analytics/highest-transactions?period=AllTime")]
+    public async Task All_time_is_a_period_of_transaction_lists_only(string path)
+    {
+        // API-17: the whole history pages through a list; an analysis over "everything" is not offered.
+        var (status, problem) = await GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.BadRequest, status);
+        Assert.Equal(
+            "ThisMonth, LastMonth, Last3Months, Last6Months, Today, Yesterday, ThisWeek, LastWeek, Last7Days, Last30Days veya ThisYear olmalı.",
+            Assert.Single(problem!["errors"]!["period"]!.AsArray())!.GetValue<string>());
+    }
 }

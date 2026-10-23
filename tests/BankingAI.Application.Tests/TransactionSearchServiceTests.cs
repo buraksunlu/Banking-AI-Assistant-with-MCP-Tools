@@ -66,16 +66,101 @@ public sealed class TransactionSearchServiceTests
 
     [Fact]
     [Trait("Category", "PostgreSQL")]
-    public async Task Pages_are_stable_and_report_whether_more_rows_exist()
+    public async Task Pages_follow_the_cursor_and_report_whether_more_rows_exist()
     {
         var first = await SearchAsync(new(Ada, PeriodKind.ThisMonth, Limit: 3));
-        var last = await SearchAsync(new(Ada, PeriodKind.ThisMonth, Limit: 3, Offset: 6));
-        var all = await SearchAsync(new(Ada, PeriodKind.ThisMonth));
+        var second = await SearchAsync(new(Ada, PeriodKind.ThisMonth, Limit: 3, Cursor: first.NextCursor));
+        var last = await SearchAsync(new(Ada, PeriodKind.ThisMonth, Limit: 3, Cursor: second.NextCursor));
 
-        Assert.Equal((8, true), (first.TotalCount, first.HasMore));
-        Assert.Equal(all.Items.Take(3).Select(i => i.Id), first.Items.Select(i => i.Id));
-        Assert.Equal((8, false), (last.TotalCount, last.HasMore));
-        Assert.Equal(all.Items.Skip(6).Select(i => i.Id), last.Items.Select(i => i.Id));
+        Assert.Equal(new[] { 604, 718, 603 }, first.Items.Select(i => Ordinal(i.Id)));
+        Assert.Equal(new[] { 715, 602, 601 }, second.Items.Select(i => Ordinal(i.Id)));
+        Assert.Equal(new[] { 711, 709 }, last.Items.Select(i => Ordinal(i.Id)));
+        // The count is the whole filtered result on every page, not what is left.
+        Assert.Equal(new[] { (8, true), (8, true), (8, false) },
+            new[] { first, second, last }.Select(p => (p.TotalCount, p.HasMore)));
+        Assert.NotNull(first.NextCursor);
+        Assert.Null(last.NextCursor);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task All_time_lists_the_whole_history_page_by_page()
+    {
+        // API-17: the last three months held 20 of Ada's 49 transactions; the oldest is the USD opening funding.
+        var pages = new List<TransactionSearchResult> { await SearchAsync(new(Ada, PeriodKind.AllTime)) };
+        // A cursor that does not move would loop forever; ten pages is far more than 49 rows need.
+        while (pages[^1].NextCursor is { } cursor && pages.Count < 10)
+            pages.Add(await SearchAsync(new(Ada, PeriodKind.AllTime, Cursor: cursor)));
+
+        Assert.Equal(new[] { 20, 20, 9 }, pages.Select(p => p.Items.Count));
+        Assert.All(pages, p => Assert.Equal(49, p.TotalCount));
+        Assert.Equal((PeriodKind.AllTime, new DateOnly(2025, 4, 1), new DateOnly(2026, 10, 10)),
+            (pages[0].Period.Kind, pages[0].Period.StartDate, pages[0].Period.EndDate));
+        var ids = pages.SelectMany(p => p.Items).Select(i => Ordinal(i.Id)).ToList();
+        Assert.Equal(49, ids.Distinct().Count());
+        Assert.Equal((604, 521, 519, 102, 101, 1), (ids[0], ids[19], ids[20], ids[39], ids[40], ids[^1]));
+        Assert.Equal(("USD", 500m), (pages[^1].Items[^1].CurrencyCode, pages[^1].Items[^1].Amount));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Rows_of_the_same_moment_are_split_by_id_without_losing_one()
+    {
+        // Both legs of Can's transfer between his own accounts (18.000 TRY) carry 2026-10-01 06:00 UTC; the page edge
+        // falls between them.
+        var first = await SearchAsync(new(Can, PeriodKind.AllTime, Limit: 3));
+        var second = await SearchAsync(new(Can, PeriodKind.AllTime, Limit: 3, Cursor: first.NextCursor));
+
+        Assert.Equal(new[] { 16210, 16209, 19066 }, first.Items.Select(i => Ordinal(i.Id)));
+        Assert.Equal(new[] { 19065, 16208, 16207 }, second.Items.Select(i => Ordinal(i.Id)));
+        Assert.Equal(first.Items[^1].OccurredAtUtc, second.Items[0].OccurredAtUtc);
+        Assert.Equal((244, new DateOnly(2025, 10, 1)), (first.TotalCount, first.Period.StartDate));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task A_page_that_ends_exactly_with_the_last_row_has_no_cursor()
+    {
+        // Ada's TRY account holds 48 of her 49 transactions; a page of exactly 48 is the last one.
+        var result = await SearchAsync(new(Ada, PeriodKind.AllTime, AccountId: AdaTryAccount, Limit: 48));
+
+        Assert.Equal((48, 48, false), (result.TotalCount, result.Items.Count, result.HasMore));
+        Assert.Null(result.NextCursor);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task All_time_without_transactions_is_an_empty_page_of_today()
+    {
+        var result = await SearchAsync(new(EmptyCustomer, PeriodKind.AllTime));
+
+        Assert.Equal((0, false, (string?)null), (result.TotalCount, result.HasMore, result.NextCursor));
+        Assert.Empty(result.Items);
+        Assert.Equal((new DateOnly(2026, 10, 10), new DateOnly(2026, 10, 10)), (result.Period.StartDate, result.Period.EndDate));
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("abc")]
+    [InlineData("")]
+    [InlineData("AAAA")]
+    // The right length, but: version 2; version 1 with an empty id; version 1 with a negative moment.
+    [InlineData("AgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")]
+    [InlineData("AQjfH4E6WDAAAAAAAAAAAAAAAAAAAAAAAA")]
+    [InlineData("Af__________AQAAAAAAAAAAAAAAAAAAAA")]
+    public async Task A_cursor_that_is_not_ours_is_rejected(string cursor)
+    {
+        var error = await Assert.ThrowsAsync<ArgumentException>(() => SearchAsync(new(Ada, PeriodKind.AllTime, Cursor: cursor)));
+
+        Assert.Equal(("Cursor", "Geçersiz sayfa imleci."), (error.ParamName, error.Message.Split(" (")[0]));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task All_time_takes_no_dates()
+    {
+        await Assert.ThrowsAsync<ArgumentException>(() => SearchAsync(
+            new(Ada, PeriodKind.AllTime, From: new DateOnly(2026, 1, 1), To: new DateOnly(2026, 1, 31))));
     }
 
     [Fact]
@@ -174,14 +259,14 @@ public sealed class TransactionSearchServiceTests
 
     [Theory]
     [Trait("Category", "PostgreSQL")]
-    [InlineData(0, 0)]
-    [InlineData(51, 0)]
-    [InlineData(20, -1)]
-    [InlineData(20, 10001)]
-    public async Task Paging_limits_are_enforced(int limit, int offset)
+    [InlineData(0)]
+    [InlineData(51)]
+    public async Task Paging_limits_are_enforced(int limit)
     {
-        await Assert.ThrowsAsync<ArgumentException>(() => SearchAsync(new(Ada, PeriodKind.ThisMonth, Limit: limit, Offset: offset)));
+        await Assert.ThrowsAsync<ArgumentException>(() => SearchAsync(new(Ada, PeriodKind.ThisMonth, Limit: limit)));
     }
+
+    private static int Ordinal(Guid id) => int.Parse(id.ToString()[^12..], CultureInfo.InvariantCulture);
 
     // API-10: one transaction by id. Expected values are the seeded rows (docs/synthetic-seed.md), Istanbul time.
     private static Guid Tx(int ordinal) => Guid.Parse($"30000000-0000-0000-0000-{ordinal:D12}");

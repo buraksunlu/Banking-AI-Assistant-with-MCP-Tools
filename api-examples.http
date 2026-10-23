@@ -55,6 +55,15 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/api/transactions?period=ThisMonth&currencyCode=TRY&minAmount=145&maxAmount=165
 Authorization: Bearer {{token}}
 
+### Bütün geçmiş, ilk sayfa (API-17) — beklenen: 200, kind AllTime, 20 işlem, totalCount 49 (demo anıyla), nextCursor dolu
+# @name allTime
+GET {{baseUrl}}/api/transactions?period=AllTime
+Authorization: Bearer {{token}}
+
+### Sonraki sayfa: önceki cevabın nextCursor'ı — beklenen: 200, sonraki 20 işlem (tekrar yok)
+GET {{baseUrl}}/api/transactions?period=AllTime&cursor={{allTime.response.body.$.nextCursor}}
+Authorization: Bearer {{token}}
+
 ### Harcama özeti, bu ay — beklenen: 200, 735 TRY (1.500 transfer harcama değil)
 GET {{baseUrl}}/api/analytics/spending-summary?period=ThisMonth
 Authorization: Bearer {{token}}
@@ -150,6 +159,14 @@ GET {{baseUrl}}/api/accounts
 
 ### Bilinmeyen dönem adı — beklenen: 400 validation_failed, errors.period
 GET {{baseUrl}}/api/analytics/spending-summary?period=lastmonth
+Authorization: Bearer {{token}}
+
+### Bütün geçmiş analizde dönem değildir — beklenen: 400 validation_failed, errors.period
+GET {{baseUrl}}/api/analytics/spending-summary?period=AllTime
+Authorization: Bearer {{token}}
+
+### Bozuk sayfa imleci — beklenen: 400 validation_failed, errors.cursor
+GET {{baseUrl}}/api/transactions?period=AllTime&cursor=abc
 Authorization: Bearer {{token}}
 
 ### Türkçe ondalık yazımı (500,50) — beklenen: 400, errors.minAmount (sessizce 50050 okunmaz)

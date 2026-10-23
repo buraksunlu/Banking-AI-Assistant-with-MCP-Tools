@@ -8,7 +8,7 @@ struct TransactionHistoryView: View {
     var body: some View {
         Group {
             if model.isEmpty {
-                ContentUnavailableView("Bu dönemde işlem yok", systemImage: "list.bullet.rectangle")
+                ContentUnavailableView("Henüz işlem yok", systemImage: "list.bullet.rectangle")
             } else if model.items.isEmpty, let message = model.errorMessage {
                 ContentUnavailableView {
                     Label("İşlemler yüklenemedi", systemImage: "exclamationmark.triangle")
@@ -69,7 +69,7 @@ struct TransactionHistoryView: View {
                 .frame(maxWidth: .infinity)
                 .task(id: model.items.count) { await model.loadMore() }
         } else if !model.items.isEmpty {
-            Text("Bu tarih aralığındaki bütün işlemler gösterildi.")
+            Text("Bütün işlemler gösterildi.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)

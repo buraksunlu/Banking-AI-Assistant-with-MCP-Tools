@@ -302,8 +302,9 @@ ve Business hesaplar dahildir.
 | `period` | isteğe bağlı, yalnız adla: `ThisMonth`, `LastMonth`, `Last3Months`, `Last6Months`, `Today`, `Yesterday`, `ThisWeek`, `LastWeek`, `Last7Days`, `Last30Days`, `ThisYear` |
 | `from`, `to` | isteğe bağlı, `yyyy-MM-dd`, **birlikte** (yerel tarih, dahil; özel dönem en fazla 24 ay); `period` ile birlikte verilemez |
 | (ikisi de yoksa) | **son 3 ay** (kullanıcı kararı) |
+| `period=AllTime` | bütün geçmiş (API-17): iş gününün sonuna kadar; cevapta dönemin başı en eski işlemin yerel günü (yoksa bugün) |
 | `limit` | 1–50, varsayılan 20 |
-| `offset` | 0–10.000, varsayılan 0 |
+| `cursor` | isteğe bağlı; önceki sayfanın `nextCursor`'ı (opak metin, olduğu gibi geri gönderilir; bozuksa `400` `errors.cursor`) |
 
 Tür/yön/kategori/merchant filtreleri bu endpoint'te yoktur (kullanıcı kararı); filtreli arama `GET /api/transactions`'tadır,
 tek hesap için `accountId` ile (ANA-09 3. parça, karar K2-A).
@@ -314,6 +315,7 @@ tek hesap için `accountId` ile (ANA-09 3. parça, karar K2-A).
               "startDate": "2026-10-01", "endDate": "2026-10-10" },
   "totalCount": 8,
   "hasMore": true,
+  "nextCursor": "AQjf…",
   "items": [ { "id": "30000000-0000-0000-0000-000000000604", "kind": "Purchase", "amount": 145.00, "...": "..." } ]
 }
 ```
@@ -322,11 +324,13 @@ tek hesap için `accountId` ile (ANA-09 3. parça, karar K2-A).
 |---|---|
 | Kendi hesabı | `200` + sayfa (işlem yoksa `items: []`, `totalCount: 0`) |
 | Başka müşterinin / olmayan hesap | `404` (birebir aynı gövde) |
-| Bozuk parametre (limit/offset sınırı, tek tarih, `from` > `to`, 24 aydan uzun, `period` + tarih, `period=Custom`/`2`/`Foo`, geçersiz tarih) veya GUID olmayan kimlik | `400` |
+| Bozuk parametre (limit sınırı, bozuk imleç, tek tarih, `AllTime` + tarih, `from` > `to`, 24 aydan uzun, `period` + tarih, `period=Custom`/`2`/`Foo`, geçersiz tarih) veya GUID olmayan kimlik | `400` |
 | Token yok / geçersiz | `401` |
 
-Bilinen sınırlar: offset sayfalamasında liste gezilirken araya yeni işlem girerse sayfa kenarında bir
-işlem tekrar görünebilir (istemci kimliğe göre ayıklamalı); dönem "bugün"ü iş saatine göredir (`BANKINGAI_DEMO_NOW`, ANA-09);
+Sayfalama imleçlidir (API-17, offset kalktı): sonraki sayfa `cursor=<nextCursor>` ile istenir, son sayfada `nextCursor: null`.
+İmleç son işlemin anı ve kimliğidir; gezilirken eklenen yeni işlem listenin başına gelir (aşağı çekince görünür), sayfa kenarında
+tekrar ya da atlama olmaz. `totalCount` her sayfada bütün sonucun sayısıdır. Eski `offset` parametresi artık tanınmaz ve yok
+sayılır (ASP.NET bilinmeyen sorgu parametresini yok sayar). Bilinen sınırlar: dönem "bugün"ü iş saatine göredir (`BANKINGAI_DEMO_NOW`, ANA-09);
 silinmiş müşterinin token'ı `401` `session_invalid` (API-13).
 
 ## `GET /api/transactions` — filtreli arama (ANA-09 3. parça, 16 Ekim 2026)
@@ -338,14 +342,14 @@ hesabı `400` almaz.
 
 | Parametre | Kural |
 |---|---|
-| `period` / `from` + `to` | `GET /api/accounts/{accountId}/transactions` ile aynı; **ikisi de yoksa son 3 ay** (karar K1-B: liste, rakam değil; cevap dönemini söyler) |
+| `period` / `from` + `to` | `GET /api/accounts/{accountId}/transactions` ile aynı (`AllTime` dahil); **ikisi de yoksa son 3 ay** (karar K1-B: liste, rakam değil; cevap dönemini söyler) |
 | `accountId` | isteğe bağlı; yalnız kendi hesabı (başkasınınki `404`), Business da olur |
 | `kind` | isteğe bağlı, tam adla: `Purchase`, `Sale`, `Transfer`, `Salary`, `OpeningFunding` (`purchase`, `1` → `400`) |
 | `direction` | isteğe bağlı, tam adla: `Debit`, `Credit` |
 | `categoryCode` | isteğe bağlı, tanımlı kod (ör. `FOOD`; bilinmeyen kod `400` `errors.categoryCode`: "yok" ile "bu kategoride işlem yok" ayrılır) |
 | `onlyUnclassified` | `true` → yalnız kategorisiz harcamalar; `categoryCode` ile birlikte `400` |
 | `merchant` | isteğe bağlı; müşterinin kendi merchant'larıyla eşleştirilir (`MerchantMatcher`), tahmin yok |
-| `limit` / `offset` | 1–50 (varsayılan 20) / 0–10.000 |
+| `limit` / `cursor` | 1–50 (varsayılan 20) / önceki sayfanın `nextCursor`'ı (API-17) |
 | `currencyCode` | isteğe bağlı, birebir `TRY`/`USD`/`EUR`/`GBP` (`try`, `JPY` → `400`) |
 | `minAmount` / `maxAmount` | isteğe bağlı, **dahil** sınırlar (ANA-11); verilirse `currencyCode` zorunlu (eşik para birimleri arasında karşılaştırılmaz); `min ≤ max`; 0,01–üst sınır, en fazla 2 ondalık |
 
@@ -359,15 +363,16 @@ Enum parametreleri `Api/Queries/ExactEnum` ile tam adla okunur (dönem ve karş�
 ```json
 { "period": { "kind": "Last3Months", "startDate": "2026-07-10", "endDate": "2026-10-10", "…": "…" },
   "merchantMatch": { "status": "Matched", "merchant": "Starbucks", "isPartialMatch": true, "candidates": [] },
-  "totalCount": 5, "hasMore": true,
+  "totalCount": 5, "hasMore": true, "nextCursor": "AQjf…",
   "items": [ { "localDate": "2026-10-08", "kind": "Purchase", "amount": 165.00, "merchant": "Starbucks", "…": "…" } ] }
 ```
 
 `merchantMatch` yalnız `merchant` verilince doludur; `Ambiguous`/`NotFound` durumunda `totalCount: 0`, `items: []` ve
 `candidates` nedenini söyler. Ada bu ay: 8 işlem (maaş 45.000, transferler 1.500 "Deniz M***" ve 300 "Ege Y***",
 5 harcama); `kind=Transfer&direction=Debit` → 1.500; `onlyUnclassified=true` → 145; `categoryCode=FOOD` → 165, 95, 210,
-120. Deniz bu ay: 7 işlem (dükkân satışları dahil). Bilinen sınırlar: offset kayması (yukarıdaki liste gibi), tutar
-filtresi yok (ANA-11), serbest metin araması yok (ANA-05 kararı).
+120. Deniz bu ay: 7 işlem (dükkân satışları dahil). `period=AllTime` (API-17): Ada 49 işlem, dönem `2025-04-01 – 2026-10-10`
+(demo anıyla), 20'lik sayfalarla 20 / 20 / 9; Selin 646 işlem, 50'likle 13 sayfa, tekrarsız. Analytics endpoint'lerinde
+`AllTime` dönem değildir (`400` `errors.period`; mesaj adı listelemez). Bilinen sınır: serbest metin araması yok (ANA-05 kararı).
 
 ## `GET /api/transactions/{id}` (API-10)
 

@@ -18,11 +18,12 @@ private func item(_ number: Int, kind: String = "Purchase", direction: String = 
     """
 }
 
-private func result(_ items: [String], totalCount: Int? = nil, hasMore: Bool = false) -> String {
+private func result(_ items: [String], totalCount: Int? = nil, hasMore: Bool = false, nextCursor: String? = nil,
+                    startDate: String = "2026-07-10") -> String {
     """
     { "period": { "kind": "Last3Months", "startUtc": "2026-07-09T21:00:00+00:00", "endUtc": "2026-10-10T21:00:00+00:00", \
-    "startDate": "2026-07-10", "endDate": "2026-10-10" }, "merchantMatch": null, "totalCount": \(totalCount ?? items.count), \
-    "hasMore": \(hasMore), "items": [\(items.joined(separator: ","))] }
+    "startDate": "\(startDate)", "endDate": "2026-10-10" }, "merchantMatch": null, "totalCount": \(totalCount ?? items.count), \
+    "hasMore": \(hasMore), "nextCursor": \(nextCursor.map { #""\#($0)""# } ?? "null"), "items": [\(items.joined(separator: ","))] }
     """
 }
 
@@ -50,9 +51,11 @@ private func recent(_ state: RecentTransactionsViewModel.State) -> [TransactionI
     return []
 }
 
-/// A history page holding the items `numbers`, in that order (the order is the API's; the tests only check it is kept).
+/// A page of the whole history holding the items `numbers`, in that order (the order is the API's; the tests only check it
+/// is kept). A page with more after it carries the cursor "c<last number>", like the API's opaque `nextCursor`.
 private func page(_ numbers: ClosedRange<Int>, hasMore: Bool) -> String {
-    result(numbers.map { item($0) }, totalCount: 45, hasMore: hasMore)
+    result(numbers.map { item($0) }, totalCount: 45, hasMore: hasMore, nextCursor: hasMore ? "c\(numbers.upperBound)" : nil,
+           startDate: "2025-04-01")
 }
 
 private func numbers(_ items: [TransactionItem]) -> [Int] {
@@ -153,7 +156,7 @@ struct RecentTransactionsViewModelTests {
     }
 }
 
-// K7-B + K11-D: every transaction of the API's period (today the last three months), 20 at a time while scrolling.
+// K7-B + API-17: the whole history (period=AllTime), 20 at a time while scrolling, each page after the previous one's cursor.
 @MainActor
 struct TransactionHistoryViewModelTests {
     @Test func theFirstPageAndItsPeriodArrive() async {
@@ -164,8 +167,8 @@ struct TransactionHistoryViewModelTests {
 
         #expect(numbers(model.items) == Array(1...20))
         #expect(model.hasMore)
-        #expect(model.periodText == "10 Temmuz 2026 – 10 Ekim 2026")
-        #expect(app.requests.map(\.query) == ["limit=20"])
+        #expect(model.periodText == "1 Nisan 2025 – 10 Ekim 2026")
+        #expect(app.requests.map(\.query) == ["period=AllTime&limit=20"])
     }
 
     @Test func scrollingOnAsksForTheNextPageAfterWhatIsShown() async {
@@ -179,7 +182,8 @@ struct TransactionHistoryViewModelTests {
         await model.loadMore()
 
         #expect(numbers(model.items) == Array(1...45))
-        #expect(app.requests.map(\.query) == ["limit=20", "limit=20&offset=20", "limit=20&offset=40"])
+        #expect(app.requests.map(\.query) == ["period=AllTime&limit=20", "period=AllTime&limit=20&cursor=c20",
+                                              "period=AllTime&limit=20&cursor=c40"])
         #expect(!model.hasMore)
     }
 
@@ -193,16 +197,20 @@ struct TransactionHistoryViewModelTests {
         #expect(app.requests.count == 1)
     }
 
-    // API-17: a transaction added while scrolling pushes the last one of a page onto the next; it is shown once.
-    @Test func aTransactionRepeatedAtAPageEdgeIsShownOnce() async {
-        let answers = Answers([{ json(200, page(1...20, hasMore: true)) }, { json(200, page(20...39, hasMore: false)) }])
+    // The cursor, not the count shown, decides the next page: a page shorter than 20 that says more follow is continued
+    // from its own cursor.
+    @Test func theNextPageFollowsTheCursorOfTheLastPage() async {
+        let answers = Answers([{ json(200, result([item(1), item(2)], hasMore: true, nextCursor: "after-2")) },
+                               { json(200, page(3...5, hasMore: false)) }])
         let app = TestApp(answers.next)
         let model = TransactionHistoryViewModel(api: app.api)
 
         await model.loadMore()
         await model.loadMore()
 
-        #expect(numbers(model.items) == Array(1...39))
+        #expect(numbers(model.items) == Array(1...5))
+        #expect(app.requests.last?.query == "period=AllTime&limit=20&cursor=after-2")
+        #expect(!model.hasMore)
     }
 
     @Test func aFailedNextPageKeepsTheListAndIsAskedAgain() async {
@@ -221,7 +229,8 @@ struct TransactionHistoryViewModelTests {
 
         #expect(numbers(model.items) == Array(1...25))
         #expect(model.errorMessage == nil)
-        #expect(app.requests.map(\.query) == ["limit=20", "limit=20&offset=20", "limit=20&offset=20"])
+        #expect(app.requests.map(\.query) == ["period=AllTime&limit=20", "period=AllTime&limit=20&cursor=c20",
+                                              "period=AllTime&limit=20&cursor=c20"])
     }
 
     @Test func aFailedFirstPageIsAnErrorWithNothingShown() async {
@@ -256,7 +265,7 @@ struct TransactionHistoryViewModelTests {
         await model.refresh()
 
         #expect(numbers(model.items) == Array(101...120))
-        #expect(app.requests.last?.query == "limit=20")
+        #expect(app.requests.last?.query == "period=AllTime&limit=20")
     }
 
     @Test func aFailedRefreshKeepsWhatIsShown() async {

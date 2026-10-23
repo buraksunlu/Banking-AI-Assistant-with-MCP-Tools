@@ -1357,7 +1357,7 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   kullanıcıyla netleşir; açıkça istenen varlık korunur. Eksik veride kazanan uydurulmaz.
 
 ==================================================
-29. MEVCUT PROJE DURUMU — 22 EKİM 2026
+29. MEVCUT PROJE DURUMU — 23 EKİM 2026
 ==================================================
 
 COMPLETED
@@ -1520,12 +1520,17 @@ COMPLETED
   işletme dahil), "Tüm işlemler" ekranı kaydırdıkça 20'şer (`offset`; tekrar eden işlem bir kez). Satır kuralları `TransactionDisplay`'de
   (işyeri ya da ham açıklama, maskeli karşı taraf, "Sınıflandırılmamış" ≠ "Diğer", "+"/"−" `direction`'dan, gün `localDate`'ten).
   K11-D: dönemsiz arama son 3 ay ve telefon iş gününü bilmiyor → bütün geçmiş API-17'de. Backend değişmedi. 125 iOS test durumu.
+- İmleçli sayfalama + bütün geçmiş API-17 (23 Ekim 2026, docs/api.md, docs/analytics.md, docs/ios.md "iOS-f"): iki liste endpoint'inde
+  `offset` yerine `cursor` (opak `TransactionCursor`: an + Id; SQL `(OccurredAt, Id) < (…)`), cevaba `nextCursor`; `period=AllTime` (yalnız
+  işlem listelerinde; analytics 400) iş gününün sonuna kadar, dönemin başı en eski işlemin yerel günü. Kararlar K1-B K2-A K3-A K4-A K5-A
+  K6-A. iPhone "Tüm işlemler" bütün geçmişi imleçle gezer, tekrar ayıklaması kalktı. Testler: Application 332, Data 84, Api 478,
+  McpServer 131; iOS 125. Gerçek API'de Ada 49 / Selin 646 işlem tekrarsız.
 
 IN PROGRESS
 - Market data ayrı kol: SRC-02 (altın kaynağı) dış yanıt bekliyor.
 
 NEXT
-- Kullanıcı seçer (22 Ekim): AI-16 model belleği (12,7 GB, ısınma); KIND-06 iade; API-17 (imleçli sayfalama + bütün geçmiş, "Tüm işlemler" bekliyor); hesap detayı (IOS-05…); yeni
+- Kullanıcı seçer (23 Ekim): CHAT-08 (belirli tarih/aralık; plan PR #33'te); AI-16 model belleği (12,7 GB, ısınma); KIND-06 iade; hesap detayı (IOS-05…, imleçli liste hazır); yeni
   MCP araçları (MCP-03…26); SEC-07 kısa ömürlü yalnız-MCP token'ı. Her madde kendi dalında, PR ile. Ayrıntı todo.md "Şu anki sonraki adım".
 - 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b: ANA-10–14) tamam, tool'ları MCP-15–18'de; güvenilir cevap katmanı (todo 15b: AI-09–13, IOS-11) AI adımlarıyla birlikte.
 - 17 Ekim 2026 genişletme kararı: sohbet yetenekleri (todo 15c: CHAT-01–05; niyete göre tool daraltma, takip sorusu,
@@ -1550,7 +1555,7 @@ NEXT
 KNOWN ISSUES
 - Servislerden gelen her ArgumentException 400 sayılıyor; bir programlama hatasından doğan ArgumentException da
   400 görünür (API-13 bilinçli sınırı; ayrı tip InputRules'u ve 70 testi etkilerdi).
-- Offset sayfalamasında araya yeni işlem girerse sayfa kenarında bir işlem tekrar görülebilir.
+- Eski `offset` sorgu parametresi (API-17'de kalktı) hata vermeden yok sayılır; tek istemci iPhone aynı PR'da imlece geçti.
 - İş saati varsayılan olarak gerçek saattir; demo için BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z verilmeli (ANA-09). Ayar açıkken
   eklenen işlemler aynı ana düşer.
 - Tek komutluk seed synthetic ve market fiyatı import'u yok.

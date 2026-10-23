@@ -15,5 +15,6 @@ public enum PeriodKind
     LastWeek = 9,
     Last7Days = 10,
     Last30Days = 11,
-    ThisYear = 12
+    ThisYear = 12,
+    AllTime = 13
 }

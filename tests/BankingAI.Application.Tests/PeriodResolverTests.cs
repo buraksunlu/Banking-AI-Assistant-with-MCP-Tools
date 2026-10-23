@@ -248,4 +248,43 @@ public sealed class PeriodResolverTests
     [InlineData(25)]
     public void Monthly_window_count_is_limited(int months) =>
         Assert.Throws<ArgumentException>(() => ResolverAt(DemoNowUtc).ResolveMonthlyWindows(months, Istanbul));
+
+    // --- API-17: the whole history of a transaction list ---
+
+    [Theory]
+    // 21:30 UTC is already 1 October in Istanbul (UTC+3) but still 30 September in Berlin (UTC+2 in summer).
+    [InlineData(Istanbul, 2025, 10, 1, 21, 21)]
+    [InlineData("Europe/Berlin", 2025, 9, 30, 22, 22)]
+    public void All_time_starts_on_the_local_day_of_the_oldest_transaction(
+        string timeZone, int year, int month, int day, int startHour, int endHour)
+    {
+        var oldest = new DateTimeOffset(2025, 9, 30, 21, 30, 0, TimeSpan.Zero);
+
+        var period = ResolverAt(DemoNowUtc).ResolveAllTime(timeZone, oldest);
+
+        Assert.Equal(PeriodKind.AllTime, period.Kind);
+        Assert.Equal((new DateOnly(year, month, day), new DateOnly(2026, 10, 10)), (period.StartDate, period.EndDate));
+        Assert.Equal(new DateOnly(year, month, day).AddDays(-1).ToDateTime(new TimeOnly(startHour, 0)), period.StartUtc.UtcDateTime);
+        Assert.Equal(Utc(2026, 10, 10, endHour), period.EndUtc);
+    }
+
+    [Fact]
+    public void All_time_without_transactions_is_today()
+    {
+        var period = ResolverAt(DemoNowUtc).ResolveAllTime(Istanbul, oldestUtc: null);
+
+        Assert.Equal((PeriodKind.AllTime, new DateOnly(2026, 10, 10), new DateOnly(2026, 10, 10)),
+            (period.Kind, period.StartDate, period.EndDate));
+        Assert.Equal((Utc(2026, 10, 9, 21), Utc(2026, 10, 10, 21)), (period.StartUtc, period.EndUtc));
+    }
+
+    [Fact]
+    public void All_time_is_not_a_period_for_analyses()
+    {
+        // Its start depends on the data, so only a transaction list resolves it (ResolveAllTime); a spending total
+        // over "everything" is not a question the analyses answer.
+        var error = Assert.Throws<ArgumentException>(() => ResolverAt(DemoNowUtc).Resolve(PeriodKind.AllTime, Istanbul));
+
+        Assert.Equal("period", error.ParamName);
+    }
 }

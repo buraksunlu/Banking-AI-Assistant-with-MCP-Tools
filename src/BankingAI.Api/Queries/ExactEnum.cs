@@ -12,14 +12,14 @@ public static class ExactEnum
     /// <param name="value">The query string value.</param>
     /// <param name="field">The client's field name, used in the error.</param>
     /// <param name="message">The error for a value that is not an accepted name.</param>
-    /// <param name="excluded">A member that exists but may not be asked for by name (e.g. <c>Custom</c>).</param>
+    /// <param name="excluded">Members that exist but may not be asked for by name here (e.g. <c>Custom</c>).</param>
     /// <exception cref="ArgumentException">The value is not an accepted name.</exception>
-    public static TEnum? Parse<TEnum>(string? value, string field, string message, TEnum? excluded = null)
+    public static TEnum? Parse<TEnum>(string? value, string field, string message, params TEnum[] excluded)
         where TEnum : struct, Enum
     {
         if (value is null)
             return null;
-        if (!Enum.GetNames<TEnum>().Contains(value) || value == excluded?.ToString())
+        if (!Enum.GetNames<TEnum>().Contains(value) || excluded.Any(e => e.ToString() == value))
             throw new ArgumentException(message, field);
         return Enum.Parse<TEnum>(value);
     }
