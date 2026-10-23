@@ -216,3 +216,46 @@ struct TransactionSearchResult: Decodable, Equatable {
     let nextCursor: String?
     let items: [TransactionItem]
 }
+
+/// The named periods the analytics screens offer (IOS-08 K4-B). The API resolves each name with its business clock, so the
+/// phone never works out a date; `AllTime` is not here because the analytics endpoints refuse it.
+enum AnalyticsPeriod: String, CaseIterable, Identifiable {
+    case thisMonth = "ThisMonth", lastMonth = "LastMonth", last3Months = "Last3Months", thisYear = "ThisYear"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .thisMonth: "Bu ay"
+        case .lastMonth: "Geçen ay"
+        case .last3Months: "Son 3 ay"
+        case .thisYear: "Bu yıl"
+        }
+    }
+}
+
+/// `GET /api/analytics/category-breakdown`: one block per currency, never added together. The `period` object of the answer
+/// is not decoded; the screen already knows which period it asked for.
+struct CategoryBreakdown: Decodable, Equatable {
+    let currencies: [CurrencyCategoryBreakdown]
+}
+
+/// One currency's spending split by category, biggest first (the API's order).
+struct CurrencyCategoryBreakdown: Decodable, Equatable, Identifiable {
+    let currencyCode: String
+    let totalAmount: Decimal
+    let categories: [CategorySpending]
+
+    var id: String { currencyCode }
+}
+
+/// One slice. `categoryCode == nil` is the unclassified group, which is not "Diğer" (`OTHER`). `percentage` is the backend's.
+struct CategorySpending: Decodable, Equatable, Identifiable {
+    let categoryCode: String?
+    let displayName: String
+    let amount: Decimal
+    let transactionCount: Int
+    let percentage: Decimal
+
+    var id: String { categoryCode ?? AnalyticsDisplay.uncategorizedID }
+}

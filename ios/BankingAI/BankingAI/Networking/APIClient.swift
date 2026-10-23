@@ -34,6 +34,14 @@ extension APIRequest where Response == [Account] {
     }
 }
 
+extension APIRequest where Response == CategoryBreakdown {
+    /// `GET /api/analytics/category-breakdown`: where the money of one named period went, per currency.
+    static func categoryBreakdown(period: AnalyticsPeriod) -> APIRequest<CategoryBreakdown> {
+        APIRequest(method: "GET", path: "api/analytics/category-breakdown",
+                   query: [URLQueryItem(name: "period", value: period.rawValue)], body: nil, requiresToken: true)
+    }
+}
+
 extension APIRequest where Response == Account {
     /// Reads an account opened from its home card, checking ownership on the server.
     static func account(_ id: UUID) -> APIRequest<Account> {

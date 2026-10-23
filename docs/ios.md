@@ -354,3 +354,40 @@ arası ne kadar harcadım" → 5.116,50 TL / 2 işlem, liste 3.476,00 + 1.640,50
 
 Sınırlar: kategori adı başlıkta yok (bütçe + kategori bağlantısı kategoriyi söylemeden süzer), liste toplamı yok, karşılaştırma/aylık seri/düzenli ve
 yaklaşan ödeme/tasarruf cevaplarında düğme yok (PR1 K3-B), satıra dokununca detay açılmaz (IOS-06).
+
+## iOS-i: kategori grafiği (IOS-08 PR1; 23 Ekim 2026)
+
+Ana ekranda "Harcama analizi" kartı, dokununca `AnalyticsView`; ilk parça "Kategorilere göre" halka grafiğidir. Backend ve migration değişmedi:
+`GET /api/analytics/category-breakdown?period=…` hazırdı. Telefon çizer, hesap yapmaz: toplam, tutar ve yüzde backend'indir. Aylık grafik IOS-08
+PR2'dir (aynı ekrana eklenir).
+
+Kararlar: K1-B (ayrı ekran, ana ekranda tek kart), K2-A (halka + altında liste), K3-A (aylık çubuk, PR2), K4-B (dört adlı dönem), K5-A (para birimi
+başına ayrı halka), K6-A (Sınıflandırılmamış ayrı gri dilim), K7-A (aylık: bütün harcama, 6 ay; PR2), K8-A (dokununca özet satırı), K9-B (kategori
+koduna sabit renk), K10-B (iki PR).
+
+```text
+HomeView ─ "Harcama analizi" ─► AnalyticsView ─ CategoryBreakdownSection(@Bindable CategoryBreakdownViewModel)
+CategoryBreakdownViewModel ─► APIRequest.categoryBreakdown(period:) ─► GET /api/analytics/category-breakdown?period=ThisMonth
+AnalyticsDisplay (saf kurallar: yüzde yazımı, renk, özet cümlesi, halkadaki noktadan dilim)
+```
+
+- `Analytics/CategoryBreakdownViewModel`: `loading`/`loaded`/`empty`/`failed`, seçili dönem, `refreshError`, dilim seçimi (para birimi başına).
+  **Dönem seçimi** `AnalyticsPeriod` (Bu ay / Geçen ay / Son 3 ay / Bu yıl; API adları): telefon tarih hesaplamaz. Yenileme hata verirse eski halka
+  silinmez, dönem seçimi halkanın gösterdiği döneme geri döner ve üstte bant çıkar. Her istek bir sıra numarası taşır: **geç gelen eski cevap
+  yeni seçimin üstüne yazılmaz** (`generation`). 401 ve iptal ekranda hata göstermez. Dönem değişince seçim temizlenir.
+- `Analytics/AnalyticsDisplay`: `percentText` (`%80,27`), `summary` ("Yeme & İçme, 590,00 TL, %80,27"), `accessibilityLabel` (yüzde ve işlem sayısı
+  ile), `tone(forCategory:)` (11 bilinen kod için ayrı renk, `nil` her zaman gri, bilinmeyen kod sarı; renk tek başına bilgi taşımaz, liste adı yazar),
+  `slice(atAmount:in:)` (halkada dokunulan noktanın dilimi; kenar, biten dilime aittir).
+- `CategoryBreakdownSection`: `Chart` + `SectorMark` (iç yarıçap oranı 0,62), `chartAngleSelection` halkadaki dokunuşu dilime çevirir, altındaki
+  liste satırı da dilimi seçer/bırakır; seçilmeyen dilimler soluk. Kart arka planı `secondarySystemGroupedBackground` (koyu modda ekrandan ayrışır).
+  Para birimleri **asla toplanmaz**: her biri kendi başlığı, toplamı ve halkasıyla.
+- Kategorisiz grup `categoryCode: nil` → `id` "UNCATEGORIZED"; `OTHER` ("Diğer") ile birleşmez.
+
+Doğrulama: 212 Swift Testing test durumu (önceki 185; +27: `CategoryBreakdownViewModelTests` 17, `AnalyticsDisplayTests` 10). Dokuz kasıtlı bozmanın
+hepsi yakalandı (dönem gitmez → 17 test, Sınıflandırılmamış gri değil, kenar sonraki dilime gider, dönem geri dönmez, geç cevap kabul edilir,
+dönem değişince seçim kalır, dokunuş seçimi bırakmaz, yüzde tek hane, yenileme hatası halkayı siler).
+
+Canlı kontrol (23 Ekim 2026, simülatör + gerçek API, Ada): kart, dört dönem, dilim seçimi ve koyu mod elle doğrulandı. Kart ilk sürümde "Son işlemler"in altındaydı ve görünmedi; selamlamanın hemen altına taşındı.
+
+Sınırlar: özel tarih aralığı yok (yalnız dört adlı dönem); dilime dokununca işlem listesi açılmaz (bağlantı için kategori filtresi doğrulanmalı);
+halka yalnız açılışta ve aşağı çekince yenilenir; aylık grafik PR2'dedir.
