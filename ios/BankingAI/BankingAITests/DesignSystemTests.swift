@@ -51,9 +51,9 @@ struct DesignSystemTests {
     }
 
     // The accent lives twice: in code (Palette) and in the asset catalogue (what the system draws, e.g. the back button).
-    // If one is edited alone, the two golds drift apart without anything failing.
+    // If one is edited alone, the two accents drift apart without anything failing.
     @Test(arguments: [UIUserInterfaceStyle.light, .dark])
-    func theAssetCatalogueAccentIsTheSameGoldAsThePalette(style: UIUserInterfaceStyle) throws {
+    func theAssetCatalogueAccentIsTheSameColourAsThePalette(style: UIUserInterfaceStyle) throws {
         let asset = try #require(UIColor(named: "AccentColor", in: Bundle.main, compatibleWith: UITraitCollection(userInterfaceStyle: style)))
         var (red, green, blue, alpha): (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
         asset.getRed(&red, green: &green, blue: &blue, alpha: &alpha)

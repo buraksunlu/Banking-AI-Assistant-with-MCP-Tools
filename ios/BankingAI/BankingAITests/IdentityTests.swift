@@ -27,14 +27,22 @@ struct IdentityTests {
         #expect(abs(blue - CGFloat(hex & 0xFF) / 255) < 0.003)
     }
 
-    // Plain uppercased() would write "KILAVUZ" the Turkish way only by luck; the label helper must keep the dotless I.
-    @Test func theAssistantLabelUsesTurkishCapitals() {
+    // Pins the label the chat shows above an answer. It does not guard the Turkish capitals: "kılavuz" has no dotted i, so
+    // plain uppercased() gives the same text; that rule is guarded by DesignSystemTests.sectionLabelsUseTurkishCapitals.
+    @Test func theAssistantLabelIsKILAVUZ() {
         #expect(Typography.label(Brand.assistantName) == "KILAVUZ")
     }
 
     @Test func theAssistantMarkLetterIsTheNamesFirstLetter() {
         #expect(Brand.assistantName.hasPrefix(Brand.assistantInitial))
         #expect(Brand.askAssistant == "\(Brand.assistantName)'a sor")
+    }
+
+    // UI-04 K11-B: the accent is the icon's blue, not gold any more; green stays the colour of money coming in, so the two
+    // must never become the same.
+    @Test func theAccentIsTheIconsBlueAndNotTheIncomingGreen() {
+        #expect(Palette.accent == Swatch(0x3D8BFF))
+        #expect(Palette.accent != Palette.incoming)
     }
 
     // The login error sits on the screen colour, not on a card.
