@@ -83,6 +83,8 @@ struct AccountDetailView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
                 .textSelection(.enabled)
+                // The screen has no visible "Güncel bakiye" label; VoiceOver still says what the figure is.
+                .accessibilityLabel("Güncel bakiye, \(Money.text(model.account.balance, currency: model.account.currencyCode))")
             Text(model.account.accountNumber)
                 .font(Typography.caption)
                 .monospacedDigit()

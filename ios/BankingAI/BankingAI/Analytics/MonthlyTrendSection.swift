@@ -7,12 +7,12 @@ struct MonthlyTrendSection: View {
     let model: MonthlyTrendViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Aylık harcama")
-                .font(.title3.bold())
+        VStack(alignment: .leading, spacing: Layout.medium) {
+            SectionTitle(text: "Aylık harcama")
             switch model.state {
             case .loading:
                 ProgressView()
+                    .tint(Palette.secondaryText.color)
                     .frame(maxWidth: .infinity, minHeight: 160)
             case .empty:
                 ContentUnavailableView("Son aylarda harcama yok", systemImage: "chart.bar",
@@ -24,15 +24,11 @@ struct MonthlyTrendSection: View {
                     Text(message)
                 } actions: {
                     Button("Tekrar dene") { Task { await model.load() } }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(SecondaryButtonStyle())
                 }
             case .loaded(let currencies):
                 if let message = model.refreshError {
-                    Label(message, systemImage: "wifi.exclamationmark")
-                        .font(.subheadline)
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.orange.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
+                    StatusBand(text: message)
                 }
                 ForEach(currencies) { currency in
                     CurrencyBars(currency: currency, model: model)
@@ -52,14 +48,17 @@ private struct CurrencyBars: View {
     private var selectedID: String? { model.selectedID(currency: currency.currencyCode) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(currency.currencyCode).font(.headline)
+        VStack(alignment: .leading, spacing: Layout.medium) {
+            Text(currency.currencyCode)
+                .font(Typography.eyebrow)
+                .tracking(1)
+                .foregroundStyle(Palette.secondaryText.color)
             Chart(currency.months) { spending in
                 BarMark(x: .value("Ay", spending.id),
                         y: .value("Tutar", NSDecimalNumber(decimal: spending.amount).doubleValue))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(Palette.accent.color)
                     // The month still running is paler: it is not a whole month (K12-A).
-                    .opacity(opacity(of: spending))
+                    .opacity(AnalyticsDisplay.barOpacity(isPartial: spending.isPartial, id: spending.id, selectedID: selectedID))
                     .accessibilityLabel(AnalyticsDisplay.monthAccessibilityLabel(spending, currency: currency.currencyCode))
             }
             .chartXSelection(value: $tappedID)
@@ -69,15 +68,18 @@ private struct CurrencyBars: View {
                         if let id = value.as(String.self), let spending = currency.months.first(where: { $0.id == id }) {
                             VStack(spacing: 2) {
                                 Text(AnalyticsDisplay.shortMonth(spending.month))
+                                    .foregroundStyle(Palette.secondaryText.color)
                                 // A second cue besides the pale color.
-                                if spending.isPartial { Circle().frame(width: 4, height: 4) }
+                                if spending.isPartial {
+                                    Circle().fill(Palette.secondaryText.color).frame(width: 4, height: 4)
+                                }
                             }
                         }
                     }
                 }
             }
             .chartYAxis {
-                AxisMarks { _ in AxisGridLine() }
+                AxisMarks { _ in AxisGridLine().foregroundStyle(Palette.hairline.color) }
             }
             .frame(height: 180)
             .onChange(of: tappedID) { _, id in
@@ -85,17 +87,11 @@ private struct CurrencyBars: View {
                 model.toggle(spending, currency: currency.currencyCode)
             }
             Text(selectedSummary)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .font(Typography.caption)
+                .foregroundStyle(Palette.secondaryText.color)
                 .frame(maxWidth: .infinity, alignment: .center)
         }
-        .padding()
-        .background(Palette.surface.color, in: RoundedRectangle(cornerRadius: 16))
-    }
-
-    private func opacity(of spending: MonthlySpending) -> Double {
-        if let selectedID, selectedID != spending.id { return 0.35 }
-        return spending.isPartial ? 0.45 : 1
+        .cardSurface()
     }
 
     private var selectedSummary: String {

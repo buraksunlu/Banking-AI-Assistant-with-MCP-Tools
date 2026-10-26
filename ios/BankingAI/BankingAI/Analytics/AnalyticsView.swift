@@ -7,13 +7,14 @@ struct AnalyticsView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: Layout.large) {
                 CategoryBreakdownSection(model: category)
                 MonthlyTrendSection(model: monthly)
             }
-            .padding()
+            .padding(.horizontal, Layout.regular)
+            .padding(.top, Layout.small)
         }
-        .background(Palette.background.color)
+        .blackScreen()
         .navigationTitle("Harcama analizi")
         .navigationBarTitleDisplayMode(.inline)
         .task {

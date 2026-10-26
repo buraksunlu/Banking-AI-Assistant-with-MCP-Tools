@@ -8,6 +8,10 @@ struct TransactionRows: View {
 
     var body: some View {
         if model.isEmpty {
+            // A failed refresh of an empty list must still say so; otherwise the empty result looks current.
+            if let message = model.errorMessage {
+                StatusBand(text: message, actionTitle: "Tekrar dene") { Task { await model.retry() } }
+            }
             ContentUnavailableView(model.emptyMessage, systemImage: "list.bullet.rectangle")
         } else {
             LazyVStack(spacing: 0) {
