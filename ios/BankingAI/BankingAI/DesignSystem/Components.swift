@@ -92,11 +92,40 @@ struct AssistantMark: View {
     var size: CGFloat = 20
 
     var body: some View {
-        Text("A")
+        Text(Brand.assistantInitial)
             .font(.system(size: size * 0.5, weight: .semibold))
             .foregroundStyle(Palette.accent.color)
             .frame(width: size, height: size)
             .overlay(Circle().stroke(Palette.accent.color, lineWidth: 1))
             .accessibilityHidden(true)
+    }
+}
+
+extension View {
+    /// A text field on the black screen (UI-04 K4-B): a raised fill with a hairline that turns gold while the field has the
+    /// focus. The label is not inside the field, so it stays visible once the user has typed.
+    func inputField(focused: Bool) -> some View {
+        self.padding(Layout.regular)
+            .background(Palette.raised.color, in: RoundedRectangle(cornerRadius: Layout.controlRadius))
+            .overlay(RoundedRectangle(cornerRadius: Layout.controlRadius)
+                .stroke(focused ? Palette.accent.color : Palette.hairline.color, lineWidth: 1))
+    }
+}
+
+/// The app's name as a mark: large, light, gold, with the tagline under it (UI-04 K1). Read as one heading.
+struct BrandMark: View {
+    var body: some View {
+        VStack(spacing: Layout.small) {
+            Text(Brand.appName)
+                .font(.system(size: 44, weight: .light))
+                .tracking(2)
+                .foregroundStyle(Palette.accent.color)
+            Text(Brand.tagline)
+                .font(Typography.caption)
+                .foregroundStyle(Palette.secondaryText.color)
+        }
+        .multilineTextAlignment(.center)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 }

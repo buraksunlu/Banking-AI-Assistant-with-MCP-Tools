@@ -41,7 +41,7 @@ final class ChatViewModel {
     }
 
     var unavailableMessage: String? {
-        isAvailable == false ? "Asistan şu an kullanılamıyor." : nil
+        isAvailable == false ? "\(Brand.assistantName) şu an kullanılamıyor." : nil
     }
 
     /// Asks whether the assistant can answer (decision AI-08 K7-A). A failed check leaves the state as it was.

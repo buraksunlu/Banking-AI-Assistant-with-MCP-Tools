@@ -59,7 +59,7 @@ struct ChatView: View {
             }
         }
         .background(Palette.background.color)
-        .navigationTitle("Asistan")
+        .navigationTitle(Brand.assistantName)
         .navigationBarTitleDisplayMode(.inline)
         .task { await model.open() }
         // Leaving the screen or the app stops a pending question (decision AI-08 K5-C).

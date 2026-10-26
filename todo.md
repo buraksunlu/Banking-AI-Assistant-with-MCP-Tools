@@ -342,7 +342,7 @@ adı "Asistan" + küçük monogram, marka/isim kararı UI-04'e; **K5-B** alt sek
   premium kart olarak (hesap adı, maskeli ya da kısaltılmış numara kararı, büyük bakiye; para birimleri toplanmaz); "Harcama analizi"
   kartı içerikli (bu ayın harcaması ya da küçük grafik önizlemesi — yalnız backend'in verdiği rakam); son işlemler aynı dilde;
   "Asistana sor" alttan yüzen sade düğme ya da sekme (UI-07 kararı).
-- [ ] UI-04 — Giriş ekranı ve kimlik. Siyah giriş ekranı (kelime işareti, iki sade alan, vurgu renkli düğme; hata mesajları aynı);
+- [x] UI-04 — Giriş ekranı ve kimlik. **Sonuç (26 Ekim 2026, dal `ui-04-login-identity`, docs/ios.md "iOS-n"; kararlar K1 Compass, K2 Kılavuz, K3-A K4-B K5 a+b+d K6-A K7-A K8-A K9-B):** siyah giriş ekranı, simge (betikle üretilir) ve açılış rengi, adlar `Brand`'de; backend'in üç hata başlığı "Kılavuz" oldu. iOS 287 test durumu (+7), 7 kasıtlı bozma yakalandı. Sınırlar: halka içinde "C" © gibi okunuyor (karar bekliyor), göz düğmesi UI-06. Plan: Siyah giriş ekranı (kelime işareti, iki sade alan, vurgu renkli düğme; hata mesajları aynı);
   uygulama simgesi ve açılış ekranı yeni kimlikte; uygulama/asistan adı kararı.
 - [ ] UI-05 — Kalan ekranları yeni dile taşı: hesap detayı, tüm işlemler, işlem detayı, tarih filtresi paneli, bağlantılı işlemler,
   harcama analizi (halka ve aylık çubuk grafiğin renkleri koyu zeminde okunur; kategori renkleri `AnalyticsDisplay.tone`'da kalır).

@@ -98,7 +98,7 @@ struct AssistantHeader: View {
     var body: some View {
         HStack(spacing: Layout.small) {
             AssistantMark()
-            SectionTitle(text: "Asistan")
+            SectionTitle(text: Brand.assistantName)
         }
     }
 }

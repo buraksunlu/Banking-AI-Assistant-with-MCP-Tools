@@ -496,3 +496,28 @@ Accounts/
 
 Doğrulama: 280 test durumu geçti (+19 `HomeRedesignTests`: istek 1, ViewModel 6, numara kısaltma 5, baş harfler 4, gün satırı 2, VoiceOver cümlesi 1). Altı kasıtlı bozma yakalandı: dönem adı küçük harf, boş liste `loaded`, yenileme hatasında gün silinir, ay kayar, numara son 4 karakter, Türkçesiz `uppercased()` ("II").
 Sınırlar: kart yalnız "bu ay"ı gösterir; iskeletler UI-06; sekme çubuğu ve Profil UI-07; hesap detayı, tüm işlemler ve işlem detayı ekranlarının düzeni UI-05 (yalnız satır rengi şimdi değişti).
+
+## iOS-n: giriş ekranı ve kimlik (UI-04; 26 Ekim 2026)
+
+Giriş ekranı, uygulama simgesi, açılış rengi ve adlar siyah premium dile geçti. `LoginViewModel`, ağ ve hata metinleri aynı; backend'de yalnız üç sohbet hata metni değişti (K9-B).
+
+Kararlar: K1 uygulama adı **Compass**; K2 asistan adı **Kılavuz** (monogram "K"); K3-A ortalı düzen; K4-B koyu dolu alan, etiket üstte, odakta altın çizgi; K5 a+b+d (İleri/Git akışı, ikonlu hata satırı, "Giriş yapılıyor…"); K6-A simge betikle üretilir; K7-A halka içinde baş harf; K8-A açılış ekranı yalnız renk; K9-B backend hata metinleri de "Kılavuz".
+
+```text
+DesignSystem/
+  Brand.swift                    appName, tagline, assistantName, assistantInitial, askAssistant ("Kılavuz'a sor")
+  Components.swift               + BrandMark, inputField(focused:)
+Login/LoginView.swift            ScrollView, iki alan (@FocusState), hata satırı, altın düğme
+Assets.xcassets/
+  LaunchBackground.colorset      #0A0A0B (Palette.background ile aynı; testle bağlı)
+  AppIcon.appiconset/icon-*.png  varsayılan, koyu, renklendirilmiş (1024², alfasız)
+Info.plist                       CFBundleDisplayName = Compass, UILaunchScreen.UIColorName
+ios/tools/make-app-icon.swift    simgeyi Palette.swift + Brand.swift'ten çizer
+```
+
+- Simge yeniden üretmek: `swiftc -O $PWD/ios/tools/make-app-icon.swift -o /tmp/make-icon && /tmp/make-icon` (mutlak yol verilir; `swift betik.swift` yorumlayıcısı AppKit'te çöktüğü için betik CoreGraphics + CoreText kullanır ve derlenerek çalışır). Renk Palette'ten okunur, betikte sabit renk yok.
+- Ad iki yerde durur (kod ve Info.plist); `IdentityTests` ikisinin eşit olduğunu denetler. Hedef adı, bundle kimliği ve repo "BankingAI" kalır.
+- "Asistan" yazan her ekran metni `Brand`'den okunur. Backend'de `ApiExceptionHandler` üç hata başlığı "Kılavuz …" oldu (docs/api.md, `AssistantEndpointTests`); `ai/service/app.py` metinleri telefona ulaşmadığı için (.NET üç koda çevirir) "Asistan" kaldı.
+
+Doğrulama: iOS 287 test durumu (+7 `IdentityTests`), Api AssistantEndpointTests 72/72. Yedi kasıtlı bozmanın hepsi yakalandı (ad, açılış rengi, Türkçesiz büyük harf, soluk hata rengi, şifrenin silinmemesi, ad kayması, eski hata metni). Bulgular: `UILaunchScreen_Generation = YES` ayarı Info.plist anahtarını ezmedi (derlenmiş pakette test okuyor); bozma 3'ü `IdentityTests`'teki "KILAVUZ" testi değil mevcut "SON İŞLEMLER" testi yakalıyor ("kılavuz"da noktalı İ yok).
+Sınırlar: şifre göster/gizle ve yüzen etiket yok (UI-06); Liquid Glass simge yok; halka içindeki "C" telif işaretine (©) benziyor, karar bekliyor; backend `ai/service` metinleri "Asistan"; Profil ekranında ad ve sürüm UI-07.
