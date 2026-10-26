@@ -324,6 +324,11 @@ kendi dalında, simülatörde önce/sonra ekran görüntüsüyle doğrulanır; D
 aynı kalır. Sıra: IOS-08 PR2 (#49) birleşir → UI-01 → UI-02 → UI-03 → UI-04 → UI-05 → UI-06 → UI-07; IOS-09'un karşılaştırma kısmı
 UI-01'den sonra yeni görünümle yapılabilir (opportunity-cost kısmı SRC-02'ye bağlı).
 
+Kullanıcı kararları (26 Ekim 2026): **K1-A** her zaman siyah tema (açık tema yok); **K2-A** tek vurgu rengi şampanya altını, az
+kullanılır (gönder, bağlantı, seçili durum); **K3-A** sohbette asistan cevabı balonsuz, kullanıcı mesajı koyu kapsül; **K4-A** asistan
+adı "Asistan" + küçük monogram, marka/isim kararı UI-04'e; **K5-B** alt sekme çubuğu (Ana sayfa / Analiz / Asistan / Profil), UI-07'de;
+**K6-A** sistem fontu, tutarlarda eşit genişlikli rakam, büyük ve ince bakiye.
+
 - [ ] UI-01 — Tasarım sistemi ve siyah tema. `DesignSystem/` altında renk (zemin, yüzey, yükseltilmiş yüzey, ince çizgi, birincil/ikincil
   metin, tek vurgu rengi, gelen para, hata), yazı ölçeği (büyük bakiye, başlık, gövde, küçük üst etiket; tutarlarda eşit genişlikli
   rakam), boşluk ve köşe değerleri; ortak parçalar: kart yüzeyi, bölüm başlığı, birincil/ikincil düğme, öneri çipi, durum bandı.
