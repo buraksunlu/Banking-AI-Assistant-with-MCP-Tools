@@ -1,20 +1,28 @@
 import SwiftUI
 
-/// The chat screen (AI-08). It shows ``ChatViewModel`` and passes the user's taps to it; there is no logic here.
+/// The chat screen (AI-08, redesigned in UI-02). It shows ``ChatViewModel`` and passes the user's taps to it; there is no
+/// logic here.
 struct ChatView: View {
     @Bindable var model: ChatViewModel
     @Environment(\.scenePhase) private var scenePhase
 
+    /// The counter appears this close to the limit (K5-C): earlier it would only be noise.
+    private static let counterFrom = 450
+
     var body: some View {
         VStack(spacing: 0) {
             if let message = model.unavailableMessage {
-                banner(message)
+                StatusBand(text: message, actionTitle: "Yeniden kontrol et") {
+                    Task { await model.checkStatus() }
+                }
+                .padding(.horizontal, Layout.regular)
+                .padding(.top, Layout.small)
             }
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 12) {
+                    LazyVStack(alignment: .leading, spacing: Layout.large) {
                         if model.messages.isEmpty {
-                            starters
+                            welcome
                         }
                         ForEach(model.messages) { message in
                             MessageBubble(message: message, canRetry: model.canSend, list: model.transactions(for:)) {
@@ -23,17 +31,20 @@ struct ChatView: View {
                             .id(message.id)
                             // Only under the last answer: the server knows only that offer (CHAT-06 K1-B, K2-A).
                             if message.role == .assistant && message.id == model.messages.last?.id && !model.suggestions.isEmpty {
-                                questions(model.suggestions)
-                                    .controlSize(.small)
+                                suggestions(model.suggestions)
                             }
                         }
                         if model.isWaiting {
-                            typing
-                                .id("typing")
+                            VStack(alignment: .leading, spacing: Layout.small) {
+                                AssistantHeader()
+                                TypingDots()
+                            }
+                            .id("typing")
                         }
                     }
-                    .padding()
+                    .padding(Layout.regular)
                 }
+                .scrollDismissesKeyboard(.interactively)
                 .onChange(of: model.messages.count) {
                     withAnimation {
                         if model.isWaiting {
@@ -43,9 +54,9 @@ struct ChatView: View {
                         }
                     }
                 }
+                // Floats over the list (K5-C); the list scrolls on under it.
+                .safeAreaInset(edge: .bottom) { input }
             }
-            Divider()
-            input
         }
         .background(Palette.background.color)
         .navigationTitle("Asistan")
@@ -58,76 +69,112 @@ struct ChatView: View {
         }
     }
 
-    private func banner(_ message: String) -> some View {
-        HStack {
-            Label(message, systemImage: "wifi.exclamationmark")
-                .font(.subheadline)
-            Spacer()
-            Button("Yeniden kontrol et") {
-                Task { await model.checkStatus() }
+    /// An empty chat (K6-C): the mark, a title and the starter questions, one full-width row each (K3-D).
+    private var welcome: some View {
+        VStack(alignment: .leading, spacing: Layout.regular) {
+            AssistantMark(size: 44)
+            VStack(alignment: .leading, spacing: Layout.tight) {
+                Text("Ne öğrenmek istersiniz?")
+                    .font(Typography.title)
+                    .foregroundStyle(Palette.primaryText.color)
+                    .accessibilityAddTraits(.isHeader)
+                Text("Hesaplarınız ve harcamalarınız hakkında sorun.")
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.secondaryText.color)
             }
-            .font(.subheadline.bold())
-        }
-        .padding()
-        .background(Color.orange.opacity(0.15))
-    }
-
-    private var starters: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Harcamalarınızla ilgili sorabilirsiniz:")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
             if model.starters.isEmpty {
-                ProgressView()
+                TypingDots()
+                    .accessibilityLabel("Sorular yükleniyor")
             } else {
-                questions(model.starters)
-            }
-        }
-    }
-
-    /// Questions to tap; a tap sends the text exactly as shown.
-    private func questions(_ texts: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(texts, id: \.self) { text in
-                Button(text) {
-                    Task { await model.send(text) }
+                VStack(spacing: Layout.small) {
+                    ForEach(model.starters, id: \.self) { text in
+                        Button {
+                            Task { await model.send(text) }
+                        } label: {
+                            Text(text)
+                                .multilineTextAlignment(.leading)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(SecondaryButtonStyle())
+                        .disabled(!model.canSend)
+                    }
                 }
-                .buttonStyle(.bordered)
-                .disabled(!model.canSend)
             }
         }
+        .padding(.top, Layout.huge)
     }
 
-    private var typing: some View {
-        HStack(spacing: 8) {
-            ProgressView()
-            Text("Asistan yazıyor…")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+    /// The questions offered under the last answer: one row of chips that scrolls sideways, so it never pushes the chat
+    /// down (K3-D). A tap sends the text exactly as shown.
+    private func suggestions(_ texts: [String]) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: Layout.small) {
+                ForEach(texts, id: \.self) { text in
+                    Button(text) {
+                        Task { await model.send(text) }
+                    }
+                    .buttonStyle(ChipButtonStyle())
+                    .disabled(!model.canSend)
+                }
+            }
         }
+        .scrollClipDisabled()
     }
 
     private var input: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            TextField("Sorunuzu yazın", text: $model.draft, axis: .vertical)
-                .lineLimit(1...4)
-                .textFieldStyle(.roundedBorder)
-                .disabled(model.isAvailable == false)
-                .onSubmit { Task { await model.sendDraft() } }
-            if model.isWaiting {
-                Button("Durdur", systemImage: "stop.circle.fill", action: model.stop)
-                    .labelStyle(.iconOnly)
-                    .font(.title2)
-                    .tint(.red)
-            } else {
-                Button("Gönder", systemImage: "arrow.up.circle.fill") {
-                    Task { await model.sendDraft() }
-                }
-                .labelStyle(.iconOnly)
-                .font(.title2)
-                .disabled(!model.canSendDraft)
+        VStack(alignment: .trailing, spacing: Layout.tight) {
+            if model.draftLength >= Self.counterFrom {
+                Text("\(model.draftLength)/\(ChatViewModel.maxLength)")
+                    .font(Typography.caption.monospacedDigit())
+                    .foregroundStyle(model.draftLength > ChatViewModel.maxLength ? Palette.failure.color : Palette.secondaryText.color)
+                    .padding(.horizontal, Layout.regular)
             }
+            HStack(alignment: .bottom, spacing: Layout.small) {
+                TextField("Sorunuzu yazın", text: $model.draft, axis: .vertical)
+                    .lineLimit(1...4)
+                    .textFieldStyle(.plain)
+                    .font(Typography.body)
+                    .foregroundStyle(Palette.primaryText.color)
+                    .padding(.vertical, Layout.small)
+                    .disabled(model.isAvailable == false)
+                    .onSubmit { Task { await model.sendDraft() } }
+                if model.isWaiting {
+                    Button(action: model.stop) {
+                        Image(systemName: "stop.fill")
+                            .font(.footnote)
+                            .foregroundStyle(Palette.primaryText.color)
+                            .frame(width: 34, height: 34)
+                            .overlay(Circle().stroke(Palette.hairline.color, lineWidth: 1))
+                    }
+                    .accessibilityLabel("Durdur")
+                } else {
+                    Button {
+                        Task { await model.sendDraft() }
+                    } label: {
+                        // Grey, not faded gold, while it cannot be tapped: gold means "tap me" (K2-A).
+                        Image(systemName: "arrow.up")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(model.canSendDraft ? Palette.onAccent.color : Palette.secondaryText.color)
+                            .frame(width: 34, height: 34)
+                            .background(model.canSendDraft ? Palette.accent.color : Palette.hairline.color, in: Circle())
+                    }
+                    .disabled(!model.canSendDraft)
+                    .accessibilityLabel("Gönder")
+                }
+            }
+            .padding(.leading, Layout.regular)
+            .padding(.trailing, Layout.tight)
+            .padding(.vertical, Layout.tight)
+            .background(Palette.raised.color, in: RoundedRectangle(cornerRadius: Layout.cardRadius))
+            .overlay(RoundedRectangle(cornerRadius: Layout.cardRadius).stroke(Palette.hairline.color, lineWidth: 1))
         }
-        .padding()
+        .padding(.horizontal, Layout.regular)
+        .padding(.bottom, Layout.small)
+        .padding(.top, Layout.medium)
+        // The list fades out under the capsule instead of ending at a hard line.
+        .background(
+            LinearGradient(colors: [Palette.background.color.opacity(0), Palette.background.color],
+                           startPoint: .top, endPoint: .center)
+        )
     }
 }

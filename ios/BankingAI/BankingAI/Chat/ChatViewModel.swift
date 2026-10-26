@@ -32,10 +32,12 @@ final class ChatViewModel {
     /// One message at a time: the single local model answers in turn, and the API allows ten a minute (SEC-06).
     var canSend: Bool { isAvailable != false && !isWaiting }
 
+    /// The draft's length as the API counts it (Unicode characters, not Swift's grapheme clusters); the screen's counter
+    /// shows the same number the limit checks (UI-02 K5-C).
+    var draftLength: Int { Self.trimmed(draft).unicodeScalars.count }
+
     var canSendDraft: Bool {
-        let text = Self.trimmed(draft)
-        // Counted like the API counts (Unicode characters), not like Swift's grapheme clusters.
-        return canSend && !text.isEmpty && text.unicodeScalars.count <= Self.maxLength
+        canSend && draftLength > 0 && draftLength <= Self.maxLength
     }
 
     var unavailableMessage: String? {
