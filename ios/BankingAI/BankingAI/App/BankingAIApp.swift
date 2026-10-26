@@ -32,7 +32,7 @@ struct RootView: View {
         if session.isSignedIn {
             HomeView(model: HomeViewModel(api: api, session: session), accounts: AccountsViewModel(api: api),
                      recent: RecentTransactionsViewModel(api: api), history: TransactionHistoryViewModel(api: api),
-                     category: CategoryBreakdownViewModel(api: api), monthly: MonthlyTrendViewModel(api: api),
+                     summary: SpendingSummaryViewModel(api: api), category: CategoryBreakdownViewModel(api: api), monthly: MonthlyTrendViewModel(api: api),
                      chat: ChatViewModel(api: api))
         } else {
             LoginView(model: LoginViewModel(api: api, session: session))

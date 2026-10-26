@@ -338,7 +338,7 @@ adı "Asistan" + küçük monogram, marka/isim kararı UI-04'e; **K5-B** alt sek
   "İşlemleri gör" metin bağlantısı; öneriler yatay kayan ince çerçeveli çipler; "Asistan yazıyor…" yerine sade üç nokta; giriş alanı
   yüzen koyu kapsül + vurgu renkli gönder; boş sohbette karşılama başlığı + başlangıç soruları; hata/durdurma durumları aynı dilde.
   Davranış (Durdur, Tekrar dene, bağlantılar, öneriler, kaydırma) aynı kalır.
-- [ ] UI-03 — Ana ekran. "BankingAI" büyük başlığı ve "Merhaba, Murat!" yerine sade üst satır (selam + tarih/profil); hesaplar
+- [x] UI-03 — Ana ekran. **Sonuç (26 Ekim 2026, dal `ui-03-home-redesign`, docs/ios.md "iOS-m"; kararlar K1-A K2-B K3-A K4-A K5-A K6-A K7-B K8-A):** "BankingAI" başlığı gitti; üst satır selam + backend'in günü ("26 Ekim 2026", `spending-summary` cevabının `endDate`'i) + baş harfli profil dairesi (menüde Çıkış); sıra: "Bu ay harcama" kartı (yeni `SpendingSummaryViewModel`, para birimi başına backend rakamı, kart analize açılır) → hesap kartları (büyük ince bakiye, "•••• 001") → son işlemler (`TransactionRow` Palette'e geçti, her yerde aynı); "Asistana sor" alttan yüzen kapsül; turuncu bantlar `StatusBand`. Backend değişmedi. iOS 280 test durumu (+19), 6 kasıtlı bozma yakalandı. Sınırlar: iskeletler UI-06, sekme/Profil UI-07, kalan ekranların düzeni UI-05. Plan: "BankingAI" büyük başlığı ve "Merhaba, Murat!" yerine sade üst satır (selam + tarih/profil); hesaplar
   premium kart olarak (hesap adı, maskeli ya da kısaltılmış numara kararı, büyük bakiye; para birimleri toplanmaz); "Harcama analizi"
   kartı içerikli (bu ayın harcaması ya da küçük grafik önizlemesi — yalnız backend'in verdiği rakam); son işlemler aynı dilde;
   "Asistana sor" alttan yüzen sade düğme ya da sekme (UI-07 kararı).

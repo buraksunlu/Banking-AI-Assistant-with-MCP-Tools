@@ -1,12 +1,14 @@
 import SwiftUI
 
-/// The signed-in home screen: the greeting from `GET /api/me`, the customer's accounts (IOS-04, decision K1-D), the newest
-/// transactions with the way to all of them (IOS-07), the way to the assistant and sign-out.
+/// The signed-in home screen (UI-03): the header, this month's spending, the customer's accounts (IOS-04, decision K1-D), the
+/// newest transactions with the way to all of them (IOS-07) and the way to the assistant. Sign-out sits in the header's
+/// profile menu.
 struct HomeView: View {
     @State var model: HomeViewModel
     @State var accounts: AccountsViewModel
     @State var recent: RecentTransactionsViewModel
     @State var history: TransactionHistoryViewModel
+    @State var summary: SpendingSummaryViewModel
     @State var category: CategoryBreakdownViewModel
     @State var monthly: MonthlyTrendViewModel
     /// Lives as long as this screen, so going back and forth keeps the conversation; signing out ends both (K4-D).
@@ -15,33 +17,29 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
-                    if let greeting = model.greeting {
-                        Text(greeting)
-                            .font(.title2.bold())
-                    } else if let message = model.errorMessage {
-                        Label(message, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.red)
+                VStack(alignment: .leading, spacing: Layout.large) {
+                    HomeHeader(model: model, dayLine: HomeDisplay.dayLine(summary.endDate))
+                    // A failed card is not a link: its own "Tekrar dene" must not also open the analysis screen.
+                    if case .failed = summary.state {
+                        SpendingSummaryCard(model: summary)
                     } else {
-                        ProgressView()
+                        NavigationLink(value: AnalyticsRoute()) {
+                            SpendingSummaryCard(model: summary)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    NavigationLink(value: AnalyticsRoute()) {
-                        Label("Harcama analizi", systemImage: "chart.pie")
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding()
-                            .background(Palette.surface.color, in: RoundedRectangle(cornerRadius: 16))
-                    }
-                    .buttonStyle(.plain)
                     AccountsSection(model: accounts)
                     RecentTransactionsSection(model: recent)
                 }
-                .padding()
+                .padding(.horizontal, Layout.regular)
+                .padding(.top, Layout.small)
             }
             .background(Palette.background.color)
             .refreshable {
                 async let accountsLoaded: Void = accounts.load()
                 async let recentLoaded: Void = recent.load()
-                _ = await (accountsLoaded, recentLoaded)
+                async let summaryLoaded: Void = summary.load()
+                _ = await (accountsLoaded, recentLoaded, summaryLoaded)
             }
             .navigationDestination(for: TransactionHistoryRoute.self) { _ in
                 TransactionHistoryView(model: history)
@@ -52,22 +50,29 @@ struct HomeView: View {
             .navigationDestination(for: TransactionItem.self) { item in
                 TransactionDetailView(item: item)
             }
-            // Stays in reach below a long account list.
+            // Floats over the list and stays in reach below a long account list; UI-07 turns it into a tab.
             .safeAreaInset(edge: .bottom) {
                 NavigationLink {
                     ChatView(model: chat)
                 } label: {
-                    Label("Asistana sor", systemImage: "bubble.left.and.text.bubble.right")
-                        .frame(maxWidth: .infinity)
+                    HStack(spacing: Layout.small) {
+                        AssistantMark(size: 24)
+                        Text("Asistana sor")
+                            .font(.body.weight(.medium))
+                            .foregroundStyle(Palette.primaryText.color)
+                    }
+                    .padding(.horizontal, Layout.large)
+                    .padding(.vertical, Layout.medium)
+                    .background(Palette.raised.color, in: Capsule())
+                    .overlay(Capsule().stroke(Palette.hairline.color, lineWidth: 1))
                 }
-                .buttonStyle(PrimaryButtonStyle())
-                .padding()
-                .background(.bar)
+                .buttonStyle(.plain)
+                .padding(.bottom, Layout.small)
             }
-            .navigationTitle("BankingAI")
-            .toolbar {
-                Button("Çıkış", action: model.signOut)
-            }
+            // The header replaces the navigation bar; screens pushed from here bring their own. The title is still needed:
+            // it is their back button's label, which would otherwise be the system's English "Back".
+            .navigationTitle("Ana sayfa")
+            .toolbar(.hidden, for: .navigationBar)
             .task { await model.load() }
         }
         .environment(\.customerTimeZone, model.timeZone)

@@ -446,3 +446,30 @@ DesignSystem/
 Doğrulama: 249 test durumu geçti (main'de 231, +18 yeni `DesignSystemTests`: formül 21,0 ve 4,54, sıra bağımsızlığı, 11 metin/yüzey çifti ≥ 4,5, zemin saf siyah değil, Türkçe büyük harf, katalogdaki vurgu rengi `Palette.accent` ile aynı (açık ve koyu)).
 Dört kasıtlı bozma yakalandı (dördüncüsü: katalogdaki rengi tek başına değiştirmek): ikincil metin `#5A5A5E` (kontrast testi), `uppercased()` Türkçesiz ("SON IŞLEMLER"), zemin saf siyah. Simülatörde (Murat, gerçek API) ana ekran ve sohbet önce/sonra görüldü.
 Sınırlar: açık tema yok; alt çubuk hâlâ sistem materyali (hafif gri bant, UI-03); giriş ekranı `Form` olarak kaldı (UI-04); `StatusBand` ve diğer ortak parçalar henüz ekranlarda kullanılmıyor.
+
+
+## iOS-m: ana ekran (UI-03; 26 Ekim 2026)
+
+Ana ekran siyah premium dile geçti. Yalnız görünüm ve bir yeni okuma: ViewModel, ağ ve rakam mantığı aynı, backend değişmedi. (iOS-l, UI-02 sohbet yeniden tasarımına ayrılmıştır; yazılmadı.)
+
+Kararlar: K1-A selam + backend günü + profil dairesi; K2-B kartta "•••• 001"; K3-A alt alta tam genişlik hesap kartları; K4-A "Bu ay harcama" kartı; K5-A yüzen "Asistana sor" kapsülü;
+K6-A `TransactionRow` her yerde Palette'te; K7-B sıra: üst satır → harcama kartı → hesaplar → son işlemler; K8-A yalnız renkler (iskeletler UI-06).
+
+```text
+Home/
+  HomeView.swift            düzen: üst satır, kart, bölümler, yüzen düğme (navigasyon çubuğu gizli)
+  HomeHeader.swift          selam, gün satırı, baş harfli profil menüsü (Çıkış)
+  HomeDisplay.swift         initials (Türkçe büyük harf), dayLine (okunamazsa nil)
+Analytics/
+  SpendingSummaryViewModel.swift  GET /api/analytics/spending-summary?period=ThisMonth; ListLoader + endDate
+  SpendingSummaryCard.swift       kart: para birimi başına büyük tutar, alışveriş sayısı, "Harcama analizi"
+Accounts/
+  AccountRow.swift, AccountDisplay.swift  kart; shortNumber, spokenSummary (VoiceOver tek cümle)
+```
+
+- Gün satırı telefon takviminden değil, `spending-summary` cevabındaki `period.endDate`'ten gelir (demo saati telefon tarihinden farklı olabilir); cevap gelene kadar satır boş yer tutar, okunamayan gün hiç gösterilmez.
+- Para birimleri toplanmaz: iki para biriminde iki satır. Harcama yoksa "Bu ay henüz harcama yok"; ilk yükleme hatasında mesaj + "Tekrar dene"; yenileme hatasında eski rakam kalır, üstte bant çıkar; 401 ve iptal sessiz.
+- Aşağı çekip yenileme hesapları, son işlemleri ve özeti birlikte yeniler. Çıkış sağ üstteki profil menüsündedir (UI-07'de Profil ekranına taşınır).
+
+Doğrulama: 280 test durumu geçti (+19 `HomeRedesignTests`: istek 1, ViewModel 6, numara kısaltma 5, baş harfler 4, gün satırı 2, VoiceOver cümlesi 1). Altı kasıtlı bozma yakalandı: dönem adı küçük harf, boş liste `loaded`, yenileme hatasında gün silinir, ay kayar, numara son 4 karakter, Türkçesiz `uppercased()` ("II").
+Sınırlar: kart yalnız "bu ay"ı gösterir; iskeletler UI-06; sekme çubuğu ve Profil UI-07; hesap detayı, tüm işlemler ve işlem detayı ekranlarının düzeni UI-05 (yalnız satır rengi şimdi değişti).

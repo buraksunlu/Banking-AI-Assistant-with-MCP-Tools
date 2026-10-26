@@ -9,22 +9,23 @@ struct TransactionRow: View {
         HStack(spacing: 12) {
             Image(systemName: shown.symbol)
                 .font(.body)
-                .foregroundStyle(.tint)
+                .foregroundStyle(Palette.secondaryText.color)
                 .frame(width: 36, height: 36)
-                .background(.tint.opacity(0.12), in: Circle())
+                .background(Palette.raised.color, in: Circle())
             VStack(alignment: .leading, spacing: 2) {
                 Text(shown.title)
                     .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Palette.primaryText.color)
                     .lineLimit(1)
                 Text(shown.subtitle)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Palette.secondaryText.color)
             }
             Spacer(minLength: 8)
             Text(shown.amount)
                 .font(.subheadline.weight(.semibold))
                 .monospacedDigit()
-                .foregroundStyle(shown.isIncoming ? Color.green : Color.primary)
+                .foregroundStyle(shown.isIncoming ? Palette.incoming.color : Palette.primaryText.color)
         }
         .accessibilityElement(children: .combine)
     }
