@@ -40,7 +40,7 @@ struct AccountRow: View {
         }
         .padding()
         // The grouped pair: in dark mode plain `.background` is as black as the screen behind the cards.
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+        .background(Palette.surface.color, in: RoundedRectangle(cornerRadius: 16))
         .accessibilityElement(children: .combine)
     }
 }

@@ -65,7 +65,7 @@ struct RecentTransactionsSection: View {
                         }
                     }
                 }
-                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+                .background(Palette.surface.color, in: RoundedRectangle(cornerRadius: 16))
             }
         }
         // Like the accounts: only a list that never arrived is asked for again when the screen comes back.

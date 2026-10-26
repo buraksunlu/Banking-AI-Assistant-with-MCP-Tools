@@ -1,0 +1,77 @@
+import SwiftUI
+
+extension View {
+    /// The card: a surface one step above the screen with a hairline around it.
+    func cardSurface(padding: CGFloat = Layout.regular) -> some View {
+        self.padding(padding)
+            .background(Palette.surface.color, in: RoundedRectangle(cornerRadius: Layout.cardRadius))
+            .overlay(RoundedRectangle(cornerRadius: Layout.cardRadius).stroke(Palette.hairline.color, lineWidth: 1))
+    }
+}
+
+/// The small capital label above a section.
+struct SectionTitle: View {
+    let text: String
+
+    var body: some View {
+        Text(Typography.label(text))
+            .font(Typography.eyebrow)
+            .tracking(1)
+            .foregroundStyle(Palette.secondaryText.color)
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// The one filled button of a screen: gold with a black label.
+struct PrimaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.semibold))
+            .foregroundStyle(Palette.onAccent.color)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Layout.regular)
+            .background(Palette.accent.color.opacity(configuration.isPressed ? 0.8 : 1),
+                        in: RoundedRectangle(cornerRadius: Layout.controlRadius))
+    }
+}
+
+/// A quiet button: a hairline around the label, no fill.
+struct SecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.medium))
+            .foregroundStyle(Palette.primaryText.color)
+            .padding(.horizontal, Layout.regular)
+            .padding(.vertical, Layout.medium)
+            .overlay(RoundedRectangle(cornerRadius: Layout.controlRadius).stroke(Palette.hairline.color, lineWidth: 1))
+            .opacity(configuration.isPressed ? 0.6 : 1)
+    }
+}
+
+/// A suggestion to tap: a thin outlined capsule.
+struct ChipButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.footnote)
+            .foregroundStyle(Palette.primaryText.color)
+            .padding(.horizontal, Layout.medium)
+            .padding(.vertical, Layout.small)
+            .overlay(Capsule().stroke(Palette.hairline.color, lineWidth: 1))
+            .opacity(configuration.isPressed ? 0.6 : 1)
+    }
+}
+
+/// A note above a list or a screen ("could not refresh"); it replaces the orange bands screen by screen.
+struct StatusBand: View {
+    let text: String
+    var symbol = "wifi.exclamationmark"
+
+    var body: some View {
+        Label(text, systemImage: symbol)
+            .font(.subheadline)
+            .foregroundStyle(Palette.primaryText.color)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(Layout.medium)
+            .background(Palette.raised.color, in: RoundedRectangle(cornerRadius: Layout.controlRadius))
+    }
+}

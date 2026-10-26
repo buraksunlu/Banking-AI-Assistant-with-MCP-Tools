@@ -13,7 +13,7 @@ struct AnalyticsView: View {
             }
             .padding()
         }
-        .background(Color(.systemGroupedBackground))
+        .background(Palette.background.color)
         .navigationTitle("Harcama analizi")
         .navigationBarTitleDisplayMode(.inline)
         .task {

@@ -47,6 +47,7 @@ struct ChatView: View {
             Divider()
             input
         }
+        .background(Palette.background.color)
         .navigationTitle("Asistan")
         .navigationBarTitleDisplayMode(.inline)
         .task { await model.open() }
