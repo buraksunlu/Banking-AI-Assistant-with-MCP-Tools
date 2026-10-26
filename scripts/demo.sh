@@ -50,11 +50,16 @@ done
 docker exec "$PG_CONTAINER" pg_isready || { echo "HATA: PostgreSQL hazir degil."; exit 1; }
 
 echo "2/5 Ollama"
+# Models live on the external SSD; a bare `ollama serve` does not know that location and lists no models.
+OLLAMA_MODELS_DIR="${OLLAMA_MODELS:-/Volumes/burakSSD/Ollama/models}"
+[ -d "$OLLAMA_MODELS_DIR" ] || { echo "HATA: $OLLAMA_MODELS_DIR yok (harici SSD takili mi?)"; exit 1; }
 if ! curl -fs -o /dev/null http://127.0.0.1:11434/api/tags; then
-  nohup ollama serve >"$LOGS/ollama.log" 2>&1 &
+  OLLAMA_MODELS="$OLLAMA_MODELS_DIR" nohup ollama serve >"$LOGS/ollama.log" 2>&1 &
 fi
 wait_for "ollama" http://127.0.0.1:11434/api/tags 20 || exit 1
-ollama list | grep -q "${BANKINGAI_LLM_MODEL:-qwen3.5:4b}" \
+# Capture first: `grep -q` closes the pipe early and pipefail would report a false failure.
+INSTALLED_MODELS="$(ollama list)"
+grep -qF "${BANKINGAI_LLM_MODEL:-qwen3.5:4b}" <<<"$INSTALLED_MODELS" \
   || { echo "HATA: model yok (harici SSD takili mi?)"; exit 1; }
 
 echo "3/5 Derleme"
