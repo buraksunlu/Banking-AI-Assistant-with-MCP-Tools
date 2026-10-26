@@ -443,6 +443,6 @@ DesignSystem/
   Turuncu bantlar ve kategori renkleri aynı kaldı (UI-05/UI-06).
 - Kontrast (hesaplanmış): ikincil metin/yüzey 5,64; altın/zemin 8,84; siyah yazı/altın düğme 8,84; birincil/yükseltilmiş yüzey 14,54; gelen para/yüzey 9,11; hata/yüzey 6,63; hepsi ≥ 4,5.
 
-Doğrulama: 246 test durumu geçti (önceki 232; yeni `DesignSystemTests`: formül 21,0 ve 4,54, sıra bağımsızlığı, 11 metin/yüzey çifti ≥ 4,5, zemin saf siyah değil, Türkçe büyük harf).
-Üç kasıtlı bozma yakalandı: ikincil metin `#5A5A5E` (kontrast testi), `uppercased()` Türkçesiz ("SON IŞLEMLER"), zemin saf siyah. Simülatörde (Murat, gerçek API) ana ekran ve sohbet önce/sonra görüldü.
+Doğrulama: 249 test durumu geçti (main'de 231, +18 yeni `DesignSystemTests`: formül 21,0 ve 4,54, sıra bağımsızlığı, 11 metin/yüzey çifti ≥ 4,5, zemin saf siyah değil, Türkçe büyük harf, katalogdaki vurgu rengi `Palette.accent` ile aynı (açık ve koyu)).
+Dört kasıtlı bozma yakalandı (dördüncüsü: katalogdaki rengi tek başına değiştirmek): ikincil metin `#5A5A5E` (kontrast testi), `uppercased()` Türkçesiz ("SON IŞLEMLER"), zemin saf siyah. Simülatörde (Murat, gerçek API) ana ekran ve sohbet önce/sonra görüldü.
 Sınırlar: açık tema yok; alt çubuk hâlâ sistem materyali (hafif gri bant, UI-03); giriş ekranı `Form` olarak kaldı (UI-04); `StatusBand` ve diğer ortak parçalar henüz ekranlarda kullanılmıyor.

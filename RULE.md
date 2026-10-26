@@ -1549,7 +1549,7 @@ COMPLETED
   ayrı gri dilim, kategori koduna sabit renk. Telefon yüzde ve toplam hesaplamaz. Backend değişmedi. 212 iOS test durumu. Aylık grafik PR2.
 - Aylık grafik IOS-08 PR2 (23 Ekim 2026, docs/ios.md "iOS-j"): analiz ekranında kategori halkasının altında `GET /api/analytics/monthly-trend?months=6`
   çubukları (7 çubuk, para birimi başına ayrı, devam eden ay soluk, harcamasız ay sıfır çubuk, değer ekseni yok). Backend değişmedi. 232 iOS test durumu. IOS-08 tamam.
-- Arayüz kimliği UI-01 (26 Ekim 2026, docs/ios.md "iOS-k"): siyah tema (her zaman koyu, zemin `#0A0A0B`), tek vurgu şampanya altını, `DesignSystem/` (Palette, Typography, Layout, Components); renkler yalnız `Palette`'ten, kontrast testle korunur. Düzen değişmedi (UI-02+). 246 iOS test durumu.
+- Arayüz kimliği UI-01 (26 Ekim 2026, docs/ios.md "iOS-k"): siyah tema (her zaman koyu, zemin `#0A0A0B`), tek vurgu şampanya altını, `DesignSystem/` (Palette, Typography, Layout, Components); renkler yalnız `Palette`'ten, kontrast testle korunur. Düzen değişmedi (UI-02+). 249 iOS test durumu.
 - Belirli tarih ve aralık CHAT-08, PR1 altyapı (23 Ekim 2026, dal `chat-08-dates-backend`; docs/mcp.md "Tarih aralığı", docs/api.md,
   docs/local-ai.md "Müşterinin günü"): MCP'de beş dönem aracı isteğe bağlı `from`/`to` ve `Custom` dönem alır (`ToolDate`: yalnız
   `YYYY-MM-DD` gerçek gün; aralık kuralları `PeriodResolver`'da). `ICustomerCheck` artık `CustomerDay` (müşterinin bugünü + saat dilimi)

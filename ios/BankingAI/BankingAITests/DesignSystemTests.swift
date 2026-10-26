@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+import UIKit
 @testable import BankingAI
 
 // UI-01: the two rules in the design system that are logic, not looks: the contrast formula (so a palette change cannot
@@ -47,5 +48,19 @@ struct DesignSystemTests {
         #expect(Typography.label("son işlemler") == "SON İŞLEMLER")
         #expect(Typography.label("hesaplarım") == "HESAPLARIM")
         #expect(Typography.label("Harcama analizi") == "HARCAMA ANALİZİ")
+    }
+
+    // The accent lives twice: in code (Palette) and in the asset catalogue (what the system draws, e.g. the back button).
+    // If one is edited alone, the two golds drift apart without anything failing.
+    @Test(arguments: [UIUserInterfaceStyle.light, .dark])
+    func theAssetCatalogueAccentIsTheSameGoldAsThePalette(style: UIUserInterfaceStyle) throws {
+        let asset = try #require(UIColor(named: "AccentColor", in: Bundle.main, compatibleWith: UITraitCollection(userInterfaceStyle: style)))
+        var (red, green, blue, alpha): (CGFloat, CGFloat, CGFloat, CGFloat) = (0, 0, 0, 0)
+        asset.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        let hex = Palette.accent.hex
+        // The catalogue stores three decimals, so half a step of 1/255 is the most it can differ by.
+        #expect(abs(red - CGFloat((hex >> 16) & 0xFF) / 255) < 0.003)
+        #expect(abs(green - CGFloat((hex >> 8) & 0xFF) / 255) < 0.003)
+        #expect(abs(blue - CGFloat(hex & 0xFF) / 255) < 0.003)
     }
 }

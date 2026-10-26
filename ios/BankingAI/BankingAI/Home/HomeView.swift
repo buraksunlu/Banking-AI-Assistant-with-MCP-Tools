@@ -61,7 +61,6 @@ struct HomeView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(PrimaryButtonStyle())
-                .controlSize(.large)
                 .padding()
                 .background(.bar)
             }
