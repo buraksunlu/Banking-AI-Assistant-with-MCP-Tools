@@ -446,3 +446,27 @@ DesignSystem/
 Doğrulama: 249 test durumu geçti (main'de 231, +18 yeni `DesignSystemTests`: formül 21,0 ve 4,54, sıra bağımsızlığı, 11 metin/yüzey çifti ≥ 4,5, zemin saf siyah değil, Türkçe büyük harf, katalogdaki vurgu rengi `Palette.accent` ile aynı (açık ve koyu)).
 Dört kasıtlı bozma yakalandı (dördüncüsü: katalogdaki rengi tek başına değiştirmek): ikincil metin `#5A5A5E` (kontrast testi), `uppercased()` Türkçesiz ("SON IŞLEMLER"), zemin saf siyah. Simülatörde (Murat, gerçek API) ana ekran ve sohbet önce/sonra görüldü.
 Sınırlar: açık tema yok; alt çubuk hâlâ sistem materyali (hafif gri bant, UI-03); giriş ekranı `Form` olarak kaldı (UI-04); `StatusBand` ve diğer ortak parçalar henüz ekranlarda kullanılmıyor.
+
+
+## iOS-l: sohbet ekranı (UI-02; 26 Ekim 2026)
+
+Sohbet ekranı siyah premium dile geçti. Yalnız görünüm değişti: Durdur, Tekrar dene, bağlantılar, öneriler ve kaydırma aynı; backend değişmedi.
+
+Kararlar: K1-B cevaptaki rakamlar kalın; K2-B asistan işareti ince altın halkada "A" (`AssistantMark`, klişe yıldız yok); K3-A (14b) asistan cevabı balonsuz, kullanıcı
+mesajı koyu kapsül; K3-D öneriler yatay kayan çipler, boş sohbette başlangıç soruları tam genişlik satır; K4-A "Asistan yazıyor…" yerine üç nokta; K5-C yüzen giriş kapsülü,
+sayaç yalnız 450 karakterden sonra; K6-C boş sohbette işaret + başlık + başlangıç soruları; K8-A `StatusBand` isteğe bağlı eylem (altın).
+
+```text
+Chat/
+  ChatView.swift         düzen: boş sohbet, öneri çipleri, yüzen giriş kapsülü, sayaç
+  MessageBubble.swift    kullanıcı kapsülü / balonsuz cevap, hata ve "Tekrar dene"
+  AnswerHighlight.swift  cevaptaki rakamları kalın yazar (sayı okunmaz, yalnız biçim)
+  TypingDots.swift       sırayla yanan üç nokta; "Hareketi azalt"ta duruk
+DesignSystem/Components.swift  StatusBand eylemi, AssistantMark
+```
+
+- Rakam vurgusu yalnız görünüm: metin sayı olarak okunmaz; daha uzun bir sayının ya da kelimenin parçası kalın yapılmaz; asistanın zaten kalın yazdığı rakam tek kalın kalır; kullanıcının metni olduğu gibi gösterilir.
+- Sayaç API'nin saydığı gibi sayar (Unicode karakter), sınır kontrolüyle aynı sayı.
+
+Doğrulama: 261 test durumu geçti (main'de 249, +12 `AnswerHighlightTests`).
+Sınırlar: ana ekran UI-03, giriş UI-04, kalan ekranlar UI-05.

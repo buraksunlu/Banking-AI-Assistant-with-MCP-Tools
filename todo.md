@@ -333,7 +333,7 @@ adı "Asistan" + küçük monogram, marka/isim kararı UI-04'e; **K5-B** alt sek
   metin, tek vurgu rengi, gelen para, hata), yazı ölçeği (büyük bakiye, başlık, gövde, küçük üst etiket; tutarlarda eşit genişlikli
   rakam), boşluk ve köşe değerleri; ortak parçalar: kart yüzeyi, bölüm başlığı, birincil/ikincil düğme, öneri çipi, durum bandı.
   Uygulama kökünde tema (karara göre her zaman koyu ya da sistemle). Ekranlar henüz değişmez; yalnız vurgu rengi ve zemin.
-- [ ] UI-02 — Sohbet ekranı yeniden tasarım (kullanıcının en çok rahatsız olduğu yer). Asistan cevabı balonsuz, zemine yazılmış sade
+- [x] UI-02 — Sohbet ekranı yeniden tasarım (kullanıcının en çok rahatsız olduğu yer). **Sonuç (26 Ekim 2026, PR #54, docs/ios.md "iOS-l"; kararlar K1-B K2-B K3-D K4-A K5-C K6-C K8-A):** asistan cevabı balonsuz, "A" monogramı altında; kullanıcı mesajı koyu kapsül; cevaptaki rakamlar kalın (`AnswerHighlight`, yalnız görünüm); öneriler yatay kayan çipler, boş sohbette karşılama + tam genişlik başlangıç soruları; üç nokta (`TypingDots`, "Hareketi azalt"ta duruk); yüzen giriş kapsülü, 450 karakterden sonra sayaç; `StatusBand` eylem düğmesi aldı. Davranış aynı. iOS 261 test durumu (+12 `AnswerHighlightTests`). Plan: Asistan cevabı balonsuz, zemine yazılmış sade
   metin + küçük asistan işareti (yıldız/"✨" gibi klişe AI işaretleri yok); kullanıcı mesajı koyu yüzeyde kapsül; rakamlar vurgulu;
   "İşlemleri gör" metin bağlantısı; öneriler yatay kayan ince çerçeveli çipler; "Asistan yazıyor…" yerine sade üç nokta; giriş alanı
   yüzen koyu kapsül + vurgu renkli gönder; boş sohbette karşılama başlığı + başlangıç soruları; hata/durdurma durumları aynı dilde.
