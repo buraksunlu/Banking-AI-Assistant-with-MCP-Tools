@@ -314,6 +314,45 @@ migration onayıyla (CLAUDE.md: SQL gösterilir, ikinci onay). Sıra adım plan�
 - [ ] IOS-11 — AI cevabının altında açılır "Bu cevap nasıl hesaplandı?" paneli (AI-11): kullanılan araçlar, dönem ve kapsam notları sade Türkçeyle; ham JSON gösterilmez.
 - [ ] IOS-12 — Home ekranında içgörü kartları (INS-02/03): en fazla 4 kart, her kartta kanıt rakamları ve kaynağına giden bağlantı; AI kapalıyken şablon metin; kartlar boşsa bölüm gizlenir.
 
+## 14b. Arayüz kimliği: siyah, premium, sade — kullanıcı kararı 26 Ekim 2026
+
+Neden: 26 Ekim 2026 simülatör taramasında uygulama "çok AI ve basmakalıp" duruyor (varsayılan SwiftUI görünümü: açık gri zemin,
+lacivert dolu düğme, gri/lacivert sohbet balonları, köşeli metin kutusu, "BankingAI" büyük başlık, sistem ikonları). Hedef:
+kendine ait, siyah, premium ve sade bir görünüm. Kurallar: yalnız görünüm değişir (ViewModel, ağ ve rakam mantığı değişmez, mevcut
+testler değişmeden yeşil kalır); kütüphane yok; renk/yazı/boşluk tek yerde tanımlanır, ekranlarda sabit renk yazılmaz; her madde
+kendi dalında, simülatörde önce/sonra ekran görüntüsüyle doğrulanır; Dynamic Type ve VoiceOver bozulmaz; tutar yazımı `Money` ile
+aynı kalır. Sıra: IOS-08 PR2 (#49) birleşir → UI-01 → UI-02 → UI-03 → UI-04 → UI-05 → UI-06 → UI-07; IOS-09'un karşılaştırma kısmı
+UI-01'den sonra yeni görünümle yapılabilir (opportunity-cost kısmı SRC-02'ye bağlı).
+
+Kullanıcı kararları (26 Ekim 2026): **K1-A** her zaman siyah tema (açık tema yok); **K2-A** tek vurgu rengi şampanya altını, az
+kullanılır (gönder, bağlantı, seçili durum); **K3-A** sohbette asistan cevabı balonsuz, kullanıcı mesajı koyu kapsül; **K4-A** asistan
+adı "Asistan" + küçük monogram, marka/isim kararı UI-04'e; **K5-B** alt sekme çubuğu (Ana sayfa / Analiz / Asistan / Profil), UI-07'de;
+**K6-A** sistem fontu, tutarlarda eşit genişlikli rakam, büyük ve ince bakiye.
+
+- [ ] UI-01 — Tasarım sistemi ve siyah tema. `DesignSystem/` altında renk (zemin, yüzey, yükseltilmiş yüzey, ince çizgi, birincil/ikincil
+  metin, tek vurgu rengi, gelen para, hata), yazı ölçeği (büyük bakiye, başlık, gövde, küçük üst etiket; tutarlarda eşit genişlikli
+  rakam), boşluk ve köşe değerleri; ortak parçalar: kart yüzeyi, bölüm başlığı, birincil/ikincil düğme, öneri çipi, durum bandı.
+  Uygulama kökünde tema (karara göre her zaman koyu ya da sistemle). Ekranlar henüz değişmez; yalnız vurgu rengi ve zemin.
+- [ ] UI-02 — Sohbet ekranı yeniden tasarım (kullanıcının en çok rahatsız olduğu yer). Asistan cevabı balonsuz, zemine yazılmış sade
+  metin + küçük asistan işareti (yıldız/"✨" gibi klişe AI işaretleri yok); kullanıcı mesajı koyu yüzeyde kapsül; rakamlar vurgulu;
+  "İşlemleri gör" metin bağlantısı; öneriler yatay kayan ince çerçeveli çipler; "Asistan yazıyor…" yerine sade üç nokta; giriş alanı
+  yüzen koyu kapsül + vurgu renkli gönder; boş sohbette karşılama başlığı + başlangıç soruları; hata/durdurma durumları aynı dilde.
+  Davranış (Durdur, Tekrar dene, bağlantılar, öneriler, kaydırma) aynı kalır.
+- [ ] UI-03 — Ana ekran. "BankingAI" büyük başlığı ve "Merhaba, Murat!" yerine sade üst satır (selam + tarih/profil); hesaplar
+  premium kart olarak (hesap adı, maskeli ya da kısaltılmış numara kararı, büyük bakiye; para birimleri toplanmaz); "Harcama analizi"
+  kartı içerikli (bu ayın harcaması ya da küçük grafik önizlemesi — yalnız backend'in verdiği rakam); son işlemler aynı dilde;
+  "Asistana sor" alttan yüzen sade düğme ya da sekme (UI-07 kararı).
+- [ ] UI-04 — Giriş ekranı ve kimlik. Siyah giriş ekranı (kelime işareti, iki sade alan, vurgu renkli düğme; hata mesajları aynı);
+  uygulama simgesi ve açılış ekranı yeni kimlikte; uygulama/asistan adı kararı.
+- [ ] UI-05 — Kalan ekranları yeni dile taşı: hesap detayı, tüm işlemler, işlem detayı, tarih filtresi paneli, bağlantılı işlemler,
+  harcama analizi (halka ve aylık çubuk grafiğin renkleri koyu zeminde okunur; kategori renkleri `AnalyticsDisplay.tone`'da kalır).
+- [ ] UI-06 — Durumlar ve his: yükleniyor iskeletleri (dönen çark yerine), boş/hata durumlarının ortak görünümü, küçük geçiş
+  animasyonları, dokunuşta hafif titreşim (gönder, yenile); "Hareketi azalt" açıksa animasyon yok. Erişilebilirlik taraması:
+  en büyük yazı boyutunda taşma yok, kontrast yeterli, VoiceOver etiketleri yerinde.
+- [ ] UI-07 — Gezinme ve profil (eksik parça). Alt sekme çubuğu (Ana sayfa / Analiz / Asistan / Profil) ya da mevcut tek ekran düzeni
+  (karar); "Çıkış" sağ üstten Profil ekranına taşınır (ad, kullanıcı adı, saat dilimi, uygulama sürümü, çıkış). Sohbet geçmişi yine
+  yalnız bellekte (AI-08 K4-D), sekmeler arasında korunur.
+
 ## 15. Local AI — önce hazır sonucu açıklama
 
 - [x] AI-01 — Donanıma uygun local Qwen modelini seç. Türkçe, structured output ve tool calling'i küçük örneklerle ölç; model adı config olsun. Sonuç (16 Ekim 2026, docs/local-ai.md): Ollama 0.40.5, modeller harici SSD'de; `ai/model_check/` (yalnız standart kütüphane): sabit 20 vaka (12 tool seçimi: 6 tool + transfer/fıkra kapsam dışı; 5 structured output `format` şemasıyla; 3 açıklama) ve deterministik puanlama (`scoring.py`: tek çağrı + birebir argüman, söylenmemiş argüman hata; JSON alan/değer; açıklamada verilmeyen sayı ve zorunlu metin). Thinking kapalı, temperature 0 (iki koşu birebir aynı): `qwen3.5:4b` tool 11/12 (söylenmemiş `limit=5`), JSON 5/5, açıklama 2/3 (`%57,14` yazılmadı), 3,1/1,3/5,0 sn, 4–7 GB; `qwen3.5:9b` 12/12, 5/5, 3/3, 4,6/2,6/8,3 sn, 8–10 GB (swap 11,4 GB'a çıktı). Kullanıcı kararı: **varsayılan `qwen3.5:4b`** (`BANKINGAI_LLM_MODEL`), 9b yedek; MCP-12/14'te gerçek tool listesiyle yeniden ölçülür, 4b %90'ın altına düşerse 9b. Bulgular: structured output'ta değerler prompt'a da yazılmalı (`format` modele göstermez; ilk koşu 1/5); thinking + temperature 0 sonsuz düşünme, önerilen sampling'le bile "Merhaba" 50 sn → thinking kapalı; 9b'nin E02'si sayı kontrolünü geçti ama yönü ters (AI-10/11 gerekçesi). Testler: Python `unittest` 21 (puanlama; Ollama gerektirmez). Sınır: 20 vaka, anlam hatası ve yazıyla sayı puanlanmaz, ölçüm bellek baskısı altında.
@@ -506,6 +545,10 @@ yeşil (API-17 sonrası). 16 Ekim 2026'dan beri her iş kendi dalında yapılır
 girer; git komutlarını kullanıcı çalıştırır (CLAUDE.md "Git akışı").
 
 Sıradaki (kullanıcı seçer; müşteri her zaman token'dan gelir):
+
+- **26 Ekim 2026 kullanıcı kararı — arayüz kimliği (14b, UI-01–07):** siyah, premium, sade görünüm; önce IOS-08 PR2 (#49, aylık
+  çubuk grafik, açık PR) birleşir, sonra UI-01 tasarım sistemi → UI-02 sohbet → UI-03 ana ekran → UI-04 giriş/kimlik → UI-05 kalan
+  ekranlar → UI-06 durumlar/erişilebilirlik → UI-07 gezinme/profil. Backend gerektirenler (IOS-11 ← AI-11, IOS-12 ← INS-01–03) bekler.
 
 - **Omurga tamam:** iPhone → .NET sohbet kapısı → AI servisi → araçlar salt okunur MCP server'dan (AI-14a/b, AI-07, MCP-a,
   MCP-b; 20 Ekim 2026). iPhone: iOS-a (proje + giriş, IOS-01/13) ve AI-08 (iOS-b, sohbet ekranı) 20 Ekim 2026'da, IOS-04 (hesaplar) ve IOS-07 (son işlemler + tüm işlemler) 22 Ekim 2026'da tamam; iPhone'dan
