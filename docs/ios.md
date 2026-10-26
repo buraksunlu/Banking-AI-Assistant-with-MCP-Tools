@@ -448,9 +448,31 @@ Dört kasıtlı bozma yakalandı (dördüncüsü: katalogdaki rengi tek başına
 Sınırlar: açık tema yok; alt çubuk hâlâ sistem materyali (hafif gri bant, UI-03); giriş ekranı `Form` olarak kaldı (UI-04); `StatusBand` ve diğer ortak parçalar henüz ekranlarda kullanılmıyor.
 
 
+## iOS-l: sohbet ekranı (UI-02; 26 Ekim 2026)
+
+Sohbet ekranı siyah premium dile geçti. Yalnız görünüm değişti: Durdur, Tekrar dene, bağlantılar, öneriler ve kaydırma aynı; backend değişmedi.
+
+Kararlar: K1-B cevaptaki rakamlar kalın; K2-B asistan işareti ince altın halkada "A" (`AssistantMark`, klişe yıldız yok); K3-A (14b) asistan cevabı balonsuz, kullanıcı
+mesajı koyu kapsül; K3-D öneriler yatay kayan çipler, boş sohbette başlangıç soruları tam genişlik satır; K4-A "Asistan yazıyor…" yerine üç nokta; K5-C yüzen giriş kapsülü,
+sayaç yalnız 450 karakterden sonra; K6-C boş sohbette işaret + başlık + başlangıç soruları; K8-A `StatusBand` isteğe bağlı eylem (altın).
+
+```text
+Chat/
+  ChatView.swift         düzen: boş sohbet, öneri çipleri, yüzen giriş kapsülü, sayaç
+  MessageBubble.swift    kullanıcı kapsülü / balonsuz cevap, hata ve "Tekrar dene"
+  AnswerHighlight.swift  cevaptaki rakamları kalın yazar (sayı okunmaz, yalnız biçim)
+  TypingDots.swift       sırayla yanan üç nokta; "Hareketi azalt"ta duruk
+DesignSystem/Components.swift  StatusBand eylemi, AssistantMark
+```
+
+- Rakam vurgusu yalnız görünüm: metin sayı olarak okunmaz; daha uzun bir sayının ya da kelimenin parçası kalın yapılmaz; asistanın zaten kalın yazdığı rakam tek kalın kalır; kullanıcının metni olduğu gibi gösterilir.
+- Sayaç API'nin saydığı gibi sayar (Unicode karakter), sınır kontrolüyle aynı sayı.
+
+Doğrulama: 261 test durumu geçti (main'de 249, +12 `AnswerHighlightTests`).
+Sınırlar: ana ekran UI-03, giriş UI-04, kalan ekranlar UI-05.
 ## iOS-m: ana ekran (UI-03; 26 Ekim 2026)
 
-Ana ekran siyah premium dile geçti. Yalnız görünüm ve bir yeni okuma: ViewModel, ağ ve rakam mantığı aynı, backend değişmedi. (iOS-l, UI-02 sohbet yeniden tasarımına ayrılmıştır; yazılmadı.)
+Ana ekran siyah premium dile geçti. Yalnız görünüm ve bir yeni okuma: ViewModel, ağ ve rakam mantığı aynı, backend değişmedi.
 
 Kararlar: K1-A selam + backend günü + profil dairesi; K2-B kartta "•••• 001"; K3-A alt alta tam genişlik hesap kartları; K4-A "Bu ay harcama" kartı; K5-A yüzen "Asistana sor" kapsülü;
 K6-A `TransactionRow` her yerde Palette'te; K7-B sıra: üst satır → harcama kartı → hesaplar → son işlemler; K8-A yalnız renkler (iskeletler UI-06).
