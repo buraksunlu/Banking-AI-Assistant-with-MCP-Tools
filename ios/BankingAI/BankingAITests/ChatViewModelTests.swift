@@ -107,13 +107,13 @@ struct ChatViewModelTests {
         nonisolated(unsafe) var calls = 0
         let app = TestApp(assistant(message: {
             calls += 1
-            return calls == 1 ? problem(502, "assistant_failed", "Asistan bu soruya cevap üretemedi; farklı sormayı deneyin.") : json(200, answer)
+            return calls == 1 ? problem(502, "assistant_failed", "Kılavuz bu soruya cevap üretemedi; farklı sormayı deneyin.") : json(200, answer)
         }))
         let model = ChatViewModel(api: app.api)
 
         await model.send("Dün ne harcadım?")
         let question = try #require(model.messages.first)
-        #expect(model.messages.map(\.state) == [.failed("Asistan bu soruya cevap üretemedi; farklı sormayı deneyin.")])
+        #expect(model.messages.map(\.state) == [.failed("Kılavuz bu soruya cevap üretemedi; farklı sormayı deneyin.")])
 
         await model.retry(question.id)
 
@@ -124,25 +124,25 @@ struct ChatViewModelTests {
     }
 
     @Test func aTimeoutSaysToTryAgain() async {
-        let app = TestApp(assistant(message: { problem(504, "assistant_timeout", "Asistan zamanında cevap veremedi; tekrar deneyin.") }))
+        let app = TestApp(assistant(message: { problem(504, "assistant_timeout", "Kılavuz zamanında cevap veremedi; tekrar deneyin.") }))
         let model = ChatViewModel(api: app.api)
 
         await model.send("Dün ne harcadım?")
 
-        #expect(model.messages.map(\.state) == [.failed("Asistan zamanında cevap veremedi; tekrar deneyin.")])
+        #expect(model.messages.map(\.state) == [.failed("Kılavuz zamanında cevap veremedi; tekrar deneyin.")])
         #expect(model.isAvailable != false)
     }
 
     @Test func anUnavailableAssistantClosesTheInputUntilItIsBack() async {
         // The message call fails with 503; the status check afterwards says the assistant is back.
-        let app = TestApp(assistant(message: { problem(503, "assistant_unavailable", "Asistan şu an kullanılamıyor.") }))
+        let app = TestApp(assistant(message: { problem(503, "assistant_unavailable", "Kılavuz şu an kullanılamıyor.") }))
         let model = ChatViewModel(api: app.api)
 
         await model.send("Dün ne harcadım?")
 
         #expect(model.isAvailable == false)
         #expect(!model.canSend)
-        #expect(model.unavailableMessage == "Asistan şu an kullanılamıyor.")
+        #expect(model.unavailableMessage == "Kılavuz şu an kullanılamıyor.")
 
         await model.checkStatus()
 
@@ -271,7 +271,7 @@ struct ChatSuggestionTests {
         nonisolated(unsafe) var calls = 0
         let model = ChatViewModel(api: TestApp(assistant(message: {
             calls += 1
-            return calls == 1 ? json(200, answer) : problem(502, "assistant_failed", "Asistan bu soruya cevap üretemedi; farklı sormayı deneyin.")
+            return calls == 1 ? json(200, answer) : problem(502, "assistant_failed", "Kılavuz bu soruya cevap üretemedi; farklı sormayı deneyin.")
         })).api)
         await model.send("Dün ne harcadım?")
 
@@ -315,8 +315,8 @@ struct ChatSuggestionTests {
         #expect(sent.first?.authorization == "Bearer token-abc")
     }
 
-    @Test(arguments: [problem(503, "assistant_unavailable", "Asistan şu an kullanılamıyor."),
-                      problem(504, "assistant_timeout", "Asistan zamanında cevap veremedi; tekrar deneyin."),
+    @Test(arguments: [problem(503, "assistant_unavailable", "Kılavuz şu an kullanılamıyor."),
+                      problem(504, "assistant_timeout", "Kılavuz zamanında cevap veremedi; tekrar deneyin."),
                       json(200, "bozuk"), json(200, #"{"suggestions":[]}"#)])
     func withoutStartersTheFixedExamplesAreShown(reply: MockURLProtocol.Answer) async {
         let model = ChatViewModel(api: TestApp(assistant(suggestions: { reply })).api)

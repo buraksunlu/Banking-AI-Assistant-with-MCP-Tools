@@ -57,7 +57,7 @@ struct HomeView: View {
                 } label: {
                     HStack(spacing: Layout.small) {
                         AssistantMark(size: 24)
-                        Text("Asistana sor")
+                        Text(Brand.askAssistant)
                             .font(.body.weight(.medium))
                             .foregroundStyle(Palette.primaryText.color)
                     }

@@ -19,6 +19,6 @@ struct TypingDots: View {
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.3), value: lit)
         }
         .accessibilityElement()
-        .accessibilityLabel("Asistan yazıyor")
+        .accessibilityLabel("\(Brand.assistantName) yazıyor")
     }
 }

@@ -44,8 +44,9 @@ nonisolated enum Palette {
     static let primaryText = Swatch(0xEDEDEF)
     static let secondaryText = Swatch(0x8E8E93)
 
-    /// Champagne gold: send, links, the selected state. Never a fill for large areas.
-    static let accent = Swatch(0xC9A96E)
+    /// The icon's blue (UI-04 K11-B, replacing UI-01's gold): send, links, the selected state. Never a fill for large
+    /// areas, and never green, which is the colour of money coming in.
+    static let accent = Swatch(0x3D8BFF)
     /// The label on an accent-filled button.
     static let onAccent = Swatch(0x0A0A0B)
     /// Money coming in; spending stays in the normal text colour so a normal purchase does not look like a warning.

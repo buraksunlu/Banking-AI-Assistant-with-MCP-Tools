@@ -496,3 +496,29 @@ Accounts/
 
 Doğrulama: 280 test durumu geçti (+19 `HomeRedesignTests`: istek 1, ViewModel 6, numara kısaltma 5, baş harfler 4, gün satırı 2, VoiceOver cümlesi 1). Altı kasıtlı bozma yakalandı: dönem adı küçük harf, boş liste `loaded`, yenileme hatasında gün silinir, ay kayar, numara son 4 karakter, Türkçesiz `uppercased()` ("II").
 Sınırlar: kart yalnız "bu ay"ı gösterir; iskeletler UI-06; sekme çubuğu ve Profil UI-07; hesap detayı, tüm işlemler ve işlem detayı ekranlarının düzeni UI-05 (yalnız satır rengi şimdi değişti).
+
+## iOS-n: giriş ekranı ve kimlik (UI-04; 26 Ekim 2026)
+
+Giriş ekranı, uygulama simgesi, açılış rengi ve adlar siyah premium dile geçti. `LoginViewModel`, ağ ve hata metinleri aynı; backend'de yalnız üç sohbet hata metni değişti (K9-B).
+
+Kararlar: K1 uygulama adı **Compass**; K10-C simge kullanıcının verdiği görselden kırpıldı (temiz sürüm sonra gelir); K11-B vurgu rengi simgenin mavisi `#3D8BFF` (UI-01 K2-A'nın altını kalktı; yeşil yalnız gelen parada); K12-A simge betiği silindi; K2 asistan adı **Kılavuz** (monogram "K"); K3-A ortalı düzen; K4-B koyu dolu alan, etiket üstte, odakta altın çizgi; K5 a+b+d (İleri/Git akışı, ikonlu hata satırı, "Giriş yapılıyor…"); K6-A/K7-A (betikle çizilen halkalı "C") K10–K12 ile yerini görsele bıraktı; K8-A açılış ekranı yalnız renk; K9-B backend hata metinleri de "Kılavuz".
+
+```text
+DesignSystem/
+  Brand.swift                    appName, tagline, assistantName, assistantInitial, askAssistant ("Kılavuz'a sor")
+  Components.swift               + BrandMark, inputField(focused:)
+Login/LoginView.swift            ScrollView, iki alan (@FocusState), hata satırı, altın düğme
+Assets.xcassets/
+  LaunchBackground.colorset      #0A0A0B (Palette.background ile aynı; testle bağlı)
+  AppIcon.appiconset/icon.png    tek yuva (1024², alfasız); koyu ve renklendirilmiş türleri iOS türetir
+Info.plist                       CFBundleDisplayName = Compass, UILaunchScreen.UIColorName
+```
+
+- Simge: kaynak görsel (kullanıcının, repoda değil) çerçevesi, gölgesi ve gri zemini dışarıda kalacak biçimde iç kareden kırpılıp 1024²'ye küçültüldü (`sips -c 1215 1215 --cropOffset 400 420`, sonra `-z 1024 1024 -s format png`). iOS köşeyi kendisi yuvarlar. Daha az ayrıntılı, kenarlara kadar dolu bir sürüm gelince yalnız `icon.png` değişir.
+- Vurgu rengi iki yerde durur (`Palette.accent` ve `AccentColor` asset'i); `DesignSystemTests` ikisini, `IdentityTests` değeri ve gelen para yeşilinden farklı olduğunu bağlar. Kontrast: zeminde ≈ 6,0, kartta ≈ 5,6, düğmede siyah yazı ≈ 6,0.
+- Ad iki yerde durur (kod ve Info.plist); `IdentityTests` ikisinin eşit olduğunu denetler. Hedef adı, bundle kimliği ve repo "BankingAI" kalır.
+- "Asistan" yazan her ekran metni `Brand`'den okunur. Backend'de `ApiExceptionHandler` üç hata başlığı "Kılavuz …" oldu (docs/api.md, `AssistantEndpointTests`); `ai/service/app.py` metinleri telefona ulaşmadığı için (.NET üç koda çevirir) "Asistan" kaldı.
+
+Doğrulama: iOS 288 test durumu (+8 `IdentityTests`), Api AssistantEndpointTests 72/72. Yedi kasıtlı bozmanın hepsi yakalandı (ad, açılış rengi, Türkçesiz büyük harf, soluk hata rengi, şifrenin silinmemesi, ad kayması, eski hata metni). Bulgular: `UILaunchScreen_Generation = YES` ayarı Info.plist anahtarını ezmedi (derlenmiş pakette test okuyor); bozma 3'ü `IdentityTests`'teki "KILAVUZ" testi değil mevcut "SON İŞLEMLER" testi yakalıyor ("kılavuz"da noktalı İ yok).
+Review düzeltmeleri: yanlış giriş hatası VoiceOver'da duyuruluyor (`AccessibilityNotification.Announcement`); alan kutusunun dolgusuna dokununca da odak geliyor; görünen alan etiketi VoiceOver'da ikinci kez okunmuyor ve başlık sayılmıyor; simge betiğinin çalıştırma yorumu düzeltildi (betik sonra K12-A ile silindi). Bilinçli bırakılanlar: açılış ayarı derlenmiş pakette testle doğrulanıyor (`project.pbxproj`'a dokunulmadı); odak `.task` içinde atanıyor (cihazda UI-06 taramasında bakılacak).
+Sınırlar: şifre göster/gizle ve yüzen etiket yok (UI-06); Liquid Glass simge yok; simge kırpılmış görsel, küçük boyutta ayrıntılar (devre çizgileri, çubuklar) seçilmiyor, temiz sürüm bekliyor; backend `ai/service` metinleri "Asistan"; Profil ekranında ad ve sürüm UI-07.

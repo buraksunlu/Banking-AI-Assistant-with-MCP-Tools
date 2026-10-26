@@ -33,11 +33,11 @@ public sealed class ApiExceptionHandler(IProblemDetailsService problems, ILogger
             ArgumentException error => Validation(error),
             // Grouped by what the client should do next (AI-14b K5-A); the AI service's own code is already in the log.
             AssistantException { Failure: AssistantFailure.Unavailable } => Coded(StatusCodes.Status503ServiceUnavailable,
-                ApiProblems.AssistantUnavailable, "Asistan şu an kullanılamıyor."),
+                ApiProblems.AssistantUnavailable, "Kılavuz şu an kullanılamıyor."),
             AssistantException { Failure: AssistantFailure.Timeout } => Coded(StatusCodes.Status504GatewayTimeout,
-                ApiProblems.AssistantTimeout, "Asistan zamanında cevap veremedi; tekrar deneyin."),
+                ApiProblems.AssistantTimeout, "Kılavuz zamanında cevap veremedi; tekrar deneyin."),
             AssistantException => Coded(StatusCodes.Status502BadGateway,
-                ApiProblems.AssistantFailed, "Asistan bu soruya cevap üretemedi; farklı sormayı deneyin."),
+                ApiProblems.AssistantFailed, "Kılavuz bu soruya cevap üretemedi; farklı sormayı deneyin."),
             BadHttpRequestException error => new ProblemDetails { Status = error.StatusCode },
             _ => null
         };

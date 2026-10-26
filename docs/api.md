@@ -98,9 +98,9 @@ başlığı ayrıştırmak yerine `code`'a bakar.
 | Aynı `Idempotency-Key` farklı bir istekle (API-12) | 409 | `idempotency_conflict` | Bu anahtar farklı bir istek için kullanılmış |
 | JSON olmayan gövde | 415 | `unsupported_media_type` | Desteklenmeyen içerik türü; JSON gönderin. |
 | Login deneme sınırı (IP başına dakikada 5); sohbet mesajı sınırı (müşteri başına dakikada 10); `Retry-After` başlığıyla | 429 | `too_many_requests` | Çok fazla deneme; biraz sonra tekrar deneyin. |
-| Asistan yanlış/eksik cevap üretti ya da AI servisiyle sözleşme uyuşmadı (AI-14b) | 502 | `assistant_failed` | Asistan bu soruya cevap üretemedi; farklı sormayı deneyin. |
-| AI servisi kapalı, modeli yok ya da banka servisine ulaşamıyor (AI-14b) | 503 | `assistant_unavailable` | Asistan şu an kullanılamıyor. |
-| Asistan zamanında cevap vermedi (AI-14b) | 504 | `assistant_timeout` | Asistan zamanında cevap veremedi; tekrar deneyin. |
+| Asistan yanlış/eksik cevap üretti ya da AI servisiyle sözleşme uyuşmadı (AI-14b) | 502 | `assistant_failed` | Kılavuz bu soruya cevap üretemedi; farklı sormayı deneyin. |
+| AI servisi kapalı, modeli yok ya da banka servisine ulaşamıyor (AI-14b) | 503 | `assistant_unavailable` | Kılavuz şu an kullanılamıyor. |
+| Asistan zamanında cevap vermedi (AI-14b) | 504 | `assistant_timeout` | Kılavuz zamanında cevap veremedi; tekrar deneyin. |
 | Beklenmeyen hata | 500 | `internal_error` | Beklenmeyen bir hata oluştu. (ayrıntı yalnız sunucu logunda) |
 
 `errors` kuralları:

@@ -59,7 +59,7 @@ struct ChatView: View {
             }
         }
         .background(Palette.background.color)
-        .navigationTitle("Asistan")
+        .navigationTitle(Brand.assistantName)
         .navigationBarTitleDisplayMode(.inline)
         .task { await model.open() }
         // Leaving the screen or the app stops a pending question (decision AI-08 K5-C).
@@ -151,7 +151,7 @@ struct ChatView: View {
                     Button {
                         Task { await model.sendDraft() }
                     } label: {
-                        // Grey, not faded gold, while it cannot be tapped: gold means "tap me" (K2-A).
+                        // Grey, not a faded accent, while it cannot be tapped: the accent means "tap me" (K2-A).
                         Image(systemName: "arrow.up")
                             .font(.body.weight(.semibold))
                             .foregroundStyle(model.canSendDraft ? Palette.onAccent.color : Palette.secondaryText.color)

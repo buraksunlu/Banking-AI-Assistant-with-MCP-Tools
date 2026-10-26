@@ -7,6 +7,13 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>CFBundleDisplayName</key>
+	<string>Compass</string>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+	</dict>
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>
 	<key>UIApplicationSceneManifest</key>

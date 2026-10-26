@@ -227,11 +227,11 @@ public sealed class AssistantEndpointTests
     public async Task The_three_assistant_errors_have_turkish_titles()
     {
         AssertProblem((await AskAsync(FakeAssistantService.Failing("ai_unavailable", HttpStatusCode.ServiceUnavailable))).Body,
-            "assistant_unavailable", "Asistan şu an kullanılamıyor.");
+            "assistant_unavailable", "Kılavuz şu an kullanılamıyor.");
         AssertProblem((await AskAsync(FakeAssistantService.Failing("ai_timeout", HttpStatusCode.GatewayTimeout))).Body,
-            "assistant_timeout", "Asistan zamanında cevap veremedi; tekrar deneyin.");
+            "assistant_timeout", "Kılavuz zamanında cevap veremedi; tekrar deneyin.");
         AssertProblem((await AskAsync(FakeAssistantService.Failing("ai_answer_rejected", HttpStatusCode.BadGateway))).Body,
-            "assistant_failed", "Asistan bu soruya cevap üretemedi; farklı sormayı deneyin.");
+            "assistant_failed", "Kılavuz bu soruya cevap üretemedi; farklı sormayı deneyin.");
     }
 
     public static TheoryData<string> BrokenReplies => new(

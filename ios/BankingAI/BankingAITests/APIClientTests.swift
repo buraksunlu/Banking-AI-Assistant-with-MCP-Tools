@@ -29,10 +29,10 @@ struct APIClientTests {
     }
 
     @Test func aProblemBodyBecomesAProblemError() async {
-        let app = TestApp { _ in problem(502, "assistant_failed", "Asistan bu soruya cevap üretemedi; farklı sormayı deneyin.") }
+        let app = TestApp { _ in problem(502, "assistant_failed", "Kılavuz bu soruya cevap üretemedi; farklı sormayı deneyin.") }
 
         await #expect(throws: APIError.problem(status: 502, code: "assistant_failed",
-                                               title: "Asistan bu soruya cevap üretemedi; farklı sormayı deneyin.",
+                                               title: "Kılavuz bu soruya cevap üretemedi; farklı sormayı deneyin.",
                                                retryAfterSeconds: nil)) {
             try await app.api.send(.me)
         }
@@ -99,8 +99,8 @@ struct APIClientTests {
     }
 
     @Test(arguments: [
-        (APIError.problem(status: 502, code: "assistant_failed", title: "Asistan bu soruya cevap üretemedi.", retryAfterSeconds: nil),
-         "Asistan bu soruya cevap üretemedi."),
+        (APIError.problem(status: 502, code: "assistant_failed", title: "Kılavuz bu soruya cevap üretemedi.", retryAfterSeconds: nil),
+         "Kılavuz bu soruya cevap üretemedi."),
         (APIError.problem(status: 429, code: "too_many_requests", title: "Çok fazla deneme; biraz sonra tekrar deneyin.", retryAfterSeconds: 37),
          "Çok fazla deneme; 37 sn sonra tekrar deneyin."),
         (APIError.unreachable, "Sunucuya ulaşılamıyor; bağlantıyı kontrol edip tekrar deneyin."),
