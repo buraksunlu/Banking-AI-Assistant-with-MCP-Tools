@@ -20,61 +20,73 @@ struct TransactionDetailView: View {
 
     var body: some View {
         let shown = TransactionDisplay(item)
-        List {
-            Section {
-                VStack(spacing: 6) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Layout.large) {
+                VStack(spacing: Layout.small) {
                     Image(systemName: shown.symbol)
                         .font(.title2)
-                        .foregroundStyle(.tint)
-                        .frame(width: 52, height: 52)
-                        .background(.tint.opacity(0.12), in: Circle())
-                    Text(shown.title).font(.headline)
+                        .foregroundStyle(Palette.secondaryText.color)
+                        .frame(width: 56, height: 56)
+                        .background(Palette.raised.color, in: Circle())
+                        .accessibilityHidden(true)
+                    Text(shown.title)
+                        .font(Typography.title)
+                        .foregroundStyle(Palette.primaryText.color)
+                        .multilineTextAlignment(.center)
                     Text(shown.amount)
-                        .font(.title.bold())
-                        .monospacedDigit()
-                        .foregroundStyle(shown.isIncoming ? Color.green : Color.primary)
+                        .font(Typography.balance)
+                        .foregroundStyle(shown.isIncoming ? Palette.incoming.color : Palette.primaryText.color)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
-            }
-            Section {
-                row("Tarih", dateText)
-                row("Tür", kindText)
-                if item.kind == .purchase {
-                    row("Kategori", item.categoryDisplayName ?? "Sınıflandırılmamış")
-                    if let merchant = item.merchant { row("İşyeri", merchant) }
+                .accessibilityElement(children: .combine)
+
+                VStack(spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                        if index > 0 { HairlineDivider() }
+                        DetailRow(label: row.0, value: row.1)
+                    }
                 }
-                if let counterparty = item.counterparty {
-                    row(item.kind == .transfer ? "Karşı taraf" : "Diğer taraf", counterparty)
+                .padding(.horizontal, Layout.regular)
+                .cardSurface(padding: 0)
+
+                VStack(alignment: .leading, spacing: Layout.small) {
+                    SectionTitle(text: "Banka kaydı")
+                    Text(item.rawDescription)
+                        .font(.footnote.monospaced())
+                        .foregroundStyle(Palette.primaryText.color)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .cardSurface()
                 }
-                row("Hesap", item.accountName)
-                row("Para birimi", item.currencyCode)
             }
-            Section("Banka kaydı") {
-                Text(item.rawDescription).font(.footnote.monospaced()).textSelection(.enabled)
-            }
+            .padding(.horizontal, Layout.regular)
+            .padding(.top, Layout.small)
         }
+        .blackScreen()
         .navigationTitle("İşlem detayı")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// The label and value of every line of the information card; a line the backend has no field for is left out.
+    private var rows: [(String, String)] {
+        var rows = [("Tarih", dateText), ("Tür", TransactionDisplay.kindText(item))]
+        if item.kind == .purchase {
+            rows.append(("Kategori", item.categoryDisplayName ?? "Sınıflandırılmamış"))
+            if let merchant = item.merchant { rows.append(("İşyeri", merchant)) }
+        }
+        if let counterparty = item.counterparty {
+            rows.append((item.kind == .transfer ? "Karşı taraf" : "Diğer taraf", counterparty))
+        }
+        rows.append(("Hesap", item.accountName))
+        rows.append(("Para birimi", item.currencyCode))
+        return rows
     }
 
     private var dateText: String {
         let day = TransactionDisplay.date(item.localDate)
         guard let zone, let time = TransactionDisplay.time(utc: item.occurredAtUtc, in: zone) else { return day }
         return "\(day) · \(time)"
-    }
-
-    private var kindText: String {
-        switch item.kind {
-        case .purchase: "Harcama"
-        case .sale: "Satış"
-        case .transfer: item.direction == .credit ? "Gelen transfer" : "Giden transfer"
-        case .salary: "Maaş"
-        case .openingFunding: "Açılış bakiyesi"
-        }
-    }
-
-    private func row(_ label: String, _ value: String) -> some View {
-        LabeledContent(label) { Text(value).multilineTextAlignment(.trailing) }
     }
 }

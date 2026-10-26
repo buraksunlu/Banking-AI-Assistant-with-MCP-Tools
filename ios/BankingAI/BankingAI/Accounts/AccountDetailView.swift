@@ -4,6 +4,7 @@ import SwiftUI
 struct AccountDetailView: View {
     @State var model: AccountDetailViewModel
     @State private var showingFilter = false
+    @ScaledMetric(relativeTo: .largeTitle) private var balanceSize: CGFloat = 44
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -15,61 +16,87 @@ struct AccountDetailView: View {
                     Text("Hesap bulunamadı veya artık erişilemiyor.")
                 } actions: {
                     Button("Hesaplara dön") { dismiss() }
+                        .buttonStyle(SecondaryButtonStyle())
                 }
             } else { statement }
         }
+        .blackScreen()
         .navigationTitle("Hesap detayı")
         .navigationBarTitleDisplayMode(.inline)
         .task { await model.open() }
-        .sheet(isPresented: $showingFilter) { TransactionFilterSheet(model: model.history) }
+        .sheet(isPresented: $showingFilter) {
+            TransactionFilterSheet(model: model.history)
+                .presentationDetents([.medium, .large])
+                .presentationBackground(Palette.background.color)
+        }
     }
 
     private var statement: some View {
-        List {
-            Section {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(model.account.accountName).font(.title2.bold())
-                    Text(model.account.accountNumber).font(.subheadline).textSelection(.enabled)
-                    Label(model.account.accountType == .business ? "İşletme hesabı" : "Kişisel hesap",
-                          systemImage: model.account.accountType == .business ? "storefront" : "creditcard")
-                        .font(.subheadline).foregroundStyle(.secondary)
-                    Divider()
-                    Text("Güncel bakiye").font(.caption).foregroundStyle(.secondary)
-                    Text(Money.text(model.account.balance, currency: model.account.currencyCode))
-                        .font(.title.bold()).monospacedDigit().textSelection(.enabled)
-                    if model.isRefreshingAccount { ProgressView("Hesap bilgileri yenileniyor…").font(.caption) }
-                }
-                .padding(.vertical, 8)
+        ScrollView {
+            VStack(alignment: .leading, spacing: Layout.large) {
+                header
                 if let message = model.accountError {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("Hesap bilgileri yenilenemedi. \(message)", systemImage: "wifi.exclamationmark")
-                            .font(.subheadline).foregroundStyle(.orange)
-                        Button("Tekrar dene") { Task { await model.refreshAccount() } }
+                    StatusBand(text: "Hesap bilgileri yenilenemedi. \(message)", actionTitle: "Tekrar dene") {
+                        Task { await model.refreshAccount() }
                     }
                 }
-            }
-            Section {
-                TransactionRows(model: model.history)
-            } header: {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: Layout.medium) {
                     ViewThatFits(in: .horizontal) {
                         HStack {
-                            Text("Hesap hareketleri")
+                            SectionTitle(text: "Hesap hareketleri")
                             Spacer()
                             filterButton
                         }
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Hesap hareketleri")
+                        VStack(alignment: .leading, spacing: Layout.small) {
+                            SectionTitle(text: "Hesap hareketleri")
                             filterButton
                         }
                     }
-                    if let period = model.history.periodText { Text(period).font(.caption) }
-                    if model.history.loadedOnce { Text("\(model.history.totalCount) işlem").font(.caption) }
+                    if model.history.periodText != nil || model.history.loadedOnce {
+                        Text([model.history.periodText, model.history.loadedOnce ? "\(model.history.totalCount) işlem" : nil]
+                            .compactMap { $0 }.joined(separator: " · "))
+                            .font(Typography.caption)
+                            .foregroundStyle(Palette.secondaryText.color)
+                    }
+                    TransactionRows(model: model.history)
                 }
-                .textCase(nil).padding(.vertical, 4)
             }
+            .padding(.horizontal, Layout.regular)
+            .padding(.top, Layout.small)
         }
         .refreshable { await model.refresh() }
+    }
+
+    /// No card (UI-05 K2-A): the name small, the balance very large and light, the full number selectable.
+    private var header: some View {
+        VStack(alignment: .leading, spacing: Layout.small) {
+            HStack {
+                Text(model.account.accountName)
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.secondaryText.color)
+                Spacer(minLength: Layout.small)
+                if model.account.accountType == .business { BusinessTag() }
+            }
+            Text(Money.text(model.account.balance, currency: model.account.currencyCode))
+                .font(.system(size: balanceSize, weight: .light).monospacedDigit())
+                .foregroundStyle(Palette.primaryText.color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.5)
+                .textSelection(.enabled)
+            Text(model.account.accountNumber)
+                .font(Typography.caption)
+                .monospacedDigit()
+                .foregroundStyle(Palette.secondaryText.color)
+                .textSelection(.enabled)
+            Text(AccountDisplay.typeText(model.account))
+                .font(Typography.caption)
+                .foregroundStyle(Palette.secondaryText.color)
+            if model.isRefreshingAccount {
+                ProgressView("Hesap bilgileri yenileniyor…")
+                    .font(Typography.caption)
+                    .tint(Palette.secondaryText.color)
+            }
+        }
     }
 
     private var filterButton: some View {
@@ -79,7 +106,7 @@ struct AccountDetailView: View {
         } label: {
             Label(model.history.filter.title, systemImage: "line.3.horizontal.decrease")
         }
-        .buttonStyle(.bordered)
+        .buttonStyle(ChipButtonStyle(isSelected: model.history.filter != .allTime))
         .accessibilityLabel("İşlem dönemi: \(model.history.filter.title)")
         .accessibilityHint("Dönem ve tarih aralığı seçer")
     }

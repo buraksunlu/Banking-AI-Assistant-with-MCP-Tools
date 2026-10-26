@@ -522,3 +522,21 @@ Info.plist                       CFBundleDisplayName = Compass, UILaunchScreen.U
 Doğrulama: iOS 288 test durumu (+8 `IdentityTests`), Api AssistantEndpointTests 72/72. Yedi kasıtlı bozmanın hepsi yakalandı (ad, açılış rengi, Türkçesiz büyük harf, soluk hata rengi, şifrenin silinmemesi, ad kayması, eski hata metni). Bulgular: `UILaunchScreen_Generation = YES` ayarı Info.plist anahtarını ezmedi (derlenmiş pakette test okuyor); bozma 3'ü `IdentityTests`'teki "KILAVUZ" testi değil mevcut "SON İŞLEMLER" testi yakalıyor ("kılavuz"da noktalı İ yok).
 Review düzeltmeleri: yanlış giriş hatası VoiceOver'da duyuruluyor (`AccessibilityNotification.Announcement`); alan kutusunun dolgusuna dokununca da odak geliyor; görünen alan etiketi VoiceOver'da ikinci kez okunmuyor ve başlık sayılmıyor; simge betiğinin çalıştırma yorumu düzeltildi (betik sonra K12-A ile silindi). Bilinçli bırakılanlar: açılış ayarı derlenmiş pakette testle doğrulanıyor (`project.pbxproj`'a dokunulmadı); odak `.task` içinde atanıyor (cihazda UI-06 taramasında bakılacak).
 Sınırlar: şifre göster/gizle ve yüzen etiket yok (UI-06); Liquid Glass simge yok; simge kırpılmış görsel, küçük boyutta ayrıntılar (devre çizgileri, çubuklar) seçilmiyor, temiz sürüm bekliyor; backend `ai/service` metinleri "Asistan"; Profil ekranında ad ve sürüm UI-07.
+
+## iOS-o: işlem ekranları (UI-05 PR1; 26 Ekim 2026)
+
+Tüm işlemler, bağlantılı işlemler, işlem detayı, hesap detayı ve tarih filtresi paneli siyah premium dile geçti. ViewModel, ağ, sayfalama ve rakam mantığı aynı; yalnız görünüm ve iki saf metin yeri değişti.
+
+Kararlar: K1-B uzun listeler tek kart (`ScrollView` + `LazyVStack`), sistem `List` yok; K2-A hesap detayı üstü kartsız, çok büyük ve ince bakiye; K3-A filtre bölüm başlığının sağında çip (dönem "Tüm geçmiş"ten farklıysa vurgulu); K4-A filtre paneli sistem `Form` kaldı, yalnız renkler Palette'ten (`.medium`/`.large` yükseklik); K5-A işlem detayı üç parça (başlık+tutar, bilgi kartı, "Banka kaydı" kartı); K9-A boş/hata durumları yalnız renk (ortak görünüm UI-06); K10-B iki PR (bu PR işlem ekranları, ikincisi harcama analizi).
+
+```text
+DesignSystem/Components.swift   + HairlineDivider, DetailRow, BusinessTag, blackScreen(); ChipButtonStyle(isSelected:)
+Transactions/TransactionRows    tek kart; sayfa dönen çarkı kartın içinde ve tembel
+Transactions/TransactionDisplay + kindText      Accounts/AccountDisplay + typeText
+```
+
+- Sayfalama tetikleyicisi (`.task(id: items.count)`) kartın `LazyVStack`'i içinde kalmalı: dışarıda olsaydı bütün sayfalar kaydırmadan yüklenirdi.
+- `blackScreen()` içerik ve gezinme çubuğu zeminini aynı yapar; çubuk kaydırınca sistem grisine dönmez.
+
+Doğrulama: iOS paketi yeşil, `DetailTextTests` +7 test durumu (log sayımı 294, beklenen 295; fark doğrulanmadı). İki kasıtlı bozma yakalandı (transfer yönü metni, hesap türü metni). Simülatörde (kullanıcı) tüm ekranlar denendi, sorun yok.
+Sınırlar: boş/hata durumları sistem görünümünde (UI-06); `LazyVStack` yüklenen satırları atmaz (binlerce satırda bellek); gün başlıklı liste ve dönem çipleriyle anında filtre yok (kapsam dışı bırakıldı).

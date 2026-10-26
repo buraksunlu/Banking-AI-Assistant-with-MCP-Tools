@@ -13,13 +13,7 @@ struct AccountRow: View {
                     .foregroundStyle(Palette.secondaryText.color)
                 Spacer(minLength: Layout.small)
                 if account.accountType == .business {
-                    Text(Typography.label("İşletme"))
-                        .font(Typography.eyebrow)
-                        .tracking(1)
-                        .foregroundStyle(Palette.accent.color)
-                        .padding(.horizontal, Layout.small)
-                        .padding(.vertical, Layout.tight)
-                        .overlay(Capsule().stroke(Palette.accent.color, lineWidth: 1))
+                    BusinessTag()
                 }
             }
             Text(Money.text(account.balance, currency: account.currencyCode))

@@ -9,6 +9,11 @@ enum AccountDisplay {
         return tail == number && number.count <= 4 ? number : "•••• " + tail
     }
 
+    /// "İşletme hesabı" or "Kişisel hesap", as the detail screen writes the type (UI-05).
+    static func typeText(_ account: Account) -> String {
+        account.accountType == .business ? "İşletme hesabı" : "Kişisel hesap"
+    }
+
     /// What VoiceOver reads for a card as one sentence: "Ada günlük TRY, 577.490,18 TL, hesap sonu 001".
     static func spokenSummary(_ account: Account) -> String {
         var text = "\(account.accountName), \(Money.text(account.balance, currency: account.currencyCode)), hesap sonu \(lastPart(account.accountNumber))"
