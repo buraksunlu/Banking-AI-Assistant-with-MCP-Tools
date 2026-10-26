@@ -1551,6 +1551,7 @@ COMPLETED
   çubukları (7 çubuk, para birimi başına ayrı, devam eden ay soluk, harcamasız ay sıfır çubuk, değer ekseni yok). Backend değişmedi. 232 iOS test durumu. IOS-08 tamam.
 - Arayüz kimliği UI-01 (26 Ekim 2026, docs/ios.md "iOS-k"): siyah tema (her zaman koyu, zemin `#0A0A0B`), tek vurgu şampanya altını, `DesignSystem/` (Palette, Typography, Layout, Components); renkler yalnız `Palette`'ten, kontrast testle korunur. Düzen değişmedi (UI-02+). 249 iOS test durumu.
 - Sohbet ekranı UI-02 (26 Ekim 2026, PR #54, docs/ios.md "iOS-l"): asistan cevabı balonsuz + "A" monogramı, kullanıcı mesajı koyu kapsül, rakamlar kalın (yalnız görünüm), yatay öneri çipleri, üç nokta, yüzen giriş kapsülü; ViewModel davranışı aynı. 261 iOS test durumu.
+- Ana ekran UI-03 (26 Ekim 2026, docs/ios.md "iOS-m"): üst satır (selam + backend günü + profil menüsü), "Bu ay harcama" kartı (`GET /api/analytics/spending-summary?period=ThisMonth`, para birimi başına), hesap kartları (numara "•••• 001", tam numara hesap detayında), son işlemler Palette'te, "Asistana sor" yüzen kapsül. Telefon tarih/rakam hesaplamaz. Backend değişmedi. 280 iOS test durumu.
 - Belirli tarih ve aralık CHAT-08, PR1 altyapı (23 Ekim 2026, dal `chat-08-dates-backend`; docs/mcp.md "Tarih aralığı", docs/api.md,
   docs/local-ai.md "Müşterinin günü"): MCP'de beş dönem aracı isteğe bağlı `from`/`to` ve `Custom` dönem alır (`ToolDate`: yalnız
   `YYYY-MM-DD` gerçek gün; aralık kuralları `PeriodResolver`'da). `ICustomerCheck` artık `CustomerDay` (müşterinin bugünü + saat dilimi)

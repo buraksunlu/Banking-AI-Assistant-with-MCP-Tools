@@ -8,12 +8,12 @@ struct RecentTransactionsSection: View {
     let model: RecentTransactionsViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Son işlemler")
-                .font(.title3.bold())
+        VStack(alignment: .leading, spacing: Layout.medium) {
+            SectionTitle(text: "Son işlemler")
             switch model.state {
             case .loading:
                 ProgressView()
+                    .tint(Palette.secondaryText.color)
                     .frame(maxWidth: .infinity, minHeight: 120)
             case .empty:
                 ContentUnavailableView("Son 3 ayda işlem yok", systemImage: "list.bullet.rectangle",
@@ -27,15 +27,11 @@ struct RecentTransactionsSection: View {
                     Button("Tekrar dene") {
                         Task { await model.load() }
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(SecondaryButtonStyle())
                 }
             case .loaded(let items):
                 if let message = model.refreshError {
-                    Label(message, systemImage: "wifi.exclamationmark")
-                        .font(.subheadline)
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.orange.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
+                    StatusBand(text: message)
                 }
                 VStack(spacing: 0) {
                     ForEach(items) { item in
@@ -46,12 +42,12 @@ struct RecentTransactionsSection: View {
                         }
                         .buttonStyle(.plain)
                         if item.id != items.last?.id {
-                            Divider()
+                            Rectangle().fill(Palette.hairline.color).frame(height: 1)
                                 .padding(.leading, 64)
                         }
                     }
                     if model.hasMore {
-                        Divider()
+                        Rectangle().fill(Palette.hairline.color).frame(height: 1)
                         NavigationLink(value: TransactionHistoryRoute()) {
                             HStack {
                                 Text("Tüm işlemleri gör")
@@ -60,12 +56,13 @@ struct RecentTransactionsSection: View {
                                     .font(.footnote.bold())
                             }
                             .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Palette.accent.color)
                             .padding()
                             .contentShape(Rectangle())
                         }
                     }
                 }
-                .background(Palette.surface.color, in: RoundedRectangle(cornerRadius: 16))
+                .cardSurface(padding: 0)
             }
         }
         // Like the accounts: only a list that never arrived is asked for again when the screen comes back.

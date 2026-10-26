@@ -260,6 +260,22 @@ struct CategorySpending: Decodable, Equatable, Identifiable {
     var id: String { categoryCode ?? AnalyticsDisplay.uncategorizedID }
 }
 
+/// `GET /api/analytics/spending-summary`: what was spent in the period, per currency and never added together. Only what the
+/// home card shows is decoded; `period` carries the backend's own days (the card's date line, UI-03 K1-A).
+struct SpendingSummary: Decodable, Equatable {
+    let period: SearchedPeriod
+    let currencies: [CurrencySpending]
+}
+
+/// One currency's spending in the period (purchases only, personal accounts).
+struct CurrencySpending: Decodable, Equatable, Identifiable {
+    let currencyCode: String
+    let totalAmount: Decimal
+    let transactionCount: Int
+
+    var id: String { currencyCode }
+}
+
 /// `GET /api/analytics/monthly-trend`: one block per currency, never added together. The `months` list of windows and the
 /// `merchantMatch` field of the answer are not decoded; the chart draws the months of each currency.
 struct MonthlyTrend: Decodable, Equatable {

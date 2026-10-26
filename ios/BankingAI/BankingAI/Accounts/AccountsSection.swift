@@ -5,12 +5,12 @@ struct AccountsSection: View {
     let model: AccountsViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Hesaplarım")
-                .font(.title3.bold())
+        VStack(alignment: .leading, spacing: Layout.medium) {
+            SectionTitle(text: "Hesaplarım")
             switch model.state {
             case .loading:
                 ProgressView()
+                    .tint(Palette.secondaryText.color)
                     .frame(maxWidth: .infinity, minHeight: 120)
             case .empty:
                 ContentUnavailableView("Henüz hesabınız yok", systemImage: "creditcard",
@@ -24,15 +24,11 @@ struct AccountsSection: View {
                     Button("Tekrar dene") {
                         Task { await model.load() }
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(SecondaryButtonStyle())
                 }
             case .loaded(let accounts):
                 if let message = model.refreshError {
-                    Label(message, systemImage: "wifi.exclamationmark")
-                        .font(.subheadline)
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.orange.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
+                    StatusBand(text: message)
                 }
                 ForEach(accounts) { account in
                     NavigationLink {
