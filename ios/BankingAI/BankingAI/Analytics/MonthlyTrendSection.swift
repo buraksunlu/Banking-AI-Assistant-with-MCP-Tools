@@ -90,7 +90,7 @@ private struct CurrencyBars: View {
                 .frame(maxWidth: .infinity, alignment: .center)
         }
         .padding()
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+        .background(Palette.surface.color, in: RoundedRectangle(cornerRadius: 16))
     }
 
     private func opacity(of spending: MonthlySpending) -> Double {
