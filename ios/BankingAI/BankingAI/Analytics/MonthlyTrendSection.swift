@@ -11,21 +11,15 @@ struct MonthlyTrendSection: View {
             SectionTitle(text: "Aylık harcama")
             switch model.state {
             case .loading:
-                ProgressView()
-                    .tint(Palette.secondaryText.color)
-                    .frame(maxWidth: .infinity, minHeight: 160)
+                BarsSkeleton()
             case .empty:
-                ContentUnavailableView("Son aylarda harcama yok", systemImage: "chart.bar",
-                                       description: Text("Harcama yapıldığında aylar burada görünür."))
+                StateMessage(title: "Son aylarda harcama yok", symbol: "chart.bar",
+                             message: "Harcama yapıldığında aylar burada görünür.")
+                    .cardSurface(padding: 0)
             case .failed(let message):
-                ContentUnavailableView {
-                    Label("Aylık harcamalar yüklenemedi", systemImage: "exclamationmark.triangle")
-                } description: {
-                    Text(message)
-                } actions: {
-                    Button("Tekrar dene") { Task { await model.load() } }
-                        .buttonStyle(SecondaryButtonStyle())
-                }
+                StateMessage(title: "Aylık harcamalar yüklenemedi", symbol: "exclamationmark.triangle", message: message,
+                             actionTitle: "Tekrar dene") { Task { await model.load() } }
+                    .cardSurface(padding: 0)
             case .loaded(let currencies):
                 if let message = model.refreshError {
                     StatusBand(text: message)
@@ -35,6 +29,29 @@ struct MonthlyTrendSection: View {
                 }
             }
         }
+    }
+}
+
+/// The bar card while it loads: seven grey bars of fixed heights in the real chart's height.
+private struct BarsSkeleton: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: Layout.medium) {
+            Text("TRY").font(Typography.eyebrow)
+            GeometryReader { space in
+                HStack(alignment: .bottom, spacing: Layout.medium) {
+                    ForEach(Skeleton.barHeights.indices, id: \.self) { index in
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Skeleton.fill)
+                            .frame(height: space.size.height * Skeleton.barHeights[index])
+                    }
+                }
+                .frame(maxHeight: .infinity, alignment: .bottom)
+            }
+            .frame(height: 180)
+            Text("Ayrıntı için bir çubuğa dokunun.").font(Typography.caption).frame(maxWidth: .infinity)
+        }
+        .cardSurface()
+        .skeleton()
     }
 }
 

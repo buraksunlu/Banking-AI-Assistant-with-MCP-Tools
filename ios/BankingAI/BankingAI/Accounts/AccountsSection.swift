@@ -9,23 +9,17 @@ struct AccountsSection: View {
             SectionTitle(text: "Hesaplarım")
             switch model.state {
             case .loading:
-                ProgressView()
-                    .tint(Palette.secondaryText.color)
-                    .frame(maxWidth: .infinity, minHeight: 120)
-            case .empty:
-                ContentUnavailableView("Henüz hesabınız yok", systemImage: "creditcard",
-                                       description: Text("Açılan hesaplar burada görünür."))
-            case .failed(let message):
-                ContentUnavailableView {
-                    Label("Hesaplar yüklenemedi", systemImage: "exclamationmark.triangle")
-                } description: {
-                    Text(message)
-                } actions: {
-                    Button("Tekrar dene") {
-                        Task { await model.load() }
-                    }
-                    .buttonStyle(SecondaryButtonStyle())
+                VStack(spacing: Layout.medium) {
+                    ForEach(Skeleton.accounts) { AccountRow(account: $0) }
                 }
+                .skeleton()
+            case .empty:
+                StateMessage(title: "Henüz hesabınız yok", symbol: "creditcard", message: "Açılan hesaplar burada görünür.")
+                    .cardSurface(padding: 0)
+            case .failed(let message):
+                StateMessage(title: "Hesaplar yüklenemedi", symbol: "exclamationmark.triangle", message: message,
+                             actionTitle: "Tekrar dene") { Task { await model.load() } }
+                    .cardSurface(padding: 0)
             case .loaded(let accounts):
                 if let message = model.refreshError {
                     StatusBand(text: message)

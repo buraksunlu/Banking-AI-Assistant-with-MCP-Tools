@@ -560,3 +560,29 @@ BankingAITests/CategoryPaletteTests.swift (yeni)
 
 Doğrulama: iOS 303 test durumu (+8 `CategoryPaletteTests`). Beş kasıtlı bozmanın hepsi yakalandı (Diğer = vurgu, abonelik = giyim, koyu gri, devam eden ay opak, karekök yok). Simülatörde (kullanıcı) renkler, ortadaki toplam, VoiceOver ve boş liste + hata denendi.
 Sınırlar: renk körlüğü için ayrıca denenmedi (renk tek bilgi taşıyıcısı değil: liste adı ve VoiceOver cümlesi var); ΔE eşiği 25 bizim seçimimiz; animasyonlar UI-06.
+
+## iOS-q: yükleniyor ve boş/hata durumları (UI-06 PR1; 26 Ekim 2026)
+
+Dönen gri çark ve sistemin gri boş/hata görünümü (`ContentUnavailableView`) uygulamanın kendi diline geçti. ViewModel, ağ, sayfalama ve metinler aynı; yalnız durumların görünümü değişti.
+
+Kararlar: K1-C liste ve kartlarda gerçek satır (`AccountRow`, `TransactionRow`) nötr sahte veriyle çizilip `redacted` ile griye çevrilir, grafiklerde gri halka ve 7 sabit boy çubuk (Swift Charts işaretleri `redacted` ile grileşmiyor); K2-B 1 sn'lik yumuşak nabız (opaklık 1 ↔ 0,5), "Hareketi azalt" açıkken duruk; K3-A gecikme yok (hızlı cevapta iskelet bir an görünür); K4-C tek `StateMessage`, iki boy: `.inline` bölümde (çağıran karta koyar), `.screen` tam ekran; K5-A metinler aynen; K10-B iki PR.
+
+```text
+DesignSystem/Skeleton.swift      (yeni) sahte satırlar, iskelet grisi, nabız, .skeleton(spoken:)
+DesignSystem/StateMessage.swift  (yeni) ortak boş/hata görünümü
+Accounts/AccountsSection, Transactions/RecentTransactionsSection, Analytics/CategoryBreakdownSection,
+Analytics/MonthlyTrendSection    çark → iskelet, ContentUnavailableView → StateMessage
+Transactions/TransactionRows     ilk sayfadan önce 6, sonraki sayfa için 2 iskelet satırı (+ TransactionSkeletonRows)
+Analytics/SpendingSummaryCard, Home/HomeHeader   kendi redacted çözümleri ortak .skeleton()'a geçti
+Accounts/AccountDetailView       "Hesap bulunamadı" StateMessage(.screen)
+BankingAITests/LoadingStateTests.swift (yeni)
+```
+
+- İskelet satır sayıları gerçek listeyle aynı: hesap 2, son işlem `RecentTransactionsViewModel.count` (5), kategori 4, çubuk `MonthlyTrendViewModel.months + 1` (7), tüm işlemler ilk sayfa 6, sonraki 2. Sahte satırların kimliği sabit ve tekrarsız (nabız sırasında yeniden kurulmasınlar).
+- İskelet grisi metin renginin %16'sı: zeminde ΔE 16,2, kartta 16,7 (görünür), kontrast 1,46/1,55 (3:1'in altında, içerik ya da düğme gibi okunmaz).
+- VoiceOver: iskelet tek "Yükleniyor" okunur, altındaki sahte metin hiç okunmaz; üst satırdaki ad iskeleti hiç okunmaz (`spoken: false`), aşağıdaki kartlar zaten "Yükleniyor" diyor.
+- `redacted` şekilleri griye çevirmez: iskelette şekiller (`Circle`, çubuklar) `Skeleton.fill` ile boyanır.
+- Kalan çarklar bilinçli: giriş düğmesi, filtre paneli ve hesap detayındaki "Hesap bilgileri yenileniyor…" (bir işlemin sürdüğünü söylüyor; ekrandaki geçerli bakiyeyi iskeletle örtmek yanlış olurdu).
+
+Doğrulama: iOS 309 test durumu (+7 `LoadingStateTests`), 0 kırmızı. Üç kasıtlı bozmanın hepsi yakalandı (son işlem iskeleti 4 satır, aynı kimlik, sahte veride persona adı). İskeletler ve `StateMessage` geçici bir `ImageRenderer` testiyle resme çizilip gözle kontrol edildi (dosya silindi); bulunan tek kusur (kategori noktaları parlak) düzeltildi. Simülatörde dolu ana ekran görüldü; yerel API hızlı olduğu için iskelet canlıda gözle yakalanmadı.
+Sınırlar: geçiş animasyonları, titreşim, şifre gözü ve erişilebilirlik taraması PR2'de; iskelet sabit "TRY" ve tek para birimi kartı gösterir (birden çok para birimli müşteride veri gelince kart sayısı artar).

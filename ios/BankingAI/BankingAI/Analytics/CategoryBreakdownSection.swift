@@ -20,21 +20,15 @@ struct CategoryBreakdownSection: View {
             .pickerStyle(.segmented)
             switch model.state {
             case .loading:
-                ProgressView()
-                    .tint(Palette.secondaryText.color)
-                    .frame(maxWidth: .infinity, minHeight: 200)
+                RingSkeleton()
             case .empty:
-                ContentUnavailableView("Bu dönemde harcama yok", systemImage: "chart.pie",
-                                       description: Text("Harcama yapıldığında kategoriler burada görünür."))
+                StateMessage(title: "Bu dönemde harcama yok", symbol: "chart.pie",
+                             message: "Harcama yapıldığında kategoriler burada görünür.")
+                    .cardSurface(padding: 0)
             case .failed(let message):
-                ContentUnavailableView {
-                    Label("Harcamalar yüklenemedi", systemImage: "exclamationmark.triangle")
-                } description: {
-                    Text(message)
-                } actions: {
-                    Button("Tekrar dene") { Task { await model.load() } }
-                        .buttonStyle(SecondaryButtonStyle())
-                }
+                StateMessage(title: "Harcamalar yüklenemedi", symbol: "exclamationmark.triangle", message: message,
+                             actionTitle: "Tekrar dene") { Task { await model.load() } }
+                    .cardSurface(padding: 0)
             case .loaded(let currencies):
                 if let message = model.refreshError {
                     StatusBand(text: message)
@@ -44,6 +38,34 @@ struct CategoryBreakdownSection: View {
                 }
             }
         }
+    }
+}
+
+/// The ring card while it loads: a grey ring of the real size over grey rows shaped like the list's.
+private struct RingSkeleton: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: Layout.medium) {
+            Text("TRY").font(Typography.eyebrow)
+            Circle()
+                .stroke(Skeleton.fill, lineWidth: 34)
+                .padding(17)
+                .frame(height: 200)
+                .frame(maxWidth: .infinity)
+            VStack(spacing: 0) {
+                ForEach(Skeleton.categories) { slice in
+                    HStack(spacing: Layout.medium) {
+                        // Shapes are not greyed by `redacted`; a bright dot would look like a real category.
+                        Circle().fill(Skeleton.fill).frame(width: 10, height: 10)
+                        Text(slice.displayName)
+                        Spacer()
+                        Text(Money.text(slice.amount, currency: "TRY")).monospacedDigit()
+                    }
+                    .padding(.vertical, Layout.small)
+                }
+            }
+        }
+        .cardSurface()
+        .skeleton()
     }
 }
 

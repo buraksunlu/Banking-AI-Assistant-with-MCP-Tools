@@ -10,14 +10,10 @@ struct AccountDetailView: View {
     var body: some View {
         Group {
             if model.isUnavailable {
-                ContentUnavailableView {
-                    Label("Hesap bulunamadı", systemImage: "creditcard.trianglebadge.exclamationmark")
-                } description: {
-                    Text("Hesap bulunamadı veya artık erişilemiyor.")
-                } actions: {
-                    Button("Hesaplara dön") { dismiss() }
-                        .buttonStyle(SecondaryButtonStyle())
-                }
+                StateMessage(title: "Hesap bulunamadı", symbol: "creditcard.trianglebadge.exclamationmark",
+                             message: "Hesap bulunamadı veya artık erişilemiyor.", size: .screen,
+                             actionTitle: "Hesaplara dön") { dismiss() }
+                    .frame(maxHeight: .infinity)
             } else { statement }
         }
         .blackScreen()

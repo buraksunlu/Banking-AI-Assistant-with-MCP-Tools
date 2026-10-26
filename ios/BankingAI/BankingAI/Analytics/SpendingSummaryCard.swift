@@ -19,21 +19,16 @@ struct SpendingSummaryCard: View {
             case .loading:
                 Text("0,00 TL")
                     .font(Typography.balance)
-                    .redacted(reason: .placeholder)
-                    // VoiceOver would otherwise read a made-up "0,00 TL" as this month's spending.
-                    .accessibilityLabel("Yükleniyor")
+                    .skeleton()
             case .empty:
                 Text("Bu ay henüz harcama yok")
                     .font(Typography.body)
                     .foregroundStyle(Palette.secondaryText.color)
             case .failed(let message):
-                Text(message)
-                    .font(Typography.caption)
-                    .foregroundStyle(Palette.secondaryText.color)
-                Button("Tekrar dene") {
+                // Already on the card, so no card of its own; the card had no title for this state and gets none (K5-A).
+                StateMessage(title: message, symbol: "exclamationmark.triangle", actionTitle: "Tekrar dene") {
                     Task { await model.load() }
                 }
-                .buttonStyle(SecondaryButtonStyle())
             case .loaded(let currencies):
                 if let message = model.refreshError {
                     StatusBand(text: message)

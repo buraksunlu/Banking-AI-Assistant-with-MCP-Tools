@@ -12,23 +12,16 @@ struct RecentTransactionsSection: View {
             SectionTitle(text: "Son işlemler")
             switch model.state {
             case .loading:
-                ProgressView()
-                    .tint(Palette.secondaryText.color)
-                    .frame(maxWidth: .infinity, minHeight: 120)
+                TransactionSkeletonRows(items: Skeleton.recent, verticalPadding: 10)
+                    .cardSurface(padding: 0)
+                    .skeleton()
             case .empty:
-                ContentUnavailableView("Son 3 ayda işlem yok", systemImage: "list.bullet.rectangle",
-                                       description: Text("Yeni işlemler burada görünür."))
+                StateMessage(title: "Son 3 ayda işlem yok", symbol: "list.bullet.rectangle", message: "Yeni işlemler burada görünür.")
+                    .cardSurface(padding: 0)
             case .failed(let message):
-                ContentUnavailableView {
-                    Label("İşlemler yüklenemedi", systemImage: "exclamationmark.triangle")
-                } description: {
-                    Text(message)
-                } actions: {
-                    Button("Tekrar dene") {
-                        Task { await model.load() }
-                    }
-                    .buttonStyle(SecondaryButtonStyle())
-                }
+                StateMessage(title: "İşlemler yüklenemedi", symbol: "exclamationmark.triangle", message: message,
+                             actionTitle: "Tekrar dene") { Task { await model.load() } }
+                    .cardSurface(padding: 0)
             case .loaded(let items):
                 if let message = model.refreshError {
                     StatusBand(text: message)
