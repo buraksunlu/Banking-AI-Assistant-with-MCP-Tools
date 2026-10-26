@@ -19,9 +19,8 @@ struct HomeHeader: View {
                         // Keeps the line's height while it loads, so nothing jumps when the name arrives.
                         Text("Merhaba, Ada!")
                             .font(Typography.title)
-                            .redacted(reason: .placeholder)
-                            // A redacted placeholder is still read aloud; a made-up name must not be.
-                            .accessibilityHidden(true)
+                            // A made-up name must never be read aloud; the cards below already say they are loading.
+                            .skeleton(spoken: false)
                     }
                     Text(dayLine ?? " ")
                         .font(Typography.caption)
