@@ -540,3 +540,23 @@ Transactions/TransactionDisplay + kindText      Accounts/AccountDisplay + typeTe
 
 Doğrulama: iOS paketi yeşil, `DetailTextTests` +7 test durumu (log sayımı 294, beklenen 295; fark doğrulanmadı). İki kasıtlı bozma yakalandı (transfer yönü metni, hesap türü metni). Simülatörde (kullanıcı) tüm ekranlar denendi, sorun yok.
 Sınırlar: boş/hata durumları sistem görünümünde (UI-06); `LazyVStack` yüklenen satırları atmaz (binlerce satırda bellek); gün başlıklı liste ve dönem çipleriyle anında filtre yok (kapsam dışı bırakıldı).
+
+## iOS-p: harcama analizi (UI-05 PR2; 26 Ekim 2026)
+
+Analiz ekranı (kategori halkası ve aylık çubuklar) siyah dile geçti. ViewModel'ler, dönemler, seçim ve "geç gelen eski cevap" mantığı aynı.
+
+Kararlar: K6-A ölçerek seçilen 13 renk; K11-A renkler `Palette.swift`'te `CategoryTone.swatch`; K12-B ton adları `green`→`lime`, `red`→`magenta`, `blue`→`slate` (kod→ton eşlemesi `AnalyticsDisplay.tone`'da kalır); K13-A renk farkı CIE76 Lab ΔE (`Swatch.distance`), eşik 25; K7-A çubuklar vurgu mavisi; K8-A sistem bölümlü dönem seçicisi kaldı; K14-B halka ortasında backend'in toplamı; K15-A seçim görünümü aynı; K9-A boş/hata yalnız renk.
+
+```text
+DesignSystem/Palette.swift      + Swatch.distance(to:), Swatch.over(_:opacity:), CategoryTone.swatch
+Analytics/AnalyticsDisplay.swift  ton adları, barOpacity (görünümden taşındı)
+Analytics/CategoryBreakdownSection, MonthlyTrendSection, AnalyticsView   Palette, StatusBand, cardSurface, blackScreen
+BankingAITests/CategoryPaletteTests.swift (yeni)
+```
+
+- Ölçüm: eski sistem renklerinde "Diğer" mavisi ile vurgu ΔE 5,4 (pratikte aynı), ulaşım–seyahat 14; ilk plandaki gözle seçilen palet giyim–abonelik 8,3. Yeni palet: en yakın çift 28,7, anlamlı renklere en yakın 29,1, kartta kontrast en düşük 3,63 (gri), diğerleri ≥ 4,5.
+- Devam eden ay: IOS-08 K12-A'nın %45 saydamlığı kartta 2,07:1 veriyordu (grafik eşiği 3); %70 (≈ 3:1) oldu, nokta ikinci işaret olarak kaldı.
+- Review düzeltmeleri (PR1 ekranlarında da): boş liste + başarısız yenileme artık hata bandı gösterir (PR1'de kayboluyordu); hesap detayında bakiye VoiceOver'da "Güncel bakiye, …"; `over` saydamlığı 0–1'e sıkıştırır.
+
+Doğrulama: iOS 303 test durumu (+8 `CategoryPaletteTests`). Beş kasıtlı bozmanın hepsi yakalandı (Diğer = vurgu, abonelik = giyim, koyu gri, devam eden ay opak, karekök yok). Simülatörde (kullanıcı) renkler, ortadaki toplam, VoiceOver ve boş liste + hata denendi.
+Sınırlar: renk körlüğü için ayrıca denenmedi (renk tek bilgi taşıyıcısı değil: liste adı ve VoiceOver cümlesi var); ΔE eşiği 25 bizim seçimimiz; animasyonlar UI-06.

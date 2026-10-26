@@ -1,8 +1,8 @@
 import Foundation
 
-/// The colors a category can have; the view maps each to a system color so light and dark mode both stay readable.
+/// The colors a category can have; ``CategoryTone/swatch`` (Palette.swift) gives each its colour.
 nonisolated enum CategoryTone: CaseIterable {
-    case orange, green, brown, pink, purple, indigo, teal, cyan, red, mint, blue
+    case orange, lime, brown, pink, purple, indigo, teal, cyan, magenta, mint, slate
     /// Only for categories the app has no color for yet.
     case yellow
     /// Only for the unclassified group.
@@ -19,8 +19,8 @@ enum AnalyticsDisplay {
 
     /// A fixed color per category code, so a category looks the same in every period (decision IOS-08 K9-B).
     private static let tones: [String: CategoryTone] = [
-        "FOOD": .orange, "GROCERY": .green, "FUEL": .brown, "CLOTHING": .pink, "ENTERTAINMENT": .purple, "BILLS": .indigo,
-        "TRANSPORTATION": .teal, "TRAVEL": .cyan, "SUBSCRIPTION": .red, "HEALTH": .mint, "OTHER": .blue,
+        "FOOD": .orange, "GROCERY": .lime, "FUEL": .brown, "CLOTHING": .pink, "ENTERTAINMENT": .purple, "BILLS": .indigo,
+        "TRANSPORTATION": .teal, "TRAVEL": .cyan, "SUBSCRIPTION": .magenta, "HEALTH": .mint, "OTHER": .slate,
     ]
 
     static func tone(forCategory code: String?) -> CategoryTone {
@@ -53,6 +53,14 @@ enum AnalyticsDisplay {
             if value <= NSDecimalNumber(decimal: upperEdge).doubleValue { return slice }
         }
         return nil
+    }
+
+    /// How solid a monthly bar is (UI-05 K7-A): the month still running is paler (it is not a whole month, IOS-08 K12-A; the dot
+    /// under it is the second cue), and while one bar is chosen the others step back. Pale enough to read as unfinished, solid
+    /// enough to stay a graphic: 3:1 on the card, which a test keeps.
+    static func barOpacity(isPartial: Bool, id: String, selectedID: String?) -> Double {
+        if let selectedID, selectedID != id { return 0.35 }
+        return isPartial ? 0.7 : 1
     }
 
     private static let monthNames = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"]
