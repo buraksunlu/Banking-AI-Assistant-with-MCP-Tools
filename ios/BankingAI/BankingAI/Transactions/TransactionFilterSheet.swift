@@ -44,14 +44,21 @@ struct TransactionFilterSheet: View {
                 } footer: {
                     Text("Başlangıç ve bitiş günleri dahildir. Özel aralık en fazla 24 ay olabilir. Gelecek tarihler için işlem listelenemez.")
                 }
+                .listRowBackground(Palette.raised.color)
                 if let message = draft.validationMessage ?? model.filterError {
                     Section {
                         Label(message, systemImage: "exclamationmark.triangle")
-                            .foregroundStyle(.red).accessibilityIdentifier("filterError")
+                            .foregroundStyle(Palette.failure.color).accessibilityIdentifier("filterError")
                     }
+                    .listRowBackground(Palette.raised.color)
                 }
-                if isApplying { Section { ProgressView("Seçilen dönem yükleniyor…") } }
+                if isApplying {
+                    Section { ProgressView("Seçilen dönem yükleniyor…").tint(Palette.secondaryText.color) }
+                        .listRowBackground(Palette.raised.color)
+                }
             }
+            .scrollContentBackground(.hidden)
+            .background(Palette.background.color)
             .disabled(isApplying)
             .navigationTitle("İşlem dönemi")
             .navigationBarTitleDisplayMode(.inline)

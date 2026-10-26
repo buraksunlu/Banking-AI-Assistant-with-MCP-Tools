@@ -42,12 +42,11 @@ struct RecentTransactionsSection: View {
                         }
                         .buttonStyle(.plain)
                         if item.id != items.last?.id {
-                            Rectangle().fill(Palette.hairline.color).frame(height: 1)
-                                .padding(.leading, 64)
+                            HairlineDivider(leading: 64)
                         }
                     }
                     if model.hasMore {
-                        Rectangle().fill(Palette.hairline.color).frame(height: 1)
+                        HairlineDivider()
                         NavigationLink(value: TransactionHistoryRoute()) {
                             HStack {
                                 Text("Tüm işlemleri gör")

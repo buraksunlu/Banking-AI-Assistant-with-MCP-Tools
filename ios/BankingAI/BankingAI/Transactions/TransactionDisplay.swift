@@ -55,6 +55,17 @@ struct TransactionDisplay {
         amount = (isIncoming ? "+" : "\u{2212}") + Money.text(item.amount, currency: item.currencyCode)
     }
 
+    /// The kind as the detail screen writes it (UI-05): "Harcama", "Gelen transfer"... Decided from `kind` and `direction` only.
+    static func kindText(_ item: TransactionItem) -> String {
+        switch item.kind {
+        case .purchase: "Harcama"
+        case .sale: "Satış"
+        case .transfer: item.direction == .credit ? "Gelen transfer" : "Giden transfer"
+        case .salary: "Maaş"
+        case .openingFunding: "Açılış bakiyesi"
+        }
+    }
+
     /// "2026-10-08" → "8 Ekim 2026". Written by hand rather than through a calendar: the day is already the customer's,
     /// and any time zone would be a chance to move it. Anything else is shown as it came.
     static func date(_ localDate: String) -> String {

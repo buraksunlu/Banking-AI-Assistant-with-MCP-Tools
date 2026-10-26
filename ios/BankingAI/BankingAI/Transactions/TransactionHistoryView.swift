@@ -5,13 +5,19 @@ struct TransactionHistoryView: View {
     let model: TransactionHistoryViewModel
 
     var body: some View {
-        List {
-            Section {
+        ScrollView {
+            VStack(alignment: .leading, spacing: Layout.medium) {
+                if let period = model.periodText {
+                    Text(period)
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.secondaryText.color)
+                }
                 TransactionRows(model: model)
-            } header: {
-                if let period = model.periodText { Text(period) }
             }
+            .padding(.horizontal, Layout.regular)
+            .padding(.top, Layout.small)
         }
+        .blackScreen()
         .navigationTitle("Tüm işlemler")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await model.refresh() }

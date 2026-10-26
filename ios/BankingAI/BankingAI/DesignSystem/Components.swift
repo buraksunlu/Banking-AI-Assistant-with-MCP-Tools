@@ -48,15 +48,17 @@ struct SecondaryButtonStyle: ButtonStyle {
     }
 }
 
-/// A suggestion to tap: a thin outlined capsule.
+/// A suggestion to tap: a thin outlined capsule. A chosen one (a period in use, UI-05 K3-A) takes the accent.
 struct ChipButtonStyle: ButtonStyle {
+    var isSelected = false
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.footnote)
-            .foregroundStyle(Palette.primaryText.color)
+            .foregroundStyle(isSelected ? Palette.accent.color : Palette.primaryText.color)
             .padding(.horizontal, Layout.medium)
             .padding(.vertical, Layout.small)
-            .overlay(Capsule().stroke(Palette.hairline.color, lineWidth: 1))
+            .overlay(Capsule().stroke(isSelected ? Palette.accent.color : Palette.hairline.color, lineWidth: 1))
             .opacity(configuration.isPressed ? 0.6 : 1)
     }
 }
@@ -127,5 +129,67 @@ struct BrandMark: View {
         .multilineTextAlignment(.center)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// The thin line between rows of a card.
+struct HairlineDivider: View {
+    var leading: CGFloat = 0
+
+    var body: some View {
+        Rectangle().fill(Palette.hairline.color).frame(height: 1).padding(.leading, leading)
+            .accessibilityHidden(true)
+    }
+}
+
+/// A label with its value (UI-05 K5-A): side by side, and one above the other when the text size leaves no room.
+struct DetailRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline) {
+                labelText
+                Spacer(minLength: Layout.medium)
+                valueText.multilineTextAlignment(.trailing)
+            }
+            VStack(alignment: .leading, spacing: Layout.tight) {
+                labelText
+                valueText
+            }
+        }
+        .padding(.vertical, Layout.medium)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var labelText: some View {
+        Text(label).font(Typography.caption).foregroundStyle(Palette.secondaryText.color)
+    }
+
+    private var valueText: some View {
+        Text(value).font(Typography.body).foregroundStyle(Palette.primaryText.color).textSelection(.enabled)
+    }
+}
+
+extension View {
+    /// A pushed screen on the black ground: the same colour behind the content and behind the navigation bar, so the bar
+    /// does not turn system grey while the content scrolls under it (UI-05).
+    func blackScreen() -> some View {
+        self.background(Palette.background.color)
+            .toolbarBackground(Palette.background.color, for: .navigationBar)
+    }
+}
+
+/// "İŞLETME" on a shop's account: a small outlined capsule in the accent.
+struct BusinessTag: View {
+    var body: some View {
+        Text(Typography.label("İşletme"))
+            .font(Typography.eyebrow)
+            .tracking(1)
+            .foregroundStyle(Palette.accent.color)
+            .padding(.horizontal, Layout.small)
+            .padding(.vertical, Layout.tight)
+            .overlay(Capsule().stroke(Palette.accent.color, lineWidth: 1))
     }
 }

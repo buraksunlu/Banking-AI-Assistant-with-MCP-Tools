@@ -13,18 +13,22 @@ struct LinkedTransactionsView: View {
     }
 
     var body: some View {
-        List {
-            Section {
-                TransactionRows(model: model)
-            } header: {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(summary).font(.subheadline.bold()).foregroundStyle(.primary)
-                    if let period = model.periodText { Text(period) }
-                    if model.loadedOnce { Text("\(model.totalCount) işlem") }
+        ScrollView {
+            VStack(alignment: .leading, spacing: Layout.medium) {
+                VStack(alignment: .leading, spacing: Layout.tight) {
+                    Text(summary)
+                        .font(Typography.title)
+                        .foregroundStyle(Palette.primaryText.color)
+                    if let period = model.periodText { caption(period) }
+                    if model.loadedOnce { caption("\(model.totalCount) işlem") }
                 }
-                .textCase(nil)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                TransactionRows(model: model)
             }
+            .padding(.horizontal, Layout.regular)
+            .padding(.top, Layout.small)
         }
+        .blackScreen()
         .navigationTitle("Cevabın işlemleri")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await model.refresh() }
@@ -32,5 +36,9 @@ struct LinkedTransactionsView: View {
             if model.items.isEmpty { await model.loadMore() }
             else { await model.refresh() }
         }
+    }
+
+    private func caption(_ text: String) -> some View {
+        Text(text).font(Typography.caption).foregroundStyle(Palette.secondaryText.color)
     }
 }
