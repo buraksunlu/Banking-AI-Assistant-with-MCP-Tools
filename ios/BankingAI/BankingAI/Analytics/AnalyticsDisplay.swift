@@ -54,4 +54,25 @@ enum AnalyticsDisplay {
         }
         return nil
     }
+
+    private static let monthNames = ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"]
+
+    /// 1…12 → "Oca" … "Ara"; the chart's axis writes this under each bar.
+    static func shortMonth(_ month: Int) -> String { monthNames[month - 1] }
+
+    /// "Eki 2026", or "Eki 2026 (devam ediyor)" for the month still running.
+    static func monthLabel(year: Int, month: Int, isPartial: Bool) -> String {
+        "\(shortMonth(month)) \(year)" + (isPartial ? " (devam ediyor)" : "")
+    }
+
+    /// "Eki 2026 (devam ediyor), 11.350,00 TL": what the screen says about the selected bar.
+    static func monthSummary(_ spending: MonthlySpending, currency: String) -> String {
+        "\(monthLabel(year: spending.year, month: spending.month, isPartial: spending.isPartial)), "
+            + Money.text(spending.amount, currency: currency)
+    }
+
+    /// The same facts for VoiceOver, with the transaction count.
+    static func monthAccessibilityLabel(_ spending: MonthlySpending, currency: String) -> String {
+        "\(monthSummary(spending, currency: currency)), \(spending.transactionCount) işlem"
+    }
 }

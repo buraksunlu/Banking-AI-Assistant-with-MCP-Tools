@@ -42,6 +42,14 @@ extension APIRequest where Response == CategoryBreakdown {
     }
 }
 
+extension APIRequest where Response == MonthlyTrend {
+    /// `GET /api/analytics/monthly-trend`: the last `months` whole months and the month still running, per currency.
+    static func monthlyTrend(months: Int) -> APIRequest<MonthlyTrend> {
+        APIRequest(method: "GET", path: "api/analytics/monthly-trend",
+                   query: [URLQueryItem(name: "months", value: String(months))], body: nil, requiresToken: true)
+    }
+}
+
 extension APIRequest where Response == Account {
     /// Reads an account opened from its home card, checking ownership on the server.
     static func account(_ id: UUID) -> APIRequest<Account> {

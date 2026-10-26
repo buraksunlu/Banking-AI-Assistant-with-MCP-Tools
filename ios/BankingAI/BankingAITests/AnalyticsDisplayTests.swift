@@ -64,4 +64,31 @@ struct AnalyticsDisplayTests {
         #expect(AnalyticsDisplay.slice(atAmount: 735.5, in: adaSlices) == nil)
         #expect(AnalyticsDisplay.slice(atAmount: 10, in: []) == nil)
     }
+
+    // IOS-08 PR2: the wording of the monthly chart.
+
+    @Test func monthsHaveTheirShortTurkishNames() {
+        #expect((1...12).map { AnalyticsDisplay.shortMonth($0) } == ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"])
+    }
+
+    @Test func aMonthIsNamedWithItsYearAndAPartialOneSaysItIsStillRunning() {
+        #expect(AnalyticsDisplay.monthLabel(year: 2026, month: 10, isPartial: true) == "Eki 2026 (devam ediyor)")
+        #expect(AnalyticsDisplay.monthLabel(year: 2026, month: 9, isPartial: false) == "Eyl 2026")
+        // The year border: December belongs to the year before January.
+        #expect(AnalyticsDisplay.monthLabel(year: 2025, month: 12, isPartial: false) == "Ara 2025")
+        #expect(AnalyticsDisplay.monthLabel(year: 2026, month: 1, isPartial: false) == "Oca 2026")
+    }
+
+    @Test func aSelectedMonthReadsMonthAndAmount() {
+        let september = MonthlySpending(year: 2026, month: 9, isPartial: false, amount: Decimal(string: "31000.00")!, transactionCount: 1)
+        let october = MonthlySpending(year: 2026, month: 10, isPartial: true, amount: Decimal(string: "11350.00")!, transactionCount: 3)
+        #expect(AnalyticsDisplay.monthSummary(september, currency: "TRY") == "Eyl 2026, 31.000,00 TL")
+        #expect(AnalyticsDisplay.monthSummary(october, currency: "TRY") == "Eki 2026 (devam ediyor), 11.350,00 TL")
+        #expect(AnalyticsDisplay.monthAccessibilityLabel(october, currency: "TRY") == "Eki 2026 (devam ediyor), 11.350,00 TL, 3 işlem")
+    }
+
+    @Test func aMonthWithoutSpendingIsStillAZeroAmountNotMissing() {
+        let may = MonthlySpending(year: 2026, month: 5, isPartial: false, amount: 0, transactionCount: 0)
+        #expect(AnalyticsDisplay.monthSummary(may, currency: "TRY") == "May 2026, 0,00 TL")
+    }
 }

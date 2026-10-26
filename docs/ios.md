@@ -391,3 +391,31 @@ Canlı kontrol (23 Ekim 2026, simülatör + gerçek API, Ada): kart, dört döne
 
 Sınırlar: özel tarih aralığı yok (yalnız dört adlı dönem); dilime dokununca işlem listesi açılmaz (bağlantı için kategori filtresi doğrulanmalı);
 halka yalnız açılışta ve aşağı çekince yenilenir; aylık grafik PR2'dedir.
+
+## iOS-j: aylık çubuk grafik (IOS-08 PR2; 23 Ekim 2026)
+
+Analiz ekranında kategori halkasının altına "Aylık harcama" eklendi: `GET /api/analytics/monthly-trend?months=6`, son 6 tam ay + devam eden ay =
+7 çubuk, para birimi başına ayrı grafik. Backend ve migration değişmedi; telefon toplam hesaplamaz.
+
+Kararlar (PR1'den K3-A, K5-A, K7-A geçerli): K11-A (değer ekseni yok, tutar dokununca tam yazılır, yalnız ızgara çizgisi), K12-A (devam eden ay %45
+soluk + etiketinin altında nokta, seçilince "devam ediyor" yazar), K13-A (harcamasız ay sıfır çubuk olarak kalır), K14-A (kategori halkasının altında).
+
+```text
+AnalyticsView ─ CategoryBreakdownSection                 (PR1)
+              └ MonthlyTrendSection(MonthlyTrendViewModel) ─► APIRequest.monthlyTrend(months: 6) ─► GET /api/analytics/monthly-trend
+AnalyticsDisplay: shortMonth, monthLabel, monthSummary, monthAccessibilityLabel
+```
+
+- `MonthlyTrendViewModel`: `loading`/`loaded`/`empty`/`failed`, `refreshError`, çubuk seçimi (para birimi başına). Geç gelen eski cevap yok sayılır
+  (`generation`); yenileme hatası eski grafiği silmez; yeni cevapta artık olmayan ayın seçimi düşer; 401 ve iptal hata göstermez.
+- `MonthlySpending.id` "2026-10" (yıl-ay): grafiğin x değeri ve seçim anahtarı; etiket yalnız ay adıdır ("Eki"), yıl seçilince özet satırında çıkar.
+- `MonthlyTrendSection`: `BarMark` + `chartXSelection`; `chartYAxis` yalnız `AxisGridLine`; `accessibilityLabel` ay, tutar ve işlem sayısını söyler.
+- Cevaptaki `months` pencere listesi ve `merchantMatch` okunmaz; çizim `currencies[].months`'tan yapılır.
+
+Doğrulama: 232 Swift Testing test durumu (önceki 212; +20: `MonthlyTrendViewModelTests` 16, `AnalyticsDisplayTests` +4). Dokuz kasıtlı bozmanın hepsi
+yakalandı (`months` gitmez, kısmi ay tam sayılır, Aralık ertesi yıl yazılır, harcamasız ay düşer, geç cevap kabul edilir, dokunuş seçimi bırakmaz,
+kaybolan ayın seçimi kalır, yenileme hatası grafiği siler, ay adları kayar). Görünüm (soluk renk, nokta, koyu mod) testle değil elle doğrulandı: simülatör + gerçek API, Deniz, demo anı (23 Ekim 2026).
+
+Sınırlar: kategoriye göre süzme yok, 12 ay yok; çubuğa dokununca o ayın işlem listesi açılmaz; kategori halkası seçilen aydan etkilenmez; grafik yalnız
+açılışta ve aşağı çekince yenilenir; eksende tutar etiketi yok.
+
