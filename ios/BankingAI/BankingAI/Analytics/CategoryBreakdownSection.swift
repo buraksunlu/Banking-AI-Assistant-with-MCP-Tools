@@ -118,7 +118,7 @@ private struct CurrencyRing: View {
             }
         }
         .padding()
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+        .background(Palette.surface.color, in: RoundedRectangle(cornerRadius: 16))
     }
 
     private var selectedSummary: String {

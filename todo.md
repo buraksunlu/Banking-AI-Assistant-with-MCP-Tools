@@ -329,7 +329,7 @@ kullanılır (gönder, bağlantı, seçili durum); **K3-A** sohbette asistan cev
 adı "Asistan" + küçük monogram, marka/isim kararı UI-04'e; **K5-B** alt sekme çubuğu (Ana sayfa / Analiz / Asistan / Profil), UI-07'de;
 **K6-A** sistem fontu, tutarlarda eşit genişlikli rakam, büyük ve ince bakiye.
 
-- [ ] UI-01 — Tasarım sistemi ve siyah tema. `DesignSystem/` altında renk (zemin, yüzey, yükseltilmiş yüzey, ince çizgi, birincil/ikincil
+- [x] UI-01 — Tasarım sistemi ve siyah tema. **Sonuç (26 Ekim 2026, dal `ui-01-design-system`, docs/ios.md "iOS-k"; kararlar K7-B K8-A K9-A):** `DesignSystem/` (Palette + WCAG kontrast, Typography + Türkçe büyük harf, Layout, Components), kökte her zaman koyu tema ve altın vurgu, zemin `#0A0A0B`; ana ekran düğmesi ve kullanıcı balonu altın üstünde beyaz kalmasın diye yeni stile geçti. iOS 249 test durumu (main'de 231, +18), 4 kasıtlı bozma yakalandı; simülatörde ana ekran ve sohbet görüldü. Sınırlar: düzenler eski, turuncu bantlar ve kategori renkleri aynı. Plan: `DesignSystem/` altında renk (zemin, yüzey, yükseltilmiş yüzey, ince çizgi, birincil/ikincil
   metin, tek vurgu rengi, gelen para, hata), yazı ölçeği (büyük bakiye, başlık, gövde, küçük üst etiket; tutarlarda eşit genişlikli
   rakam), boşluk ve köşe değerleri; ortak parçalar: kart yüzeyi, bölüm başlığı, birincil/ikincil düğme, öneri çipi, durum bandı.
   Uygulama kökünde tema (karara göre her zaman koyu ya da sistemle). Ekranlar henüz değişmez; yalnız vurgu rengi ve zemin.

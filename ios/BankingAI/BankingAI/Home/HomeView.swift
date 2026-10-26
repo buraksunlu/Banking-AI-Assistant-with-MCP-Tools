@@ -29,7 +29,7 @@ struct HomeView: View {
                         Label("Harcama analizi", systemImage: "chart.pie")
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding()
-                            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+                            .background(Palette.surface.color, in: RoundedRectangle(cornerRadius: 16))
                     }
                     .buttonStyle(.plain)
                     AccountsSection(model: accounts)
@@ -37,7 +37,7 @@ struct HomeView: View {
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(Palette.background.color)
             .refreshable {
                 async let accountsLoaded: Void = accounts.load()
                 async let recentLoaded: Void = recent.load()
@@ -60,8 +60,7 @@ struct HomeView: View {
                     Label("Asistana sor", systemImage: "bubble.left.and.text.bubble.right")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .buttonStyle(PrimaryButtonStyle())
                 .padding()
                 .background(.bar)
             }

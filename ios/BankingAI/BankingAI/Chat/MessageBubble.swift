@@ -16,9 +16,9 @@ struct MessageBubble: View {
                 Text(message.displayText)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 10)
-                    .background(message.role == .user ? Color.accentColor : Color(.secondarySystemBackground),
+                    .background(message.role == .user ? Palette.raised.color : Palette.surface.color,
                                 in: RoundedRectangle(cornerRadius: 18))
-                    .foregroundStyle(message.role == .user ? Color.white : Color.primary)
+                    .foregroundStyle(Palette.primaryText.color)
                     .textSelection(.enabled)
                 // Under its own answer for good, unlike the suggestions: the list is the proof of this answer's figure.
                 ForEach(message.links, id: \.self) { link in
