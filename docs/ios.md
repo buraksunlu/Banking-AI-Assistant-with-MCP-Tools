@@ -470,6 +470,7 @@ DesignSystem/Components.swift  StatusBand eylemi, AssistantMark
 
 Doğrulama: 261 test durumu geçti (main'de 249, +12 `AnswerHighlightTests`).
 Sınırlar: ana ekran UI-03, giriş UI-04, kalan ekranlar UI-05.
+
 ## iOS-m: ana ekran (UI-03; 26 Ekim 2026)
 
 Ana ekran siyah premium dile geçti. Yalnız görünüm ve bir yeni okuma: ViewModel, ağ ve rakam mantığı aynı, backend değişmedi.
