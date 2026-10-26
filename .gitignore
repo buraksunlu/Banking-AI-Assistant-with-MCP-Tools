@@ -16,3 +16,6 @@ ai/.venv/
 xcuserdata/
 *.xcuserstate
 DerivedData/
+
+# Demo script logs (scripts/demo.sh)
+.demo/

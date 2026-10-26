@@ -7,6 +7,23 @@ Temel ilke: **LLM yorumlar ve tool seçer; .NET backend hesaplar, filtreler, yet
 source of truth'tur.** LLM'e SQL, veritabanı erişimi, para hesabı veya yazma yetkisi verilmez; MCP tool'ları
 read-only olacaktır. Her şey ücretsiz ve yereldir (local Qwen + Ollama). Gerçek banka/müşteri verisi kullanılmaz.
 
+## Demo için tek komut
+
+Bütün servisleri (Colima + PostgreSQL, Ollama, .NET API `:5248`, MCP server `:5249`, AI servisi `:8000`) demo anıyla
+(`BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z`) sırayla açar, sağlık kontrolünü bekler ve loglarını `.demo/` altına yazar:
+
+```sh
+scripts/demo.sh
+```
+
+İş bitince servisleri durdurup modeli bellekten boşaltmak için (PostgreSQL açık kalır):
+
+```sh
+scripts/demo.sh stop
+```
+
+Önkoşullar: `.env` dolu, `ai/.venv` kurulu, harici SSD takılı (Ollama modeli). Sonra iPhone simülatöründen giriş yapılır.
+
 ## Durum (19 Ekim 2026)
 
 | Katman | Durum |
