@@ -40,6 +40,7 @@ struct SpendingSummaryCard: View {
                             .foregroundStyle(Palette.primaryText.color)
                             .lineLimit(1)
                             .minimumScaleFactor(0.6)
+                            .contentTransition(.numericText())
                         Text("\(spending.transactionCount) alışveriş")
                             .font(Typography.caption)
                             .foregroundStyle(Palette.secondaryText.color)
@@ -53,6 +54,7 @@ struct SpendingSummaryCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardSurface()
+        .motion(value: model.state)
         // Coming back from the chat runs this again; only a figure that never arrived is asked for (pull to refresh does the rest).
         .task {
             if model.state == .loading { await model.load() }

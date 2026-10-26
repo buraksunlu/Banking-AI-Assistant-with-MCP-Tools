@@ -35,6 +35,7 @@ struct AccountsSection: View {
                 }
             }
         }
+        .motion(value: model.state)
         // Coming back from the chat runs this again; the balances cannot have changed there, so only a list that never
         // arrived is asked for (decision IOS-04 K5-A: refreshing is the user's pull).
         .task {

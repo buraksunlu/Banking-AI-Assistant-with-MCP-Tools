@@ -36,12 +36,15 @@ struct StateMessage: View {
                     }
                 }
                 .multilineTextAlignment(.center)
+                // Wrap, never cut with "…": at the largest sizes the card would otherwise keep one line of each.
+                .fixedSize(horizontal: false, vertical: true)
             }
             // The title and its line are one sentence for VoiceOver; the button stays its own element.
             .accessibilityElement(children: .combine)
             if let actionTitle, let action {
                 Button(actionTitle, action: action)
                     .buttonStyle(SecondaryButtonStyle())
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .frame(maxWidth: .infinity)

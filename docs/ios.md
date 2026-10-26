@@ -586,3 +586,29 @@ BankingAITests/LoadingStateTests.swift (yeni)
 
 Doğrulama: iOS 309 test durumu (+7 `LoadingStateTests`), 0 kırmızı. Üç kasıtlı bozmanın hepsi yakalandı (son işlem iskeleti 4 satır, aynı kimlik, sahte veride persona adı). İskeletler ve `StateMessage` geçici bir `ImageRenderer` testiyle resme çizilip gözle kontrol edildi (dosya silindi); bulunan tek kusur (kategori noktaları parlak) düzeltildi. Simülatörde dolu ana ekran görüldü; yerel API hızlı olduğu için iskelet canlıda gözle yakalanmadı.
 Sınırlar: geçiş animasyonları, titreşim, şifre gözü ve erişilebilirlik taraması PR2'de; iskelet sabit "TRY" ve tek para birimi kartı gösterir (birden çok para birimli müşteride veri gelince kart sayısı artar).
+
+## iOS-r: geçişler, titreşim, şifre gözü ve erişilebilirlik taraması (UI-06 PR2; 26 Ekim 2026)
+
+Uygulama dokununca ve değişince "hissediliyor"; en büyük yazı boyutunda (AX5) bulunan bozukluklar düzeltildi. ViewModel, ağ ve metinler aynı.
+
+Kararlar: K6-C durum değişiminde solma + rakam dönmesi (`contentTransition(.numericText())`, yalnız görünüm) + sohbette mesaj ve önerilerin alttan belirmesi; ekran geçişleri sistemin (UI-07 sekmeleriyle çakışmasın); K7-A titreşim yalnız gönderimde (hafif darbe; yazılan, öneri ya da tekrar) ve yanlış girişte (hata); yenilemede iOS'un kendi eşik titreşimi yeter (ikincisi çift olurdu); K8-A şifre gözü; K9-A elle tarama + aynı PR'da düzeltme.
+
+```text
+DesignSystem/Motion.swift      (yeni) Motion.animation(_:reduceMotion:), .motion(value:)
+DesignSystem/Components.swift  StatusBand AX'te dikey, BusinessTag bölünmez, BrandMark ölçeklenir
+DesignSystem/StateMessage.swift metinler kesilmez, sarılır
+Bölümler + SpendingSummaryCard  .motion(value: state); AccountRow/SpendingSummaryCard rakam dönmesi
+Chat/ChatView.swift            mesaj/öneri geçişi, gönderim titreşimi, kaydırma Motion'a bağlı, Gönder/Durdur 44 pt
+Login/LoginView.swift          şifre gözü, hata titreşimi
+Transactions/TransactionRow    AX boyutlarında tek sütun (simge yok)
+Home/HomeHeader                profil dairesi 44 pt, baş harfler xxLarge'da sabit + büyük içerik görüntüleyici
+BankingAITests/MotionTests.swift (yeni)
+```
+
+- "Hareketi azalt" açıkken `Motion.animation` nil verir: solma, rakam dönmesi, mesaj kayması ve sohbet kaydırması olmaz, değişiklik anında olur. İskelet nabzı PR1'den beri aynı kuralda.
+- Şifre gözü görünümün durumudur (`LoginViewModel` değişmedi); "Giriş yap"a basılınca şifre gizlenir ve eskisi gibi silinir. VoiceOver "Şifreyi göster/gizle".
+- AX5 taraması (simülatör + geçici `ImageRenderer` testi, dosya silindi): işlem satırında başlık "Akar…" ve tutar üç satırdı; "İŞLETME" kapsülde ikiye bölünüyordu; `StateMessage` ve hesap adı "…" ile kesiliyordu; `StatusBand` metni heceleniyordu; profil dairesinde "MA" yerine "…"; Gönder/Durdur 34 pt (en az 44 olmalı); marka yazısı sabit 44 pt. Hepsi düzeltildi, normal boyut görünümü aynı kaldı.
+- Ders: `ImageRenderer` sayfaya sınırlı yükseklik verince metinleri kesiyor; kaydırma görünümünü taklit etmek için sayfa `fixedSize(vertical:)` ile çizilmeli, yoksa yanlış bulgu çıkar.
+
+Doğrulama: iOS 312 test durumu (+3 `MotionTests`), 0 kırmızı; kasıtlı bozma (`Motion` ayarı yok sayıyor) yakalandı. Simülatörde AX5 ana ekran önce/sonra görüldü.
+Sınırlar: titreşim simülatörde hissedilmez (kodda doğrulandı); giriş, sohbet ve işlem detayı ekranları AX5'te ve VoiceOver ile kullanıcı tarafından elle denenecek; Accessibility Inspector "Audit" kullanıcı tarafından çalıştırılacak; arayüz testi hedefi yok (koruma elle tarama).

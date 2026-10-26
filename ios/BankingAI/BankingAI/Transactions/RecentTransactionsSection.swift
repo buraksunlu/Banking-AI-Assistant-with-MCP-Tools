@@ -57,6 +57,7 @@ struct RecentTransactionsSection: View {
                 .cardSurface(padding: 0)
             }
         }
+        .motion(value: model.state)
         // Like the accounts: only a list that never arrived is asked for again when the screen comes back.
         .task {
             if model.state == .loading { await model.load() }
