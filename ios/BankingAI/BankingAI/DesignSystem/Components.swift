@@ -70,9 +70,13 @@ struct StatusBand: View {
     var symbol = "wifi.exclamationmark"
     var actionTitle: String?
     var action: (() -> Void)?
+    @Environment(\.dynamicTypeSize) private var textSize
 
     var body: some View {
-        HStack(spacing: Layout.small) {
+        // Side by side at the largest sizes the text was hyphenated a syllable a line; the action then goes under it.
+        let layout = textSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: Layout.small))
+                                                  : AnyLayout(HStackLayout(spacing: Layout.small))
+        layout {
             Label(text, systemImage: symbol)
                 .font(.subheadline)
                 .foregroundStyle(Palette.primaryText.color)
@@ -116,10 +120,12 @@ extension View {
 
 /// The app's name as a mark: large, light, in the accent, with the tagline under it (UI-04 K1). Read as one heading.
 struct BrandMark: View {
+    @ScaledMetric(relativeTo: .largeTitle) private var size: CGFloat = 44
+
     var body: some View {
         VStack(spacing: Layout.small) {
             Text(Brand.appName)
-                .font(.system(size: 44, weight: .light))
+                .font(.system(size: size, weight: .light))
                 .tracking(2)
                 .foregroundStyle(Palette.accent.color)
             Text(Brand.tagline)
@@ -191,5 +197,7 @@ struct BusinessTag: View {
             .padding(.horizontal, Layout.small)
             .padding(.vertical, Layout.tight)
             .overlay(Capsule().stroke(Palette.accent.color, lineWidth: 1))
+            // One word in a capsule: broken over two lines it no longer reads as a tag.
+            .fixedSize()
     }
 }

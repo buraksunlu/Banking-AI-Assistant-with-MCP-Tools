@@ -11,6 +11,8 @@ struct AccountRow: View {
                 Text(account.accountName)
                     .font(Typography.caption)
                     .foregroundStyle(Palette.secondaryText.color)
+                    // Wraps beside the tag at the largest sizes instead of ending in "…".
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: Layout.small)
                 if account.accountType == .business {
                     BusinessTag()
@@ -21,6 +23,8 @@ struct AccountRow: View {
                 .foregroundStyle(Palette.primaryText.color)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
+                // Turns over when a refresh brings a new balance; the section's state change carries the animation.
+                .contentTransition(.numericText())
             HStack {
                 Text(AccountDisplay.shortNumber(account.accountNumber))
                     .font(Typography.caption)

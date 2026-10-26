@@ -5,6 +5,7 @@ import SwiftUI
 struct ChatView: View {
     @Bindable var model: ChatViewModel
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// The counter appears this close to the limit (K5-C): earlier it would only be noise.
     private static let counterFrom = 450
@@ -29,9 +30,11 @@ struct ChatView: View {
                                 Task { await model.retry(message.id) }
                             }
                             .id(message.id)
+                            .transition(Self.arrival)
                             // Only under the last answer: the server knows only that offer (CHAT-06 K1-B, K2-A).
                             if message.role == .assistant && message.id == model.messages.last?.id && !model.suggestions.isEmpty {
                                 suggestions(model.suggestions)
+                                    .transition(Self.arrival)
                             }
                         }
                         if model.isWaiting {
@@ -43,10 +46,12 @@ struct ChatView: View {
                         }
                     }
                     .padding(Layout.regular)
+                    .motion(value: model.messages.count)
+                    .motion(value: model.suggestions)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: model.messages.count) {
-                    withAnimation {
+                    withAnimation(Motion.animation(.default, reduceMotion: reduceMotion)) {
                         if model.isWaiting {
                             proxy.scrollTo("typing")
                         } else if let last = model.messages.last {
@@ -62,12 +67,17 @@ struct ChatView: View {
         .navigationTitle(Brand.assistantName)
         .navigationBarTitleDisplayMode(.inline)
         .task { await model.open() }
+        // A light tap whenever a question goes out: typed, a suggestion or a retry (K7-A).
+        .sensoryFeedback(.impact(weight: .light), trigger: model.isWaiting) { _, waiting in waiting }
         // Leaving the screen or the app stops a pending question (decision AI-08 K5-C).
         .onDisappear { model.stop() }
         .onChange(of: scenePhase) {
             if scenePhase == .background { model.stop() }
         }
     }
+
+    /// A new message or row of suggestions rises a little into place while it fades in.
+    private static let arrival = AnyTransition.opacity.combined(with: .move(edge: .bottom))
 
     /// An empty chat (K6-C): the mark, a title and the starter questions, one full-width row each (K3-D).
     private var welcome: some View {
@@ -145,6 +155,8 @@ struct ChatView: View {
                             .foregroundStyle(Palette.primaryText.color)
                             .frame(width: 34, height: 34)
                             .overlay(Circle().stroke(Palette.hairline.color, lineWidth: 1))
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
                     .accessibilityLabel("Durdur")
                 } else {
@@ -157,6 +169,9 @@ struct ChatView: View {
                             .foregroundStyle(model.canSendDraft ? Palette.onAccent.color : Palette.secondaryText.color)
                             .frame(width: 34, height: 34)
                             .background(model.canSendDraft ? Palette.accent.color : Palette.hairline.color, in: Circle())
+                            // 44 to tap (UI-06 K9-A); the capsule lost its own 4-point padding, so it is barely taller.
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
                     }
                     .disabled(!model.canSendDraft)
                     .accessibilityLabel("Gönder")
@@ -164,7 +179,6 @@ struct ChatView: View {
             }
             .padding(.leading, Layout.regular)
             .padding(.trailing, Layout.tight)
-            .padding(.vertical, Layout.tight)
             .background(Palette.raised.color, in: RoundedRectangle(cornerRadius: Layout.cardRadius))
             .overlay(RoundedRectangle(cornerRadius: Layout.cardRadius).stroke(Palette.hairline.color, lineWidth: 1))
         }

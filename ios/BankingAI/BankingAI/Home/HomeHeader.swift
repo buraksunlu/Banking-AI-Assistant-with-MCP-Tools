@@ -44,10 +44,16 @@ struct HomeHeader: View {
         } label: {
             Text(model.initials ?? "")
                 .font(Typography.caption.weight(.semibold))
+                // Two letters in a fixed ring: grown with the text they became "…" at the largest sizes. Held to the
+                // large-content viewer instead (a long press shows them big).
+                .dynamicTypeSize(...DynamicTypeSize.xxLarge)
                 .foregroundStyle(Palette.accent.color)
-                .frame(width: 40, height: 40)
+                .frame(width: 44, height: 44)
                 .overlay(Circle().stroke(Palette.accent.color, lineWidth: 1))
         }
         .accessibilityLabel("Profil menüsü")
+        .accessibilityShowsLargeContentViewer {
+            Text(model.initials ?? "")
+        }
     }
 }

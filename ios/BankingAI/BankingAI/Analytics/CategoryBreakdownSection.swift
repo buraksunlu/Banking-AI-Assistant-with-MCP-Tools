@@ -38,6 +38,7 @@ struct CategoryBreakdownSection: View {
                 }
             }
         }
+        .motion(value: model.state)
     }
 }
 

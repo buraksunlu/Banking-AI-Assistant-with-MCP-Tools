@@ -29,6 +29,7 @@ struct MonthlyTrendSection: View {
                 }
             }
         }
+        .motion(value: model.state)
     }
 }
 
