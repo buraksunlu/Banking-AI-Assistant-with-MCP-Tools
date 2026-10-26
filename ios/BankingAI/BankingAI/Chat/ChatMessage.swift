@@ -33,11 +33,13 @@ struct ChatMessage: Identifiable, Equatable {
         self.links = links
     }
 
-    /// The text as shown: inline Markdown (bold, italic, links) applied (decision AI-08 K8-A).
+    /// The text as shown: inline Markdown (bold, italic, links) applied (decision AI-08 K8-A) and, in an answer, every
+    /// figure bold (UI-02 K1-B).
     var displayText: AttributedString {
         // Inline only: answers are one to three sentences (AI-05), and line breaks must stay where the assistant put them.
         // Text that is not valid Markdown is shown as it is rather than lost.
-        (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
+        let shown = (try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
             ?? AttributedString(text)
+        return role == .assistant ? AnswerHighlight.emphasized(shown) : shown
     }
 }

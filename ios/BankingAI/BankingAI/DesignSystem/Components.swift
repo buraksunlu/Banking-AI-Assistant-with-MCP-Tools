@@ -61,17 +61,42 @@ struct ChipButtonStyle: ButtonStyle {
     }
 }
 
-/// A note above a list or a screen ("could not refresh"); it replaces the orange bands screen by screen.
+/// A note above a list or a screen ("could not refresh"); it replaces the orange bands screen by screen. An action, when
+/// given, sits at its end in the accent colour (UI-02 K8-A).
 struct StatusBand: View {
     let text: String
     var symbol = "wifi.exclamationmark"
+    var actionTitle: String?
+    var action: (() -> Void)?
 
     var body: some View {
-        Label(text, systemImage: symbol)
-            .font(.subheadline)
-            .foregroundStyle(Palette.primaryText.color)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(Layout.medium)
-            .background(Palette.raised.color, in: RoundedRectangle(cornerRadius: Layout.controlRadius))
+        HStack(spacing: Layout.small) {
+            Label(text, systemImage: symbol)
+                .font(.subheadline)
+                .foregroundStyle(Palette.primaryText.color)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            if let actionTitle, let action {
+                Button(actionTitle, action: action)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Palette.accent.color)
+            }
+        }
+        .padding(Layout.medium)
+        .background(Palette.raised.color, in: RoundedRectangle(cornerRadius: Layout.controlRadius))
+    }
+}
+
+/// The assistant's mark: a capital A in a thin gold ring (UI-02 K2-B, K4-A). Decoration only; the label beside it names
+/// the assistant for VoiceOver.
+struct AssistantMark: View {
+    var size: CGFloat = 20
+
+    var body: some View {
+        Text("A")
+            .font(.system(size: size * 0.5, weight: .semibold))
+            .foregroundStyle(Palette.accent.color)
+            .frame(width: size, height: size)
+            .overlay(Circle().stroke(Palette.accent.color, lineWidth: 1))
+            .accessibilityHidden(true)
     }
 }
