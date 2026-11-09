@@ -285,6 +285,20 @@ migration onayıyla (CLAUDE.md: SQL gösterilir, ikinci onay). Sıra adım plan�
 - [ ] BUD-03 — ANA-13 (bütçe kontrolü) ve ANA-18 (hedefe göre birikim) kayıtlı bütçe/hedefle de çalışır; tutar verilmezse kayıtlı olan kullanılır, ikisi de yoksa CHAT-03 geri sorusu. Rakamlar mevcut servislerden.
 - [ ] BUD-04 — Read-only tool (`get_budget_status`) ve içgörü kartı: INS-01'e bütçe kartı eklenir (bugün "bütçe saklanmadığı için" yok), IOS-12'de gösterilir.
 
+## 12e. Gelire göre harcama ve seçici öneri — kullanıcı kararı 9 Kasım 2026
+
+Amaç: harcamayı gelirin yüzdesi olarak göstermek, "temel / isteğe bağlı" diye ayırmak ve **yalnız kurallar tuttuğunda** az
+sayıda öneri vermek ("her şeye öneri vermeyiz"). Kararlar: K1-B (taban = son 3 tam ay ortalama maaş), K2-A (tam aylar), K3-A
+("Temel / İsteğe bağlı"), K4-A (kategori başına sabit tablo; Diğer/sınıflandırılmamış = bilinmiyor, öneri yok), K5-D (karma
+tetikleyici: isteğe bağlı toplam > %30 [50/30/20] ya da kategori eşiği/kişisel sapma; en küçük etki gelirin %2'si; eşikler
+ölçerek ayarlanır), K6-B (tespit + ANA-14 tasarruf simülasyonu), K7-B (tablo C#'ta, migration yok), K8-A (aşamalı, her biri
+ayrı PR), K9-A (en fazla 2 öneri, TL etkisine göre; istekte hesaplanır, saklanmaz). Yatırım tavsiyesi değildir.
+
+- [x] INC-01 — Gelir payı analizi + `GET /api/analytics/income-share` (9 Kasım 2026, dal `inc-01-income-share`; docs/analytics.md "INC-01"). Kararlar S1-A (yalnız tek tamamlanmış ay), S2-A (pencere hedef ay dahil 3 ay), S3-A (maaşsız ay 0), S4-A (yalnız harcaması olan para birimleri). `IncomeShareService` kategori tutarlarını `CategoryBreakdownService`'ten alır, tek gelir sorgusu ekler (ölçülen 4 sorgu). Pay tam gelir toplamından. Testler: Application +26 (Selin 90,36, Murat 62,81, Zeynep TRY 43,11 / USD 2,81, Elif 42,05, Can null; dönem kuralları; ayın son günü devam eden ay), Api +12 (alanlar, null paylar, Custom ay, 6 hata, 401, endpoint taraması, OpenAPI). 9 kasıtlı bozmanın hepsi yakalandı (üçü ilk turda kaçtı → `Yesterday`/`LastWeek`, ayın son günü ve saf pay testleri eklendi). Migration yok.
+- [ ] INC-02 — Temel/isteğe bağlı tablosu (C#, her kategori tabloda olmalı: testle) + kural katmanı (K5-D, K9-A) + öneri endpoint'i; öneri metni sabit şablon, rakamlar INC-01 ve ANA-14'ten. Eşikler bütün personalarda ölçülüp birlikte ayarlanır.
+- [ ] INC-03 — Read-only MCP aracı (gelir payı + öneriler) ve sohbet ("Maaşımın ne kadarını harcadım?"); araç seçimi ölçümü önce/sonra.
+- [ ] INC-04 — iPhone kartı (IOS-12/INS ile birlikte düşünülür): gelir payı çubuğu + en fazla 2 öneri; AI kapalıyken şablon metin.
+
 ## 13. Opportunity-cost hesabı
 
 - [ ] OC-01 — Hesap sözleşmesini sabitle. TRY Debit, seçilen kategori/dönem, toplam harcamayla dönem başlangıcında tek alım ve değerleme tarihinde satış kullan; sağlayıcı satış/alış yönünü ve ek ücret/vergi/enflasyon kapsamını yaz.
@@ -564,8 +578,9 @@ Sıradaki (kullanıcı seçer; müşteri her zaman token'dan gelir):
   sırası adım planında.
 - **9 Kasım 2026 — öneri/karşılaştırma kolu (kullanıcı kararı):** önce dış veri, sonra maaşa göre harcama oranı ve
   "gerekli/gereksiz harcama" kuralları (her şeye öneri verilmez). IMP-a ve IMP-b tamam: USD/EUR (TCMB döviz alış) ve gram altın
-  (gold-api ons × USDTRY) iki yıl DB'de, 1.485 satır, günde tek değer. Sırada (kullanıcı seçer): maaşa göre harcama oranı ve
-  gerekli/gereksiz harcama kuralları; opportunity-cost hesabı (OC-01–09); diğer kaynaklar (enflasyon, faiz, endeks) sonra.
+  (gold-api ons × USDTRY) iki yıl DB'de, 1.485 satır, günde tek değer. 12e başladı: INC-01 (gelir payı + API) tamam; sırada
+  INC-02 (temel/isteğe bağlı + seçici öneri), sonra INC-03 (MCP/sohbet), INC-04 (iPhone); opportunity-cost (OC-01–09) ve diğer
+  kaynaklar (enflasyon, faiz, endeks) sonra.
 - **Teknik borç:** DB-01 (ayrı test veritabanı), API-16 (OpenAPI parametre şemaları), ACC-LIMIT.
 
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği madde üzerinden ilerlenir.

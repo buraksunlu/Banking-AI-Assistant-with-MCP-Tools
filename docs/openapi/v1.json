@@ -1356,6 +1356,87 @@
         ]
       }
     },
+    "/api/analytics/income-share": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "One complete month's spending and categories as a share of the average monthly…",
+        "description": "`GET /api/analytics/income-share`: one complete month's spending and categories as a share of the average monthly\nsalary of the three complete months ending with it (INC-01). Only `period=LastMonth` or `from`/`to`\ncovering one whole calendar month; shares are null in a currency without salary.",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncomeShare"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
     "/api/analytics/merchants": {
       "get": {
         "tags": [
@@ -2790,6 +2871,47 @@
           }
         }
       },
+      "CategoryIncomeShare": {
+        "required": [
+          "categoryCode",
+          "displayName",
+          "amount",
+          "transactionCount",
+          "incomeShare"
+        ],
+        "type": "object",
+        "properties": {
+          "categoryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "transactionCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "incomeShare": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          }
+        },
+        "description": "One category's spending and its share of the income base; the share is null when there is no income."
+      },
       "CategorySpending": {
         "required": [
           "categoryCode",
@@ -2988,6 +3110,60 @@
           }
         }
       },
+      "CurrencyIncomeShare": {
+        "required": [
+          "currencyCode",
+          "totalSpent",
+          "incomeTotal",
+          "incomeCount",
+          "incomeBase",
+          "spentShare",
+          "categories"
+        ],
+        "type": "object",
+        "properties": {
+          "currencyCode": {
+            "type": "string"
+          },
+          "totalSpent": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "incomeTotal": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "incomeCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "incomeBase": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "spentShare": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryIncomeShare"
+            }
+          }
+        },
+        "description": "One currency of the month. `IncomeBase` = `IncomeTotal` / int IncomeShareService.IncomeMonths, months\nwithout salary included; null when the window has no salary in this currency. Shares come from the exact total."
+      },
       "CurrencyMerchantBreakdown": {
         "required": [
           "currencyCode",
@@ -3176,6 +3352,48 @@
             }
           }
         }
+      },
+      "IncomeShare": {
+        "required": [
+          "period",
+          "incomeFrom",
+          "incomeTo",
+          "incomeMonths",
+          "method",
+          "currencies"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "incomeFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "incomeTo": {
+            "type": "string",
+            "format": "date"
+          },
+          "incomeMonths": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "method": {
+            "type": "string"
+          },
+          "currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurrencyIncomeShare"
+            }
+          }
+        },
+        "description": "Result of IncomeShareService: the month (`Period`), the income window (`IncomeFrom`–`IncomeTo`),\nthe assumption in `Method` and one row per currency with spending in the month (none: empty list)."
       },
       "KnownMerchant": {
         "required": [

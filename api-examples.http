@@ -116,6 +116,10 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/api/analytics/savings-simulation?reductionPercent=50&merchant=starbucks
 Authorization: Bearer {{token}}
 
+### Gelire göre harcama payı (INC-01): geçen ay — Ada için beklenen: 200, taban 45.000, pay 1,39 (Selin'de 90,36)
+GET {{baseUrl}}/api/analytics/income-share?period=LastMonth
+Authorization: Bearer {{token}}
+
 ### ---- Sohbet asistanı (AI-14b): AI servisi ve Ollama da açık olmalı (docs/local-ai.md). Veri yazmaz.
 # AI servisi: ai/.venv/bin/uvicorn --app-dir ai/service --factory app:create_app --host 127.0.0.1 --port 8000
 # Kapalıysa status false, mesaj 503 assistant_unavailable döner. Müşteri başına dakikada 10 mesaj.

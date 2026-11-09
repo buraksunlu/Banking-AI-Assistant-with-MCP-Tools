@@ -23,6 +23,7 @@ Makine okunur sözleşme: `docs/openapi/v1.json`; tarayıcıda `http://localhost
 | `GET /api/analytics/upcoming-payments` | evet | uygulandı | ANA-12 |
 | `GET /api/analytics/budget-check` | evet | uygulandı | ANA-13 |
 | `GET /api/analytics/savings-simulation` | evet | uygulandı | ANA-14 |
+| `GET /api/analytics/income-share` | evet | uygulandı | INC-01 |
 | `GET /api/analytics/merchants`, `merchant-group-spending` | evet | uygulandı | ANA-10 |
 | `GET /api/transactions` (bütün hesaplarda filtreli arama) | evet | uygulandı | ANA-09 (3. parça) |
 | `POST /api/assistant/messages`, `GET /api/assistant/status` (sohbet asistanı) | evet | uygulandı | AI-14b + AI-07 |
@@ -672,6 +673,27 @@ birimi başına satır; harcama yoksa ya da merchant eşleşmezse `currencies: [
 
 Hatalar (400): oran yok ("Azaltma oranı zorunlu."), `0`/`101` ("1 ile 100 arasında olmalı."), `abc`; `months=25`; kategori +
 merchant; tanımsız kategori. Token yoksa 401, başkasının hesabı 404, işletme hesabı 400 (`errors.accountId`).
+
+### `GET /api/analytics/income-share?period=LastMonth | ?from=YYYY-MM-01&to=YYYY-MM-son` (INC-01)
+
+"Gelirimin ne kadarını harcadım?": tek bir **tamamlanmış** takvim ayının harcaması ve kategorileri, o ayla biten 3 tam ayın
+aylık ortalama maaşının (`Kind == Salary`, kişisel hesaplar; maaşsız ay 0 sayılır) yüzdesi olarak. Pay, yuvarlanmış tabandan
+değil tam gelir toplamından hesaplanır (2 ondalık, 100'e zorlanmaz, 100'ü geçebilir). Para birimi başına satır; o para
+biriminde maaş yoksa `incomeBase`, `spentShare` ve kategori `incomeShare` alanları `null`. Kategori tutarları
+`category-breakdown` ile aynıdır.
+
+```json
+{ "period": { "kind": "LastMonth", "startDate": "2026-09-01", "endDate": "2026-09-30", "…": "…" },
+  "incomeFrom": "2026-07-01", "incomeTo": "2026-09-30", "incomeMonths": 3, "method": "ThreeFullMonthSalaryAverage",
+  "currencies": [ { "currencyCode": "TRY", "totalSpent": 7228.49, "incomeTotal": 24000.00, "incomeCount": 3,
+                    "incomeBase": 8000.00, "spentShare": 90.36,
+                    "categories": [ { "categoryCode": "FOOD", "displayName": "Yeme & İçme", "amount": 3746.50,
+                                      "transactionCount": 35, "incomeShare": 46.83 }, "…" ] } ] }
+```
+
+Hatalar (400): dönem yok; `ThisMonth`, `Last3Months` vb. ("Gelir payı yalnız tam bir ay için hesaplanır…", `errors.period`);
+ayın ilk–son günü olmayan ya da iki aylık aralık (`errors.from`); devam eden ay (`errors.to`); dönem adı + tarih birlikte.
+Token yoksa 401. Hesap filtresi yok (gelir ve harcama müşterinin bütün kişisel hesaplarından).
 
 ## Sohbet asistanı (AI-14b + AI-07, 19 Ekim 2026)
 

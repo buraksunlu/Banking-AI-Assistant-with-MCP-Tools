@@ -176,7 +176,8 @@ FastAPI `/v1/chat` + .NET `POST /api/assistant/messages`), MCP-a (MCP-01/02 + MC
 `BankingAI.Hosting`), MCP-b (MCP-12/13/14: AI servisi araçları MCP'den keşfedip çalıştırır, REST köprüsü silindi); sıradaki: kullanıcı
 seçer (todo "Şu anki sonraki adım"). iOS-a (IOS-01/13: `ios/BankingAI`, giriş + Keychain), AI-08 (sohbet ekranı), AI-15 (soğuk model ısıtma), MCP-08 (altı yeni araç, 9 araç), MCP-17/18 (bütçe ve tasarruf araçları, 11 araç; seçim 60/63, cevap doğruluğu 14/15) CHAT-03 (belirsizlikte geri soru) ve CHAT-02 (takip soruları) ve SYN-15 (gerçekçi yıl: 6 persona, 1.710 işlem) ve CHAT-01 (niyete göre
 araç daraltma, iki grup; seçim 68/71) ve IOS-04/07 (iPhone hesaplar, son işlemler) ve API-17 (imleçli sayfalama + `AllTime`) ve IMP-a/IMP-b (market verisi: USD/EUR TCMB döviz alış, gram altın gold-api ons ×
-USDTRY; iki yıl, 1.485 satır; günde tek değer, alış/satış yok; `market download|import`) tamam.
+USDTRY; iki yıl, 1.485 satır; günde tek değer, alış/satış yok; `market download|import`) ve INC-01 (gelire göre harcama
+payı, `GET /api/analytics/income-share`; todo 12e) tamam.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
 içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d. 19 Ekim 2026 todo taraması: AI-14 (uçtan uca
