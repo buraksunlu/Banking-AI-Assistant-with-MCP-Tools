@@ -1,5 +1,6 @@
 using BankingAI.Application.Analytics;
 using BankingAI.Application.Customers;
+using BankingAI.Application.Investment;
 using BankingAI.Data;
 using BankingAI.Hosting.Security;
 using BankingAI.Hosting.Time;
@@ -68,6 +69,8 @@ public static class BankingServiceCollectionExtensions
         services.AddScoped<SavingsSimulationService>();
         services.AddScoped<IncomeShareService>();
         services.AddScoped<SpendingAdviceService>();
+        services.AddScoped<MarketPriceReader>();
+        services.AddScoped<WhatIfService>();
         return services;
     }
 

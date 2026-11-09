@@ -313,24 +313,40 @@ sohbet ikisini birlikte alır (tek MCP turu, tek araç seçimi ölçümü).
   önerisi yok; yatırım emri yok (MCP salt okunur kalır); bugün yalnız USD/EUR/gram altın verisi var.
 - CHAT-01'in açık kapsam dışı listesi ("hisse") bu kolun sohbet adımında yeniden ele alınır: hisse/fon önerisi yine kapsam dışı,
   ama "biriktirseydim ne olurdu" soruları kapsama girer.
-- [ ] INV-01 — İlk seviyenin planı: OC-01–10'u K10-B'ye göre yeniden yaz (birikim senaryosu, dalgalanma ölçüleri, uyarı metni), INC-02
+- [ ] INV-01 — (Plan onaylandı 9 Kasım 2026: kararlar §13 başında; uygulama iki PR, dal `inv-01-what-if`.) İlk seviyenin planı: OC-01–10'u K10-B'ye göre yeniden yaz (birikim senaryosu, dalgalanma ölçüleri, uyarı metni), INC-02
   tasarruf tutarının girdi olması.
 - [ ] INV-02 — Gelecek özellikler havuzu (kullanıcı seçer): K10-C risk profili (kullanıcı uygulamada seçer; temkinli/dengeli/atak;
   profile göre genel, eğitim amaçlı bilgi; yeni tablo + migration; LLM profil yazamaz), birikim hedefiyle bağ (12d BUD), enflasyona
   göre reel değer, mevduat faizi karşılaştırması, ek varlıklar (endeks/fon verisi kaynağı seçimi), iPhone yatırım ekranı.
 
-## 13. Opportunity-cost hesabı
+## 13. Opportunity-cost hesabı — 12f ilk seviyesi (INV-01 ile yeniden yazıldı, 9 Kasım 2026)
 
-- [ ] OC-01 — Hesap sözleşmesini sabitle. TRY Debit, seçilen kategori/dönem, toplam harcamayla dönem başlangıcında tek alım ve değerleme tarihinde satış kullan; sağlayıcı satış/alış yönünü ve ek ücret/vergi/enflasyon kapsamını yaz.
-- [ ] OC-02 — USDTRY için dönem başlangıcında tek alım hesabı yaz. totalSpent / başlangıç sağlayıcı satış fiyatı; ara birimi erken yuvarlama.
-- [ ] OC-03 — Dönemdeki uygun harcamaları topla; tek alımdaki birim × değerleme sağlayıcı alış fiyatı ile fark/yüzde üret. İşlem tarihlerinde ayrı alım yapma.
-- [ ] OC-04 — Aynı motoru EURTRY ve GRAM_GOLD_TRY ile doğrula. Asset birimi ve quote currency eşleşmeli; varlığa özel kopya hesap motorları yazma.
-- [ ] OC-05 — Fiyatları toplu getir. Varlıkların başlangıç satış ve değerleme alış fiyatlarını birlikte çöz; eksik/çok eski fiyatları açık sonuç durumuyla bildir.
-- [ ] OC-06 — Karşılaştırma çıktısını oluştur. Harcama toplamı, birim, değer, fark, fiyat tarihleri, kaynak, yöntem ve kapsam dönsün; sonuç DB'ye kaydedilmesin.
-- [ ] OC-07 — Çoklu varlık sıralamasını ekle. Aynı harcama kümesi, tarih ve kapsam kullan; eksik veride kesin kazanan gösterme.
-- [ ] OC-08 — Bağımsız örneklerle test et. Sağlayıcı alış/satış yönünün ters çevrilmesi, makas, tek alım varsayımı, tatil fallback'i, eksik ilk fiyat, sıfır harcama, negatif getiri ve gram/ons hataları kapsansın.
-- [ ] OC-09 — API'ye bağla. Tarihsel varsayımı anlat; gelecek getiri garantisi veya yatırım emri üretme.
-- [ ] OC-10 — Hangi sorgularda önerileceğini kullanıcıyla belirle. Her harcama sorusuna otomatik ekleme; açıkça istenen varlığı sessizce değiştirme.
+Eski OC-01–10 sağlayıcı alış/satış fiyatına dayanıyordu; 9 Kasım kararı "günde tek değer" olduğu için K10-B'ye göre yeniden
+yazıldı. Kararlar (INV-01 planı): K1-C (iki senaryo: tek alım "harcamasaydım" + aylık birikim "biriktirseydim"), K2-D (TL/faiz
+satırı yok; uyarıda "faiz ve enflasyon dahil değil"; mevduat faizi INV-02 havuzunda), K3-A (tek değerle alım ve satış, makas yok),
+K4-A (değerleme = müşterinin bugünü, iş saati; fiyat yoksa en yakın önceki gün), K5-D (ölçülen en uzun boşluk 7 gün, 25 May →
+1 Haz 2026 bayramı → sınır 10 gün; daha eski fiyat "eski" durumu, rakam yok), K6-C (birikim tutarı INC-02 önerisinden ya da
+kullanıcının verdiği tutardan), K7-A (birikimde her ayın 1'i), K8-A (sabit 12 tam ay), K9-C (en kötü/en iyi ay + en büyük düşüş),
+K10-B (iki uç: `what-if/one-off`, `what-if/monthly`), K11-A (her cevapta sabit `disclaimer`), K12-B (iki PR: PR1 motor + tek alım,
+PR2 birikim + dalgalanma). Yalnız TRY harcama; varlıklar TRY fiyatlı aktif varlıklar (USDTRY, EURTRY, GRAM_GOLD_TRY).
+
+- [x] OC-01 — Ortak motor (saf): birim = TL / alış günü fiyatı; değer = birim × değerleme fiyatı; fark ve yüzde tam birimden, yalnız
+  raporlanan rakamlar yuvarlanır. Varlığa özel kopya motor yok. (PR1)
+- [x] OC-02 — Fiyat okuyucu: istenen gün için en yakın önceki fiyat, gün farkı > 10 ise `Stale`, hiç yoksa `Missing`; bütün varlıklar
+  ve günler tek sorguda. (PR1)
+- [x] OC-03 — Tek alım ("harcamasaydım"): dönemin (ve isteğe bağlı kategorinin) TRY harcaması dönemin ilk günü alınır, bugün
+  değerlenir; tutar `category-breakdown` ile aynı. `GET /api/analytics/what-if/one-off`. (PR1)
+  **Sonuç OC-01/02/03 (9 Kasım 2026, INV-01 PR1, dal `inv-01-what-if`; docs/analytics.md "INV-01 PR1"):** `Application/Investment/` (`MarketPriceReader` tek sorgu + saf `Pick`; saf `WhatIfMath.OneOff`/`Asset` + `Disclaimer`; `WhatIfService.OneOffAsync`), uç `GET /api/analytics/what-if/one-off` (period/from/to + isteğe bağlı categoryCode). Ölçülen 6 sorgu. Selin Eylül eğlence 2.253,50 → USD 2.297,38 / EUR 2.222,62 / altın 2.194,89 (zarar); bayram aralığı 25 May fiyatını alır; Murat toplamı category-breakdown ile aynı; Zeynep'te USD harcama girmez; Elif (yalnız EUR) satırsız. Testler: Application 417 → 442 (+25: saf 16, DB 9), Api 545 → 554 (+9; OpenAPI +262 satır yalnız ekleme). 11 kasıtlı bozmanın hepsi yakalandı. OC-06/07/08/09'un tek alım kısmı bu PR'da (çıktı alanları, sabit sıra, örnekler, uyarı); birikim kısmı PR2.
+- [ ] OC-04 — Aylık birikim ("biriktirseydim"): son 12 tam ayın her 1'inde aynı tutar; tutar kullanıcıdan ya da INC-02 önerisinden.
+  `GET /api/analytics/what-if/monthly`. (PR2)
+- [ ] OC-05 — Dalgalanma: aylık kapanışlarla en kötü/en iyi ay ve en büyük düşüş (tepe → dip). (PR2)
+- [ ] OC-06 — Çıktı: tutar, birim, değer, fark, fiyat günleri, kaynak, yöntem, durum ve sabit uyarı; DB'ye yazılmaz. (PR1/PR2)
+- [ ] OC-07 — Kazanan sıralaması yok: varlıklar sabit sırada döner; eksik/eski fiyatlı varlık rakamsız durum taşır.
+- [ ] OC-08 — Bağımsız örneklerle test: tatilde önceki gün, eski/eksik fiyat, sıfır harcama, negatif fark (altın, Eylül), gram birimi,
+  TRY dışı harcamanın dışarıda kalması.
+- [ ] OC-09 — Uyarı metni: geçmiş fiyat, gelecek getiri değil, yatırım tavsiyesi değil; alış-satış farkı, vergi, komisyon, faiz,
+  enflasyon dahil değil. Yatırım emri yok.
+- [ ] OC-10 — Hangi sorularda sohbetin bunu önereceği INC-03'te belirlenir; her harcama sorusuna otomatik eklenmez.
 
 ## 14. SwiftUI — çalışan endpoint üzerine küçük ekranlar
 

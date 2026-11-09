@@ -1,6 +1,7 @@
 using BankingAI.Api.Queries;
 using BankingAI.Api.Security;
 using BankingAI.Application.Analytics;
+using BankingAI.Application.Investment;
 using BankingAI.Hosting.Security;
 using Microsoft.AspNetCore.Mvc;
 
@@ -17,7 +18,7 @@ public sealed class AnalyticsController(
     SpendingSummaryService summaries, CategoryBreakdownService categories, MerchantSpendingService merchants,
     SpendingComparisonService comparisons, HighestTransactionsService highest, RecurringPaymentService recurring,
     UpcomingPaymentService upcoming, BudgetCheckService budgets, SavingsSimulationService savings, IncomeShareService incomeShares,
-    SpendingAdviceService advice)
+    SpendingAdviceService advice, WhatIfService whatIf)
     : ControllerBase
 {
     /// <summary>
@@ -174,6 +175,20 @@ public sealed class AnalyticsController(
         [FromQuery] string? period, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken cancellationToken) =>
         Ok(await advice.GetAsync(
             new SpendingAdviceQuery(User.GetCustomerId(), PeriodParameters.Resolve(period, from, to, fallback: null), from, to),
+            cancellationToken));
+
+    /// <summary>
+    /// <c>GET /api/analytics/what-if/one-off</c>: "had I not spent it" (INV-01): the period's lira spending (optionally one
+    /// category) bought on the period's first day as USD, EUR and gram gold, valued on the customer's today with past prices only.
+    /// One row per asset in a fixed order; a stale or missing price gives a row without figures. Every result carries the fixed
+    /// warning: not a forecast, not investment advice.
+    /// </summary>
+    [HttpGet("what-if/one-off")]
+    public async Task<ActionResult<OneOffWhatIf>> WhatIfOneOffAsync(
+        [FromQuery] string? period, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] string? categoryCode,
+        CancellationToken cancellationToken) =>
+        Ok(await whatIf.OneOffAsync(
+            new OneOffWhatIfQuery(User.GetCustomerId(), PeriodParameters.Resolve(period, from, to, fallback: null), from, to, categoryCode),
             cancellationToken));
 
     /// <summary>

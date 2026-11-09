@@ -592,6 +592,34 @@ bağlı değil). Sınırlar: en fazla 2 öneri **para birimi başına** (para bi
 geçmişte olağan ay 0'a yakın kalır (yeni müşteri kolay öneri alır; personalarda geçmiş tam); eşikler sabit, kişiye göre değişmez;
 öneri yalnız kategori düzeyinde (işyeri yok).
 
+## INV-01 PR1 — "Harcamasaydım" (`Investment/WhatIfService`, 9 Kasım 2026)
+
+Soru: "Geçen ay eğlenceye harcadığım parayla dolar/euro/altın alsaydım bugün ne ederdi?" Yatırım kolunun ilk seviyesi (todo 12f,
+K10-B; kararlar todo §13 başında). Yalnız geçmiş fiyat; gelecek tahmini, ürün önerisi ve emir yok; sonuç saklanmaz.
+
+```text
+tutar     = dönemin (isteğe bağlı kategorinin) TRY harcaması   (category-breakdown ile aynı; TRY dışı harcama girmez)
+alım günü = dönemin ilk günü          değerleme günü = müşterinin bugünü (iş saati; demoda 10 Ekim 2026, cumartesi)
+fiyat     = o gün ya da en yakın önceki gün; > 10 gün eskiyse Stale, hiç yoksa Missing (rakam yok, gün gösterilir)
+birim     = tutar / alış fiyatı (tam; raporda 6 ondalık)   değer = birim × değerleme fiyatı   fark, yüzde: tamdan, 2 ondalık
+```
+
+Tek değer günlük fiyat olduğu için alım ve satış aynı fiyattan (K3-A); uyarı metni (`disclaimer`) her cevapta sabit. Varlıklar aktif
+TL fiyatlı varlıklar, sabit sırada (USDTRY, EURTRY, GRAM_GOLD_TRY); "kazanan" sıralaması yok. 10 gün sınırı ölçüldü: verideki en
+uzun boşluk 7 gün (25 May → 1 Haz 2026 bayramı) + 3 gün tampon. Ölçülen sorgu sayısı 6; bütün varlıkların
+ve günlerin fiyatları tek sorguda gelir.
+
+Beklenen değerler (fiyat satırlarından elle; 1 Eylül ve 9 Ekim 2026 fiyatları):
+
+| Senaryo | Tutar | USD | EUR | Gram altın |
+| --- | --- | --- | --- | --- |
+| Selin, Eylül eğlence | 2.253,50 | 46,763687 → 2.297,38 (+43,88, +%1,95) | 40,329725 → 2.222,62 (−30,88, −%1,37) | 0,331896 g → 2.194,89 (−58,61, −%2,60) |
+| Selin, 26–31 May (bayram: 25 May fiyatı) | 1.079,50 | 1.162,21 (+%7,66) | 1.119,91 (+%3,74) | 1.065,42 (−%1,30) |
+| Murat, Eylül toplam | 53.388,39 | 54.427,93 (+%1,95) | 52.656,79 | 51.999,85 |
+
+Sınırlar: TL'nin faizi ve enflasyon yok (K2-D, uyarıda yazılı; mevduat faizi INV-02 havuzunda); tek alım varsayımı (harcama günleri
+değil dönemin ilk günü); işyeri filtresi yok.
+
 ## ANA-08 — Kenar durumları (`AnalyticsEdgeCaseTests`)
 
 Geçici kayıtlar testin kendi DB transaction'ında eklenir ve rollback edilir; demo verisi 116
