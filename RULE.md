@@ -1378,6 +1378,10 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Gelir, öneri ve "ne olurdu" MCP araçları (INC-03 PR1, 9 Kasım 2026; docs/mcp.md "INC-03 PR1"): IncomeTools (get_income_share,
+  get_spending_advice; yalnız tam ay) ve InvestmentTools (what_if_one_off, what_if_monthly; tutar yalnız TRY ya da fromAdvice);
+  15 salt okunur araç. Filtre boolean'ı da denetliyor (SDK "true" metnini sessizce true yapıyordu). AI servisinde wealth grubu var
+  ama kural yok: sohbet PR2'ye kadar değişmez. McpServer 156 → 195; 8 kasıtlı bozma yakalandı. Sırada INC-03 PR2.
 - "Biriktirseydim" senaryosu (INV-01 PR2, 9 Kasım 2026; docs/analytics.md "INV-01 PR2"): saf WhatIfMath.Monthly (12 aylık alım,
   aynı tek motor) + dalgalanma (fiyatta en kötü/en iyi ay ve tepe→dip düşüş, birikimin en kötü anı) ve
   GET /api/analytics/what-if/monthly. Tutar ya kullanıcıdan (yalnız TRY, ≤ 1.000.000) ya INC-02'nin son tam ay önerisinden

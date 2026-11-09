@@ -74,6 +74,26 @@ public sealed class ToolArgumentTests
         { "simulate_savings", """{"reductionPercent":50,"months":13}""" },
         { "simulate_savings", """{"reductionPercent":50,"categoryCode":"Yeme"}""" },
         { "simulate_savings", """{"reductionPercent":50,"categoryCode":"FOOD","merchant":"Starbucks"}""" },
+        // INC-03: income and advice take a complete month only; the service refuses a range that is not one calendar month.
+        { "get_income_share", """{"period":"ThisMonth"}""" },
+        { "get_income_share", """{}""" },
+        { "get_income_share", """{"period":"Custom","from":"2026-09-02","to":"2026-09-30"}""" },
+        { "get_spending_advice", """{"period":"Last3Months"}""" },
+        { "get_spending_advice", """{"period":"LastMonth","categoryCode":"FOOD"}""" },
+        { "what_if_one_off", """{"period":"LastMonth","categoryCode":"food"}""" },
+        { "what_if_one_off", """{"period":"LastMonth","merchant":"Starbucks"}""" },
+        { "what_if_one_off", """{"categoryCode":"FOOD"}""" },
+        // The monthly saving: one source (K13-B), lira only (K15-B), the money rule and the 1.000.000 limit (K14-A).
+        { "what_if_monthly", """{}""" },
+        { "what_if_monthly", """{"fromAdvice":false}""" },
+        { "what_if_monthly", """{"amount":1000,"currencyCode":"TRY","fromAdvice":true}""" },
+        { "what_if_monthly", """{"amount":1000}""" },
+        { "what_if_monthly", """{"amount":1000,"currencyCode":"USD"}""" },
+        { "what_if_monthly", """{"amount":"1000","currencyCode":"TRY"}""" },
+        { "what_if_monthly", """{"amount":0,"currencyCode":"TRY"}""" },
+        { "what_if_monthly", """{"amount":1000000.01,"currencyCode":"TRY"}""" },
+        { "what_if_monthly", """{"fromAdvice":"true"}""" },
+        { "what_if_monthly", """{"fromAdvice":true,"currencyCode":"TRY"}""" },
     };
 
     [Theory]
@@ -116,6 +136,9 @@ public sealed class ToolArgumentTests
     [InlineData("simulate_savings", """{"reductionPercent":1,"months":1}""")]
     [InlineData("simulate_savings", """{"reductionPercent":100,"months":12}""")]
     [InlineData("simulate_savings", """{"reductionPercent":50,"categoryCode":null}""")]
+    [InlineData("what_if_monthly", """{"amount":1000000,"currencyCode":"TRY"}""")]
+    [InlineData("what_if_monthly", """{"amount":null,"currencyCode":null,"fromAdvice":true}""")]
+    [InlineData("what_if_one_off", """{"period":"LastMonth","categoryCode":null}""")]
     public async Task Counts_on_their_limits_and_left_out_optional_ones_are_accepted(string tool, string arguments)
     {
         await using var server = McpTestServer.Create();

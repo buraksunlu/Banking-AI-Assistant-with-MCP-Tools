@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from ollama_client import OllamaTimeout
-from routing import GENERAL, GROUPS, PLANNING, Route, Router, group_of, hide_dates, narrow
+from routing import GENERAL, GROUPS, PLANNING, WEALTH, Route, Router, group_of, hide_dates, narrow
 
 # CHAT-01: the tools a turn shows the model. Decisions K1-C (word rules first, the model only when none matches), K2-C (two
 # groups: the nine tools of MCP-08 and the two planning tools; K2-B's three groups broke S15 and F01 on every run), K3-A (the
@@ -101,10 +101,19 @@ def test_the_model_can_send_a_question_to_planning():
     assert result == Route((PLANNING,), source="model")
 
 
-def test_the_groups_cover_the_eleven_published_tools_once_each():
+def test_the_groups_cover_the_fifteen_published_tools_once_each():
     names = [name for tools in GROUPS.values() for name in tools]
-    assert len(names) == len(set(names)) == 11
+    assert len(names) == len(set(names)) == 15
     assert len(GROUPS[GENERAL]) == 9 and group_of("check_budget") == PLANNING and group_of("unknown_tool") is None
+
+
+def test_the_income_and_what_if_tools_stay_out_of_the_old_groups():
+    # INC-03 PR1: the four tools are published on the server but in no route yet; without this row they would join every group.
+    assert GROUPS[WEALTH] == ("get_income_share", "get_spending_advice", "what_if_one_off", "what_if_monthly")
+    tools = [tool(name) for name in ("get_spending_summary", "check_budget", *GROUPS[WEALTH])]
+    for group in (GENERAL, PLANNING):
+        assert [t["function"]["name"] for t in narrow(tools, Route((group,), source="rule"))] == [
+            "get_spending_summary" if group == GENERAL else "check_budget"]
 
 
 def tool(name):

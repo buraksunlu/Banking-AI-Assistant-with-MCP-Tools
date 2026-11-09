@@ -4,13 +4,14 @@ using static BankingAI.Application.Tests.DemoData;
 
 namespace BankingAI.McpServer.Tests;
 
-// CHAT-08 K2-B: the five period tools take an optional from/to (YYYY-MM-DD) with the period "Custom". The AI service hides
+// CHAT-08 K2-B: the period tools (five, and INC-03's what_if_one_off) take an optional from/to (YYYY-MM-DD) with the period "Custom". The AI service hides
 // these fields from the model and fills them from dates its own code read; the server checks them anyway, because every
 // argument is untrusted. The range rules (not in the future, at most 24 months, start before end) are the backend's own.
 public sealed class ToolDateRangeTests
 {
-    private static readonly string[] PeriodTools =
-        ["get_spending_summary", "get_category_breakdown", "get_merchant_spending", "get_merchant_breakdown", "get_highest_transactions"];
+    internal static readonly string[] PeriodTools =
+        ["get_spending_summary", "get_category_breakdown", "get_merchant_spending", "get_merchant_breakdown", "get_highest_transactions",
+         "what_if_one_off"];
 
     private static string Arguments(string tool, string dates) =>
         tool == "get_merchant_spending" ? $$"""{"merchant":"Starbucks",{{dates}}}""" : "{" + dates + "}";
