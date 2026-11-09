@@ -1437,6 +1437,87 @@
         ]
       }
     },
+    "/api/analytics/spending-advice": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "One complete month split into essential, discretionary and unknown spending,…",
+        "description": "`GET /api/analytics/spending-advice`: one complete month split into essential, discretionary and unknown spending,\nwith at most two pieces of rule-based saving advice per currency (INC-02). The same month parameters as\n`income-share`; no advice without salary (`reason` NoIncome) or when every rule holds (NoRuleMatched).",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendingAdvice"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
     "/api/analytics/merchants": {
       "get": {
         "tags": [
@@ -2539,6 +2620,190 @@
         ],
         "type": "string"
       },
+      "AdviceCategory": {
+        "required": [
+          "categoryCode",
+          "displayName",
+          "group",
+          "amount",
+          "incomeShare",
+          "usualMonthlyAmount"
+        ],
+        "type": "object",
+        "properties": {
+          "categoryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "group": {
+            "$ref": "#/components/schemas/SpendingGroup"
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "incomeShare": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "usualMonthlyAmount": {
+            "type": "number",
+            "format": "decimal"
+          }
+        },
+        "description": "One category of the month with its group and its usual monthly amount (usual total / usual months)."
+      },
+      "AdviceItem": {
+        "required": [
+          "rule",
+          "categoryCode",
+          "categoryDisplayName",
+          "amount",
+          "reference",
+          "ratio",
+          "excess",
+          "excessShare",
+          "reductionPercent",
+          "monthlySaving",
+          "annualSaving",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "rule": {
+            "$ref": "#/components/schemas/AdviceRule"
+          },
+          "categoryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "categoryDisplayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "reference": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "ratio": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "excess": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "excessShare": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "reductionPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "monthlySaving": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "annualSaving": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "description": "One piece of advice. `Amount` is the month's spending the rule looked at, `Reference` what it is compared with\n(30 % of income, or the usual month), `Excess` the difference and `ExcessShare` that difference as a share of\nincome. `Ratio` is `Amount` / usual month, null for the share rule and for a category with no usual spending.\nThe saving is ANA-14's arithmetic over the savings window. `Message` is a fixed Turkish template filled by code."
+      },
+      "AdviceRule": {
+        "enum": [
+          "DiscretionaryShare",
+          "CategoryAboveUsual"
+        ],
+        "type": "string",
+        "description": "Which rule produced a piece of advice."
+      },
+      "AdviceThresholds": {
+        "required": [
+          "discretionaryLimitPercent",
+          "usualRatio",
+          "minimumImpactPercent",
+          "usualMonths",
+          "reductionPercent",
+          "maximumAdvice"
+        ],
+        "type": "object",
+        "properties": {
+          "discretionaryLimitPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "usualRatio": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "minimumImpactPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "usualMonths": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reductionPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "maximumAdvice": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "The fixed thresholds, returned with every result so the reader sees why advice was or was not given."
+      },
       "AssistantFact": {
         "required": [
           "label",
@@ -3010,6 +3275,76 @@
         "additionalProperties": false,
         "description": "Body of `POST /api/accounts/{accountId}/transactions` (API-11): only the event itself. The backend\nderives direction from the kind and currency from the account, takes the account from the URL and the time\nfrom its own clock, and owns every category field; any of those in the JSON is a 400."
       },
+      "CurrencyAdvice": {
+        "required": [
+          "currencyCode",
+          "totalSpent",
+          "incomeTotal",
+          "incomeBase",
+          "spentShare",
+          "groups",
+          "categories",
+          "advice",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "currencyCode": {
+            "type": "string"
+          },
+          "totalSpent": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "incomeTotal": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "incomeBase": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "spentShare": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GroupSpending"
+            }
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdviceCategory"
+            }
+          },
+          "advice": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AdviceItem"
+            }
+          },
+          "reason": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NoAdviceReason"
+              }
+            ]
+          }
+        },
+        "description": "One currency of the month: the income figures of INC-01, the three groups, the categories, at most\nint SpendingAdviceRules.MaximumAdvice pieces of advice and, when there is none, the reason."
+      },
       "CurrencyCategoryBreakdown": {
         "required": [
           "currencyCode",
@@ -3316,6 +3651,31 @@
           }
         },
         "description": "Sum of the estimated amounts in one currency."
+      },
+      "GroupSpending": {
+        "required": [
+          "group",
+          "amount",
+          "incomeShare"
+        ],
+        "type": "object",
+        "properties": {
+          "group": {
+            "$ref": "#/components/schemas/SpendingGroup"
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "incomeShare": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          }
+        },
+        "description": "One group's spending; the share is null without income."
       },
       "HealthResponse": {
         "required": [
@@ -3750,6 +4110,13 @@
           }
         }
       },
+      "NoAdviceReason": {
+        "enum": [
+          "NoIncome",
+          "NoRuleMatched"
+        ],
+        "type": "string"
+      },
       "PeriodKind": {
         "enum": [
           "ThisMonth",
@@ -4074,6 +4441,63 @@
         },
         "description": "Result of SavingsSimulationService: the complete months used (`From`–`To`), the assumption in\n`Method` and one row per currency with spending in those months (none: empty list). A merchant text that does not\nmatch exactly one of the customer's merchants gives no rows; `MerchantMatch` says why. `CategoryDisplayName`\nis the category's Turkish name (MCP-18), as in BudgetCheck."
       },
+      "SpendingAdvice": {
+        "required": [
+          "period",
+          "incomeFrom",
+          "incomeTo",
+          "usualFrom",
+          "usualTo",
+          "savingsFrom",
+          "savingsTo",
+          "thresholds",
+          "method",
+          "currencies"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "incomeFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "incomeTo": {
+            "type": "string",
+            "format": "date"
+          },
+          "usualFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "usualTo": {
+            "type": "string",
+            "format": "date"
+          },
+          "savingsFrom": {
+            "type": "string",
+            "format": "date"
+          },
+          "savingsTo": {
+            "type": "string",
+            "format": "date"
+          },
+          "thresholds": {
+            "$ref": "#/components/schemas/AdviceThresholds"
+          },
+          "method": {
+            "type": "string"
+          },
+          "currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurrencyAdvice"
+            }
+          }
+        },
+        "description": "Result of SpendingAdviceService: the month, the income window of INC-01, the usual months before the month\n(`UsualFrom`–`UsualTo`), the savings window ending with the month, the thresholds and one row per currency with\nspending in the month."
+      },
       "SpendingComparison": {
         "required": [
           "current",
@@ -4095,6 +4519,15 @@
             }
           }
         }
+      },
+      "SpendingGroup": {
+        "enum": [
+          "Essential",
+          "Discretionary",
+          "Unknown"
+        ],
+        "type": "string",
+        "description": "How a category's spending is treated by the advice rules (INC-02, K3-A wording \"Temel / İsteğe bağlı\")."
       },
       "SpendingSummary": {
         "required": [

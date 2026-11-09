@@ -1378,6 +1378,14 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Seçici tasarruf önerisi (INC-02, 9 Kasım 2026; docs/analytics.md "INC-02"): SpendingGroups (C# tablosu: Temel / İsteğe bağlı /
+  Bilinmiyor; K1-B Yeme & İçme temel) + saf SpendingAdviceRules + SpendingAdviceService + GET /api/analytics/spending-advice.
+  Yalnız isteğe bağlı harcama: toplam > %30 (50/30/20) ya da kategori önceki 6 ayın ≥ 1,5 katı; fark gelirin ≥ %2'si; TL farkına
+  göre en fazla 2 (para birimi başına); tasarruf ANA-14 aritmetiği (%20, ortak `SavingsSimulationService.Saving`); metin sabit
+  Türkçe şablon; maaş yoksa reason NoIncome. Demo verisinde yalnız Selin öneri alır (Eğlence 2,43 katı, ayda 236,18). Migration
+  yok. Application 365 → 417, Api 533 → 545; 12 kasıtlı bozmanın 11'i yakalandı, kaçan biri ölü kod çıktı (silindi).
+- Ürün yönü (9 Kasım 2026 kullanıcı kararı, todo 12f): harcama ve yatırım asistanı; ilk seviye K10-B (geçmişe dönük karşılaştırma
+  + birikim senaryosu, gelecek tahmini/ürün önerisi yok), sonra INC-03'te sohbet; özellik havuzu INV-02.
 - Gelire göre harcama payı (INC-01, 9 Kasım 2026; docs/analytics.md "INC-01"): IncomeShareService + GET
   /api/analytics/income-share. Tek tamamlanmış ay (LastMonth ya da ayın ilk–son günü); taban = o ayla biten 3 tam ayın ortalama
   maaşı (Salary, kişisel hesaplar, maaşsız ay 0); pay tam toplamdan, 2 ondalık; maaş yoksa pay null; kategori tutarları

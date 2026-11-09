@@ -642,6 +642,77 @@ public sealed class AnalyticsEndpointTests
     public async Task Income_share_needs_a_token() =>
         Assert.Equal(HttpStatusCode.Unauthorized, (await GetAsync("/api/analytics/income-share?period=LastMonth", null)).Status);
 
+    // ---- spending-advice (INC-02)
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Spending_advice_returns_the_windows_the_groups_and_the_advice()
+    {
+        var body = Ok(await GetAsync("/api/analytics/spending-advice?period=LastMonth", Selin));
+
+        Assert.Equal(
+            ["period", "incomeFrom", "incomeTo", "usualFrom", "usualTo", "savingsFrom", "savingsTo", "thresholds", "method", "currencies"],
+            body.AsObject().Select(p => p.Key));
+        Assert.Equal(("2026-03-01", "2026-08-31", "2026-04-01", "2026-09-30", "RuleBasedAdvice"),
+            (body["usualFrom"]!.GetValue<string>(), body["usualTo"]!.GetValue<string>(), body["savingsFrom"]!.GetValue<string>(),
+             body["savingsTo"]!.GetValue<string>(), body["method"]!.GetValue<string>()));
+        Assert.Equal(
+            ["discretionaryLimitPercent", "usualRatio", "minimumImpactPercent", "usualMonths", "reductionPercent", "maximumAdvice"],
+            body["thresholds"]!.AsObject().Select(p => p.Key));
+        var tl = Assert.Single(body["currencies"]!.AsArray())!;
+        Assert.Equal(
+            ["currencyCode", "totalSpent", "incomeTotal", "incomeBase", "spentShare", "groups", "categories", "advice", "reason"],
+            tl.AsObject().Select(p => p.Key));
+        Assert.Equal(
+            [("Essential", 4435.00m), ("Discretionary", 2313.49m), ("Unknown", 480m)],
+            tl["groups"]!.AsArray().Select(g => (g!["group"]!.GetValue<string>(), Amount(g["amount"]))));
+        Assert.Equal("Discretionary",
+            tl["categories"]!.AsArray().Single(k => k!["categoryCode"]!.GetValue<string>() == "ENTERTAINMENT")!["group"]!.GetValue<string>());
+        var advice = Assert.Single(tl["advice"]!.AsArray())!;
+        Assert.Equal(
+            ["rule", "categoryCode", "categoryDisplayName", "amount", "reference", "ratio", "excess", "excessShare", "reductionPercent",
+             "monthlySaving", "annualSaving", "message"],
+            advice.AsObject().Select(p => p.Key));
+        Assert.Equal(("CategoryAboveUsual", "ENTERTAINMENT", 2.43m, 236.18m),
+            (advice["rule"]!.GetValue<string>(), advice["categoryCode"]!.GetValue<string>(), Amount(advice["ratio"]),
+             Amount(advice["monthlySaving"])));
+        Assert.StartsWith("Eylül 2026 ayında Eğlence harcamanız 2.253,50 TL oldu;", advice["message"]!.GetValue<string>());
+        Assert.Null(tl["reason"]);
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("Murat", "NoRuleMatched")]
+    [InlineData("Can", "NoIncome")]
+    public async Task Spending_advice_without_advice_says_why(string name, string reason)
+    {
+        var tl = Assert.Single(Ok(await GetAsync("/api/analytics/spending-advice?period=LastMonth", name == "Can" ? Can : Murat))
+            ["currencies"]!.AsArray())!;
+
+        Assert.Empty(tl["advice"]!.AsArray());
+        Assert.Equal(reason, tl["reason"]!.GetValue<string>());
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Spending_advice_accepts_one_whole_custom_month() =>
+        Assert.Equal("2026-02-01",
+            Ok(await GetAsync("/api/analytics/spending-advice?from=2026-08-01&to=2026-08-31", Selin))["usualFrom"]!.GetValue<string>());
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("", "period", "Dönem zorunlu: period ya da from ile to verilmeli.")]
+    [InlineData("period=ThisMonth", "period", "Gelir payı yalnız tam bir ay için hesaplanır: LastMonth ya da Custom (ayın ilk–son günü).")]
+    [InlineData("from=2026-09-02&to=2026-09-30", "from", "Custom dönem tek bir takvim ayının ilk gününden son gününe olmalı.")]
+    [InlineData("period=LastMonth&from=2026-09-01&to=2026-09-30", "period", "Dönem adı ile tarih aralığı birlikte verilemez.")]
+    public async Task Spending_advice_parameters_are_checked(string query, string field, string message) =>
+        await AssertInvalidAsync($"/api/analytics/spending-advice?{query}", Selin, field, message);
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Spending_advice_needs_a_token() =>
+        Assert.Equal(HttpStatusCode.Unauthorized, (await GetAsync("/api/analytics/spending-advice?period=LastMonth", null)).Status);
+
     // ---- savings-simulation (ANA-14)
 
     [Fact]

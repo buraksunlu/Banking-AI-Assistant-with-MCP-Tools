@@ -24,6 +24,7 @@ Makine okunur sözleşme: `docs/openapi/v1.json`; tarayıcıda `http://localhost
 | `GET /api/analytics/budget-check` | evet | uygulandı | ANA-13 |
 | `GET /api/analytics/savings-simulation` | evet | uygulandı | ANA-14 |
 | `GET /api/analytics/income-share` | evet | uygulandı | INC-01 |
+| `GET /api/analytics/spending-advice` | evet | uygulandı | INC-02 |
 | `GET /api/analytics/merchants`, `merchant-group-spending` | evet | uygulandı | ANA-10 |
 | `GET /api/transactions` (bütün hesaplarda filtreli arama) | evet | uygulandı | ANA-09 (3. parça) |
 | `POST /api/assistant/messages`, `GET /api/assistant/status` (sohbet asistanı) | evet | uygulandı | AI-14b + AI-07 |
@@ -694,6 +695,34 @@ biriminde maaş yoksa `incomeBase`, `spentShare` ve kategori `incomeShare` alanl
 Hatalar (400): dönem yok; `ThisMonth`, `Last3Months` vb. ("Gelir payı yalnız tam bir ay için hesaplanır…", `errors.period`);
 ayın ilk–son günü olmayan ya da iki aylık aralık (`errors.from`); devam eden ay (`errors.to`); dönem adı + tarih birlikte.
 Token yoksa 401. Hesap filtresi yok (gelir ve harcama müşterinin bütün kişisel hesaplarından).
+
+### `GET /api/analytics/spending-advice?period=LastMonth | ?from=YYYY-MM-01&to=YYYY-MM-son` (INC-02)
+
+"Nerede tasarruf edebilirim?": aynı ay kuralları ve aynı hatalarla (`income-share`'in 400 metinleri birebir) bir ayın harcaması
+Temel / İsteğe bağlı / Bilinmiyor gruplarına ayrılır, kurallar tutarsa para birimi başına en fazla 2 öneri döner (kurallar ve
+eşikler `docs/analytics.md` "INC-02"; eşikler cevapta `thresholds`). Öneri yoksa `advice` boş ve `reason` `NoRuleMatched` ya da
+`NoIncome`; öneri varsa `reason` `null`. `message` .NET'in sabit Türkçe şablonudur (model yazmaz). `ratio` toplam kuralında ve
+olağan harcaması olmayan kategoride `null`.
+
+```json
+{ "period": { "kind": "LastMonth", "startDate": "2026-09-01", "endDate": "2026-09-30", "…": "…" },
+  "incomeFrom": "2026-07-01", "incomeTo": "2026-09-30", "usualFrom": "2026-03-01", "usualTo": "2026-08-31",
+  "savingsFrom": "2026-04-01", "savingsTo": "2026-09-30",
+  "thresholds": { "discretionaryLimitPercent": 30, "usualRatio": 1.5, "minimumImpactPercent": 2, "usualMonths": 6,
+                  "reductionPercent": 20, "maximumAdvice": 2 },
+  "method": "RuleBasedAdvice",
+  "currencies": [ { "currencyCode": "TRY", "totalSpent": 7228.49, "incomeTotal": 24000.00, "incomeBase": 8000.00, "spentShare": 90.36,
+      "groups": [ { "group": "Essential", "amount": 4435.00, "incomeShare": 55.44 },
+                  { "group": "Discretionary", "amount": 2313.49, "incomeShare": 28.92 },
+                  { "group": "Unknown", "amount": 480.00, "incomeShare": 6.00 } ],
+      "categories": [ { "categoryCode": "ENTERTAINMENT", "displayName": "Eğlence", "group": "Discretionary", "amount": 2253.50,
+                        "incomeShare": 28.17, "usualMonthlyAmount": 927.83 }, "…" ],
+      "advice": [ { "rule": "CategoryAboveUsual", "categoryCode": "ENTERTAINMENT", "categoryDisplayName": "Eğlence",
+                    "amount": 2253.50, "reference": 927.83, "ratio": 2.43, "excess": 1325.67, "excessShare": 16.57,
+                    "reductionPercent": 20, "monthlySaving": 236.18, "annualSaving": 2834.20,
+                    "message": "Eylül 2026 ayında Eğlence harcamanız 2.253,50 TL oldu; …" } ],
+      "reason": null } ] }
+```
 
 ## Sohbet asistanı (AI-14b + AI-07, 19 Ekim 2026)
 
