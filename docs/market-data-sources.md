@@ -2,9 +2,9 @@
 
 İnceleme tarihi: 10 Ekim 2026. Bu belge kaynak araştırmasıdır; import henüz uygulanmadı.
 
-> Durum (9 Kasım 2026): USD/EUR TCMB'den iki yıllık olarak DB'de (IMP-a, aşağıda "USD/EUR import").
-> Kullanıcı kararıyla varlık başına günde **tek değer** saklanır (TCMB döviz alış); 10 Ekim'deki alış/satış
-> çifti kararı kaldırıldı. Altın (SRC-02) ayrı adımda: önce resmî kaynak denenir.
+> Durum (9 Kasım 2026): üç varlık iki yıllık olarak DB'de. USD/EUR TCMB'den (IMP-a, "USD/EUR import"),
+> gram altın gold-api ons × TCMB USDTRY türetmesiyle (IMP-b, "Gram altın import"). Kullanıcı kararıyla varlık
+> başına günde **tek değer** saklanır; 10 Ekim'deki alış/satış çifti kararı kaldırıldı.
 > Market kolu API/analytics/AI işlerini engellemez; yalnız opportunity-cost (todo bölüm 13) bunu bekler.
 
 ## Saklanacak değer
@@ -265,3 +265,57 @@ hafta sonu satırı 0.
 
 Sınırlar: güncelleme elle (zamanlayıcı yok); kur günü TCMB bülten günüdür (15:30 gösterge), banka işlem
 fiyatı değildir; altın (GRAM_GOLD_TRY) henüz yok (SRC-02, IMP-04).
+
+## Gram altın import (IMP-b) — 9 Kasım 2026
+
+### Kaynak araştırması
+
+- **TCMB saatlik kurlar** (`https://www.tcmb.gov.tr/reeskontkur/YYYYMM/DDMMYYYY-HHMM.xml`): `XAU` satırı 1 gram
+  altının TL alış değerini veriyor (ör. 10 Ekim 2025 11:00 = 5.340,87). Ancak altın satırı **30 Ocak 2026'dan sonra
+  dosyadan çıkmış**; 2 Şubat 2026'dan bugüne hiçbir saatte yok. Ekim 2026'dan beri dosya yalnız 11:00'te yayınlanıyor.
+  Kasım 2024 – Ocak 2026 için resmî, sonrası için yok → tek başına yetmez. Ondalık ayırıcı virgül.
+- **EVDS:** gram/külçe altın serisi doğrulanamadı (yalnız Cumhuriyet altını kodu bulundu); anahtar gerekir.
+- **gold-api.com:** günlük ortalama ons (USD), 2024-11-09 … 2026-11-09 isteğinde 709 gün; USDTRY'si olan 495 günün
+  hepsi var.
+
+### Kararlar
+
+K1-B (iki yılın tamamı tek yöntemle türetilir; TCMB resmî değeri yalnız doğrulama), K2-A (türetilmiş gram TL
+`GRAM_GOLD_TRY`'ye; migration yok), K3-A (yalnız USDTRY olan günler; üç varlık aynı takvim), K4-A (indirme ve içe
+aktarma ayrı), K5-A (resmî değerle %3 kontrolü testte), K6: iki kademe — kontrol TL sonucuna değil **ons**a bakar
+(TL şokları resmî USDTRY'den gelir ve gerçektir); son kabul edilen güne göre %10'dan büyük hareket yazılır ve
+"dikkat" listesine girer, %25'ten büyük hareket yazılmaz ve "şüpheli" raporlanır (gram/ons karışması ×31, kayan
+virgül ×10 bunu kesin aşar).
+
+```text
+gram TL = ons (USD) × aynı günün USDTRY'si (TCMB döviz alış) ÷ 31,1034768   → 8 ondalığa, yarıda çifte yuvarlanır
+```
+
+Komutlar (repo kökünden, `.env` yüklü; anahtar `GOLD_API_KEY` yalnız `x-api-key` başlığında `api.gold-api.com`'a gider):
+
+```sh
+dotnet run --project src/BankingAI.Cli -- market download goldapi --from 2024-11-09 --to 2026-11-09
+dotnet run --project src/BankingAI.Cli -- market import gold --from 2024-11-09 --to 2026-11-09
+```
+
+Ham cevap `data/raw/market/goldapi/xau-<from>_<to>.json` (git dışı). İçe aktarma bugünü (İstanbul) almaz: gold-api'nin
+günlük ortalaması gün bitmeden değişir. 401/403/429 tekrar denenmez (saatlik istek sınırı).
+
+### Sonuç ve doğrulama
+
+| | Değer |
+| --- | --- |
+| Ons günü (dosyada) | 709 |
+| Türetilen satır | 495 (2024-11-11 … 2026-11-06), Source `GOLDAPI+TCMB` |
+| Onsu olmayan USDTRY günü | 0 |
+| Dikkat | 1: 2026-03-23 ← 2026-03-18, ons −%11,28 (bayram + hafta sonu, 3 işlem günü) |
+| Şüpheli | 0 |
+| İkinci içe aktarma | eklenen 0, değişmeyen 495 |
+
+Elle hesap ve DB aynı: 2024-11-11 = 2.920,95013324; 2025-03-28 = 3.735,14067798; 2025-10-10 = 5.343,77899633;
+2026-10-09 = 6.613,19001236. Resmî TCMB gram altınıyla 21 ortak günde ortalama sapma %0,53, en büyük %2,45
+(30 Ocak 2026; gold-api günlük ortalama, TCMB tek saat). Ölçülen en büyük günlük hareketler: USDTRY %3,80
+(19 Mart 2025), ons %−11,28.
+
+Sınırlar: değer referanstır, kuyumcu alış/satış fiyatı değildir; gold-api günü UTC, TCMB günü İstanbul; gold-api özel
+sağlayıcıdır (ücretsiz plan, saatte 10 geçmiş isteği) ve anahtar gerektirir; güncelleme elle.
