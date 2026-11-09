@@ -192,6 +192,21 @@ public sealed class AnalyticsController(
             cancellationToken));
 
     /// <summary>
+    /// <c>GET /api/analytics/what-if/monthly</c>: "had I saved it every month" (INV-01): the same lira amount bought on the first
+    /// day of each of the last twelve complete months as USD, EUR and gram gold, valued on the customer's today with past prices
+    /// only, with each asset's volatility (worst and best month, largest fall, worst moment of the saving). The amount is either
+    /// <c>amount</c> + <c>currencyCode=TRY</c> or <c>fromAdvice=true</c> (INC-02's advice for the last complete month), never
+    /// both. Every result carries the fixed warning: not a forecast, not investment advice.
+    /// </summary>
+    [HttpGet("what-if/monthly")]
+    public async Task<ActionResult<MonthlyWhatIf>> WhatIfMonthlyAsync(
+        [FromQuery] string? amount, [FromQuery] string? currencyCode, [FromQuery] bool? fromAdvice,
+        CancellationToken cancellationToken) =>
+        Ok(await whatIf.MonthlyAsync(
+            new MonthlyWhatIfQuery(User.GetCustomerId(), AmountParameter.Parse(amount, nameof(amount)), currencyCode, fromAdvice == true),
+            cancellationToken));
+
+    /// <summary>
     /// <c>GET /api/analytics/merchants</c>: every merchant the customer has bought from on personal accounts, all time,
     /// with the latest category and purchase date (ANA-10). This is the closed set a model chooses names from.
     /// </summary>

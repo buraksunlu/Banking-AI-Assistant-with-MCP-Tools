@@ -313,8 +313,9 @@ sohbet ikisini birlikte alır (tek MCP turu, tek araç seçimi ölçümü).
   önerisi yok; yatırım emri yok (MCP salt okunur kalır); bugün yalnız USD/EUR/gram altın verisi var.
 - CHAT-01'in açık kapsam dışı listesi ("hisse") bu kolun sohbet adımında yeniden ele alınır: hisse/fon önerisi yine kapsam dışı,
   ama "biriktirseydim ne olurdu" soruları kapsama girer.
-- [ ] INV-01 — (Plan onaylandı 9 Kasım 2026: kararlar §13 başında; uygulama iki PR, dal `inv-01-what-if`.) İlk seviyenin planı: OC-01–10'u K10-B'ye göre yeniden yaz (birikim senaryosu, dalgalanma ölçüleri, uyarı metni), INC-02
-  tasarruf tutarının girdi olması.
+- [x] INV-01 — (Plan onaylandı 9 Kasım 2026: kararlar §13 başında; uygulama iki PR, dal `inv-01-what-if`.) İlk seviyenin planı: OC-01–10'u K10-B'ye göre yeniden yaz (birikim senaryosu, dalgalanma ölçüleri, uyarı metni), INC-02
+  tasarruf tutarının girdi olması. **Sonuç (9 Kasım 2026):** iki PR — PR1 tek alım (#65), PR2 aylık birikim + dalgalanma
+  (dal `inv-01b-monthly-what-if`); ayrıntı §13 OC-04/05.
 - [ ] INV-02 — Gelecek özellikler havuzu (kullanıcı seçer): K10-C risk profili (kullanıcı uygulamada seçer; temkinli/dengeli/atak;
   profile göre genel, eğitim amaçlı bilgi; yeni tablo + migration; LLM profil yazamaz), birikim hedefiyle bağ (12d BUD), enflasyona
   göre reel değer, mevduat faizi karşılaştırması, ek varlıklar (endeks/fon verisi kaynağı seçimi), iPhone yatırım ekranı.
@@ -328,7 +329,10 @@ K4-A (değerleme = müşterinin bugünü, iş saati; fiyat yoksa en yakın önce
 1 Haz 2026 bayramı → sınır 10 gün; daha eski fiyat "eski" durumu, rakam yok), K6-C (birikim tutarı INC-02 önerisinden ya da
 kullanıcının verdiği tutardan), K7-A (birikimde her ayın 1'i), K8-A (sabit 12 tam ay), K9-C (en kötü/en iyi ay + en büyük düşüş),
 K10-B (iki uç: `what-if/one-off`, `what-if/monthly`), K11-A (her cevapta sabit `disclaimer`), K12-B (iki PR: PR1 motor + tek alım,
-PR2 birikim + dalgalanma). Yalnız TRY harcama; varlıklar TRY fiyatlı aktif varlıklar (USDTRY, EURTRY, GRAM_GOLD_TRY).
+PR2 birikim + dalgalanma). PR2 kararları: K13-B (`amount` ya da `fromAdvice=true`, ikisi birden/hiçbiri 400; öneri = son tam ay TL
+önerilerinin aylık tasarruf toplamı), K14-A (0,01–1.000.000, katı okuma), K15-B (tutarla `currencyCode` zorunlu, yalnız TRY), K16-C
+(fiyatta en kötü/en iyi ay + tepe→dip düşüş, ayrıca birikimin en kötü anı), K17-A (aylık nokta = ayın 1'i), K18-A (tek eski/eksik
+fiyat → o varlıkta rakam yok), K19-A (12 alım satırı), K20-A (öneri yoksa 200 + `NoAdvice`), K21-A (alanlar), K22-A (tek motor). Yalnız TRY harcama; varlıklar TRY fiyatlı aktif varlıklar (USDTRY, EURTRY, GRAM_GOLD_TRY).
 
 - [x] OC-01 — Ortak motor (saf): birim = TL / alış günü fiyatı; değer = birim × değerleme fiyatı; fark ve yüzde tam birimden, yalnız
   raporlanan rakamlar yuvarlanır. Varlığa özel kopya motor yok. (PR1)
@@ -337,14 +341,21 @@ PR2 birikim + dalgalanma). Yalnız TRY harcama; varlıklar TRY fiyatlı aktif va
 - [x] OC-03 — Tek alım ("harcamasaydım"): dönemin (ve isteğe bağlı kategorinin) TRY harcaması dönemin ilk günü alınır, bugün
   değerlenir; tutar `category-breakdown` ile aynı. `GET /api/analytics/what-if/one-off`. (PR1)
   **Sonuç OC-01/02/03 (9 Kasım 2026, INV-01 PR1, dal `inv-01-what-if`; docs/analytics.md "INV-01 PR1"):** `Application/Investment/` (`MarketPriceReader` tek sorgu + saf `Pick`; saf `WhatIfMath.OneOff`/`Asset` + `Disclaimer`; `WhatIfService.OneOffAsync`), uç `GET /api/analytics/what-if/one-off` (period/from/to + isteğe bağlı categoryCode). Ölçülen 6 sorgu. Selin Eylül eğlence 2.253,50 → USD 2.297,38 / EUR 2.222,62 / altın 2.194,89 (zarar); bayram aralığı 25 May fiyatını alır; Murat toplamı category-breakdown ile aynı; Zeynep'te USD harcama girmez; Elif (yalnız EUR) satırsız. Testler: Application 417 → 442 (+25: saf 16, DB 9), Api 545 → 554 (+9; OpenAPI +262 satır yalnız ekleme). 11 kasıtlı bozmanın hepsi yakalandı. OC-06/07/08/09'un tek alım kısmı bu PR'da (çıktı alanları, sabit sıra, örnekler, uyarı); birikim kısmı PR2.
-- [ ] OC-04 — Aylık birikim ("biriktirseydim"): son 12 tam ayın her 1'inde aynı tutar; tutar kullanıcıdan ya da INC-02 önerisinden.
+- [x] OC-04 — Aylık birikim ("biriktirseydim"): son 12 tam ayın her 1'inde aynı tutar; tutar kullanıcıdan ya da INC-02 önerisinden.
   `GET /api/analytics/what-if/monthly`. (PR2)
-- [ ] OC-05 — Dalgalanma: aylık kapanışlarla en kötü/en iyi ay ve en büyük düşüş (tepe → dip). (PR2)
-- [ ] OC-06 — Çıktı: tutar, birim, değer, fark, fiyat günleri, kaynak, yöntem, durum ve sabit uyarı; DB'ye yazılmaz. (PR1/PR2)
-- [ ] OC-07 — Kazanan sıralaması yok: varlıklar sabit sırada döner; eksik/eski fiyatlı varlık rakamsız durum taşır.
-- [ ] OC-08 — Bağımsız örneklerle test: tatilde önceki gün, eski/eksik fiyat, sıfır harcama, negatif fark (altın, Eylül), gram birimi,
+- [x] OC-05 — Dalgalanma: aylık kapanışlarla en kötü/en iyi ay ve en büyük düşüş (tepe → dip). (PR2)
+  **Sonuç OC-04/05 (9 Kasım 2026, INV-01 PR2, dal `inv-01b-monthly-what-if`; docs/analytics.md "INV-01 PR2"):** saf
+  `WhatIfMath.Monthly` (+ dalgalanma: ay değişimi 1'inden 1'ine, fiyatta tepe→dip, birikimin en kötü anı), `WhatIfService.MonthlyAsync`
+  (+ `SpendingAdviceService` bağımlılığı), uç `GET /api/analytics/what-if/monthly`. Ölçülen sorgu: tutarla 3, öneriyle 9. Ayda 1.000 TL
+  → USD 13.298,92 (+%10,82) / EUR 12.800,85 (+%6,67) / altın 12.704,72 (+%5,87); Selin öneriyle 236,18 → 3.140,94 / 3.023,30 /
+  3.000,60; altında fiyat düşüşü −%17,97 (27 Şub → 1 Tem) ama birikimin en kötü anı −%3,24; USD hiç düşmedi. Ada/Elif öneriyle
+  `NoAdvice`. Testler: Application 442 → 468 (+26: saf 11, servis 15), Api 554 → 569 (+15; OpenAPI +450 satır yalnız ekleme).
+  11 kasıtlı bozmanın hepsi yakalandı. OC-06/07/08/09 iki PR ile tamam.
+- [x] OC-06 — Çıktı: tutar, birim, değer, fark, fiyat günleri, kaynak, yöntem, durum ve sabit uyarı; DB'ye yazılmaz. (PR1/PR2)
+- [x] OC-07 — Kazanan sıralaması yok: varlıklar sabit sırada döner; eksik/eski fiyatlı varlık rakamsız durum taşır.
+- [x] OC-08 — Bağımsız örneklerle test: tatilde önceki gün, eski/eksik fiyat, sıfır harcama, negatif fark (altın, Eylül), gram birimi,
   TRY dışı harcamanın dışarıda kalması.
-- [ ] OC-09 — Uyarı metni: geçmiş fiyat, gelecek getiri değil, yatırım tavsiyesi değil; alış-satış farkı, vergi, komisyon, faiz,
+- [x] OC-09 — Uyarı metni: geçmiş fiyat, gelecek getiri değil, yatırım tavsiyesi değil; alış-satış farkı, vergi, komisyon, faiz,
   enflasyon dahil değil. Yatırım emri yok.
 - [ ] OC-10 — Hangi sorularda sohbetin bunu önereceği INC-03'te belirlenir; her harcama sorusuna otomatik eklenmez.
 
@@ -615,7 +626,8 @@ Sıradaki (kullanıcı seçer; müşteri her zaman token'dan gelir):
 - **9 Kasım 2026 — öneri/karşılaştırma kolu (kullanıcı kararı):** önce dış veri, sonra maaşa göre harcama oranı ve
   "gerekli/gereksiz harcama" kuralları (her şeye öneri verilmez). IMP-a ve IMP-b tamam: USD/EUR (TCMB döviz alış) ve gram altın
   (gold-api ons × USDTRY) iki yıl DB'de, 1.485 satır, günde tek değer. 12e: INC-01 (gelir payı + API) ve
-  INC-02 (temel/isteğe bağlı + seçici öneri, `spending-advice`) tamam; sırada 12f yatırım kolunun ilk seviyesi (INV-01, OC-01–10; K10-B), sonra INC-03
+  INC-02 (temel/isteğe bağlı + seçici öneri, `spending-advice`) tamam; 12f yatırım kolunun ilk seviyesi (INV-01, OC-01–10; K10-B) tamam (tek alım `what-if/one-off` + aylık birikim ve
+  dalgalanma `what-if/monthly`); sırada INC-03
   (MCP/sohbet, ikisi birlikte), INC-04 (iPhone). Ürün yönü artık "harcama ve yatırım asistanı" (12f); diğer kaynaklar
   (enflasyon, faiz, endeks) INV-02 havuzunda.
 - **Teknik borç:** DB-01 (ayrı test veritabanı), API-16 (OpenAPI parametre şemaları), ACC-LIMIT.

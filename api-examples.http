@@ -128,6 +128,14 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/api/analytics/what-if/one-off?period=LastMonth&categoryCode=ENTERTAINMENT
 Authorization: Bearer {{token}}
 
+### Biriktirseydim (INV-01): son 12 tam ayın her 1'inde öneri tutarı — Selin için beklenen: 200, ayda 236,18 (Eylül önerisi), yatırılan 2.834,16 → USD 3.140,94, EUR 3.023,30, altın 3.000,60; altında en büyük düşüş −%17,97 (geçmiş fiyat; yatırım tavsiyesi değildir)
+GET {{baseUrl}}/api/analytics/what-if/monthly?fromAdvice=true
+Authorization: Bearer {{token}}
+
+### Biriktirseydim, kullanıcının tutarıyla: ayda 1.000 TL — beklenen: 200, yatırılan 12.000 → USD 13.298,92, EUR 12.800,85, altın 12.704,72
+GET {{baseUrl}}/api/analytics/what-if/monthly?amount=1000&currencyCode=TRY
+Authorization: Bearer {{token}}
+
 ### ---- Sohbet asistanı (AI-14b): AI servisi ve Ollama da açık olmalı (docs/local-ai.md). Veri yazmaz.
 # AI servisi: ai/.venv/bin/uvicorn --app-dir ai/service --factory app:create_app --host 127.0.0.1 --port 8000
 # Kapalıysa status false, mesaj 503 assistant_unavailable döner. Müşteri başına dakikada 10 mesaj.

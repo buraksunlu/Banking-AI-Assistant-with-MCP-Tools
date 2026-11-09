@@ -26,6 +26,7 @@ Makine okunur sözleşme: `docs/openapi/v1.json`; tarayıcıda `http://localhost
 | `GET /api/analytics/income-share` | evet | uygulandı | INC-01 |
 | `GET /api/analytics/spending-advice` | evet | uygulandı | INC-02 |
 | `GET /api/analytics/what-if/one-off` | evet | uygulandı | INV-01 |
+| `GET /api/analytics/what-if/monthly` | evet | uygulandı | INV-01 |
 | `GET /api/analytics/merchants`, `merchant-group-spending` | evet | uygulandı | ANA-10 |
 | `GET /api/transactions` (bütün hesaplarda filtreli arama) | evet | uygulandı | ANA-09 (3. parça) |
 | `POST /api/assistant/messages`, `GET /api/assistant/status` (sohbet asistanı) | evet | uygulandı | AI-14b + AI-07 |
@@ -745,6 +746,33 @@ TRY harcama yoksa `spentAmount` 0 ve `assets` boş. Fiyat 10 günden eskiyse `st
 ```
 
 Hatalar (400): dönem yok, dönem adı + tarih birlikte, tanımsız `categoryCode`; token yoksa 401.
+
+### `GET /api/analytics/what-if/monthly?amount=…&currencyCode=TRY` ya da `?fromAdvice=true` (INV-01 PR2)
+
+"Biriktirseydim ne olurdu?": aynı TL tutarı son 12 tam ayın her 1'inde USD, EUR ve gram altın olarak alınmış sayılır, müşterinin
+bugününde geçmiş fiyatla değerlenir; her varlıkta 12 alım satırı (`buys`) ve dalgalanma (`volatility`: `worstMonth`, `bestMonth`,
+`maxDrawdown`, `worstMoment`). Tutar ya `amount` (katı sayı, en fazla 1.000.000, iki ondalık) + `currencyCode=TRY` ya da
+`fromAdvice=true` (backend INC-02'nin son tam ay TL önerilerinin aylık tasarrufunu okur; `advicePeriod` o aydır). Öneri yoksa
+`adviceStatus` `NoAdvice`, `amount`/`invested` `null`, `assets` boş. Bir fiyat noktası `Stale`/`Missing` ise o varlıkta rakamlar
+ve `volatility` `null`. Hiç düşmeyen fiyatta `maxDrawdown.percent` 0, günler `null`. `disclaimer` sabittir.
+
+```json
+{ "amountSource": "Advice", "adviceStatus": "Used", "advicePeriod": { "kind": "LastMonth", "startDate": "2026-09-01", "…": "…" },
+  "currencyCode": "TRY", "amount": 236.18, "months": 12, "firstBuyDate": "2025-10-01", "lastBuyDate": "2026-09-01",
+  "valueDate": "2026-10-10", "invested": 2834.16, "method": "MonthlyBuyOnFirstDay", "disclaimer": "Geçmiş fiyatlarla …",
+  "assets": [ { "symbol": "GRAM_GOLD_TRY", "baseUnit": "GRAM", "invested": 2834.16, "valuePriceDate": "2026-10-09",
+                "units": 0.453730, "value": 3000.60, "difference": 166.44, "differencePercent": 5.87, "status": "Ok",
+                "buys": [ { "buyDate": "2025-10-01", "priceDate": "2025-10-01", "price": 5166.27701575, "units": 0.045716, "status": "Ok" }, "…" ],
+                "volatility": { "worstMonth": { "month": "2026-06-01", "changePercent": -9.13 },
+                                "bestMonth": { "month": "2026-01-01", "changePercent": 18.54 },
+                                "maxDrawdown": { "percent": -17.97, "peakDate": "2026-02-27", "peakPrice": 7341.43300024,
+                                                 "troughDate": "2026-07-01", "troughPrice": 6022.29268152 },
+                                "worstMoment": { "date": "2026-07-01", "invested": 2125.62, "value": 2056.68, "returnPercent": -3.24 } } },
+              "…" ] }
+```
+
+Hatalar (400): tutar da `fromAdvice` da yok (`fromAdvice=false` dahil), ikisi birlikte, `fromAdvice` ile para birimi, tutar var para
+birimi yok, TRY dışı para birimi, biçimsiz tutar (`1000,50`), sınır dışı tutar; token yoksa 401.
 
 ## Sohbet asistanı (AI-14b + AI-07, 19 Ekim 2026)
 

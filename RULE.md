@@ -1378,6 +1378,11 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- "Biriktirseydim" senaryosu (INV-01 PR2, 9 Kasım 2026; docs/analytics.md "INV-01 PR2"): saf WhatIfMath.Monthly (12 aylık alım,
+  aynı tek motor) + dalgalanma (fiyatta en kötü/en iyi ay ve tepe→dip düşüş, birikimin en kötü anı) ve
+  GET /api/analytics/what-if/monthly. Tutar ya kullanıcıdan (yalnız TRY, ≤ 1.000.000) ya INC-02'nin son tam ay önerisinden
+  (fromAdvice=true, backend okur; ikisi birden 400; öneri yoksa NoAdvice). Tek eski/eksik fiyat → o varlıkta rakam yok. Kararlar
+  K13-B … K22-A (todo §13). Application 442 → 468, Api 554 → 569; 11 kasıtlı bozmanın hepsi yakalandı. INV-01 tamam; sırada INC-03.
 - "Harcamasaydım" senaryosu (INV-01 PR1, 9 Kasım 2026; docs/analytics.md "INV-01 PR1"): Application/Investment/ altında
   MarketPriceReader (en yakın önceki gün, 10 gün sınırı ölçülerek, Stale/Missing), saf WhatIfMath (tek motor, birim tam, sabit
   uyarı metni) ve WhatIfService + GET /api/analytics/what-if/one-off. Yalnız TRY harcama, dönemin ilk günü alım, bugünkü fiyatla

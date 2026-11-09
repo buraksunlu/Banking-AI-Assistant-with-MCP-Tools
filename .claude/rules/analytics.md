@@ -45,4 +45,6 @@ paths:
   önceki gün, > 10 gün `Stale`, yok `Missing`; sonraki gün fiyatı asla), saf `WhatIfMath` (tek motor: TL / alış fiyatı → birim ×
   değerleme fiyatı; birim tam, yalnız rapor yuvarlanır; iki fiyat da `Ok` değilse rakam yok) ve `WhatIfService`. Harcama tutarı
   `CategoryBreakdownService`'ten, yalnız TRY (varlıklar TL fiyatlı, para birimi dönüştürülmez). Her sonuçta sabit
-  `WhatIfMath.Disclaimer`; tahmin, ürün önerisi ya da emir yok; sonuç saklanmaz.
+  `WhatIfMath.Disclaimer`; tahmin, ürün önerisi ya da emir yok; sonuç saklanmaz. Aylık birikim (`WhatIfMath.Monthly`,
+  `MonthlyAsync`): son 12 tam ayın her 1'i, aynı motor; dalgalanma aynı fiyat noktalarından (ayrı sorgu yok); tutar `amount`+TRY ya
+  da `fromAdvice` (INC-02'yi backend çağırır, rakamı model taşımaz); 14 noktadan biri kullanılamazsa o varlıkta rakam yok.

@@ -765,6 +765,82 @@ public sealed class AnalyticsEndpointTests
     public async Task What_if_one_off_needs_a_token() =>
         Assert.Equal(HttpStatusCode.Unauthorized, (await GetAsync("/api/analytics/what-if/one-off?period=LastMonth", null)).Status);
 
+    // ---- what-if/monthly (INV-01 PR2)
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task What_if_monthly_from_advice_returns_the_saving_the_volatility_and_the_warning()
+    {
+        var body = Ok(await GetAsync("/api/analytics/what-if/monthly?fromAdvice=true", Selin));
+
+        Assert.Equal(
+            ["amountSource", "adviceStatus", "advicePeriod", "currencyCode", "amount", "months", "firstBuyDate", "lastBuyDate",
+             "valueDate", "invested", "method", "disclaimer", "assets"],
+            body.AsObject().Select(p => p.Key));
+        Assert.Equal(("Advice", "Used", 236.18m, 12, "2025-10-01", "2026-09-01", "2026-10-10", 2834.16m, "MonthlyBuyOnFirstDay"),
+            (body["amountSource"]!.GetValue<string>(), body["adviceStatus"]!.GetValue<string>(), Amount(body["amount"]),
+             body["months"]!.GetValue<int>(), body["firstBuyDate"]!.GetValue<string>(), body["lastBuyDate"]!.GetValue<string>(),
+             body["valueDate"]!.GetValue<string>(), Amount(body["invested"]), body["method"]!.GetValue<string>()));
+        Assert.StartsWith("Geçmiş fiyatlarla yapılmış bir hesaptır;", body["disclaimer"]!.GetValue<string>());
+        var assets = body["assets"]!.AsArray();
+        Assert.Equal(["USDTRY", "EURTRY", "GRAM_GOLD_TRY"], assets.Select(a => a!["symbol"]!.GetValue<string>()));
+        Assert.Equal(
+            ["symbol", "name", "baseUnit", "invested", "valueDate", "valuePriceDate", "valuePrice", "units", "value", "difference",
+             "differencePercent", "status", "source", "buys", "volatility"],
+            assets[0]!.AsObject().Select(p => p.Key));
+        Assert.Equal(12, assets[2]!["buys"]!.AsArray().Count);
+        var gold = assets[2]!["volatility"]!;
+        Assert.Equal(("2026-06-01", -9.13m, -17.97m, "2026-02-27", "2026-07-01", -3.24m),
+            (gold["worstMonth"]!["month"]!.GetValue<string>(), Amount(gold["worstMonth"]!["changePercent"]),
+             Amount(gold["maxDrawdown"]!["percent"]), gold["maxDrawdown"]!["peakDate"]!.GetValue<string>(),
+             gold["maxDrawdown"]!["troughDate"]!.GetValue<string>(), Amount(gold["worstMoment"]!["returnPercent"])));
+        Assert.Equal(3000.60m, Amount(assets[2]!["value"]));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task What_if_monthly_with_a_users_amount_has_no_advice_fields()
+    {
+        var body = Ok(await GetAsync("/api/analytics/what-if/monthly?amount=1000&currencyCode=TRY", Ada));
+
+        Assert.Equal(("User", 12000m, 13298.92m), (body["amountSource"]!.GetValue<string>(), Amount(body["invested"]),
+            Amount(body["assets"]![0]!["value"])));
+        Assert.Null(body["adviceStatus"]);
+        Assert.Null(body["advicePeriod"]);
+        // The dollar never fell: a zero drawdown without days.
+        Assert.Null(body["assets"]![0]!["volatility"]!["maxDrawdown"]!["peakDate"]);
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task What_if_monthly_without_advice_has_no_amount_and_no_rows()
+    {
+        var body = Ok(await GetAsync("/api/analytics/what-if/monthly?fromAdvice=true", Ada));
+
+        Assert.Equal(("Advice", "NoAdvice"), (body["amountSource"]!.GetValue<string>(), body["adviceStatus"]!.GetValue<string>()));
+        Assert.Null(body["amount"]);
+        Assert.Null(body["invested"]);
+        Assert.Empty(body["assets"]!.AsArray());
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("", "amount", "Aylık tutar zorunlu: amount ile currencyCode ya da fromAdvice=true verilmeli.")]
+    [InlineData("fromAdvice=false", "amount", "Aylık tutar zorunlu: amount ile currencyCode ya da fromAdvice=true verilmeli.")]
+    [InlineData("amount=1000&currencyCode=TRY&fromAdvice=true", "amount", "Tutar (amount) ile fromAdvice birlikte verilemez.")]
+    [InlineData("fromAdvice=true&currencyCode=TRY", "currencyCode", "fromAdvice ile para birimi verilmez; öneri tutarı TL'dir.")]
+    [InlineData("amount=1000", "currencyCode", "Tutarın para birimi (currencyCode) verilmeli.")]
+    [InlineData("amount=100&currencyCode=EUR", "currencyCode", "Birikim senaryosu yalnız TL (TRY) tutarla hesaplanır; varlık fiyatları TL'dir.")]
+    [InlineData("amount=1000,50&currencyCode=TRY", "amount", "'1000,50' geçerli bir değer değil.")]
+    [InlineData("amount=2000000&currencyCode=TRY", "amount", "Aylık tutar en fazla 1.000.000 olmalı.")]
+    public async Task What_if_monthly_parameters_are_checked(string query, string field, string message) =>
+        await AssertInvalidAsync($"/api/analytics/what-if/monthly?{query}", Selin, field, message);
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task What_if_monthly_needs_a_token() =>
+        Assert.Equal(HttpStatusCode.Unauthorized, (await GetAsync("/api/analytics/what-if/monthly?fromAdvice=true", null)).Status);
+
     // ---- savings-simulation (ANA-14)
 
     [Fact]
