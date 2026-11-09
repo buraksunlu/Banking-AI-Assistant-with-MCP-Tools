@@ -22,8 +22,9 @@ Aktif veritabanı `bankingai_foundation`dır. Şu altı domain tablosu uygulanm�
 
 `CustomerCredentials` tablosunda üç demo girişi vardır (ada, deniz, ege).
 `MarketAssets` tablosunda üç başlangıç seed kaydı vardır; `DailyMarketPrices`
-9 Kasım 2026'dan beri 990 satır taşır (USDTRY ve EURTRY, 2024-11-11 … 2026-11-06, TCMB döviz alış;
-altın henüz yok, [market kaynak belgesi](market-data-sources.md) "USD/EUR import"). 11 kategori, demo dahil dört Customer ve yedi dummy Account (biri Business) vardır.
+9 Kasım 2026'dan beri 1.485 satır taşır: USDTRY ve EURTRY (TCMB döviz alış) ile GRAM_GOLD_TRY (gold-api ons ×
+USDTRY ÷ 31,1034768), her biri 495 gün, 2024-11-11 … 2026-11-06 ([market kaynak belgesi](market-data-sources.md)
+"USD/EUR import", "Gram altın import"). 11 kategori, demo dahil dört Customer ve yedi dummy Account (biri Business) vardır.
 Transactions tablosunda 44 kategorisiz Credit ve 72 Debit bulunur; 9 PairId çifti vardır (KIND-04b sonrası). 2025 dataset'i
 34 kayıtla korunur; Nisan–Eylül 2026 için `recent-spending` kapsamında 36 kayıt
 (12 maaş Credit'i, 24 harcama Debit'i) eklendi. SYN-13 kullanıcı kararıyla banking
@@ -61,6 +62,8 @@ komutu veya API'nin başlaması kendiliğinden migration/seed/import çalıştı
 | `seed <scope>` | Önceden tanımlı lookup veya synthetic veriyi açıkça üretir | Evet; yalnızca seçilen scope |
 | `market download tcmb --from --to` | TCMB bültenlerini yerel ham arşive indirir (git dışı) | Hayır; yalnız dosya |
 | `market import tcmb --from --to` | Arşivdeki USD/EUR değerlerini `DailyMarketPrices`'a yazar | Evet; yalnız eksik varlık/gün, farklı değer çelişki olarak raporlanır |
+| `market download goldapi --from --to` | gold-api ons geçmişini tek ham JSON'a indirir (`GOLD_API_KEY`) | Hayır; yalnız dosya |
+| `market import gold --from --to` | Ons × DB'deki USDTRY ile gram altın TL türetip yazar | Evet; aynı kurallar + ons sıçrama kontrolü |
 | `show` | Örnek veriyi okur | Hayır |
 
 İlk manuel komut sözleşmesi şöyledir:
@@ -335,8 +338,8 @@ referans kur olduğu, banka işlem fiyatı olmadığı yazılır.
 ### Tablo
 
 DailyMarketPrices tek `Price` alanıyla kalır (migration yok; MP-06 kararı).
-Altın kaynağı (SRC-02) seçilince aynı tabloya aynı kurala göre yazılır; ortalama
-XAU'dan türetilmiş bir değer kullanılacaksa bu kaynak adında ve cevapta açıkça belirtilir.
+Gram altın (IMP-b) gold-api ortalama ons fiyatından türetilir; kaynak adı `GOLDAPI+TCMB` bunu
+söyler ve cevapta "referans değer, kuyumcu fiyatı değildir" yazılır.
 
 ### Historical price fallback
 

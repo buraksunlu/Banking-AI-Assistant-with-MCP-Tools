@@ -1358,6 +1358,8 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 - 9 Kasım 2026 kullanıcı kararı (yukarıdaki alış/satış maddelerinin yerine geçer):
   varlık başına günde TEK değer saklanır ve hem başlangıçta hem değerlemede o seri
   kullanılır; makas hesaba girmez. USD/EUR değeri TCMB döviz alış (ForexBuying).
+  Gram altın: gold-api ortalama ons × aynı günün USDTRY'si ÷ 31,1034768 (IMP-b; resmî
+  TCMB gram altını 30 Ocak 2026'da kesildi, yalnız doğrulamada kullanılır).
   DailyMarketPrice tek Price alanıyla kalır, migration yok. Formül:
   birim = totalSpent / başlangıç günü değeri; currentValue = birim × değerleme günü
   değeri. Cevapta "referans kur; banka işlem fiyatı değildir" yazılır.
@@ -1380,7 +1382,12 @@ COMPLETED
   okuyucu (döviz alış, birim 1, gün kontrolü, DTD yok), yerel ham arşiv (yalnız hafta içi; eksik/reddedilen gün raporlanır,
   doldurulmaz), sıralı indirici (404 = yayın yok, 3 deneme, yanlış gövde kaydedilmez) ve idempotent importer (farklı değer
   çelişki, üzerine yazılmaz). CLI `market download|import tcmb --from --to`. Kullanıcı kararı: günde tek değer, alış/satış yok,
-  migration yok. 990 satır; Data 84 → 129 test, 13 kasıtlı bozma yakalandı. Altın (SRC-02/IMP-04) sırada.
+  migration yok. 990 satır; Data 84 → 129 test, 13 kasıtlı bozma yakalandı.
+- Gram altın (IMP-b, 9 Kasım 2026; docs/market-data-sources.md "Gram altın import"): TCMB'nin saatlik gram altını 30 Ocak
+  2026'da kesildiği için iki yılın tamamı tek yöntemle türetilir: gold-api ortalama ons × TCMB USDTRY ÷ 31,1034768, 8 ondalık
+  (K1-B). Yalnız USDTRY günleri (K3-A), migration yok (K2-A). Sıçrama kontrolü ons üzerinde: >%10 yazılır + dikkat, >%25
+  yazılmaz + şüpheli (K6). Resmî TCMB değerinden ortalama %0,53 sapma (21 gün). CLI `market download goldapi`,
+  `market import gold`. 495 satır; Data 129 → 185 test, 15 kasıtlı bozma yakalandı.
 - IOS-05 hesap detayı ve tarih filtresi (23 Ekim 2026; docs/ios.md "iOS-g"): karttan AccountDetailView, başlangıç verisi + hesap
   yenileme; güncel bakiye dönemden bağımsız. Hesaba ait imleçli liste (20), AllTime varsayılan; beş hazır dönem ve özel aralık,
   alt panelde Uygula/Vazgeç. Başarıda liste/dönem/imleç birlikte değişir, iptal/geç cevap nesil kontrolü, hata eski sonucu korur;
@@ -1400,7 +1407,8 @@ COMPLETED
   sınır dışı bakiye BalanceLimitException).
 - Demo veri: 4 Customer (Ada, Deniz, Ege + hesapsız Demo Customer), 7 Account (1 Business
   dükkân), 11 kategori, 116 Transaction (44 Credit, 72 Debit, 9 çift), 3 MarketAsset;
-  DailyMarketPrices 990 satır (USDTRY + EURTRY, 2024-11-11 … 2026-11-06, TCMB döviz alış; IMP-a, 9 Kasım 2026).
+  DailyMarketPrices 1.485 satır (USDTRY + EURTRY TCMB döviz alış, GRAM_GOLD_TRY türetilmiş; her biri 495 gün,
+  2024-11-11 … 2026-11-06; IMP-a/IMP-b, 9 Kasım 2026).
 - Deterministik analytics (ANA-01–08, REC-01–03): PeriodResolver, CustomerScope/PurchaseScope,
   özet, kategori, merchant (MerchantMatcher), arama, en yüksek işlemler, karşılaştırma +
   aylık seri, düzenli ödemeler (docs/analytics.md).

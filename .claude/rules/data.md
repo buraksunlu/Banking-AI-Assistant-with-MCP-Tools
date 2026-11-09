@@ -63,6 +63,8 @@ dotnet run --project src/BankingAI.Cli -- seed transactions credits
 dotnet run --project src/BankingAI.Cli -- users set-password <username> [--customer <customer-id>]   # gizli sorar
 dotnet run --project src/BankingAI.Cli -- market download tcmb --from 2024-11-09 --to 2026-11-09   # ham XML → data/raw/market/tcmb (git dışı)
 dotnet run --project src/BankingAI.Cli -- market import tcmb --from 2024-11-09 --to 2026-11-09     # arşiv → DailyMarketPrices
+dotnet run --project src/BankingAI.Cli -- market download goldapi --from 2024-11-09 --to 2026-11-09  # GOLD_API_KEY; ham JSON → data/raw/market/goldapi
+dotnet run --project src/BankingAI.Cli -- market import gold --from 2024-11-09 --to 2026-11-09      # ons × DB USDTRY → GRAM_GOLD_TRY
 ```
 
 ### Market fiyatları (IMP-a, 9 Kasım 2026)
@@ -73,6 +75,11 @@ gün raporlanır, doldurulmaz), `TcmbDownloader` (sıralı, 404 = yayın yok, 5x
 `.part` → yeniden adlandırma), `MarketPriceImporter` (aynı değer atlanır, farklı değer **çelişki**: yazılmaz, raporlanır; açık
 transaction varsa onu kullanır, testler rollback eder). Kullanıcı kararı: varlık başına günde **tek değer**, alış/satış ayrımı yok
 (10 Ekim SRC-00 kararı kaldırıldı); tablo değişmedi. Eksik gün DB'ye yazılmaz, okuma tarafı en yakın önceki günü alır (OC-05).
+
+Gram altın (IMP-b): `GoldApiHistoryParser` (metin fiyat, `yyyy-MM-dd 00:00:00`, tekrar gün yok), `GramGoldDerivation`
+(ons × USDTRY ÷ 31,1034768, 8 ondalık ToEven; yalnız USDTRY günleri; ons sıçraması son **kabul edilen** güne göre: >%10
+dikkat, >%25 yazılmaz), `GoldApiDownloader` (anahtar yalnız `x-api-key` başlığında; 401/403/429 tekrar yok, gövde/anahtar
+mesaja yazılmaz; boş/aralık dışı cevap kaydedilmez), `MarketPriceReader.SeriesAsync`. CLI bugünü (İstanbul) içe aktarmaz.
 
 ## Migration komutları
 
