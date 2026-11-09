@@ -16,7 +16,7 @@ namespace BankingAI.Api.Controllers;
 public sealed class AnalyticsController(
     SpendingSummaryService summaries, CategoryBreakdownService categories, MerchantSpendingService merchants,
     SpendingComparisonService comparisons, HighestTransactionsService highest, RecurringPaymentService recurring,
-    UpcomingPaymentService upcoming, BudgetCheckService budgets, SavingsSimulationService savings)
+    UpcomingPaymentService upcoming, BudgetCheckService budgets, SavingsSimulationService savings, IncomeShareService incomeShares)
     : ControllerBase
 {
     /// <summary>
@@ -149,6 +149,18 @@ public sealed class AnalyticsController(
             new SavingsSimulationQuery(User.GetCustomerId(),
                 RequiredParameter.Value(reductionPercent, nameof(reductionPercent), "Azaltma oranı zorunlu."),
                 categoryCode, merchant, months ?? SavingsSimulationService.DefaultMonths, accountId),
+            cancellationToken));
+
+    /// <summary>
+    /// <c>GET /api/analytics/income-share</c>: one complete month's spending and categories as a share of the average monthly
+    /// salary of the three complete months ending with it (INC-01). Only <c>period=LastMonth</c> or <c>from</c>/<c>to</c>
+    /// covering one whole calendar month; shares are null in a currency without salary.
+    /// </summary>
+    [HttpGet("income-share")]
+    public async Task<ActionResult<IncomeShare>> IncomeShareAsync(
+        [FromQuery] string? period, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken cancellationToken) =>
+        Ok(await incomeShares.GetAsync(
+            new IncomeShareQuery(User.GetCustomerId(), PeriodParameters.Resolve(period, from, to, fallback: null), from, to),
             cancellationToken));
 
     /// <summary>

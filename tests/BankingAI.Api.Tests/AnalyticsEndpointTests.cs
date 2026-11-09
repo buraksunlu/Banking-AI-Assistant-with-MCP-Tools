@@ -588,6 +588,60 @@ public sealed class AnalyticsEndpointTests
         await AssertInvalidAsync($"{path}&accountId={DenizShopAccount}", Deniz, "accountId", "Harcama analizi yalnızca şahsi hesaplar içindir.");
     }
 
+    // ---- income-share (INC-01)
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Income_share_returns_the_month_the_window_and_the_shares()
+    {
+        var body = Ok(await GetAsync("/api/analytics/income-share?period=LastMonth", Selin));
+
+        Assert.Equal(["period", "incomeFrom", "incomeTo", "incomeMonths", "method", "currencies"], body.AsObject().Select(p => p.Key));
+        Assert.Equal(("LastMonth", "2026-09-01", "2026-07-01", "2026-09-30", 3, "ThreeFullMonthSalaryAverage"),
+            (body["period"]!["kind"]!.GetValue<string>(), body["period"]!["startDate"]!.GetValue<string>(),
+             body["incomeFrom"]!.GetValue<string>(), body["incomeTo"]!.GetValue<string>(),
+             body["incomeMonths"]!.GetValue<int>(), body["method"]!.GetValue<string>()));
+        var tl = Assert.Single(body["currencies"]!.AsArray())!;
+        Assert.Equal(["currencyCode", "totalSpent", "incomeTotal", "incomeCount", "incomeBase", "spentShare", "categories"],
+            tl.AsObject().Select(p => p.Key));
+        Assert.Equal(("TRY", 7228.49m, 8000m, 90.36m), (tl["currencyCode"]!.GetValue<string>(), Amount(tl["totalSpent"]),
+            Amount(tl["incomeBase"]), Amount(tl["spentShare"])));
+        Assert.Equal(("FOOD", 46.83m), (tl["categories"]![0]!["categoryCode"]!.GetValue<string>(), Amount(tl["categories"]![0]!["incomeShare"])));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Income_share_without_salary_sends_null_shares()
+    {
+        var tl = Assert.Single(Ok(await GetAsync("/api/analytics/income-share?period=LastMonth", Can))["currencies"]!.AsArray())!;
+
+        Assert.Null(tl["incomeBase"]);
+        Assert.Null(tl["spentShare"]);
+        Assert.Equal(15037.99m, Amount(tl["totalSpent"]));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Income_share_accepts_one_whole_custom_month() =>
+        Assert.Equal("2026-06-01",
+            Ok(await GetAsync("/api/analytics/income-share?from=2026-08-01&to=2026-08-31", Selin))["incomeFrom"]!.GetValue<string>());
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("", "period", "Dönem zorunlu: period ya da from ile to verilmeli.")]
+    [InlineData("period=ThisMonth", "period", "Gelir payı yalnız tam bir ay için hesaplanır: LastMonth ya da Custom (ayın ilk–son günü).")]
+    [InlineData("period=Last3Months", "period", "Gelir payı yalnız tam bir ay için hesaplanır: LastMonth ya da Custom (ayın ilk–son günü).")]
+    [InlineData("from=2026-09-02&to=2026-09-30", "from", "Custom dönem tek bir takvim ayının ilk gününden son gününe olmalı.")]
+    [InlineData("from=2026-08-01&to=2026-09-30", "from", "Custom dönem tek bir takvim ayının ilk gününden son gününe olmalı.")]
+    [InlineData("period=LastMonth&from=2026-09-01&to=2026-09-30", "period", "Dönem adı ile tarih aralığı birlikte verilemez.")]
+    public async Task Income_share_parameters_are_checked(string query, string field, string message) =>
+        await AssertInvalidAsync($"/api/analytics/income-share?{query}", Selin, field, message);
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Income_share_needs_a_token() =>
+        Assert.Equal(HttpStatusCode.Unauthorized, (await GetAsync("/api/analytics/income-share?period=LastMonth", null)).Status);
+
     // ---- savings-simulation (ANA-14)
 
     [Fact]

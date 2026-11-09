@@ -109,8 +109,8 @@ public sealed class OpenApiContractTests
             var bearer = operation["security"]?.AsArray().Any(r => r!.AsObject().ContainsKey("Bearer")) ?? false;
             Assert.True(bearer != open.Contains($"{method} {path}"), $"{method} {path}: security {bearer}");
         }
-        // 24 protected operations + health and login.
-        Assert.Equal(26, Operations(document).Count());
+        // 25 protected operations (INC-01 added income-share) + health and login.
+        Assert.Equal(27, Operations(document).Count());
     }
 
     [Theory]

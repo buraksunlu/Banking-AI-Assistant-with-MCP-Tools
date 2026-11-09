@@ -509,6 +509,40 @@ Sınırlar: kavrama hangi merchant'ların girdiğini model seçer (backend adlar
 seçimin doğruluğunu değil; cevap dahil edilenleri söyler); merchant'ı olmayan alışveriş hiçbir gruba giremez; liste
 sayfalanmaz (büyük müşteride PERF/MCP adımında bakılır).
 
+## INC-01 — Gelire göre harcama payı (`IncomeShareService`, 9 Kasım 2026)
+
+Soru: "Geçen ay gelirimin ne kadarını harcadım, hangi kategoriye ne kadar?" Kullanıcı kararları: K1-B (gelir tabanı = son 3
+tam ayın ortalama maaşı), K2-A (yalnız tamamlanmış aylar), S1-A (tek ay: `LastMonth` ya da ayın ilk–son günü `Custom`), S2-A
+(pencere hedef ay dahil: Eylül → Temmuz–Eylül), S3-A (maaşsız ay ortalamaya 0 girer), S4-A (yalnız o ay harcaması olan para
+birimleri). Gelir = `Kind == Salary`, yalnız kişisel hesaplar (işletme satışı kişisel gelir değildir). Para birimleri karışmaz.
+
+```text
+taban = pencerenin maaş toplamı / 3            (2 ondalık, AwayFromZero; yalnız gösterim)
+pay   = tutar × 3 × 100 / pencerenin maaş toplamı   (tam toplamdan; 2 ondalık, AwayFromZero; 100'e zorlanmaz)
+```
+
+Kategori tutarları `CategoryBreakdownService`'ten gelir (rakamlar her yerde aynı); servis yalnız bir gelir sorgusu ekler.
+Ölçülen sorgu sayısı 4: kapsam için iki müşteri okuması, kategori dökümü, gelir. Bağımsız SQL ile beklenen değerler (demo anı
+2026-10-10, Eylül 2026, her müşterinin saat diliminde):
+
+| Müşteri | Para birimi | Temmuz–Eylül maaş | Taban | Eylül harcama | Pay |
+| --- | --- | --- | --- | --- | --- |
+| Selin | TRY | 24.000 (3) | 8.000,00 | 7.228,49 | 90,36 |
+| Murat | TRY | 255.000 (3) | 85.000,00 | 53.388,39 | 62,81 |
+| Deniz | TRY | 165.000 (3) | 55.000,00 | 31.000,00 | 56,36 |
+| Zeynep | TRY | 73.000 (2) | 24.333,33 | 10.490,00 | 43,11 |
+| Zeynep | USD | 4.050 (2) | 1.350,00 | 37,99 | 2,81 |
+| Elif (Berlin) | EUR | 12.600 (3) | 4.200,00 | 1.766,26 | 42,05 |
+| Hasan | TRY | 66.000 (3) | 22.000,00 | 5.755,50 | 26,16 |
+| Ada | TRY | 135.000 (3) | 45.000,00 | 624,98 | 1,39 |
+| Can | TRY | yok | `null` | 15.037,99 | `null` |
+
+Selin'in kategorileri (taban 8.000): Yeme & İçme 3.746,50 → 46,83; Eğlence 2.253,50 → 28,17; Diğer 480 → 6,00; Faturalar
+350 → 4,38; Ulaşım 338,50 → 4,23; Abonelik 59,99 → 0,75.
+
+Sınırlar: temel/isteğe bağlı ayrımı ve öneriler INC-02'de; hesap filtresi yok; gelir yalnız `Salary` (düzensiz serbest gelir
+de `Salary` olarak tutulduğu için ortalama onu yumuşatır ama bir aylık dalgalanmayı tam gizlemez).
+
 ## ANA-08 — Kenar durumları (`AnalyticsEdgeCaseTests`)
 
 Geçici kayıtlar testin kendi DB transaction'ında eklenir ve rollback edilir; demo verisi 116

@@ -1378,6 +1378,10 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Gelire göre harcama payı (INC-01, 9 Kasım 2026; docs/analytics.md "INC-01"): IncomeShareService + GET
+  /api/analytics/income-share. Tek tamamlanmış ay (LastMonth ya da ayın ilk–son günü); taban = o ayla biten 3 tam ayın ortalama
+  maaşı (Salary, kişisel hesaplar, maaşsız ay 0); pay tam toplamdan, 2 ondalık; maaş yoksa pay null; kategori tutarları
+  CategoryBreakdownService'ten. Application 339 → 365, Api 521 → 533; 9 kasıtlı bozma yakalandı. Sırada INC-02.
 - USD/EUR market verisi (IMP-a, 9 Kasım 2026; docs/market-data-sources.md "USD/EUR import"): Data/Market/ altında TCMB bülten
   okuyucu (döviz alış, birim 1, gün kontrolü, DTD yok), yerel ham arşiv (yalnız hafta içi; eksik/reddedilen gün raporlanır,
   doldurulmaz), sıralı indirici (404 = yayın yok, 3 deneme, yanlış gövde kaydedilmez) ve idempotent importer (farklı değer
