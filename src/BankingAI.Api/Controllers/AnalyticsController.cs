@@ -16,7 +16,8 @@ namespace BankingAI.Api.Controllers;
 public sealed class AnalyticsController(
     SpendingSummaryService summaries, CategoryBreakdownService categories, MerchantSpendingService merchants,
     SpendingComparisonService comparisons, HighestTransactionsService highest, RecurringPaymentService recurring,
-    UpcomingPaymentService upcoming, BudgetCheckService budgets, SavingsSimulationService savings, IncomeShareService incomeShares)
+    UpcomingPaymentService upcoming, BudgetCheckService budgets, SavingsSimulationService savings, IncomeShareService incomeShares,
+    SpendingAdviceService advice)
     : ControllerBase
 {
     /// <summary>
@@ -161,6 +162,18 @@ public sealed class AnalyticsController(
         [FromQuery] string? period, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken cancellationToken) =>
         Ok(await incomeShares.GetAsync(
             new IncomeShareQuery(User.GetCustomerId(), PeriodParameters.Resolve(period, from, to, fallback: null), from, to),
+            cancellationToken));
+
+    /// <summary>
+    /// <c>GET /api/analytics/spending-advice</c>: one complete month split into essential, discretionary and unknown spending,
+    /// with at most two pieces of rule-based saving advice per currency (INC-02). The same month parameters as
+    /// <c>income-share</c>; no advice without salary (<c>reason</c> NoIncome) or when every rule holds (NoRuleMatched).
+    /// </summary>
+    [HttpGet("spending-advice")]
+    public async Task<ActionResult<SpendingAdvice>> SpendingAdviceAsync(
+        [FromQuery] string? period, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, CancellationToken cancellationToken) =>
+        Ok(await advice.GetAsync(
+            new SpendingAdviceQuery(User.GetCustomerId(), PeriodParameters.Resolve(period, from, to, fallback: null), from, to),
             cancellationToken));
 
     /// <summary>

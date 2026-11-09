@@ -120,6 +120,10 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/api/analytics/income-share?period=LastMonth
 Authorization: Bearer {{token}}
 
+### Seçici tasarruf önerisi (INC-02): geçen ay — Ada için beklenen: 200, öneri yok (reason NoRuleMatched); Selin'de tek öneri: Eğlence 2,43 katı, ayda 236,18
+GET {{baseUrl}}/api/analytics/spending-advice?period=LastMonth
+Authorization: Bearer {{token}}
+
 ### ---- Sohbet asistanı (AI-14b): AI servisi ve Ollama da açık olmalı (docs/local-ai.md). Veri yazmaz.
 # AI servisi: ai/.venv/bin/uvicorn --app-dir ai/service --factory app:create_app --host 127.0.0.1 --port 8000
 # Kapalıysa status false, mesaj 503 assistant_unavailable döner. Müşteri başına dakikada 10 mesaj.

@@ -66,10 +66,8 @@ public sealed class SavingsSimulationService(BankingDbContext db, SpendingCompar
             {
                 var used = c.Months.Where(m => !m.IsPartial).ToList();
                 var total = used.Sum(m => m.Amount);
-                // From the exact total: rounding the monthly saving first and multiplying by 12 would carry its error.
-                return new CurrencySavings(c.CurrencyCode, total, Round(total / months),
-                    Round(total * query.ReductionPercent / (100m * months)),
-                    Round(total * query.ReductionPercent * 12m / (100m * months)), used);
+                var (monthly, annual) = Saving(total, months, query.ReductionPercent);
+                return new CurrencySavings(c.CurrencyCode, total, Round(total / months), monthly, annual, used);
             })
             // A currency that appears only in the running month has nothing to average; no invented "0" row.
             .Where(c => c.TotalSpent > 0m)
@@ -80,6 +78,14 @@ public sealed class SavingsSimulationService(BankingDbContext db, SpendingCompar
         return new SavingsSimulation(
             from, to, months, query.ReductionPercent, query.CategoryCode, categoryName, trend.MerchantMatch, Method, currencies);
     }
+
+    /// <summary>
+    /// The saving of cutting <paramref name="total"/> spent over <paramref name="months"/> months by
+    /// <paramref name="reductionPercent"/>, per month and per year, both from the exact total (also used by INC-02).
+    /// </summary>
+    public static (decimal Monthly, decimal Annual) Saving(decimal total, int months, int reductionPercent) =>
+        // From the exact total: rounding the monthly saving first and multiplying by 12 would carry its error.
+        (Round(total * reductionPercent / (100m * months)), Round(total * reductionPercent * 12m / (100m * months)));
 
     private static decimal Round(decimal value) => Math.Round(value, 2, MidpointRounding.AwayFromZero);
 }

@@ -543,6 +543,55 @@ Selin'in kategorileri (taban 8.000): Yeme & İçme 3.746,50 → 46,83; Eğlence 
 Sınırlar: temel/isteğe bağlı ayrımı ve öneriler INC-02'de; hesap filtresi yok; gelir yalnız `Salary` (düzensiz serbest gelir
 de `Salary` olarak tutulduğu için ortalama onu yumuşatır ama bir aylık dalgalanmayı tam gizlemez).
 
+## INC-02 — Seçici tasarruf önerisi (`SpendingAdviceService`, 9 Kasım 2026)
+
+Soru: "Nerede tasarruf edebilirim?" Bir tamamlanmış ay (INC-01 ile aynı dönem kuralları) harcaması üç gruba ayrılır ve **yalnız
+kurallar tutarsa**, para birimi başına en fazla 2 öneri verilir. Model yok; kurallar saf kod (`SpendingAdviceRules`), metin sabit
+şablon. Saklanmaz, istekte hesaplanır. Yatırım tavsiyesi değildir. Kararlar K1-B…K9-A (todo 12e, INC-02).
+
+Gruplar (`SpendingGroups`, C# tablosu; DB'deki her kategori tabloda olmalı, testle korunur):
+
+| Grup | Kategoriler |
+| --- | --- |
+| Temel (`Essential`) | Market, Yeme & İçme, Faturalar, Ulaşım, Yakıt, Sağlık |
+| İsteğe bağlı (`Discretionary`) | Eğlence, Abonelik, Giyim, Seyahat |
+| Bilinmiyor (`Unknown`) | Diğer, sınıflandırılmamış (tabloda olmayan kod da) |
+
+Kurallar (yalnız isteğe bağlı harcama; temel ve bilinmeyen hiç öneri almaz, K8-A). Karşılaştırmalar tam tutarlarla, yalnız
+raporlanan rakamlar yuvarlanır:
+
+```text
+gelir toplamı = INC-01 penceresinin maaş toplamı (3 ay)        maaş yoksa → öneri yok, reason NoIncome (K9-A)
+en küçük etki : fark × 3 × 100 ≥ %2 × gelir toplamı             (fark, aylık gelir tabanının en az %2'si)
+K2-A toplam   : isteğe bağlı toplam − %30 × taban > 0 ve en küçük etki   → DiscretionaryShare
+K3-A kategori : tutar × 6 ≥ 1,5 × olağan toplam ve en küçük etki          → CategoryAboveUsual
+                olağan toplam = hedef aydan önceki 6 tam ay (K4-A; ay dahil değil, harcamasız ay 0)
+sıra          : TL farkı büyükten küçüğe, eşitlikte kod (toplam kuralı önce); en fazla 2 (K9-A)
+tasarruf      : ANA-14 aritmetiği (SavingsSimulationService.Saving), %20, hedef ayla biten 6 ay (K5-A)
+                toplam kuralında bütün isteğe bağlı kategorilerin toplamı
+```
+
+`LastMonth` için tasarruf penceresi ANA-14'ün "son 6 tam ay"ıyla aynıdır (rakamlar sohbetteki tasarruf cevabıyla birebir;
+testle korunur). Custom ayda pencereler ayla birlikte kayar (Ağustos → olağan Şubat–Temmuz, tasarruf Mart–Ağustos).
+
+Sorgu sayısı 6 (ölçüldü): INC-01'in 4'ü, müşteri okuması ve iki pencereyi tek `CASE WHEN` ile toplayan bir sorgu.
+
+Beklenen değerler (demo anı 2026-10-10, Eylül 2026; bağımsız SQL, müşterinin saat diliminde):
+
+| Müşteri | İsteğe bağlı / gelir | Sonuç |
+| --- | --- | --- |
+| Selin | 2.313,49 → %28,92 | 1 öneri: Eğlence 2.253,50; olağan 5.567 / 6 = 927,83 (2,43 katı); fark 1.325,67 = %16,57; tasarruf 7.085,50 × %20 / 6 = ayda 236,18, yılda 2.834,20 |
+| Murat | 872,49 → %1,03 | yok (Faturalar 27.439,90, okul taksidi, ama temel) |
+| Zeynep, Hasan, Elif, Ada, Deniz | düşük | yok (`NoRuleMatched`) |
+| Can | maaş yok | yok (`NoIncome`) |
+
+Selin'in grupları: Temel 4.435,00 (%55,44), İsteğe bağlı 2.313,49 (%28,92), Bilinmiyor 480 (%6,00).
+
+Metin şablonları sonek almayacak biçimde yazıldı ("Eylül 2026 ayında", "Eğlence harcamasını"); ay adları sabit dizi (ICU'ya
+bağlı değil). Sınırlar: en fazla 2 öneri **para birimi başına** (para birimleri arasında TL etkisi karşılaştırılamaz); 6 aydan kısa
+geçmişte olağan ay 0'a yakın kalır (yeni müşteri kolay öneri alır; personalarda geçmiş tam); eşikler sabit, kişiye göre değişmez;
+öneri yalnız kategori düzeyinde (işyeri yok).
+
 ## ANA-08 — Kenar durumları (`AnalyticsEdgeCaseTests`)
 
 Geçici kayıtlar testin kendi DB transaction'ında eklenir ve rollback edilir; demo verisi 116

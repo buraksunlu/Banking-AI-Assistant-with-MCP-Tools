@@ -67,6 +67,7 @@ public static class BankingServiceCollectionExtensions
         services.AddScoped<BudgetCheckService>();
         services.AddScoped<SavingsSimulationService>();
         services.AddScoped<IncomeShareService>();
+        services.AddScoped<SpendingAdviceService>();
         return services;
     }
 

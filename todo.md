@@ -295,9 +295,29 @@ tetikleyici: isteğe bağlı toplam > %30 [50/30/20] ya da kategori eşiği/kiş
 ayrı PR), K9-A (en fazla 2 öneri, TL etkisine göre; istekte hesaplanır, saklanmaz). Yatırım tavsiyesi değildir.
 
 - [x] INC-01 — Gelir payı analizi + `GET /api/analytics/income-share` (9 Kasım 2026, dal `inc-01-income-share`; docs/analytics.md "INC-01"). Kararlar S1-A (yalnız tek tamamlanmış ay), S2-A (pencere hedef ay dahil 3 ay), S3-A (maaşsız ay 0), S4-A (yalnız harcaması olan para birimleri). `IncomeShareService` kategori tutarlarını `CategoryBreakdownService`'ten alır, tek gelir sorgusu ekler (ölçülen 4 sorgu). Pay tam gelir toplamından. Testler: Application +26 (Selin 90,36, Murat 62,81, Zeynep TRY 43,11 / USD 2,81, Elif 42,05, Can null; dönem kuralları; ayın son günü devam eden ay), Api +12 (alanlar, null paylar, Custom ay, 6 hata, 401, endpoint taraması, OpenAPI). 9 kasıtlı bozmanın hepsi yakalandı (üçü ilk turda kaçtı → `Yesterday`/`LastWeek`, ayın son günü ve saf pay testleri eklendi). Migration yok.
-- [ ] INC-02 — Temel/isteğe bağlı tablosu (C#, her kategori tabloda olmalı: testle) + kural katmanı (K5-D, K9-A) + öneri endpoint'i; öneri metni sabit şablon, rakamlar INC-01 ve ANA-14'ten. Eşikler bütün personalarda ölçülüp birlikte ayarlanır.
+- [x] INC-02 — **Sonuç (9 Kasım 2026, dal `inc-02-spending-advice`; docs/analytics.md "INC-02"):** `SpendingGroups` (C# tablosu, DB'deki her kategori testle), saf `SpendingAdviceRules` (iki kural, en küçük etki %2, TL farkına göre en fazla 2 / para birimi, sabit Türkçe şablon, ay adları sabit dizi), `SpendingAdviceService` (INC-01 + tek `CASE WHEN` sorgusu; ölçülen 6 sorgu), `GET /api/analytics/spending-advice`; ANA-14'ün tasarruf aritmetiği `SavingsSimulationService.Saving`'e çıkarıldı (mevcut testler değişmeden yeşil). Demo: yalnız Selin öneri alır (Eğlence 2.253,50; 927,83'ün 2,43 katı; fark %16,57; ayda 236,18, yılda 2.834,20); Murat'ın okul taksidi temel (öneri yok); Can `NoIncome`. Testler: Application 365 → 417 (+52: kurallar 33 DB'siz, servis 19), Api 533 → 545 (+12, OpenAPI +433 satır yalnız ekleme). 12 kasıtlı bozmanın 11'i yakalandı; kaçan "eşitlikte kural sırası" ölü kod çıktı (toplam kuralının kodu null, zaten önce sıralanıyor) → silindi. Sınırlar: en fazla 2 öneri para birimi başına; kısa geçmişte olağan ay düşük kalır; işyeri düzeyi yok. Plan: Temel/isteğe bağlı tablosu (C#, her kategori tabloda olmalı: testle) + kural katmanı (K5-D, K9-A) + öneri endpoint'i; öneri metni sabit şablon, rakamlar INC-01 ve ANA-14'ten. Eşikler bütün personalarda ölçülüp birlikte ayarlanır. Plan kararları (9 Kasım 2026): K1-B (Temel = Market, Yeme & İçme, Faturalar, Ulaşım, Yakıt, Sağlık; İsteğe bağlı = Eğlence, Abonelik, Giyim, Seyahat; Bilinmiyor = Diğer + sınıflandırılmamış), K2-A (isteğe bağlı toplam > gelirin %30'u, 50/30/20), K3-A (kişisel sapma: isteğe bağlı kategori önceki 6 ay ortalamasının ≥ 1,5 katı **ve** fark ≥ gelirin %2'si), K4-A (hedef aydan önceki 6 tam ay, harcamasız ay 0), K5-A (tutar ANA-14 ile sabit %20 azaltma), K6-A (ayrı `GET /api/analytics/spending-advice`), K7-A (yapılandırılmış alanlar + .NET'te sabit Türkçe şablon, model yok), K8-A (temel kategoride sapmaya öneri/not yok), K9-A (maaşsız müşteri: öneri yok, sebep `noIncome`). Ön ölçüm: K1-B ile yalnız Selin öneri alır (Eğlence 2,43 kat; isteğe bağlı toplam %28,92 < %30).
 - [ ] INC-03 — Read-only MCP aracı (gelir payı + öneriler) ve sohbet ("Maaşımın ne kadarını harcadım?"); araç seçimi ölçümü önce/sonra.
 - [ ] INC-04 — iPhone kartı (IOS-12/INS ile birlikte düşünülür): gelir payı çubuğu + en fazla 2 öneri; AI kapalıyken şablon metin.
+
+## 12f. Harcama ve yatırım asistanı — kullanıcı kararı 9 Kasım 2026 (⭐ uzun vadeli yön)
+
+Ürün yönü: "harcama asistanı" → **harcama ve yatırım asistanı**. Asistan hem harcamaya yönelik tasarruf önerisi (12e) hem de
+sorulduğunda birikimin nasıl değerlendirilebileceğine dair bilgi verir. Bu kol **büyüyecek ve birçok özellik eklenecek**; aşağıdaki
+ilk seviye başlangıçtır. Sıra K11-A: önce INC-02, sonra bu kolun ilk seviyesi (OC maddeleri buna göre yeniden yazılır), INC-03'te
+sohbet ikisini birlikte alır (tek MCP turu, tek araç seçimi ölçümü).
+
+- K10-B (ilk seviye): geçmişe dönük karşılaştırma (OC-01–10) + **birikim senaryosu**: tasarruf önerisindeki aylık tutarı son 12 ayda
+  TL / USD / EUR / gram altın olarak biriktirseydin ne olurdu; her varlıkta geçmiş dalgalanma (en kötü ay, en büyük düşüş).
+  Yalnız geçmiş fiyat, gelecek tahmini yok; bütün rakamlar backend'de; her cevapta sabit "yatırım tavsiyesi değildir" metni.
+- Sınırlar: kişiye özel yatırım danışmanlığı Türkiye'de izne bağlı (banka içinde teyit edilmeli); ürün/hisse/fon adı ve "al/sat"
+  önerisi yok; yatırım emri yok (MCP salt okunur kalır); bugün yalnız USD/EUR/gram altın verisi var.
+- CHAT-01'in açık kapsam dışı listesi ("hisse") bu kolun sohbet adımında yeniden ele alınır: hisse/fon önerisi yine kapsam dışı,
+  ama "biriktirseydim ne olurdu" soruları kapsama girer.
+- [ ] INV-01 — İlk seviyenin planı: OC-01–10'u K10-B'ye göre yeniden yaz (birikim senaryosu, dalgalanma ölçüleri, uyarı metni), INC-02
+  tasarruf tutarının girdi olması.
+- [ ] INV-02 — Gelecek özellikler havuzu (kullanıcı seçer): K10-C risk profili (kullanıcı uygulamada seçer; temkinli/dengeli/atak;
+  profile göre genel, eğitim amaçlı bilgi; yeni tablo + migration; LLM profil yazamaz), birikim hedefiyle bağ (12d BUD), enflasyona
+  göre reel değer, mevduat faizi karşılaştırması, ek varlıklar (endeks/fon verisi kaynağı seçimi), iPhone yatırım ekranı.
 
 ## 13. Opportunity-cost hesabı
 
@@ -578,9 +598,10 @@ Sıradaki (kullanıcı seçer; müşteri her zaman token'dan gelir):
   sırası adım planında.
 - **9 Kasım 2026 — öneri/karşılaştırma kolu (kullanıcı kararı):** önce dış veri, sonra maaşa göre harcama oranı ve
   "gerekli/gereksiz harcama" kuralları (her şeye öneri verilmez). IMP-a ve IMP-b tamam: USD/EUR (TCMB döviz alış) ve gram altın
-  (gold-api ons × USDTRY) iki yıl DB'de, 1.485 satır, günde tek değer. 12e başladı: INC-01 (gelir payı + API) tamam; sırada
-  INC-02 (temel/isteğe bağlı + seçici öneri), sonra INC-03 (MCP/sohbet), INC-04 (iPhone); opportunity-cost (OC-01–09) ve diğer
-  kaynaklar (enflasyon, faiz, endeks) sonra.
+  (gold-api ons × USDTRY) iki yıl DB'de, 1.485 satır, günde tek değer. 12e: INC-01 (gelir payı + API) ve
+  INC-02 (temel/isteğe bağlı + seçici öneri, `spending-advice`) tamam; sırada 12f yatırım kolunun ilk seviyesi (INV-01, OC-01–10; K10-B), sonra INC-03
+  (MCP/sohbet, ikisi birlikte), INC-04 (iPhone). Ürün yönü artık "harcama ve yatırım asistanı" (12f); diğer kaynaklar
+  (enflasyon, faiz, endeks) INV-02 havuzunda.
 - **Teknik borç:** DB-01 (ayrı test veritabanı), API-16 (OpenAPI parametre şemaları), ACC-LIMIT.
 
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği madde üzerinden ilerlenir.
