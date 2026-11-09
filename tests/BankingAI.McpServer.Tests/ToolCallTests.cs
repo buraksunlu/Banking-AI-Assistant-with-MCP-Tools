@@ -311,4 +311,83 @@ public sealed class ToolCallTests
         Assert.Empty(recurring.GetProperty("payments").EnumerateArray());
         Assert.Empty(upcoming.GetProperty("payments").EnumerateArray());
     }
+
+    // ---- INC-03: income, advice and the what-if scenarios, with the API's figures (docs/analytics.md INC-01, INC-02, INV-01).
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Income_share_of_last_month_has_the_apis_figures()
+    {
+        var result = await CallAsync(Selin, "get_income_share", """{"period":"LastMonth"}""");
+
+        var lira = result.GetProperty("currencies").EnumerateArray().Single();
+        // July-September salary 24.000 / 3 = 8.000; September spending 7.228,49 = %90,36.
+        Assert.Equal(("TRY", 8000m, 7228.49m, 90.36m),
+            (lira.GetProperty("currencyCode").GetString(), lira.GetProperty("incomeBase").GetDecimal(),
+             lira.GetProperty("totalSpent").GetDecimal(), lira.GetProperty("spentShare").GetDecimal()));
+        Assert.Equal("2026-09-01", result.GetProperty("period").GetProperty("startDate").GetString());
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Income_share_of_a_calendar_month_comes_as_custom_dates()
+    {
+        var result = await CallAsync(Murat, "get_income_share", """{"period":"Custom","from":"2026-09-01","to":"2026-09-30"}""");
+
+        Assert.Equal(62.81m, result.GetProperty("currencies")[0].GetProperty("spentShare").GetDecimal());
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Spending_advice_gives_selin_her_one_piece_of_advice_and_ada_none()
+    {
+        var selin = (await CallAsync(Selin, "get_spending_advice", """{"period":"LastMonth"}""")).GetProperty("currencies")[0];
+        var ada = (await CallAsync(Ada, "get_spending_advice", """{"period":"LastMonth"}""")).GetProperty("currencies")[0];
+
+        var advice = selin.GetProperty("advice").EnumerateArray().Single();
+        Assert.Equal(("ENTERTAINMENT", 236.18m, 2834.20m),
+            (advice.GetProperty("categoryCode").GetString(), advice.GetProperty("monthlySaving").GetDecimal(),
+             advice.GetProperty("annualSaving").GetDecimal()));
+        Assert.Empty(ada.GetProperty("advice").EnumerateArray());
+        Assert.Equal("NoRuleMatched", ada.GetProperty("reason").GetString());
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task What_if_one_off_buys_septembers_entertainment_on_the_first()
+    {
+        var result = await CallAsync(Selin, "what_if_one_off", """{"period":"LastMonth","categoryCode":"ENTERTAINMENT"}""");
+
+        Assert.Equal((2253.50m, "2026-09-01", "2026-10-10"),
+            (result.GetProperty("spentAmount").GetDecimal(), result.GetProperty("buyDate").GetString(), result.GetProperty("valueDate").GetString()));
+        Assert.Equal([2297.38m, 2222.62m, 2194.89m], result.GetProperty("assets").EnumerateArray().Select(a => a.GetProperty("value").GetDecimal()));
+        Assert.StartsWith("Geçmiş fiyatlarla yapılmış bir hesaptır;", result.GetProperty("disclaimer").GetString());
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("""{"fromAdvice":true}""", "Advice", "236.18", "3000.60")]
+    [InlineData("""{"amount":1000,"currencyCode":"TRY"}""", "User", "1000", "12704.72")]
+    public async Task What_if_monthly_takes_the_advice_or_the_users_amount(string arguments, string source, string amount, string gold)
+    {
+        var result = await CallAsync(Selin, "what_if_monthly", arguments);
+
+        Assert.Equal((source, decimal.Parse(amount, System.Globalization.CultureInfo.InvariantCulture)),
+            (result.GetProperty("amountSource").GetString(), result.GetProperty("amount").GetDecimal()));
+        var assets = result.GetProperty("assets");
+        Assert.Equal(decimal.Parse(gold, System.Globalization.CultureInfo.InvariantCulture), assets[2].GetProperty("value").GetDecimal());
+        Assert.Equal(-3.24m, assets[2].GetProperty("volatility").GetProperty("worstMoment").GetProperty("returnPercent").GetDecimal());
+        Assert.StartsWith("Geçmiş fiyatlarla yapılmış bir hesaptır;", result.GetProperty("disclaimer").GetString());
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task What_if_monthly_without_advice_has_no_rows()
+    {
+        var result = await CallAsync(Ada, "what_if_monthly", """{"fromAdvice":true}""");
+
+        Assert.Equal("NoAdvice", result.GetProperty("adviceStatus").GetString());
+        Assert.Equal(JsonValueKind.Null, result.GetProperty("amount").ValueKind);
+        Assert.Empty(result.GetProperty("assets").EnumerateArray());
+    }
 }

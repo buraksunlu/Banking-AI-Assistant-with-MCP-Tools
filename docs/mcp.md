@@ -67,6 +67,10 @@ iki uç da zorunlu, başlangıç ≤ bitiş, bitiş gelecekte değil, en çok 24
 | `get_upcoming_payments` (MCP-16) | `UpcomingPaymentService` (`PaymentTools`) | `UpcomingPayments` (`/api/analytics/upcoming-payments`) |
 | `check_budget` (MCP-17) | `BudgetCheckService` (`PlanningTools`) | `BudgetCheck` (`/api/analytics/budget-check`) |
 | `simulate_savings` (MCP-18) | `SavingsSimulationService` (`PlanningTools`) | `SavingsSimulation` (`/api/analytics/savings-simulation`) |
+| `get_income_share` (INC-03) | `IncomeShareService` (`IncomeTools`) | `IncomeShare` (`/api/analytics/income-share`) |
+| `get_spending_advice` (INC-03) | `SpendingAdviceService` (`IncomeTools`) | `SpendingAdvice` (`/api/analytics/spending-advice`) |
+| `what_if_one_off` (INC-03) | `WhatIfService.OneOffAsync` (`InvestmentTools`) | `OneOffWhatIf` (`/api/analytics/what-if/one-off`) |
+| `what_if_monthly` (INC-03) | `WhatIfService.MonthlyAsync` (`InvestmentTools`) | `MonthlyWhatIf` (`/api/analytics/what-if/monthly`) |
 
 Yeni araç = `SpendingTools` benzeri bir sınıfa `[McpServerTool]` metodu + `ToolDiscoveryTests`'teki allowlist'e satır
 (eklenmezse keşif testi kırmızı olur; API'deki endpoint taramasının karşılığı).
@@ -231,3 +235,25 @@ vaka; eski 48 bozulmaz, toplam ≥ %90), K9-A (cevap doğruluğuna 5 persona vak
 
 Sınırlar: bütçe yalnız bu ay, kaydedilmez (BUD-01..04); "geçen ay bütçemi aştım mı?" desteklenmez; yazıyla tutar ("bin beş yüz")
 geri soruya düşer; kategori ile işyeri birlikte verilemez; araç sayısı 11 (CHAT-01 niyete göre daraltma).
+
+## INC-03 PR1 — gelir, öneri ve "ne olurdu" araçları (9 Kasım 2026)
+
+Bugünün dört analizi salt okunur araç oldu (11 → 15 araç); sohbet onları PR2'ye kadar **kullanmaz**: AI servisinde yeni `wealth`
+grubu tabloda var ama ona giden kural yok (tabloda olmayan araç her grupta görüneceği için satır şart). Kararlar (INC-03 planı):
+K1-A (dört ayrı araç), K2-C (gelir ve öneri yalnız tam ay: `period` `LastMonth` | `Custom`, `ToolCompleteMonth`; "bu ay" seçilemez),
+K15-B (birikimde `currencyCode` yalnız `TRY`, `ToolLiraCurrency`).
+
+- **`IncomeTools`:** `get_income_share`, `get_spending_advice` — tam ay ya da `Custom` + ayın ilk–son günü (kuralı servis uygular:
+  `2026-09-02`–`2026-09-30` reddedilir). Yeni argüman yok; müşteri yalnız token'dan.
+- **`InvestmentTools`:** `what_if_one_off` (beş dönem aracının `period`/`from`/`to`'su + isteğe bağlı `categoryCode`; tarih aralığı
+  testleri artık altı aracı tarar), `what_if_monthly` (isteğe bağlı `amount` `["number","null"]`, `currencyCode`, `fromAdvice`
+  `boolean`; kaynak kuralları servisin: tutar ya da öneri, ikisi birden/hiçbiri, TRY dışı, 1.000.000 üstü `invalid_arguments`). Her
+  sonuçta backend'in sabit `disclaimer`'ı.
+- **Bulgu (filtre):** `boolean` tipi denetlenmiyordu; SDK `"fromAdvice":"true"` metnini sessizce `true` yapardı. Filtre artık yalnız
+  JSON `true`/`false` kabul eder.
+- **Testler:** McpServer 156 → 195 (+39: keşif allowlist'i ve şemalar, 20 argüman reddi, 3 sınır kabulü, 6 rakam testi — Selin pay
+  %90,36, Murat Eylül %62,81, Selin öneri 236,18 / Ada `NoRuleMatched`, Eylül eğlencesi 2.253,50 → 2.297,38 / 2.222,62 / 2.194,89,
+  birikim öneriyle altın 3.000,60 ve 1.000 TL ile 12.704,72, öneri yoksa `NoAdvice` — ve 5 silinmiş müşteri satırı). Python
+  781 → 782 modelsiz. 8 kasıtlı bozmanın hepsi yakalandı. Araç seçimi ve cevap ölçümü PR2'de (açıklamalar orada ölçülüp gerekirse
+  değişir; değişirse keşif testi de güncellenir).
+

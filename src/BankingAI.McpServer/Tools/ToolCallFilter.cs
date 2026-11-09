@@ -86,6 +86,13 @@ public static class ToolCallFilter
                     return $"{name} sayı olmalı.";
                 continue;
             }
+            if (types.Contains("boolean"))
+            {
+                // INC-03: the SDK's binding would read "true" as true; only a JSON true/false is a flag the model meant.
+                if (value.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                    return $"{name} true ya da false olmalı.";
+                continue;
+            }
             if (types.Contains("integer"))
             {
                 // The SDK's binding would turn "3" and 3.5 into 3: only a whole JSON number is a count the model meant.

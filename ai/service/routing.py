@@ -18,7 +18,7 @@ from typing import Protocol
 from answer_check import fold_turkish
 from ollama_client import OllamaError
 
-GENERAL, PLANNING = "general", "planning"
+GENERAL, PLANNING, WEALTH = "general", "planning", "wealth"
 
 # A tool the table does not know is shown in every group (narrow): a tool added on the server must not vanish.
 GROUPS = {
@@ -26,6 +26,9 @@ GROUPS = {
               "get_highest_transactions", "compare_spending", "get_monthly_trend", "get_recurring_payments",
               "get_upcoming_payments"),
     PLANNING: ("check_budget", "simulate_savings"),
+    # INC-03 K3-A: income, advice and the what-if scenarios. PR1 publishes them on the server with no rule leading here yet,
+    # so the chat keeps answering exactly as before; PR2 adds the rules, the facts and the measurement.
+    WEALTH: ("get_income_share", "get_spending_advice", "what_if_one_off", "what_if_monthly"),
 }
 
 # The model's answer (intent-v1 names three kinds of question); spending and payments share the general group.

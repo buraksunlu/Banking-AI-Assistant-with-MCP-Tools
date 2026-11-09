@@ -53,6 +53,21 @@ public sealed class ToolDiscoveryTests
             + "reductionPercent: azaltma oranı, 1-100 (yarıya = 50). months: geriye kaç tam ay, 1-12; verilmezse 6. categoryCode ya da "
             + "merchant: azaltılacak harcama bir kategori ya da işyeriyse.",
             ["categoryCode", "merchant", "months", "reductionPercent"], ["reductionPercent"]),
+        // INC-03: income, advice and the two what-if scenarios; texts measured in the tool-selection eval of INC-03 PR2.
+        ["get_income_share"] = (
+            "Tamamlanmış bir ayın harcamasının maaşa (gelire) oranını ve kategorilerin gelir payını döndürür; \"maaşımın ne kadarını "
+            + "harcadım\" soruları için. period: LastMonth=geçen ay.", ["from", "period", "to"], ["period"]),
+        ["get_spending_advice"] = (
+            "Tamamlanmış bir ayın harcamasını temel ve isteğe bağlı diye ayırır, yalnız kurallar tutarsa en fazla 2 tasarruf önerisi "
+            + "verir; \"nerede tasarruf edebilirim\" soruları için. period: LastMonth=geçen ay.", ["from", "period", "to"], ["period"]),
+        ["what_if_one_off"] = (
+            "Bir dönemin TL harcaması dönemin ilk günü dolar, euro ve gram altın olarak alınsaydı bugün geçmiş fiyatla ne ederdi; "
+            + "\"harcamasaydım / dolar alsaydım\" soruları için, yatırım tavsiyesi değildir. categoryCode: yalnız bir kategori içinse. "
+            + PeriodHelp, ["categoryCode", "from", "period", "to"], ["period"]),
+        ["what_if_monthly"] = (
+            "Aynı TL tutarı son 12 ayın her ayı dolar, euro ve gram altın olarak biriktirseydi bugün ne ederdi ve fiyat ne kadar "
+            + "dalgalandı; yatırım tavsiyesi değildir. amount: kullanıcının söylediği aylık tutar, currencyCode: TRY. fromAdvice: tutar "
+            + "yerine önerilen aylık tasarruf isteniyorsa true.", ["amount", "currencyCode", "fromAdvice"], []),
     };
 
     private static async Task<IList<ModelContextProtocol.Client.McpClientTool>> ToolsAsync()
@@ -111,9 +126,9 @@ public sealed class ToolDiscoveryTests
     [Trait("Category", "PostgreSQL")]
     public async Task The_period_lists_the_eleven_names_and_Custom_for_a_range_the_service_read()
     {
-        var tools = (await ToolsAsync()).Where(t => t.JsonSchema.GetProperty("properties").TryGetProperty("period", out _)).ToList();
+        var tools = (await ToolsAsync()).Where(t => ToolDateRangeTests.PeriodTools.Contains(t.Name)).ToList();
 
-        Assert.Equal(5, tools.Count);
+        Assert.Equal(6, tools.Count);
         Assert.All(tools, t =>
         {
             var period = t.JsonSchema.GetProperty("properties").GetProperty("period");
@@ -130,7 +145,8 @@ public sealed class ToolDiscoveryTests
     {
         var tools = (await ToolsAsync()).Where(t => t.JsonSchema.GetProperty("properties").TryGetProperty("from", out _)).ToList();
 
-        Assert.Equal(5, tools.Count);
+        // The six period tools and the two complete-month tools (INC-03).
+        Assert.Equal(8, tools.Count);
         Assert.All(tools, t => Assert.All(new[] { "from", "to" }, name =>
             Assert.Equal(["string", "null"],
                 t.JsonSchema.GetProperty("properties").GetProperty(name).GetProperty("type").EnumerateArray().Select(v => v.GetString()))));
@@ -179,6 +195,7 @@ public sealed class ToolDiscoveryTests
     [Trait("Category", "PostgreSQL")]
     [InlineData("check_budget")]
     [InlineData("simulate_savings")]
+    [InlineData("what_if_one_off")]
     public async Task The_categories_are_exactly_the_category_tables_codes(string tool)
     {
         var category = (await ToolsAsync()).Single(t => t.Name == tool).JsonSchema.GetProperty("properties").GetProperty("categoryCode");
@@ -205,5 +222,29 @@ public sealed class ToolDiscoveryTests
         var tools = await ToolsAsync();
 
         Assert.All(tools, t => Assert.Equal(JsonValueKind.Object, t.ReturnJsonSchema?.ValueKind));
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("get_income_share")]
+    [InlineData("get_spending_advice")]
+    public async Task Income_and_advice_take_only_a_complete_month(string tool)
+    {
+        // INC-03 K2-C: "this month" cannot be chosen; a calendar month comes as Custom with the dates the service read.
+        var period = (await ToolsAsync()).Single(t => t.Name == tool).JsonSchema.GetProperty("properties").GetProperty("period");
+
+        Assert.Equal(["LastMonth", "Custom"], period.GetProperty("enum").EnumerateArray().Select(v => v.GetString()));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task The_monthly_saving_is_an_optional_lira_amount_or_the_advice_flag()
+    {
+        var properties = (await ToolsAsync()).Single(t => t.Name == "what_if_monthly").JsonSchema.GetProperty("properties");
+
+        Assert.Equal(["number", "null"], properties.GetProperty("amount").GetProperty("type").EnumerateArray().Select(v => v.GetString()));
+        // K15-B: the only currency the assets are quoted in.
+        Assert.Equal(["TRY", null], properties.GetProperty("currencyCode").GetProperty("enum").EnumerateArray().Select(v => v.GetString()));
+        Assert.Equal("boolean", properties.GetProperty("fromAdvice").GetProperty("type").GetString());
     }
 }

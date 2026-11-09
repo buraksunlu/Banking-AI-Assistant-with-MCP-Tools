@@ -21,6 +21,8 @@ builder.Services.AddMcpServer(options => options.ServerInfo = new() { Name = "Ba
     .WithTools<SpendingTools>(toolJson)
     .WithTools<PaymentTools>(toolJson)
     .WithTools<PlanningTools>(toolJson)
+    .WithTools<IncomeTools>(toolJson)
+    .WithTools<InvestmentTools>(toolJson)
     // Model arguments are checked against the published schema before any tool runs (untrusted input), and every tool
     // error leaves as the bare {code, message} JSON (K10-A).
     .WithRequestFilters(filters => filters.AddCallToolFilter(ToolCallFilter.Create))

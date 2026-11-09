@@ -55,6 +55,11 @@ public sealed class ToolSecurityTests
     [InlineData("get_upcoming_payments", """{}""")]
     [InlineData("check_budget", """{"amount":1000,"currencyCode":"TRY"}""")]
     [InlineData("simulate_savings", """{"reductionPercent":50}""")]
+    [InlineData("get_income_share", """{"period":"LastMonth"}""")]
+    [InlineData("get_spending_advice", """{"period":"LastMonth"}""")]
+    [InlineData("what_if_one_off", """{"period":"LastMonth"}""")]
+    [InlineData("what_if_monthly", """{"fromAdvice":true}""")]
+    [InlineData("what_if_monthly", """{"amount":1000,"currencyCode":"TRY"}""")]
     public async Task A_deleted_customer_is_told_to_sign_in_again(string tool, string arguments)
     {
         await using var server = McpTestServer.Create();
