@@ -22,20 +22,23 @@ from typing import Protocol
 
 from langchain_ollama import ChatOllama
 
-from clarification import (Pending, PendingStore, ask_amount, ask_count, ask_currency, ask_merchant, ask_percent, ask_period,
-                           check_question, resolve, template)
+from answer_check import has_advice
+from clarification import (Pending, PendingStore, ask_amount, ask_complete_month, ask_count, ask_currency, ask_merchant,
+                           ask_percent, ask_period, check_question, resolve, template)
 from contracts import Fact
 from conversation import ConversationStore, LastCall, is_follow_up
 from explainer import stream_message
 from facts import outcome_for
 from ollama_client import OllamaError, OllamaSettings
-from prompts import (CLARIFY_TEXT, DATE_SCHEMA, INTENT_SCHEMA, OUT_OF_SCOPE_TEXT, build_clarify_messages, build_date_messages,
+from prompts import (ADVICE_DECLINED_TEXT, CLARIFY_TEXT, DATE_SCHEMA, LIRA_ONLY_TEXT, INTENT_SCHEMA, OUT_OF_SCOPE_TEXT, build_clarify_messages, build_date_messages,
                      build_intent_messages, build_tool_messages)
 from dates import CustomerDay, DateReading, check_range, period_line, read_dates, with_span_replaced
 from grounding import check_arguments, mentions_period
 from routing import DATE_FIELDS, Router, hide_dates, is_spending_question, narrow
 from suggestions import OUT_OF_SCOPE_SUGGESTIONS, OfferedStore, follow_ups, match
 from tools import ToolArgumentsRejected, ToolGateway
+from wealth import (LIRA, MONTH_TOOLS, MONTHLY_TOOL, WEALTH_TOOLS, advised_saving_call, has_complete_month, needs_month_question,
+                    plan_monthly)
 
 logger = logging.getLogger("bankingai.ai")
 
@@ -228,13 +231,13 @@ class ChatService:
                 later = tuple(name for name in waiting.later if name not in arguments)
                 if later:
                     return self._ask(_ask_figure(waiting.tool, arguments, later[0], later[1:], question), [], token, deadline)
-                return self._run(ToolCall(waiting.tool, arguments), question, token, deadline)
+                return self._run(ToolCall(waiting.tool, arguments), question, token, deadline, day)
 
         # The text of an offered follow-up stands for the call it was built from (CHAT-06 K3-C): code chose the tool, so the
         # model is not asked again; the MCP server still checks the arguments.
         chosen = match(offered, message)
         if chosen is not None:
-            return self._run(ToolCall(chosen.tool, dict(chosen.arguments)), message, token, deadline)
+            return self._run(ToolCall(chosen.tool, dict(chosen.arguments)), message, token, deadline, day)
 
         # Only a short or "peki…" message is read with the last call (K4-B); a full question stands on its own, as before.
         # The follow-up itself is what is explained and kept: a growing chain of questions led both the model (back to an
@@ -243,7 +246,11 @@ class ChatService:
         route = self.router.route(message, context.tool if context else None, deadline)
         if route.out_of_scope:
             # A request to move money or to advise is answered before any tool or model is involved (CHAT-01 K5-B).
-            return _out_of_scope()
+            return _advice_declined() if route.advice else _out_of_scope()
+
+        # "Had I saved the amount you advised": code chooses the call from the words, the model never picked it (INC-03 PR2, W12/W13).
+        if (advised := advised_saving_call(message, context)) is not None:
+            return self._run(ToolCall(*advised), message, token, deadline, day)
 
         # The dates the user wrote are read by code (CHAT-08): the model is shown a period name in their place and never
         # chooses a date (ANA-20); the range is put into the call below.
@@ -276,6 +283,13 @@ class ChatService:
             # Running it without the dates would answer for another period (K11-B).
             return _date_unsupported()
 
+        # INC-03: the monthly saving is built from the user's own words, and a complete-month analysis asks for the month it cannot
+        # guess; both before the general check, which would take the model's LastMonth or amount for the user's.
+        if call.tool == MONTHLY_TOOL:
+            return self._monthly(call, shown, context, token, deadline, day)
+        if call.tool in MONTH_TOOLS and reading.kind != "found" and needs_month_question(shown, call.arguments, context):
+            return self._ask(ask_complete_month(call.tool, {}, message, day.today if day else None), [], token, deadline)
+
         # A period or count the user did not say is the model's guess: asked back, the tool does not run (K1-C, K2-A).
         grounding = check_arguments(call.arguments, schemas[call.tool], shown, context.arguments if context else None)
         if grounding.missing is not None:
@@ -286,7 +300,17 @@ class ChatService:
         elif carried and takes_dates and arguments.get("period") == MASKED_PERIOD and not mentions_period(message):
             # The follow-up kept the period it was shown ("bu ay"), so it means the range of the last call (CHAT-08 K7-A).
             arguments = {**arguments, "period": "Custom", **carried}
-        return self._run(ToolCall(call.tool, arguments), message, token, deadline)
+        return self._run(ToolCall(call.tool, arguments), message, token, deadline, day)
+
+    def _monthly(self, call: ToolCall, message: str, context: LastCall | None, token: str, deadline: float,
+                 day: CustomerDay | None) -> ChatReply:
+        """The monthly saving: what the user's words allow (K8-A, K9-A, K17-B), asked back or refused otherwise."""
+        plan = plan_monthly(call.arguments, message, after_advice=context is not None and context.tool == "get_spending_advice")
+        if plan.lira_only:
+            return _lira_only()
+        if plan.ask is not None:
+            return self._ask(_ask_figure(call.tool, plan.known, plan.ask, plan.later, message), [], token, deadline)
+        return self._run(ToolCall(call.tool, plan.run), message, token, deadline, day)
 
     def _read(self, message: str, day: CustomerDay, deadline: float) -> DateReading:
         """The dates in ``message``: by code, and for an expression code cannot read the model's range, checked by code again."""
@@ -300,7 +324,13 @@ class ChatService:
             return reading
         return reading if interpreted is None else replace(interpreted, span=reading.span)
 
-    def _run(self, call: ToolCall, question: str, token: str, deadline: float) -> ChatReply:
+    def _run(self, call: ToolCall, question: str, token: str, deadline: float, day: CustomerDay | None = None) -> ChatReply:
+        if call.tool == MONTHLY_TOOL and call.arguments.get("currencyCode") not in (None, LIRA):
+            # The currency can also arrive as the reply to "which currency?": every asset is quoted in lira (INV-01 K15-B).
+            return _lira_only()
+        if call.tool in MONTH_TOOLS and day is not None and not has_complete_month(call.arguments, day.today):
+            # A reply such as "bu ay", or a range that is not a whole month, would be refused by the server (INC-01 K2-A).
+            return self._ask(ask_complete_month(call.tool, {}, question, day.today), [], token, deadline)
         try:
             # The MCP server checks the arguments against the schema it published (MCP-a K3-A); there is no second copy here.
             result = self.gateway.call(call.tool, call.arguments, token, deadline)
@@ -318,9 +348,16 @@ class ChatService:
             return ChatReply(kind, text, used, outcome.facts)
 
         answer = self.explainer.explain(question, outcome.facts, deadline=deadline)
+        if call.tool in WEALTH_TOOLS and has_advice(answer):
+            # K7-A: the model must not say what to buy or what a price will do; the figures alone stand.
+            logger.info("Explanation of %s sounded like advice; the facts are shown instead", call.tool)
+            answer = "\n".join(f"{fact.label}: {fact.text}" for fact in outcome.facts)
         # After the answer check, by code: the user sees which days were meant, whatever the model wrote (CHAT-08 K16-A).
         if (line := period_line(call.arguments)) is not None:
             answer = f"{line}\n\n{answer}"
+        # K6-A, K18-C: the backend's own sentences (the investment warning, the advice) go under the answer, written by code.
+        if outcome.appendix:
+            answer = "\n\n".join([answer, *outcome.appendix])
         # Kept only after an explained answer: the call, never its figures (CHAT-02 K2-A).
         self.history.remember(token, LastCall(call.tool, call.arguments, question))
         # Only under an explained answer (K6-B): under a question asked back they would lead away from it.
@@ -416,6 +453,16 @@ def _mask_range(context: LastCall | None) -> tuple[LastCall | None, dict | None]
     carried = {k: context.arguments[k] for k in DATE_FIELDS if k in context.arguments}
     shown = {k: v for k, v in context.arguments.items() if k not in DATE_FIELDS}
     return LastCall(context.tool, {**shown, "period": MASKED_PERIOD}, context.question), carried
+
+
+def _advice_declined() -> ChatReply:
+    # K5-A: a request for advice or a forecast; the same three questions every customer gets an answer to.
+    return ChatReply("outOfScope", ADVICE_DECLINED_TEXT, [], [], list(OUT_OF_SCOPE_SUGGESTIONS))
+
+
+def _lira_only() -> ChatReply:
+    # K8-A: a monthly saving in another currency; no tool ran, so no figure is in it.
+    return ChatReply("answer", LIRA_ONLY_TEXT, [], [], [])
 
 
 def _out_of_scope() -> ChatReply:

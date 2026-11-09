@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from contracts import Fact
-from formatting import day, money, month, percent, period
+from formatting import day, money, month, percent, period, price
 
 NO_SPENDING = "Bu dönemde harcama bulunamadı."
 NO_MERCHANT_SPENDING = "Bu dönemde bu işyerinde harcama bulunamadı."
@@ -41,6 +41,9 @@ class ToolOutcome:
     facts: list[Fact]
     reply: tuple[str, str] | None = None
     candidates: tuple[str, ...] = ()
+    # INC-03 K6-A, K18-C: lines the backend wrote (the advice sentences, the investment warning) that code puts under the explained
+    # answer; the model never retypes them.
+    appendix: tuple[str, ...] = ()
 
 
 def outcome_for(tool: str, arguments: dict, result: dict) -> ToolOutcome:
@@ -57,6 +60,10 @@ def outcome_for(tool: str, arguments: dict, result: dict) -> ToolOutcome:
         "get_upcoming_payments": _upcoming,
         "check_budget": _budget,
         "simulate_savings": _savings,
+        "get_income_share": _income_share,
+        "get_spending_advice": _advice,
+        "what_if_one_off": _one_off,
+        "what_if_monthly": _monthly,
     }
     return builders[tool](arguments, result)
 
@@ -252,6 +259,130 @@ def _savings(arguments: dict, result: dict) -> ToolOutcome:
         facts.append(_fact(f"Tahmini aylık tasarruf{suffix}", money(row["monthlySaving"], currency)))
         facts.append(_fact(f"Tahmini yıllık tasarruf{suffix}", money(row["annualSaving"], currency)))
     return ToolOutcome([*_closing(facts, rows, NO_SAVINGS_SPENDING), _fact("Not", SAVINGS_RULE)])
+
+
+NO_INCOME = "Hesaplanamaz: son 3 ayda maaş kaydı yok."
+NO_INCOME_ADVICE = "Son 3 ayda maaş kaydı olmadığı için gelire göre öneri verilemez."
+NO_LIRA_SPENDING = "Bu dönemde TL harcamanız bulunmadığı için hesaplanamadı."
+NO_PRICE = "fiyat bulunamadı ya da çok eski; hesaplanamadı"
+NEVER_FELL = "Fiyat dönem boyunca önceki bir noktanın altına düşmedi."
+NO_ADVICE_AMOUNT = ("Geçen ay için bir tasarruf önerisi çıkmadığı için önerilen aylık tutar yok. Kendi tutarınızı yazabilirsiniz, "
+                    "örneğin “Ayda 1.000 TL biriktirseydim ne olurdu?”")
+# The groups of INC-02 as people say them; "Unknown" is OTHER plus the unclassified purchases.
+GROUP_LABELS = {"Essential": "Temel harcama", "Discretionary": "İsteğe bağlı harcama", "Unknown": "Diğer ve sınıflandırılmamış harcama"}
+UNIT_NAMES = {"GRAM": "gram"}
+# The backend names the pairs "ABD Doları / Türk Lirası"; the model read the three values as one portfolio and added them up
+# (PR2 measurement, A21). Plain names in the user's words, and a note that the three are alternatives.
+ASSET_NAMES = {"USD": "Dolar", "EUR": "Euro", "GRAM": "Gram altın"}
+ALTERNATIVES = "Bu üç seçenek birbirinin alternatifidir: aynı tutar yalnız birine yatırılmış sayılır; değerler toplanmaz."
+
+
+def _income_share(arguments: dict, result: dict) -> ToolOutcome:
+    facts = [_period(result)]
+    rows = result["currencies"]
+    window = period(date.fromisoformat(result["incomeFrom"]), date.fromisoformat(result["incomeTo"]))
+    for row in rows:
+        suffix, currency = _suffix(row, rows), row["currencyCode"]
+        if row["incomeBase"] is None:
+            facts.append(_fact(f"Toplam harcama{suffix}", money(row["totalSpent"], currency)))
+            facts.append(_fact(f"Gelire oranı{suffix}", NO_INCOME))
+        else:
+            facts.append(_fact(f"Gelir tabanı{suffix}", f"{money(row['incomeBase'], currency)} (son 3 tam ayın ortalama maaşı: {window})"))
+            facts.append(_fact(f"Toplam harcama{suffix}", money(row["totalSpent"], currency)))
+            facts.append(_fact(f"Gelire oranı{suffix}", percent(row["spentShare"])))
+        for category in row["categories"][:LIST_LIMIT]:
+            text = money(category["amount"], currency)
+            if category["incomeShare"] is not None:
+                text += f" (gelire oranı {percent(category['incomeShare'])})"
+            facts.append(_fact(f"{category['displayName']}{suffix}", text))
+        facts.extend(_rest(row["categories"], "kategori", suffix))
+    return ToolOutcome(_closing(facts, rows, NO_SPENDING))
+
+
+def _advice(arguments: dict, result: dict) -> ToolOutcome:
+    facts = [_period(result)]
+    rows = result["currencies"]
+    sentences: list[str] = []
+    for row in rows:
+        suffix, currency = _suffix(row, rows), row["currencyCode"]
+        if row["reason"] == "NoIncome":
+            facts.append(_fact(f"Toplam harcama{suffix}", money(row["totalSpent"], currency)))
+            facts.append(_fact(f"Sonuç{suffix}", NO_INCOME_ADVICE))
+            continue
+        facts.append(_fact(f"Gelir tabanı{suffix}", money(row["incomeBase"], currency)))
+        facts.append(_fact(f"Toplam harcama{suffix}", money(row["totalSpent"], currency)))
+        for group in row["groups"]:
+            facts.append(_fact(f"{GROUP_LABELS[group['group']]}{suffix}",
+                               f"{money(group['amount'], currency)} (gelire oranı {percent(group['incomeShare'])})"))
+        if row["advice"]:
+            facts.append(_fact(f"Öneriler{suffix}", f"{len(row['advice'])} öneri aşağıda ayrıca yazılıyor."))
+            # K18-C: the backend's sentences, as written; the model explains the groups around them.
+            sentences.extend(item["message"] for item in row["advice"])
+        else:
+            limit = result["thresholds"]["discretionaryLimitPercent"]
+            facts.append(_fact(f"Öneri{suffix}", f"Yok: isteğe bağlı harcama gelirin %{limit} sınırının altında ve hiçbir kategori "
+                                                 "olağan ayından belirgin ölçüde sapmadı."))
+    return ToolOutcome(_closing(facts, rows, NO_SPENDING), appendix=tuple(sentences))
+
+
+def _one_off(arguments: dict, result: dict) -> ToolOutcome:
+    if not result["assets"]:
+        return ToolOutcome([], ("answer", NO_LIRA_SPENDING))
+    facts = [_period(result)]
+    if result["categoryDisplayName"]:
+        facts.append(_fact("Kategori", result["categoryDisplayName"]))
+    facts += [_fact("Harcanan", money(result["spentAmount"], result["currencyCode"])),
+              _fact("Alış günü", _day(result["buyDate"])), _fact("Değerleme günü", _day(result["valueDate"]))]
+    facts.extend(_asset_fact(a, priced=True) for a in result["assets"])
+    return ToolOutcome([*facts, _fact("Not", ALTERNATIVES)], appendix=(result["disclaimer"],))
+
+
+def _monthly(arguments: dict, result: dict) -> ToolOutcome:
+    if result["adviceStatus"] == "NoAdvice":
+        return ToolOutcome([], ("answer", NO_ADVICE_AMOUNT))
+    currency = result["currencyCode"]
+    if result["amountSource"] == "Advice":
+        start = date.fromisoformat(result["advicePeriod"]["startDate"])
+        whose = f"{month(start.year, start.month)} tasarruf önerisi"
+    else:
+        whose = "sizin söylediğiniz tutar"
+    facts = [_fact("Aylık tutar", f"{money(result['amount'], currency)} ({whose})"),
+             _fact("Alımlar", f"{result['months']} ay, her ayın 1'i: {_day(result['firstBuyDate'])} - {_day(result['lastBuyDate'])}"),
+             _fact("Değerleme günü", _day(result["valueDate"])), _fact("Toplam yatırılan", money(result["invested"], currency))]
+    for a in result["assets"]:
+        facts.append(_asset_fact(a, priced=False))
+        if a["value"] is not None and a.get("volatility"):
+            facts.extend(_volatility(a, currency))
+    return ToolOutcome([*facts, _fact("Not", ALTERNATIVES)], appendix=(result["disclaimer"],))
+
+
+def _asset_name(asset: dict) -> str:
+    return ASSET_NAMES.get(asset["baseUnit"], asset["name"])
+
+
+def _asset_fact(asset: dict, priced: bool) -> Fact:
+    name = _asset_name(asset)
+    label = f"{name} alsaydınız" if priced else f"Her ay {name[0].lower() + name[1:]} alsaydınız"
+    if asset["value"] is None:
+        return _fact(label, NO_PRICE)
+    value = f"değeri {money(asset['value'], 'TRY')}; {_change(asset['difference'], 'TRY')} ({percent(abs(asset['differencePercent']))})"
+    if priced:
+        unit = UNIT_NAMES.get(asset["baseUnit"], asset["baseUnit"])
+        value = f"alışta {price(asset['buyPrice'], 'TRY')}, bugün {price(asset['valuePrice'], 'TRY')} ({unit} başına); {value}"
+    return _fact(label, value)
+
+
+def _volatility(asset: dict, currency: str) -> list[Fact]:
+    # K14-B: the price's largest fall and the saving's own worst moment; the first alone frightens, the second alone hides the risk.
+    fall, worst = asset["volatility"]["maxDrawdown"], asset["volatility"]["worstMoment"]
+    if fall["percent"] != 0 and fall["peakDate"] and fall["troughDate"]:
+        fell = f"{percent(abs(fall['percent']))} ({_day(fall['peakDate'])} - {_day(fall['troughDate'])})"
+    else:
+        fell = NEVER_FELL
+    moment = (f"{_day(worst['date'])}; yatırılan {money(worst['invested'], currency)}, değer {money(worst['value'], currency)} "
+              f"({percent(worst['returnPercent'])})")
+    name = _asset_name(asset)
+    return [_fact(f"{name}: en büyük fiyat düşüşü", fell), _fact(f"{name}: birikimin en kötü anı", moment)]
 
 
 def _unmatched(arguments: dict, match: dict | None) -> ToolOutcome | None:

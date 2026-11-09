@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from answer_check import AnswerCheck, check_answer, fold_turkish, parse_turkish_numbers
+from answer_check import AnswerCheck, check_answer, fold_turkish, has_advice, parse_turkish_numbers
 from contracts import Fact
 
 QUESTION = "Bu ay ne kadar harcadım?"
@@ -110,3 +110,23 @@ def test_numbers_are_read_in_turkish_format():
 
 def test_turkish_letters_fold_to_the_same_text():
     assert fold_turkish("TALİMAT") == fold_turkish("TALIMAT") == fold_turkish("talımat") == "talimat"
+
+
+# --- INC-03 K7-A: advice and forecast wording ---------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("answer", [
+    "Altın almalısınız.", "Dolar yükselecek gibi duruyor.", "Euro düşer.", "Bunu tavsiye ederim.", "Çok kazandırır.",
+    "Bu iyi bir fırsat.", "Altın alabilirsiniz.", "Değerlenecek.", "Mantıklı bir seçim.", "Altın alın.",
+])
+def test_advice_and_forecast_wording_is_found(answer):
+    assert has_advice(answer) is True
+
+
+@pytest.mark.parametrize("answer", [
+    "Altın alsaydınız bugün 2.194,89 TL ederdi; 58,61 TL azalış olurdu.",
+    "Fiyat Mayıs ayında düştü, sonra yükseldi.",
+    "Bu hesap yatırım tavsiyesi değildir.", "Öneriler aşağıda ayrıca yazılıyor.", "Bu ay için öneri yok.",
+    "Eğlence harcamanız gelirin %28,17'si.",
+])
+def test_a_plain_description_of_the_past_is_not_advice(answer):
+    assert has_advice(answer) is False

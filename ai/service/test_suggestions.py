@@ -19,6 +19,9 @@ HIGHEST, LAST_3_MONTHS = "En büyük harcamalarım neler?", "Ya son 3 ayda?"
 UPCOMING_7 = "Önümüzdeki 7 günde hangi ödemelerim çıkacak?"
 THIS_MONTH, RECURRING = "Bu ay ne kadar harcadım?", "Aboneliklerim neler?"
 TOP_CATEGORY, LAST_MONTH_TOTAL = "Geçen ay en çok hangi kategoriye harcadım?", "Geçen ay toplam ne kadar harcadım?"
+SAVE_WHERE, SAVE_ADVISED = "Peki nerede tasarruf edebilirim?", "Peki önerdiğin tutarı biriktirseydim?"
+INCOME_LAST_MONTH = "Geçen ay maaşımın ne kadarını harcadım?"
+AUGUST = {"period": "Custom", "from": "2026-08-01", "to": "2026-08-31"}
 
 
 def s(text, tool, **arguments):
@@ -68,6 +71,15 @@ def s(text, tool, **arguments):
         ("simulate_savings", {"reductionPercent": 50, "merchant": "Starbucks"},
          [s("Son 6 ayda harcamam aylara göre nasıl değişti?", "get_monthly_trend", months=6),
           s(TOP_CATEGORY, "get_category_breakdown", period="LastMonth")]),
+        # INC-03 K19-B: income share → advice; advice → the advised saving and the income share; the what-ifs offer nothing.
+        ("get_income_share", {"period": "LastMonth"}, [s(SAVE_WHERE, "get_spending_advice", period="LastMonth")]),
+        ("get_income_share", AUGUST, [s(SAVE_WHERE, "get_spending_advice", **AUGUST)]),
+        ("get_spending_advice", {"period": "LastMonth"},
+         [s(SAVE_ADVISED, "what_if_monthly", fromAdvice=True), s(INCOME_LAST_MONTH, "get_income_share", period="LastMonth")]),
+        # The advised saving is always last month's: offered under another month's advice it would answer a different month.
+        ("get_spending_advice", AUGUST, []),
+        ("what_if_one_off", {"period": "LastMonth"}, []),
+        ("what_if_monthly", {"fromAdvice": True}, []),
     ],
 )
 def test_each_tool_has_its_follow_ups(tool, arguments, expected):
@@ -113,7 +125,7 @@ def test_a_typed_follow_up_is_routed_to_its_tools_group(previous, suggestion):
     assert route.groups == (group_of(suggestion.tool),), suggestion.text
 
 
-@pytest.mark.parametrize("text", [THIS_MONTH, TOP_CATEGORY, LAST_MONTH_TOTAL, RECURRING, UPCOMING_7,
+@pytest.mark.parametrize("text", [INCOME_LAST_MONTH, THIS_MONTH, TOP_CATEGORY, LAST_MONTH_TOTAL, RECURRING, UPCOMING_7,
                                   "Bu ay en çok hangi işyerine harcadım?", "Geçen aya göre harcamam arttı mı?",
                                   "Son 6 ayda harcamam aylara göre nasıl değişti?"])
 def test_every_full_question_offered_is_a_measured_case(text):

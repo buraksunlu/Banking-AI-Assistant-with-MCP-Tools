@@ -71,6 +71,26 @@
     {"id": "R05", "message": "Starbucks'a geçen ay ne kadar verdim?", "expected": {"tool": "get_merchant_spending", "arguments": {"merchant": "Starbucks", "period": "LastMonth"}}},
     {"id": "R06", "message": "Geçen aya göre daha mı çok harcadım?", "expected": {"tool": "compare_spending", "arguments": {"comparison": "PreviousFullMonth"}}},
     {"id": "R07", "message": "Hangi üyeliklerim için her ay para çekiliyor?", "expected": {"tool": "get_recurring_payments", "arguments": {}}},
-    {"id": "R08", "message": "Ayda sabit olarak neye para gidiyor?", "expected": {"tool": "get_recurring_payments", "arguments": {}}}
+    {"id": "R08", "message": "Ayda sabit olarak neye para gidiyor?", "expected": {"tool": "get_recurring_payments", "arguments": {}}},
+    {"id": "W01", "message": "Geçen ay maaşımın ne kadarını harcadım?", "expected": {"tool": "get_income_share", "arguments": {"period": "LastMonth"}}},
+    {"id": "W02", "message": "Geçen ay gelirimin yüzde kaçını harcadım?", "expected": {"tool": "get_income_share", "arguments": {"period": "LastMonth"}}},
+    {"id": "W03", "message": "Maaşımın ne kadarını harcıyorum?", "expected": "clarify"},
+    {"id": "W04", "message": "Geçen ay harcamam maaşıma göre nasıldı?", "expected": {"tool": "get_income_share", "arguments": {"period": "LastMonth"}}},
+    {"id": "W05", "message": "Geçen ay nerede tasarruf edebilirim?", "expected": {"tool": "get_spending_advice", "arguments": {"period": "LastMonth"}}},
+    {"id": "W06", "message": "Geçen ay için tasarruf önerin var mı?", "expected": {"tool": "get_spending_advice", "arguments": {"period": "LastMonth"}}},
+    {"id": "W07", "message": "Geçen ay eğlence harcamamı dolar alsaydım ne olurdu?", "expected": {"tool": "what_if_one_off", "arguments": {"period": "LastMonth", "categoryCode": "ENTERTAINMENT"}}},
+    {"id": "W08", "message": "Geçen ay harcadığım parayla altın alsaydım bugün ne olurdu?", "expected": {"tool": "what_if_one_off", "arguments": {"period": "LastMonth"}}},
+    {"id": "W09", "message": "Geçen hafta harcamasaydım da euro alsaydım?", "expected": {"tool": "what_if_one_off", "arguments": {"period": "LastWeek"}}},
+    {"id": "W10", "message": "Ayda 1.000 TL altın olarak biriktirseydim ne olurdu?", "expected": [{"tool": "what_if_monthly", "arguments": {"amount": 1000, "currencyCode": "TRY"}}, {"tool": "what_if_monthly", "arguments": {"amount": 1000, "currencyCode": "TRY", "fromAdvice": false}}]},
+    {"id": "W11", "message": "Ayda 500 TL dolar olarak biriktirseydim bugün ne kadar olurdu?", "expected": [{"tool": "what_if_monthly", "arguments": {"amount": 500, "currencyCode": "TRY"}}, {"tool": "what_if_monthly", "arguments": {"amount": 500, "currencyCode": "TRY", "fromAdvice": false}}]},
+    {"id": "W12", "message": "Önerdiğin tutarı her ay biriktirseydim ne olurdu?", "expected": [{"tool": "what_if_monthly", "arguments": {"fromAdvice": true}}]},
+    {"id": "W13", "context": {"question": "Geçen ay nerede tasarruf edebilirim?", "tool": "get_spending_advice", "arguments": {"period": "LastMonth"}}, "message": "Peki önerdiğin tutarı biriktirseydim?", "expected": [{"tool": "what_if_monthly", "arguments": {"fromAdvice": true}}]},
+    {"id": "W14", "context": {"question": "Geçen ay maaşımın ne kadarını harcadım?", "tool": "get_income_share", "arguments": {"period": "LastMonth"}}, "message": "Peki nerede tasarruf edebilirim?", "expected": {"tool": "get_spending_advice", "arguments": {"period": "LastMonth"}}},
+    {"id": "W15", "message": "Geçen ay gelirimin ne kadarı eğlenceye gitti?", "expected": {"tool": "get_income_share", "arguments": {"period": "LastMonth"}}},
+    {"id": "W16", "message": "Maaşıma göre geçen ay çok mu harcadım?", "expected": {"tool": "get_income_share", "arguments": {"period": "LastMonth"}}},
+    {"id": "W17", "message": "1.000 TL'yi aylık dolar olarak biriktirseydim ne olurdu?", "expected": [{"tool": "what_if_monthly", "arguments": {"amount": 1000, "currencyCode": "TRY"}}, {"tool": "what_if_monthly", "arguments": {"amount": 1000, "currencyCode": "TRY", "fromAdvice": false}}]},
+    {"id": "W18", "message": "Geçen ay giyim harcamamı altın alsaydım ne olurdu?", "expected": {"tool": "what_if_one_off", "arguments": {"period": "LastMonth", "categoryCode": "CLOTHING"}}},
+    {"id": "W19", "message": "Altın alayım mı?", "expected": null},
+    {"id": "W20", "message": "Dolar yükselir mi?", "expected": null}
   ]
 }

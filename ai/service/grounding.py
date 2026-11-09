@@ -45,6 +45,22 @@ _PERCENT_WORDS = (("yari(?!n)", 50), ("çeyre", 25), ("tamamen", 100))
 _UNITS = {"bir": 1, "iki": 2, "üç": 3, "dört": 4, "beş": 5, "alti": 6, "yedi": 7, "sekiz": 8, "dokuz": 9}
 _TENS = {"on": 10, "yirmi": 20, "otuz": 30, "kirk": 40, "elli": 50, "altmiş": 60, "yetmiş": 70, "seksen": 80, "doksan": 90, "yüz": 100}
 
+# The words people use for each category code (INC-03 PR2 measurement: the model filled in OTHER and FOOD for "harcadığım parayla altın
+# alsaydım"). Folded text; the codes are the server's closed set (ToolCategory), the words are only for checking that the user said it.
+_CATEGORY_WORDS = {
+    "FOOD": r"yeme|yemek|içme|restoran|lokanta|kafe|kahve",
+    "GROCERY": r"market|bakkal|manav|kasap",
+    "CLOTHING": r"giyim|kiyafet|elbise|ayakkabi",
+    "TRANSPORTATION": r"ulaşim|ulasim|otobüs|metro|taksi|toplu\s+taşima",
+    "ENTERTAINMENT": r"eğlence|eglence|sinema|konser|oyun",
+    "SUBSCRIPTION": r"abonel|abone|üyelik|netflix|spotify",
+    "TRAVEL": r"seyahat|tatil|otel|uçak",
+    "FUEL": r"yakit|benzin|akaryakit|mazot",
+    "BILLS": r"fatura|elektrik|doğalgaz|internet",
+    "HEALTH": r"sağlik|saglik|eczane|hastane|doktor",
+    "OTHER": r"diğer|diger|çeşitli",
+}
+
 # The tools' own periods (ToolPeriod), each with the words that name it; the order matters ("son 30 gün" before "gün").
 _PERIODS = [
     ("Last30Days", r"\bson\s+(?:30|otuz)\s+gün"),
@@ -121,6 +137,27 @@ def currency_in(text: str) -> str | None:
     return named[0] if len(named) == 1 else None
 
 
+def amount_currency_in(text: str) -> str | None:
+    """The currency written right next to an amount ("1.000 TL", "100 dolar", "$100"); None when no amount has one.
+
+    INC-03 K17-B: "1.000 TL'yi dolar olarak" names two currencies, but only TL is the amount's; the other is the asset. An amount
+    with no currency beside it is not guessed from the rest of the sentence.
+    """
+    folded = fold_turkish(text)
+    found = []
+    for code, pattern in _CURRENCIES.items():
+        for shape in (rf"\d[\d.,]*\s*(?:bin\s*)?(?:{pattern})", rf"(?:{pattern})\s*\d"):
+            if match := re.search(shape, folded):
+                found.append((match.start(), code))
+    return min(found)[1] if found else None
+
+
+def mentions_category(message: str, code) -> bool:
+    """True when the message names this category in the words people use for it ("eğlence", "yeme içme", "market")."""
+    pattern = _CATEGORY_WORDS.get(code) if isinstance(code, str) else None
+    return pattern is not None and re.search(rf"\b(?:{pattern})", fold_turkish(message)) is not None
+
+
 def mentions_currency(message: str, code) -> bool:
     """True when the message names this currency and no other."""
     return isinstance(code, str) and currency_in(message) == code
@@ -174,7 +211,13 @@ def check_arguments(arguments: dict, schema: dict, message: str, previous: dict 
 
 
 def _figure(name: str, rule: dict) -> bool:
-    return name in ("currencyCode", "reductionPercent") or rule.get("type") == "number"
+    return name in ("currencyCode", "reductionPercent") or _has_type(rule, "number")
+
+
+def _has_type(rule: dict, name: str) -> bool:
+    # An optional argument is published as ["number", "null"] (MCP-17/18): the type is a list, and used to slip past the checks.
+    declared = rule.get("type")
+    return declared == name or (isinstance(declared, list) and name in declared)
 
 
 def _grounded(name: str, value, rule: dict, message: str) -> bool:
@@ -182,11 +225,13 @@ def _grounded(name: str, value, rule: dict, message: str) -> bool:
         return mentions_period(message)
     if name == "currencyCode":
         return mentions_currency(message, value)
+    if name == "categoryCode":
+        return mentions_category(message, value)
     if name == "reductionPercent":
         return mentions_percent(message, value)
-    if rule.get("type") == "number":
+    if _has_type(rule, "number"):
         return mentions_amount(message, value)
-    if rule.get("type") == "integer":
+    if _has_type(rule, "integer"):
         return isinstance(value, int) and mentions_count(message, value)
     # Merchant names are matched by the backend against the customer's own merchants (MerchantMatcher), not here; a
     # category code is checked against the closed set by the MCP server.

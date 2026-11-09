@@ -4,7 +4,7 @@ Deterministic and independent of the machine's locale: the model never formats, 
 """
 
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 MONTH_NAMES = ("Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
            "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık")
@@ -18,6 +18,18 @@ _CENT = Decimal("0.01")
 def money(amount: Decimal, currency: str) -> str:
     """735.00 TRY → "735,00 TL", 120 USD → "120,00 USD"; refuses more than two decimals instead of rounding."""
     return f"{_number(amount)} {_CURRENCY_NAMES.get(currency, currency)}"
+
+
+def price(amount: Decimal, currency: str) -> str:
+    """A market price: the backend keeps up to eight decimals, so it is shown rounded to four (half up), at least two decimals.
+
+    Display only (INC-03 K13-D): the value, the difference and the percentage of a what-if are the backend's own figures; the price
+    is there so the reader can see what they were computed from. ``money`` stays strict for every amount that is added or compared.
+    """
+    rounded = Decimal(amount).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP)
+    whole, decimals = f"{rounded:,.4f}".split(".")
+    text = f"{whole}.{decimals.rstrip('0').ljust(2, '0')}"
+    return f"{text.replace(',', '_').replace('.', ',').replace('_', '.')} {_CURRENCY_NAMES.get(currency, currency)}"
 
 
 def percent(value: Decimal) -> str:

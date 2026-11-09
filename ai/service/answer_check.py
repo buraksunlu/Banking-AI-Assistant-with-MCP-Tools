@@ -23,6 +23,19 @@ FORBIDDEN_MENTIONS = ("<veri", "</veri", "backend")
 _TURKISH_NUMBER = re.compile(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?")
 
 
+# INC-03 K7-A: wording that tells the reader what to buy or what a price will do. The what-if answers describe the past; a model
+# answer with any of these is replaced by the facts. A closed list: it catches the usual phrasings, not every possible one.
+_ADVICE = re.compile(
+    r"\balmali\b|\balmalisiniz|\balin\b|\balabilirsiniz|tavsiye\s+ed|\byapmali|\böner(?:irim|iriz|ilir)\b"
+    r"|\byüksel(?:ecek|ir)\b|\bdüş(?:ecek|er)\b|\bartacak|\bkazandir(?:ir|abilir)|\bdeğerlen(?:ecek|ir)\b|\bgetirir\b"
+    r"|\bmantikli\b|\bfirsat")
+
+
+def has_advice(answer: str) -> bool:
+    """True when the answer reads as advice to buy or as a forecast ("almalısınız", "yükselecek", "tavsiye ederim")."""
+    return _ADVICE.search(fold_turkish(answer)) is not None
+
+
 class AnswerRejected(Exception):
     """The model's answer failed the check twice; the caller shows the computed result without an explanation."""
 

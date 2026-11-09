@@ -176,3 +176,50 @@ def test_hide_dates_leaves_the_listed_tools_untouched():
 
     assert "from" in ranged["function"]["parameters"]["properties"]
     assert ranged["function"]["parameters"]["properties"]["period"]["enum"] == ["Today", "Custom"]
+
+
+# --- INC-03 PR2: the wealth group by word rules (K3-A, K4-A, K5-A) -------------------------------------------------------
+
+@pytest.mark.parametrize("message", [
+    "Geçen ay maaşımın ne kadarını harcadım?",           # "harca" and "ne kadar" are there too: the wealth rule comes first
+    "Gelirimin yüzde kaçını harcıyorum?",
+    "Geçen ay nerede tasarruf edebilirim?",              # "tasarruf" is a planning word; this phrase is the advice question
+    "Nereden tasarruf edebilirim?",
+    "Tasarruf önerin var mı?",
+    "Geçen ay eğlence harcamamı dolar alsaydım ne olurdu?",
+    "Bu parayı harcamasaydım ne olurdu?",
+    "Ayda 1.000 TL biriktirseydim ne olurdu?",           # "biriktir" is a planning word; -seydim makes it a what-if
+    "Geçen yıl yatırım yapsaydım ne olurdu?",            # K5-A: in scope (it was out of scope before)
+    "Ayda 500 TL altın olarak biriktirsem?",
+    "Aylık 500 TL dolar cinsinden biriktirsem ne olur?",
+])
+def test_wealth_words_choose_the_wealth_group(message):
+    assert route(message) == Route((WEALTH,), source="rule")
+
+
+@pytest.mark.parametrize("message", [
+    "Bu ay 1.000 TL bütçem var, ne durumdayım?",
+    "Market harcamamı %20 azaltsam ne kazanırım?",
+    "Tasarruf etsem ne olur?",
+    "Ayda 500 TL biriktirirsem ne kadar olur?",          # K4-A: "biriktiririm" is planning, only -seydim is a what-if
+])
+def test_old_planning_questions_stay_in_planning(message):
+    assert route(message).groups == (PLANNING,)
+
+
+@pytest.mark.parametrize("message", [
+    "Altın alayım mı?", "Dolar yükselir mi?", "Euro düşer mi?", "Bana yatırım tavsiyesi verir misin?",
+    "Hangisini almalıyım?", "Altın almak mantıklı mı?", "Ne alayım?",
+])
+def test_a_request_for_advice_or_a_forecast_is_answered_without_a_model(message):
+    result = route(message)
+    assert (result.out_of_scope, result.advice, result.source) == (True, True, "rule")
+
+
+@pytest.mark.parametrize("message", ["Hangi hisseye yatırım yapayım?", "Kripto alayım mı?", "Borsada ne alayım?"])
+def test_shares_and_crypto_stay_plainly_out_of_scope(message):
+    assert route(message) == Route((), out_of_scope=True, source="rule")
+
+
+def test_a_follow_up_of_a_wealth_call_stays_in_the_wealth_group():
+    assert route("Peki geçen ay?", "get_income_share") == Route((WEALTH,), source="previous")
