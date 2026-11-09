@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from answer_check import FORBIDDEN_MENTIONS, fold_turkish
 from decimal import Decimal
 
+from formatting import MONTH_NAMES
 from grounding import amounts_in, count_in, currency_in, percent_in, period_in
 from memory import TokenMemory
 
@@ -57,6 +58,8 @@ class Pending:
     # ``original``; the reply is added to it and the whole is a new question (K12-C). ``note`` says why a date was refused.
     original: str = ""
     note: str = ""
+    # INC-03 K15-A: words added after the numbered choices ("or write a month's name").
+    hint: str = ""
 
     @property
     def numbered(self) -> bool:
@@ -74,6 +77,15 @@ def ask_period(tool: str, arguments: dict, question: str, note: str = "", origin
     rest = {k: v for k, v in arguments.items() if k != "period"}
     return Pending(tool, rest, "period", "period", tuple(Option(label, value) for label, value in PERIOD_OPTIONS), question,
                    original=original, note=note)
+
+
+def ask_complete_month(tool: str, arguments: dict, question: str, today=None) -> Pending:
+    """The question for a tool that takes one whole, finished calendar month (INC-03 K15-A): last month, named, or another month's name."""
+    rest = {k: v for k, v in arguments.items() if k not in ("period", "from", "to")}
+    label = "geçen ay" if today is None else f"geçen ay ({MONTH_NAMES[(today.month - 2) % 12]})"
+    return Pending(tool, rest, "period", "period", (Option(label, "LastMonth"),), question,
+                   note="Bu analiz yalnız tamamlanmış bir ay için yapılır.",
+                   hint="Ya da bir ayın adını yazabilirsiniz, örneğin Ağustos.")
 
 
 def ask_count(tool: str, arguments: dict, argument: str, minimum: int, maximum: int, question: str) -> Pending:
@@ -130,6 +142,8 @@ def template(pending: Pending) -> str:
     if pending.kind == "count":
         numbers = [str(o.value) for o in pending.options]
         return f"Kaç aylık bakayım? Örneğin son {', '.join(numbers[:-1])} ya da {numbers[-1]} ay."
+    if pending.kind == "amount" and pending.tool == "what_if_monthly":
+        return "Ayda ne kadar biriktirirdiniz? Örneğin 1.000 TL."
     if pending.kind == "amount":
         return "Bütçeniz ne kadar? Örneğin 3.000 TL."
     if pending.kind == "percent":
@@ -138,9 +152,11 @@ def template(pending: Pending) -> str:
     choices = " ".join(f"{n}) {o.label}" for n, o in enumerate(pending.options, start=1))
     if pending.kind == "merchant":
         return f"‘{pending.asked}’ birden fazla işyeriyle eşleşti: {choices}. Hangisini kastettiniz?"
+    if pending.kind == "currency" and pending.tool == "what_if_monthly":
+        return f"Tutar hangi para biriminde? {choices}"
     if pending.kind == "currency":
         return f"Bütçeniz hangi para biriminde? {choices}"
-    return f"{pending.note + ' ' if pending.note else ''}Hangi dönem için? {choices}"
+    return f"{pending.note + ' ' if pending.note else ''}Hangi dönem için? {choices}{' ' + pending.hint if pending.hint else ''}"
 
 
 def check_question(text: str, pending: Pending) -> bool:

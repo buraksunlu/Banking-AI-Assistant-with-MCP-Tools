@@ -34,6 +34,7 @@ from grounding import check_arguments  # noqa: E402
 from mcp_gateway import McpSettings, McpToolGateway  # noqa: E402
 from ollama_client import OllamaError, OllamaSettings  # noqa: E402
 from routing import Route, Router, hide_dates, narrow  # noqa: E402
+from wealth import MONTHLY_TOOL, advised_saving_call, plan_monthly  # noqa: E402
 
 CASES_FILE = Path(__file__).with_name("tool_selection_cases.json")
 
@@ -105,6 +106,19 @@ def main() -> int:
                 shown = [] if route.out_of_scope else narrow(definitions, route)
             # Out of scope by rule: the chat answers without the model, which is "no tool" here.
             calls = selector.select(case["message"], shown, deadline, context) if shown else []
+            # As the chat runs it (INC-03 PR2): code chooses "the amount you advised" from the words, and an optional argument the
+            # user did not say (a category the model invented) is dropped before the call.
+            if (advised := advised_saving_call(case["message"], context)) is not None:
+                calls = [chat.ToolCall(*advised)]
+            elif len(calls) == 1 and calls[0].tool == MONTHLY_TOOL:
+                # The monthly saving is built from the user's words, never from the model's figures (K8-A, K17-B).
+                plan = plan_monthly(calls[0].arguments, case["message"], context is not None and context.tool == "get_spending_advice")
+                calls = [chat.ToolCall(MONTHLY_TOOL, plan.run)] if plan.run is not None else calls
+            elif len(calls) == 1 and calls[0].tool in schemas:
+                grounded = check_arguments(calls[0].arguments, schemas[calls[0].tool], case["message"],
+                                           context.arguments if context else None)
+                if grounded.missing is None:
+                    calls = [chat.ToolCall(calls[0].tool, grounded.arguments)]
             chosen = ", ".join(f"{c.tool}({json.dumps(c.arguments, ensure_ascii=False)})" for c in calls) or "(no tool)"
             asked = asks_back(calls, schemas, case["message"], context.arguments if context else None)
             if asked:

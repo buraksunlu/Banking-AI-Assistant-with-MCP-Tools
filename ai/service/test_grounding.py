@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from grounding import (amounts_in, check_arguments, count_in, currency_in, mentions_amount, mentions_count, mentions_currency,
+from grounding import (mentions_category, amounts_in, check_arguments, count_in, currency_in, mentions_amount, mentions_count, mentions_currency,
                        mentions_percent, mentions_period, percent_in, period_in)
 
 # CHAT-03 K2-A: an argument the model filled in must come from the user's own words. Expected values are written by hand.
@@ -275,3 +275,31 @@ def test_a_blank_required_argument_is_left_to_the_server():
     # Not a figure the chat can ask for: the server refuses it and the user gets the general question, as before.
     result = check_arguments({"merchant": "", "period": "LastMonth"}, MERCHANT, "Geçen ay ne kadar harcadım?")
     assert (result.missing, result.arguments) == (None, {"merchant": "", "period": "LastMonth"})
+
+
+# --- INC-03 PR2: a category the user did not name is the model's guess ----------------------------------------------------------
+
+@pytest.mark.parametrize(("message", "code", "said"), [
+    ("Geçen ay eğlence harcamamı altın alsaydım", "ENTERTAINMENT", True),
+    ("Yeme içme için bütçem 1.000 TL", "FOOD", True),
+    ("Market harcamamı %20 azaltsam", "GROCERY", True),
+    ("Ulaşım giderlerim ne kadar", "TRANSPORTATION", True),
+    ("Geçen ay harcadığım parayla altın alsaydım", "OTHER", False),      # measured: the model wrote OTHER here
+    ("Geçen hafta harcamasaydım da euro alsaydım", "FOOD", False),
+    ("Marketing harcamam", "GROCERY", True),                              # a word beginning is enough ("market…"), as for merchants
+    ("Eğlence harcamam", "FOOD", False),
+    ("Eğlence harcamam", "NOT_A_CODE", False),
+])
+def test_a_category_counts_only_when_the_user_said_it(message, code, said):
+    assert mentions_category(message, code) is said
+
+
+def test_an_invented_optional_category_is_dropped_and_a_said_one_is_kept():
+    schema = {"properties": {"period": {"type": "string"}, "categoryCode": {"type": ["string", "null"]}}, "required": ["period"]}
+
+    invented = check_arguments({"period": "LastMonth", "categoryCode": "OTHER"}, schema, "Geçen ay harcadığım parayla altın alsaydım")
+    said = check_arguments({"period": "LastMonth", "categoryCode": "ENTERTAINMENT"}, schema, "Geçen ay eğlence harcamamı altın alsaydım")
+    carried = check_arguments({"period": "LastMonth", "categoryCode": "FOOD"}, schema, "Peki geçen ay?", {"categoryCode": "FOOD"})
+
+    assert invented.arguments == {"period": "LastMonth"} and invented.missing is None
+    assert said.arguments["categoryCode"] == "ENTERTAINMENT" and carried.arguments["categoryCode"] == "FOOD"

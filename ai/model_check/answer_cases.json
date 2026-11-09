@@ -18,6 +18,11 @@
     {"id": "A15", "customer": "zeynep", "messages": ["Harcamalarımı yüzde 10 azaltsam yılda ne kazanırım?"], "type": "answer", "tool": "simulate_savings", "facts": ["Tahmini yıllık tasarruf (TRY): 12.718,80 TL", "Tahmini yıllık tasarruf (USD): 45,59 USD", "Farklı para birimleri toplanmaz"], "answer": ["12.718,80"]},
     {"id": "A16", "customer": "murat", "messages": ["1-5 Eylül arası ne kadar harcadım?"], "type": "answer", "tool": "get_spending_summary", "facts": ["5.116,50 TL"], "answer": ["5.116,50"]},
     {"id": "A17", "customer": "murat", "messages": ["1-5 Eylül arası ne kadar harcadım?", "Peki 6-10 Eylül?"], "type": "answer", "tool": "get_spending_summary", "facts": ["3.759,90 TL"], "answer": ["3.759,90"]},
-    {"id": "A18", "customer": "murat", "messages": ["Eylül'de ne kadar harcadım?"], "type": "answer", "tool": "get_spending_summary", "facts": ["53.388,39 TL"], "answer": ["53.388,39"]}
+    {"id": "A18", "customer": "murat", "messages": ["Eylül'de ne kadar harcadım?"], "type": "answer", "tool": "get_spending_summary", "facts": ["53.388,39 TL"], "answer": ["53.388,39"]},
+    {"id": "A19", "customer": "selin", "messages": ["Geçen ay maaşımın ne kadarını harcadım?"], "type": "answer", "tool": "get_income_share", "facts": ["8.000,00 TL", "7.228,49 TL", "%90,36"], "answer": ["90,36"]},
+    {"id": "A20", "customer": "selin", "messages": ["Geçen ay nerede tasarruf edebilirim?"], "type": "answer", "tool": "get_spending_advice", "facts": ["7.228,49 TL"], "answer": ["236,18", "2.834,20"]},
+    {"id": "A21", "customer": "selin", "messages": ["Geçen ay eğlence harcamamı dolar, euro ve altın alsaydım ne olurdu?"], "type": "answer", "tool": "what_if_one_off", "facts": ["2.253,50 TL", "2.297,38 TL", "2.222,62 TL", "2.194,89 TL"], "answer": ["2.297,38", "2.222,62", "2.194,89"]},
+    {"id": "A22", "customer": "selin", "messages": ["Ayda 1.000 TL altın olarak biriktirseydim ne olurdu?"], "type": "answer", "tool": "what_if_monthly", "facts": ["12.000,00 TL", "12.704,72 TL"], "answer": ["12.704,72"]},
+    {"id": "A23", "customer": "selin", "messages": ["Geçen ay nerede tasarruf edebilirim?", "Önerdiğin tutarı biriktirseydim ne olurdu?"], "type": "answer", "tool": "what_if_monthly", "facts": ["236,18 TL", "3.000,60 TL", "-%3,24"], "answer": ["3.000,60"]}
   ]
 }

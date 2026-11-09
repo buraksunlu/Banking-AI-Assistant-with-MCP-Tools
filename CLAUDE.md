@@ -179,7 +179,8 @@ araç daraltma, iki grup; seçim 68/71) ve IOS-04/07 (iPhone hesaplar, son işle
 USDTRY; iki yıl, 1.485 satır; günde tek değer, alış/satış yok; `market download|import`) ve INC-01 (gelire göre harcama
 payı, `GET /api/analytics/income-share`; todo 12e) ve INC-02 (seçici tasarruf önerisi, `GET /api/analytics/spending-advice`) tamam.
 9 Kasım 2026: ürün yönü "harcama ve yatırım asistanı" (todo 12f; ilk seviye K10-B, özellik havuzu INV-02); INV-01 PR1 ("harcamasaydım",
-`GET /api/analytics/what-if/one-off`) tamam, PR2 (aylık birikim + dalgalanma) sırada.
+`GET /api/analytics/what-if/one-off`) ve PR2 (aylık birikim + dalgalanma) tamam; INC-03 (gelir payı, öneri ve iki "ne olurdu" sohbette: PR1 MCP araçları,
+PR2 sohbet) tamam, sırada INC-04 (iPhone kartı).
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
 içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d. 19 Ekim 2026 todo taraması: AI-14 (uçtan uca

@@ -574,6 +574,55 @@ gün kayma), `date-v3` 9/10 ("geçen salı" hâlâ pazartesi), `date-v4` **10/10
 6 Ekim 3.290,50 TL, "3 gün önce" → 7 Ekim 449,90 TL, "Eylül'ün ilk haftasında" → 1-7 Eylül 5.566,40 TL (SQL ile aynı). Bilinen sınır:
 "geçen salı" bugünden önceki en son salıdır (bu hafta içindeki salı dahil).
 
+## Gelir, öneri ve "ne olurdu" sohbeti (INC-03 PR2, 9 Kasım 2026)
+
+PR1'de MCP'ye eklenen dört araç (`get_income_share`, `get_spending_advice`, `what_if_one_off`, `what_if_monthly`) sohbete açıldı. Kararlar
+INC-03 K1–K12 (todo 12e) ve PR2 planı K13-D, K14-B, K15-A, K16-A, K17-B, K18-C, K19-B. İlke aynı: model tool seçer ve açıklar; hesap, tutar,
+ay, para birimi, uyarı ve öneri cümlesi kodundur.
+
+- **Yönlendirme** (`routing.py`): `_WEALTH_WORDS` (maaş/gelir, "nerede tasarruf", "tasarruf önerisi", **-seydim/-saydım**, "dolar/euro/altın
+  olarak") planlama ve genel kelimelerden **önce** bakılır, çünkü onları da içerir; "biriktiririm" planlama kalır, yalnız -seydim ne olurdu
+  sayılır (K4-A). `wealth` grubuna model gönderemez, yalnız kural (K16-A). `_ADVICE_REQUEST` ("altın alayım mı", "dolar yükselir mi",
+  "tavsiye") modelsiz sabit `ADVICE_DECLINED_TEXT` verir (`Route.advice`); hisse/kripto/borsa/"yatırım yapayım" eskisi gibi düz kapsam dışı,
+  "yatırım yapsaydım" artık kapsamda (K5-A).
+- **Tam ay** (`wealth.needs_month_question`, `has_complete_month`, K15-A): gelir/öneri aracının sunucuda yalnız `LastMonth`/`Custom` var, bu
+  yüzden model "bu ay" için de `LastMonth` yazardı ve sessizce geçen ayın rakamını verirdi. Kod, mesajda "geçen ay" yoksa (bu ay, son 3 ay,
+  dönem hiç yok) **`ask_complete_month`** sorar: "1) geçen ay (Eylül) — ya da bir ayın adını yazabilirsiniz". Ay adı `Custom` olarak çalışır;
+  1-5 Eylül ve devam eden ay (Ekim) bütün/bitmiş ay değildir, aynı soru gelir. Aynı kontrol `_run`'da son kez yapılır (soruya "bu ay" cevabı
+  gelirse de). Takipte dönem söylenmediyse son çağrının dönemi geçer.
+- **Aylık birikim** (`wealth.plan_monthly`, K8-A/K9-A/K17-B): tutar mesajda **yazılı** olmalı (model kendi 1000'ini yazamaz); para birimi
+  tutarın **bitişiğindeki** kodur (`grounding.amount_currency_in`: "1.000 TL'yi dolar olarak" → TRY, "100 dolar" → USD → sabit `LIRA_ONLY_TEXT`);
+  tutar yoksa "Ayda ne kadar biriktirirdiniz?", para birimi yoksa para birimi sorulur (cevap Dolar ise yine sabit TL-only metni). `fromAdvice`
+  yalnız "önerdiğin" ya da öneri cevabından sonra "bu tutarı"; **küçük model bu çağrıyı hiç seçemedi** (W12/W13: "tutar nedir" diye metin
+  yazdı), bu yüzden `wealth.advised_saving_call` onu kelimelerden **kodla** seçer (model sorulmaz).
+- **Kategori** (`grounding.mentions_category`): "harcadığım parayla altın alsaydım"da model `OTHER`/`FOOD` yazıyordu (W08/W09); isteğe bağlı
+  `categoryCode` kullanıcının kendi kelimesiyle ("eğlence", "yeme içme", "market"…) geçmiyorsa düşer. Kelime tablosu (11 kod) yalnız
+  "söyledi mi" denetimi içindir; kod listesi sunucunun kapalı kümesidir.
+- **Kalemler** (`facts.py`, K13-D/K14-B): gelir payı (gelir tabanı + pencere, harcama, oran, en çok 5 kategori); öneri (gelir tabanı, üç grup ve
+  oranı, "N öneri aşağıda"; öneri yoksa "Yok: … %30 sınırının altında", maaşsız "karşılaştırılamaz"); bir seferlik (kategori, harcanan, alış/değerleme
+  günü, varlık başına alış–bugün fiyatı + değer + fark + yüzde); aylık (tutarın kaynağı, 12 alım, toplam yatırılan, varlık değeri, **fiyatın en
+  büyük düşüşü** ve **birikimin en kötü anı**). Varlıklar "Dolar/Euro/Gram altın alsaydınız" diye adlanır ve her iki ne-olurda "bu üç seçenek
+  birbirinin alternatifidir, toplanmaz" notu vardır (A21'de model üç değeri toplayıp 7.714,89 yazmıştı). Fiyat `formatting.price` ile 4 haneye
+  yuvarlanır (yalnız gösterim; değer/fark/yüzde backend'in). Fiyatı olmayan varlık "fiyat bulunamadı…", harcamasız/öneri tutarsız durum sabit cevap.
+- **Cevaba kodun eklediği satırlar** (`ToolOutcome.appendix`, K6-A/K18-C): öneri cümleleri (backend'in `message`'ı, model yeniden yazmaz) ve iki
+  ne-olurda backend'in sabit uyarısı, açıklamadan **sonra**. `answer_check.has_advice` ("almalısınız", "yükselecek", "tavsiye ederim",
+  "kazandırır"… kapalı liste) bulursa model cevabı atılır, yalnız kalemler + uyarı gösterilir (K7-A).
+- **Öneriler** (`suggestions.py`, K19-B): gelir payı → "Peki nerede tasarruf edebilirim?"; öneri (geçen ay) → "Peki önerdiğin tutarı biriktirseydim?"
+  + "Geçen ay maaşımın ne kadarını harcadım?"; başka ayın önerisinin altında yok (sunulan birikim hep geçen ayın önerisidir); ne-olurlar öneri vermez.
+
+**Ölçüm** (9 Kasım 2026, gerçek zincir, `qwen3.5:4b`, demo anı): araç seçimi **main 68/71**; dal 71 eski vakada aynı 68/71 (bozulan yok), 20 yeni
+vakada ilk 16/20. Eval artık sohbetin kod adımlarını da uygular (kodla seçilen çağrı, dayanaksız isteğe bağlı argümanın düşmesi, aylık tutarın
+mesajdan kurulması) → **89/91** (eski 69/71: S43 `months` düştüğü için de geçer; S40 ve R03 aynı iki bilinen hata; yeni 20/20). Cevap doğruluğu
+**22/23**: yeni 5/5 (A19–A23: %90,36; Eğlence 236,18 / 2.834,20; 2.297,38 · 2.222,62 · 2.194,89; altın 12.704,72; öneriyle 3.000,60), eski A12
+bütçe cevabı bu çalışmada "7.912,30"u yazmıyor — **aynı cevap main kodunda da** (model durumu; kod değişmedi). İlk turda A21 iki kez reddedildi
+(model değerleri topladı) ve A23 yalnız yüzdeleri yazdı → kalem etiketleri/alternatif notu eklendi, A21'in beklentisi "değerler"e çevrildi.
+Eşikler (K12-A): eski vakalarda bozulan yok ✓, toplam ≥ 68/71 ✓, yeni ≥ 16/18 (20/20) ✓, cevap 5/5 ✓. Modelsiz Python testleri 782 → 935; 12 kasıtlı
+bozmanın hepsi yakalandı (biri ilk turda kaçtı: "ayın son günü" sınır testi eklendi).
+
+Sınırlar: yazıyla tutar ("bin beş yüz") okunmaz; tavsiye kalıbı kapalı bir listedir; öneri cümleleri cevabın sonuna şablon gibi eklenir; "bu tutarı"
+yalnız öneri cevabından hemen sonra anlam taşır; başka ayın önerisi için birikim önerilmez; kategori kelime tablosu kapsamlı değildir (bilinmeyen
+kelime kategoriyi düşürür, toplam harcama hesaplanır ve kalemlerde "Kategori" satırı görünmez); aralıklı model işi sonrası `ollama stop` çalıştırıldı.
+
 ## Kararlar (hepsi kullanıcı kararı, 19 Ekim 2026)
 
 K1-A `POST /api/assistant/messages` · K2-A .NET'in kendi DTO'su (`type` tam adla, `answer`, `toolCalls`, `facts`; `model`

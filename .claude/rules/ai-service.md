@@ -53,6 +53,15 @@ aynı metin (harf katlanmış, sondaki ?.! yok) gelirse araç model seçmeden ç
 soru, geri soruda öneri yok. Başlangıçlar `GET /v1/suggestions` (`StarterQuestions`: üç modelsiz MCP kontrolü, ≤ 5 sn, sırayla ilk 3).
 Yeni araç eklenince tabloya satır; öneri metni ya ölçümdeki bir takip vakası ya da ölçülmüş tam soru olmalı (`test_suggestions` denetler).
 
+Gelir, öneri ve "ne olurdu" (INC-03 PR2, `wealth.py`, ayrıntı `docs/local-ai.md`): `routing._WEALTH_WORDS` planlama/genel kelimelerden önce bakılır
+(-seydim/-saydım, maaş/gelir, "nerede tasarruf"); `wealth` grubuna model gönderemez. `_ADVICE_REQUEST` → modelsiz `ADVICE_DECLINED_TEXT`
+(`Route.advice`). Gelir/öneri aracı yalnız tam ay: `needs_month_question` (model hep `LastMonth` yazar) ve `_run`'daki `has_complete_month`
+→ `ask_complete_month`. `what_if_monthly`: `plan_monthly` (tutar mesajda yazılı, para birimi tutarın bitişiği `amount_currency_in`, TL dışı
+`LIRA_ONLY_TEXT`); `advised_saving_call` "önerdiğin tutarı biriktirseydim"i kodla seçer (4b seçemedi). `grounding.mentions_category`: uydurma
+`categoryCode` düşer. `ToolOutcome.appendix`: öneri cümleleri + yatırım uyarısı açıklamadan sonra kodla eklenir; `answer_check.has_advice` bulursa
+yalnız kalemler. Araç seçim eval'i (`tool_selection_eval.py`) bu kod adımlarını da uygular (91 vaka: W01–W20); cevap eval'i 23 vaka (A19–A23).
+Yeni wealth aracı/öneri satırı: `routing.GROUPS`, `facts.outcome_for`, `suggestions._TABLE`.
+
 MCP istemcisi (MCP-b, `ai/service/mcp_gateway.py`, `mcp` 2.3.0): `BANKINGAI_MCP_URL` (yoksa `http://127.0.0.1:5249/mcp`; yanlış biçimde
 servis açılmaz). Protokol `2026-07-28`'e sabit (el sıkışma/keşif isteği yok); her çağrı kendi kısa olay döngüsünde (`anyio.run`, sohbet
 senkron). **Tuzaklar:** (1) SDK `structuredContent`'i float'a çevirir (145.00 → 145.0); sonuç **metin içeriğinden** `Decimal` ile okunur.

@@ -77,6 +77,13 @@ TOOL_SYSTEM_PROMPT = ("Sen bir bankacılık harcama asistanısın. Kullanıcın�
 OUT_OF_SCOPE_TEXT = ("Bu konuda yardımcı olamıyorum. Harcamalarınızla ilgili sorabilirsiniz, örneğin: "
                      "“Bu ay ne kadar harcadım?”, “Geçen ay en çok hangi kategoriye harcadım?”, "
                      "“Son 3 ayda Starbucks'a ne kadar verdim?”")
+# INC-03 K5-A: a request for advice or a forecast, and a monthly saving in another currency. Fixed texts: no tool ran and no model
+# wrote them, so nothing in them can be taken for a recommendation.
+ADVICE_DECLINED_TEXT = ("Ne alacağınızı ya da fiyatların nereye gideceğini söyleyemem; yatırım tavsiyesi vermiyorum. Geçmiş "
+                        "fiyatlarla “ne olurdu” hesabı yapabilirim, örneğin: “Geçen ay eğlence harcamamı altın alsaydım ne "
+                        "olurdu?” ya da “Ayda 1.000 TL biriktirseydim ne olurdu?”")
+LIRA_ONLY_TEXT = ("Birikim hesabı yalnız TL tutarlarla yapılır; varlık fiyatları TL cinsindendir ve para birimleri çevrilmez. "
+                  "Örneğin: “Ayda 1.000 TL biriktirseydim ne olurdu?”")
 CLARIFY_TEXT = ("Sorunuzu tam anlayamadım. Tek bir soru olarak ve dönemiyle sorabilir misiniz? "
                 "Örneğin: “Bu hafta ne kadar harcadım?”")
 

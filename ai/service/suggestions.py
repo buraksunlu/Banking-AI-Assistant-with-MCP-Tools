@@ -34,6 +34,9 @@ LAST_MONTH_TOTAL = "Geçen ay toplam ne kadar harcadım?"
 TOP_MERCHANT_THIS_MONTH = "Bu ay en çok hangi işyerine harcadım?"
 ROSE = "Geçen aya göre harcamam arttı mı?"
 TREND_6 = "Son 6 ayda harcamam aylara göre nasıl değişti?"
+SAVE_WHERE = "Peki nerede tasarruf edebilirim?"
+SAVE_ADVISED = "Peki önerdiğin tutarı biriktirseydim?"
+INCOME_LAST_MONTH = "Geçen ay maaşımın ne kadarını harcadım?"
 
 # Questions every customer gets an answer to, even one with no spending yet ("harcama bulunamadı" is an answer).
 OUT_OF_SCOPE_SUGGESTIONS = (THIS_MONTH, TOP_CATEGORY, LAST_MONTH_TOTAL)
@@ -92,6 +95,14 @@ def _comparison(a: dict) -> list[Suggestion]:
             _s(SIX_MONTHS, "get_monthly_trend", months=6)]
 
 
+def _advice(a: dict) -> list[Suggestion]:
+    # The advised saving of the what-if is always last month's (INC-03 K9-A): offered under another month's advice it would answer
+    # a different month than the one on the screen.
+    if a["period"] != "LastMonth":
+        return []
+    return [_s(SAVE_ADVISED, "what_if_monthly", fromAdvice=True), _s(INCOME_LAST_MONTH, "get_income_share", period="LastMonth")]
+
+
 _TABLE = {
     "get_spending_summary": _summary,
     "get_category_breakdown": _categories,
@@ -106,6 +117,9 @@ _TABLE = {
     # A budget is about the running month only (ANA-13).
     "check_budget": lambda a: [_s(TOP_MERCHANT_THIS_MONTH, "get_merchant_breakdown", period="ThisMonth"),
                                _s(CATEGORIES, "get_category_breakdown", period="ThisMonth")],
+    # INC-03 K19-B: income share → advice → advised saving; the what-if answers offer nothing (no "buy more" chain).
+    "get_income_share": lambda a: [_s(SAVE_WHERE, "get_spending_advice", period=a["period"])],
+    "get_spending_advice": _advice,
     # No other cut is offered: a figure the user did not say would be the backend's suggestion (MCP-17/18).
     "simulate_savings": lambda a: [_s(TREND_6, "get_monthly_trend", months=6),
                                    _s(TOP_CATEGORY, "get_category_breakdown", period="LastMonth")],

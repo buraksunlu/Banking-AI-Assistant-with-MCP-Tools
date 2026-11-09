@@ -26,8 +26,7 @@ GROUPS = {
               "get_highest_transactions", "compare_spending", "get_monthly_trend", "get_recurring_payments",
               "get_upcoming_payments"),
     PLANNING: ("check_budget", "simulate_savings"),
-    # INC-03 K3-A: income, advice and the what-if scenarios. PR1 publishes them on the server with no rule leading here yet,
-    # so the chat keeps answering exactly as before; PR2 adds the rules, the facts and the measurement.
+    # INC-03 K3-A: income, advice and the what-if scenarios; reached by word rules only (K16-A: the model never picks this group).
     WEALTH: ("get_income_share", "get_spending_advice", "what_if_one_off", "what_if_monthly"),
 }
 
@@ -37,7 +36,19 @@ _MODEL_GROUPS = {"spending": GENERAL, "payments": GENERAL, "planning": PLANNING}
 # K5-B: only requests that are clearly not about the user's spending; a question about transfers is not one of them.
 _OUT_OF_SCOPE = re.compile(
     r"\btransfer\s+(?:yap|et|gönder)|\bpara\s+gönder|\bhavale\s+(?:yap|et)|\beft\s+(?:yap|et)"
-    r"|\bhisse|\byatirim\s+yap|\bkripto|\bborsa|\bfikra|\bşaka")
+    r"|\bhisse|\byatirim\s+yap(?!sa[yd])|\bkripto|\bborsa|\bfikra|\bşaka")
+
+# INC-03 K5-A: a request for advice or a forecast ("altın alayım mı", "dolar yükselir mi"). Answered with a fixed text and no model:
+# the backend computes the past, nobody here may say what to buy or what will happen. "yatirim yap…" is the out-of-scope rule's.
+_ADVICE_REQUEST = re.compile(
+    r"\balayim\s+mi|\balmali\s+miyim|\bhangisini\s+al|\bne\s+alayim|\bmantikli\s+mi|\btavsiye"
+    r"|\byüksel(?:ir|ecek)|\bdüş(?:er|ecek)\s+mi|\bkazandirir\s+mi|\bartar\s+mi")
+# INC-03 K3-A, K4-A: income share, saving advice and the "what if" scenarios. Checked before the planning and general words,
+# which they contain too ("maaşımın ne kadarını harcadım", "tasarruf", "biriktirseydim"); only -seydim/-saydım and "X olarak"
+# make a saving a what-if, "biriktiririm" stays planning.
+_WEALTH_WORDS = re.compile(
+    r"\bmaaş|\bgelir|\bn(?:erede|ereden|elerden)\s+tasarruf|\btasarruf\s+öneri"
+    r"|(?:sa|se)ydi(?:m|k)\b|\b(?:dolar|euro|altin)\s+(?:olarak|cinsinden)")
 
 # A planning word decides even when spending words are there too ("Starbucks harcamamı yarıya indirsem" is a savings question).
 _PLANNING_WORDS = re.compile(
@@ -64,6 +75,8 @@ class Route:
     groups: tuple[str, ...]
     out_of_scope: bool = False
     source: str = "rule"
+    # INC-03 K5-A: an out-of-scope route that asked for advice or a forecast gets its own fixed text.
+    advice: bool = False
 
     def tools(self) -> frozenset[str]:
         """The names of the groups' tools."""
@@ -124,6 +137,10 @@ class Router:
         folded = fold_turkish(message)
         if _OUT_OF_SCOPE.search(folded):
             return Route((), out_of_scope=True)
+        if _ADVICE_REQUEST.search(folded):
+            return Route((), out_of_scope=True, advice=True)
+        if _WEALTH_WORDS.search(folded):
+            return Route((WEALTH,))
         if _PLANNING_WORDS.search(folded):
             return Route((PLANNING,))
         if _GENERAL_WORDS.search(folded):
