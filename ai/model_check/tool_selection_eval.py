@@ -13,9 +13,10 @@ accepts what was carried over unchanged, as in the chat. MCP-17/18 add the budge
 CHAT-01 routes every case as the chat does (word rules, the model's group only without a matching rule) and shows the model
 only the route's tools; --no-routing measures the full list as before, and R01-R08 are wordings the rules were not written
 from. --pause waits between cases, for a machine that heats up under a long run.
-A case passes when the model
-chose exactly the expected tool with exactly the expected arguments (merchant names without case), or no tool when none
-may be chosen.
+CHAT-09 runs every case through the real ChatService (phrasings.run_variant): the chat's own routing, code rules, dates,
+grounding and questions back decide, and the turn stops where the MCP call would be made, so this eval no longer keeps a copy of
+the chat's steps. A case passes when the turn ends in exactly the expected call (merchant names without case), in a question
+back for "clarify", or in a fixed reply without a tool for null.
 """
 
 import argparse
@@ -29,36 +30,39 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "service"))
 
 import chat  # noqa: E402
 import prompts  # noqa: E402
-from conversation import LastCall, is_follow_up  # noqa: E402
-from grounding import check_arguments  # noqa: E402
 from mcp_gateway import McpSettings, McpToolGateway  # noqa: E402
 from ollama_client import OllamaError, OllamaSettings  # noqa: E402
-from routing import Route, Router, hide_dates, narrow  # noqa: E402
-from wealth import MONTHLY_TOOL, advised_saving_call, plan_monthly  # noqa: E402
+from phrasings import Outcome, Variant, matches, run_variant  # noqa: E402
+from routing import GENERAL, PLANNING, WEALTH, Route, Router  # noqa: E402
 
 CASES_FILE = Path(__file__).with_name("tool_selection_cases.json")
+# null: no tool may run; the chat then answers with one of its fixed texts.
+NO_TOOL = ["out_of_scope", "advice"]
 
 
-def asks_back(calls: list, schemas: dict, message: str, previous: dict | None = None) -> bool:
-    """True when the chat would ask back: one published tool whose period or count the user did not say (CHAT-03) and,
-    in a follow-up, did not carry over either (CHAT-02)."""
-    return len(calls) == 1 and calls[0].tool in schemas and \
-        check_arguments(calls[0].arguments, schemas[calls[0].tool], message, previous).missing is not None
+class RecordingRouter:
+    """The chat's router, remembering the route of the last message for the report."""
+
+    def __init__(self, router):
+        self.router, self.last = router, Route(())
+
+    def route(self, message, previous_tool, deadline):
+        self.last = self.router.route(message, previous_tool, deadline)
+        return self.last
 
 
-def matches(expected: dict | list | None, calls: list) -> bool:
-    """Exactly one expected call (or none), with exactly the expected arguments; a list gives the equally right answers
-    (an optional argument left out or set to its default)."""
-    if isinstance(expected, list):
-        return any(matches(choice, calls) for choice in expected)
-    if expected is None:
-        return not calls
-    if len(calls) != 1 or calls[0].tool != expected["tool"]:
-        return False
-    # An optional argument written as null is left out (MCP-17/18): the MCP server publishes null for them and accepts it.
-    fold = lambda arguments: {k: v.casefold() if k == "merchant" and isinstance(v, str) else v
-                              for k, v in arguments.items() if v is not None}
-    return fold(calls[0].arguments) == fold(expected["arguments"])
+class EveryTool:
+    """--no-routing: every group, no out-of-scope rule, as before CHAT-01."""
+
+    def route(self, message, previous_tool, deadline):
+        return Route((GENERAL, PLANNING, WEALTH), source="none")
+
+
+def as_variant(case: dict) -> Variant:
+    """A fixed case as a one-message phrasing."""
+    expected = NO_TOOL if case["expected"] is None else case["expected"]
+    return Variant(case["id"], "case", case["id"], case["message"], expected, None, "plain", True, case.get("context"),
+                   (case["message"],))
 
 
 def demo_token() -> str:
@@ -79,59 +83,35 @@ def main() -> int:
 
     model = args.model or os.environ.get("BANKINGAI_LLM_MODEL") or "qwen3.5:4b"
     settings = OllamaSettings.from_env({**os.environ, "BANKINGAI_LLM_MODEL": model})
-    # As the chat shows them: the date range of the period tools is the code's, never the model's (CHAT-08).
-    definitions = hide_dates(McpToolGateway(McpSettings.from_env(os.environ)).list_tools(demo_token(), time.monotonic() + 10))
+    definitions = McpToolGateway(McpSettings.from_env(os.environ)).list_tools(demo_token(), time.monotonic() + 10)
     selector = chat.LangChainToolSelector(settings)
-    router = Router(chat.LangChainIntentClassifier(settings))
-    schemas = {d["function"]["name"]: d["function"].get("parameters", {}) for d in definitions}
+    router = RecordingRouter(EveryTool() if args.no_routing else Router(chat.LangChainIntentClassifier(settings)))
+    interpreter = chat.LangChainDateInterpreter(settings)
     data = json.loads(CASES_FILE.read_text(encoding="utf-8"))
 
     routing = "no routing" if args.no_routing else f"routing, prompt {prompts.INTENT_PROMPT_VERSION}"
     print(f"## Tool-selection eval: {model}, prompt {prompts.TOOL_PROMPT_VERSION}, {len(definitions)} tools, {routing}\n")
-    print("| Case | Result | Time (s) | Route | Chosen |")
+    print("| Case | Result | Time (s) | Route | Outcome |")
     print("|---|---|---|---|---|")
     passed, total_time = 0, 0.0
     for case in data["cases"]:
         time.sleep(args.pause)
         started = time.monotonic()
-        route = Route(())
+        router.last = Route(())
+        variant = as_variant(case)
         try:
-            given = case.get("context")
-            context = LastCall(given["tool"], given["arguments"], given["question"]) \
-                if given and is_follow_up(case["message"]) else None
-            deadline = time.monotonic() + settings.timeout_seconds
-            shown = definitions
-            if not args.no_routing:
-                route = router.route(case["message"], context.tool if context else None, deadline)
-                shown = [] if route.out_of_scope else narrow(definitions, route)
-            # Out of scope by rule: the chat answers without the model, which is "no tool" here.
-            calls = selector.select(case["message"], shown, deadline, context) if shown else []
-            # As the chat runs it (INC-03 PR2): code chooses "the amount you advised" from the words, and an optional argument the
-            # user did not say (a category the model invented) is dropped before the call.
-            if (advised := advised_saving_call(case["message"], context)) is not None:
-                calls = [chat.ToolCall(*advised)]
-            elif len(calls) == 1 and calls[0].tool == MONTHLY_TOOL:
-                # The monthly saving is built from the user's words, never from the model's figures (K8-A, K17-B).
-                plan = plan_monthly(calls[0].arguments, case["message"], context is not None and context.tool == "get_spending_advice")
-                calls = [chat.ToolCall(MONTHLY_TOOL, plan.run)] if plan.run is not None else calls
-            elif len(calls) == 1 and calls[0].tool in schemas:
-                grounded = check_arguments(calls[0].arguments, schemas[calls[0].tool], case["message"],
-                                           context.arguments if context else None)
-                if grounded.missing is None:
-                    calls = [chat.ToolCall(calls[0].tool, grounded.arguments)]
-            chosen = ", ".join(f"{c.tool}({json.dumps(c.arguments, ensure_ascii=False)})" for c in calls) or "(no tool)"
-            asked = asks_back(calls, schemas, case["message"], context.arguments if context else None)
-            if asked:
-                chosen += " → geri soru"
-            ok = asked if case["expected"] == "clarify" else (matches(case["expected"], calls) and not asked)
+            outcome = run_variant(variant, selector=selector, tools=definitions, router=router, interpreter=interpreter)
+            ok = matches(variant.expected, outcome)
         except OllamaError as error:
-            chosen, ok = f"{type(error).__name__}: {error}", False
+            outcome, ok = Outcome(f"{type(error).__name__}: {error}"), False
         passed += ok
         seconds = time.monotonic() - started
         total_time += seconds
+        route = router.last
         where = ("full" if args.no_routing else "out of scope" if route.out_of_scope
-                 else f"{'+'.join(route.groups)} ({route.source})")
-        print(f"| {case['id']} | {'pass' if ok else 'FAIL'} | {seconds:.1f} | {where} | {chosen} |")
+                 else f"{'+'.join(route.groups)} ({route.source})" if route.groups else "-")
+        got = f"{outcome.tool}({json.dumps(outcome.arguments, ensure_ascii=False)})" if outcome.kind == "call" else outcome.kind
+        print(f"| {case['id']} | {'pass' if ok else 'FAIL'} | {seconds:.1f} | {where} | {got} |")
     print(f"\n**{passed}/{len(data['cases'])}**, average {total_time / len(data['cases']):.1f} s per case")
     return 0 if passed == len(data["cases"]) else 1
 

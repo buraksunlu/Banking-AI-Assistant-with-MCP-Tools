@@ -1378,6 +1378,13 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Farklı yazılışlara dayanıklılık ölçümü (CHAT-09 PR1, 9 Kasım 2026; docs/local-ai.md "Farklı yazılışlar"): `ai/model_check/phrasings.py`
+  20 niyetin şablonlarından + gerçek ifadelerden + kısa diyaloglardan 663 ifade üretir (Türkçe karaktersiz, büyük harf, küçük harf/noktalamasız,
+  konuşma dili; yazım hatası yalnız rapor) ve her birini gerçek `ChatService`'ten geçirir (araç çağrısında durur; eval'de sohbet kopyası yok).
+  Modelsiz test (model yerine hep doğru seçen oracle) 595 geçer + 68 gerekçeli bilinen açık (`phrasing_gaps.json`; yeni kırık da düzelen açık
+  da testi kırar). Modelli örneklem 89/100, yazım hatası 13/20 (rapor); `tool_selection_eval.py` aynı düzeneğe taşındı, 89/91 (değişmedi).
+  Bulunan açıklar PR2'nin iş listesi: Türkçe karaktersiz yazım, aylıkta çıplak tutar (K6-B), "X mı Y mı alayım", "sınır", modelin yanlış
+  dönemi (geçen hafta → son 7 gün) kontrolden geçiyor. Python 935 → 979 modelsiz; 14 kasıtlı bozma yakalandı.
 - Sohbet gelir payı, tasarruf önerisi ve "ne olurdu" sorularını cevaplıyor (INC-03 PR2, 9 Kasım 2026; docs/local-ai.md "Gelir, öneri ve
   \"ne olurdu\" sohbeti"): `wealth` grubu yalnız kelime kuralıyla (-seydim/-saydım, maaş/gelir); tavsiye/tahmin isteği modelsiz sabit metin;
   gelir/öneri yalnız tam ay (aksi geri soru); aylık birikimde tutar ve bitişik TL mesajdan, TL dışı sabit metin; `fromAdvice` yalnız

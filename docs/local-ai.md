@@ -623,6 +623,50 @@ Sınırlar: yazıyla tutar ("bin beş yüz") okunmaz; tavsiye kalıbı kapalı b
 yalnız öneri cevabından hemen sonra anlam taşır; başka ayın önerisi için birikim önerilmez; kategori kelime tablosu kapsamlı değildir (bilinmeyen
 kelime kategoriyi düşürür, toplam harcama hesaplanır ve kalemlerde "Kategori" satırı görünmez); aralıklı model işi sonrası `ollama stop` çalıştırıldı.
 
+## Farklı yazılışlar (CHAT-09 PR1, 9 Kasım 2026)
+
+Sorun: araç seçim ölçümünün 91 vakası elle yazılmıştı; her kural kendi yazıldığı kelimelerle deneniyordu. Simülatörde "Geçen ayki
+harcamalarımı biriktirseydim nolurdu" bütün vakalar geçerken yanlış senaryoya gitti. Kararlar K1-B, K2-C, K3-C, K4-B (todo CHAT-09).
+
+```text
+phrasing_templates.json ──► phrasings.expand ──► 663 ifade (+ yazım hatalı rapor ifadeleri)
+  niyet + yuva (dönem, tutar, işyeri…)            plain · ascii (karaktersiz) · upper · lower (noktalamasız) · colloquial (nolurdu)
+  gerçek ifadeler, kısa diyaloglar
+                    │
+                    ▼
+     gerçek ChatService.answer  (yönlendirme, kod kuralları, tarih, kontrol, geri soru — kopya yok)
+        model yerine: OracleSelector (modelsiz)  ya da  LangChainToolSelector (modelli)
+        MCP yerine:   ProbeGateway → araç çağrısında Captured (sunucuya gitmez, açıklama yok)
+                    │
+                    ▼
+     Outcome: call(tool, argümanlar) · clarify:<ne soruldu> · out_of_scope · advice · lira_only · …
+```
+
+- **Modelsiz katman** (`test_phrasings.py`, her `pytest`): model hep doğru seçseydi kod doğru cevabı geçirir miydi? 663 ifadenin 595'i
+  geçer, 68'i `phrasing_gaps.json`'da gerekçesiyle durur. Yeni kırık da, artık geçen eski açık da testi kırar (açık düzelince listeden
+  çıkarılır, PR'da görünür). Araç tanımları `mcp_tools.json` kopyasından (sunucusuz); `phrasing_eval.py --refresh-tools` yeniler, modelli
+  koşu kopya ile yayınlanan liste farklıysa çalışmaz. Oracle tarihi yazmaz: tarihli soruda modele "bu ay" gösterildiği için `ThisMonth`
+  (tam ay araçlarında `LastMonth`) yazar.
+- **Modelli katman** (`phrasing_eval.py`, elle, aralıklı): niyet başına 5 ifade (seed 9) gerçek yönlendirici, seçici ve tarih yorumlayıcıyla.
+  Rapor niyete ve dönüşüme göre kırılır; modelsiz açık olan ifade "gap" yazılır (kırığı modelin değil). `--typos` niyet başına bir yazım
+  hatalı ifade ekler (geçme şartı değil).
+- **`tool_selection_eval.py`** aynı düzeneği kullanır (91 vaka; sohbet adımlarının elle kopyası silindi): 89/91, öncekiyle aynı.
+
+Sonuç (9 Kasım 2026, `qwen3.5:4b`): modelsiz 595/663; modelli örneklem **89/100** (karaktersiz 16/21, büyük harf 23/27, küçük harf 26/26);
+yazım hatası 13/20. Bulunan açıklar (PR2):
+
+| Açık | İfade | Neden |
+|---|---|---|
+| Türkçe karaktersiz yazım | 40 | kelime ve dönem kuralları ç/ğ/ı/ö/ş/ü bekliyor: "Dun ne kadar harcadim" dönemsiz, "butcem"/"maasimin"/"onerdigin" tanınmıyor |
+| Aylıkta çıplak tutar | 12 | "Ayda 5 bin biriktirseydim" ve "5000" cevabı para birimi sorusuna gidiyor (K6-B; ekran görüntüsü) |
+| "sınır belirledim" | 9 | planlama kuralında "sınır" yok, bütçe aracı gösterilmiyor (eski R03 kırığı) |
+| Modelin yanlış dönemi | 4 | `grounding._grounded` yalnız bir dönem söylenmiş mi diye bakıyor: "geçen hafta" için `Last7Days` çalışır, başka günlerin rakamı gelir |
+| "Altın mı dolar mı alayım?" | 3 | tavsiye kuralı yalnız "alayım mı"yı tanıyor |
+
+Modelli koşunun kendi bulguları: ekran görüntüsündeki cümle düz yazımda tek seferlik senaryoya gidiyor ama büyük harf ve karaktersiz
+yazımda aylığa (K5); "AYDA BİRİKTİRSEYDİM NE OLURDU?" araç seçilmeden kapsam dışı. Sınırlar: şablonlar yine bizim aklımıza gelen
+kalıpları çoğaltır (gerçek ifadeler listesi büyüdükçe azalır); modelli örneklem 100 ifade, tek koşu.
+
 ## Kararlar (hepsi kullanıcı kararı, 19 Ekim 2026)
 
 K1-A `POST /api/assistant/messages` · K2-A .NET'in kendi DTO'su (`type` tam adla, `answer`, `toolCalls`, `facts`; `model`
