@@ -171,31 +171,31 @@ LLM/MCP para gönderemez; yazma yalnızca uygulama/API ve seed üzerindendir.
 
 > Paralel kol (DOC-09): bu bölüm ve bölüm 9 API/analytics/AI işlerini engellemez.
 
-- [x] SRC-00 — 10 Ekim 2026 kararı belgelendi: toplam TRY harcama dönem başlangıcında tek seferde yatırılmış kabul edilir. Başlangıçta sağlayıcının satış, değerlemede alış fiyatı kullanılır. Yalnızca belgeler güncellendi; model/import/hesaplama henüz uygulanmadı.
+- [x] SRC-00 — 10 Ekim 2026 kararı belgelendi: toplam TRY harcama dönem başlangıcında tek seferde yatırılmış kabul edilir. Başlangıçta sağlayıcının satış, değerlemede alış fiyatı kullanılır. Yalnızca belgeler güncellendi; model/import/hesaplama henüz uygulanmadı. **9 Kasım 2026 kullanıcı kararıyla alış/satış kısmı kaldırıldı:** varlık başına günde tek değer (USD/EUR için TCMB döviz alış); "dönem başında tek alım" varsayımı korunur.
 
-- [ ] SRC-01 — USDTRY ve EURTRY ücretsiz kaynak adaylarını incele. Resmî kaynak, erişim koşulları, API anahtarı ihtiyacı ve iki yıllık günlük kapsamı örnek yanıtla göster.
+- [x] SRC-01 — USDTRY ve EURTRY ücretsiz kaynak adaylarını incele. Resmî kaynak, erişim koşulları, API anahtarı ihtiyacı ve iki yıllık günlük kapsamı örnek yanıtla göster. Sonuç (IMP-a, 9 Kasım 2026, dal `imp-01-tcmb-usd-eur`; docs/market-data-sources.md "USD/EUR import"): TCMB günlük XML (anahtarsız), 2024-11-11 … 2026-11-06 arası 495 yayın günü eksiksiz indi; 26 yayınsız günün 25'i resmî tatil/arife, biri indirme günü (15:30 öncesi).
 - [ ] SRC-02 — (19 Ekim 2026: dış yanıt ~9 gündür bekleniyor; beklemeye devam / yalnız USD-EUR ile ilerleme / opportunity-cost kolunu erteleme kararı kullanıcıda.) Gram altın kaynağını ayrı doğrula. Müşterinin geçmiş alımı için sağlayıcı satış geçmişini, bugün satışı için güncel sağlayıcı alış fiyatını doğrula. Gram/ons, saflık, TRY yönü, fiyat tanımı ve iki yıllık satış geçmişi kanıtlanmadan kaynağı kesinleştirme.
-- [ ] SRC-03 — Fiyat sözleşmesini yaz. Varlık başına tutarlı kaynak ve alış/satış çifti; başlangıç satış, değerleme alış; kaynak takvim günü; eksik veri gösterimi; varsa birim dönüşüm formülü açık olsun.
+- [x] SRC-03 — (9 Kasım 2026 kullanıcı kararıyla daraltıldı: varlık başına günde tek değer; USD/EUR = TCMB döviz alış, kaynak günü = bülten günü, eksik gün satırsız, okuma en yakın önceki gün; RULE.md ve docs/database-design.md. Altının birim/dönüşüm kuralı SRC-02 ile yazılır.) Fiyat sözleşmesini yaz. Varlık başına tutarlı kaynak ve alış/satış çifti; başlangıç satış, değerleme alış; kaynak takvim günü; eksik veri gösterimi; varsa birim dönüşüm formülü açık olsun.
 - [ ] SRC-04 — Kullanıcıya kaynak seçimini ve kısıtlarını açıkla. Ücretli servis kullanma; erişim engeli varsa kapsam tamamlandı deme ve fake fiyatla kapatma.
-- [ ] SRC-05 — Küçük ham veri örneğini saklayıp parser'ı dene. Ondalık ayırıcı, tarih formatı, null değerler, tekrarlar ve bozuk satırlar doğru ele alınsın; secret saklama.
+- [x] SRC-05 — (IMP-a, 9 Kasım 2026, dal `imp-01-tcmb-usd-eur`; docs/market-data-sources.md "USD/EUR import"; `TcmbBulletinParser` + elle yazılmış bülten fixture'ı; virgül, işaret, üs, boş değer, tekrar eden döviz, başka günün bülteni, DTD ve HTML gövdesi reddediliyor.) Küçük ham veri örneğini saklayıp parser'ı dene. Ondalık ayırıcı, tarih formatı, null değerler, tekrarlar ve bozuk satırlar doğru ele alınsın; secret saklama.
 
 ## 9. Import'u birer varlıkla geliştir
 
 Kaynak doğrulamasından sonra ve import'tan önce:
-- [ ] MP-06 — Mevcut tek Price yerine alış/satışı saklama tasarımını kullanıcıya açıkla; alan isimleri, precision, null ve geçerli fiyat kurallarını belirle. Geçmiş kayıtta yalnız sağlayıcı satış varsa alış uydurma; bugün satışı senaryosunda geçmiş alış zorunlu değildir. Değerleme fiyatının gerçek gününü koru.
-- [ ] MP-07 — Onaylanan entity/configuration/validation değişikliğini uygula; yeni incremental migration üret, SQL'i incele ve DB'ye uygula. Mevcut geçmişi koru.
-- [ ] MP-08 — Alış/satış yönünü, geçersiz fiyat çiftlerini ve DB okuma/yazımını doğrula; ortalama fiyatı iki tarafa kopyalama.
+- [x] MP-06 — 9 Kasım 2026 kullanıcı kararı: alış/satış ayrı saklanmaz, varlık başına günde **tek değer** yeter ("makas işi bulandırır"; geçmişe dönük exact alış/satış bulmak da zor). Mevcut tek `Price` şeması korunur; migration yok.
+- [x] MP-07 — MP-06 kararıyla gereksiz (tablo değişmedi).
+- [x] MP-08 — MP-06 kararıyla gereksiz; tek değerin doğrulaması mevcut kurallarla (pozitif, numeric(20,8), gelecek gün yok) ve importer testleriyle yapılır.
 
 
-- [ ] IMP-01 — Import girişini oluştur. Varlık ve başlangıç/bitiş tarihleri açık parametreler olsun; ilk aşama manuel komutla çalışsın.
-- [ ] IMP-02 — USDTRY için kısa tarih aralığı import et. Kaynak fiyat/tarih/birim ile DB satırlarını örnek bazında karşılaştır.
-- [ ] IMP-03 — EURTRY için aynı akışı doğrula. USD serisinin yanlışlıkla EUR sembolüne yazılamadığını kontrol et.
+- [x] IMP-01 — (IMP-a, 9 Kasım 2026, dal `imp-01-tcmb-usd-eur`; docs/market-data-sources.md "USD/EUR import"; `market download tcmb` ve `market import tcmb`, `--from/--to` zorunlu.) Import girişini oluştur. Varlık ve başlangıç/bitiş tarihleri açık parametreler olsun; ilk aşama manuel komutla çalışsın.
+- [x] IMP-02 — (Önce 3 günlük gerçek indirme eski ham dosyalarla bayt bayt aynı çıktı; iki yıl 495 gün; DB değerleri belgedeki tabloyla aynı.) USDTRY için kısa tarih aralığı import et. Kaynak fiyat/tarih/birim ile DB satırlarını örnek bazında karşılaştır.
+- [x] IMP-03 — (Kod → sembol eşlemesi tek tabloda; parser testi USD ve EUR'u kendi sembolünde bekliyor.) EURTRY için aynı akışı doğrula. USD serisinin yanlışlıkla EUR sembolüne yazılamadığını kontrol et.
 - [ ] IMP-04 — GRAM_GOLD_TRY import'unu doğrula. Gram/ons karışmasını ve gerekirse dönüşümün birimlerini test et; yöntem belgelenmiş olsun.
-- [ ] IMP-05 — Idempotent yazımı uygula. Asset+gün unique kuralıyla aynı veri tekrarında duplicate oluşturma; revize fiyatları tanımlı politikayla işle ve raporla.
-- [ ] IMP-06 — Kesinti/retry davranışını ekle. Sınırlı retry ve timeout kullan; tamamlanan parçalar tekrar çalıştırılınca bozulmasın, hatalar gizlenmesin.
-- [ ] IMP-07 — Import raporu üret. Eklenen/değişen/değişmeyen/reddedilen satırlar, tarih kapsamı, kaynak ve veri boşlukları gösterilsin. Source alanı gerçek importlarda dolu olsun.
-- [ ] IMP-08 — Üç varlık için en az iki yıllık veriyi yükle. Gerçek son yayımlanan güne kadar kapsamı doğrula; desteklenen dönem başlangıcı öncesi fallback için gerekiyorsa ek geçmiş getir.
-- [ ] IMP-09 — Takvim boşluklarını ayır. Hafta sonu/tatil doğal boşluğu ile beklenmeyen kaynak kesintisini raporla; her gün için uydurma satır üretme.
+- [x] IMP-05 — (`MarketPriceImporter`: aynı değer atlanır, farklı değer çelişki olarak raporlanır ve yazılmaz (K6-A); ikinci içe aktarma 0 ekledi, 990 değişmedi.) Idempotent yazımı uygula. Asset+gün unique kuralıyla aynı veri tekrarında duplicate oluşturma; revize fiyatları tanımlı politikayla işle ve raporla.
+- [x] IMP-06 — (`TcmbDownloader`: 10 sn zaman aşımı, 3 deneme, 404 tekrar denenmez, `.part` → yeniden adlandırma, var olan gün istenmez; testler sahte HTTP ile.) Kesinti/retry davranışını ekle. Sınırlı retry ve timeout kullan; tamamlanan parçalar tekrar çalıştırılınca bozulmasın, hatalar gizlenmesin.
+- [x] IMP-07 — (CLI çıktısı: okunan gün/satır, eklenen/değişmeyen/çelişen, dosyası olmayan ve reddedilen günler; çelişki ya da red varsa çıkış kodu 1.) Import raporu üret. Eklenen/değişen/değişmeyen/reddedilen satırlar, tarih kapsamı, kaynak ve veri boşlukları gösterilsin. Source alanı gerçek importlarda dolu olsun.
+- [ ] IMP-08 — (Kısmen: USD/EUR iki yıl yüklendi, 990 satır; altın SRC-02/IMP-04'ü bekliyor.) Üç varlık için en az iki yıllık veriyi yükle. Gerçek son yayımlanan güne kadar kapsamı doğrula; desteklenen dönem başlangıcı öncesi fallback için gerekiyorsa ek geçmiş getir.
+- [x] IMP-09 — (K5-A: tatil tablosu tutulmaz; 404 günleri raporlanır, belgede elle sınıflandırıldı. Hafta sonu satırı 0.) Takvim boşluklarını ayır. Hafta sonu/tatil doğal boşluğu ile beklenmeyen kaynak kesintisini raporla; her gün için uydurma satır üretme.
 - [ ] IMP-10 — Önceki fiyat seçimini doğrula. Exact gün, hafta sonu, resmi tatil, ilk fiyat öncesi tarih, gelecek gözlem ve eski fiyat senaryolarını test et; stale eşiğini kararlaştır.
 
 ## 10. Database foundation kabulü
@@ -562,8 +562,10 @@ Sıradaki (kullanıcı seçer; müşteri her zaman token'dan gelir):
 - **Omurgadan sonra (17 Ekim kararı):** 15c sohbet yetenekleri (CHAT-01–07) → 12c yeni analizler (ANA-15–19, ANA-21) +
   MCP-19–26 → 15d içgörü kartları (INS-01–03) + IOS-12. Kalıcı bütçe/hedef (12d, BUD-01–04) 19 Ekim kararıyla eklendi;
   sırası adım planında.
-- **Karar bekleyen:** SRC-02 (altın fiyat kaynağı, dış yanıt ~9 gündür bekleniyor): beklemeye devam / yalnız USD-EUR ile
-  ilerleme / opportunity-cost kolunu (OC, MCP-11, EVAL-04, FIN-08) erteleme.
+- **9 Kasım 2026 — öneri/karşılaştırma kolu (kullanıcı kararı):** önce dış veri, sonra maaşa göre harcama oranı ve
+  "gerekli/gereksiz harcama" kuralları (her şeye öneri verilmez). IMP-a tamam: USD/EUR iki yıl DB'de (990 satır, TCMB döviz
+  alış, günde tek değer). Sırada: altın (SRC-02 → IMP-04; K1-C: önce TCMB/EVDS resmî kaynak denenir, olmazsa ons × USDTRY
+  referans fiyatı ya da bekleme). Diğer kaynaklar (enflasyon, faiz, endeks) sonra.
 - **Teknik borç:** DB-01 (ayrı test veritabanı), API-16 (OpenAPI parametre şemaları), ACC-LIMIT.
 
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği madde üzerinden ilerlenir.

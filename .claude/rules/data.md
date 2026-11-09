@@ -61,7 +61,18 @@ dotnet run --project src/BankingAI.Cli -- seed transactions credits
 # diğer transaction scope'ları: subscriptions, category-examples, grocery-growth,
 # categorization-boundaries, recent-spending, demo-coverage, pairs, realistic (SYN-15: 6 persona, 1 yıl, 1.710 işlem)
 dotnet run --project src/BankingAI.Cli -- users set-password <username> [--customer <customer-id>]   # gizli sorar
+dotnet run --project src/BankingAI.Cli -- market download tcmb --from 2024-11-09 --to 2026-11-09   # ham XML → data/raw/market/tcmb (git dışı)
+dotnet run --project src/BankingAI.Cli -- market import tcmb --from 2024-11-09 --to 2026-11-09     # arşiv → DailyMarketPrices
 ```
+
+### Market fiyatları (IMP-a, 9 Kasım 2026)
+
+`Data/Market/`: `TcmbBulletinParser` (bir günün bülteni → USDTRY/EURTRY, **döviz alış** = `ForexBuying`; Unit 1, tarih
+dosyanın günü, yalnız rakam + nokta, DTD yok), `TcmbArchive` (gün başına `yyyy-MM-dd.xml`, yalnız hafta içi; eksik/okunamayan
+gün raporlanır, doldurulmaz), `TcmbDownloader` (sıralı, 404 = yayın yok, 5xx/zaman aşımı 3 deneme, yanlış gövde kaydedilmez,
+`.part` → yeniden adlandırma), `MarketPriceImporter` (aynı değer atlanır, farklı değer **çelişki**: yazılmaz, raporlanır; açık
+transaction varsa onu kullanır, testler rollback eder). Kullanıcı kararı: varlık başına günde **tek değer**, alış/satış ayrımı yok
+(10 Ekim SRC-00 kararı kaldırıldı); tablo değişmedi. Eksik gün DB'ye yazılmaz, okuma tarafı en yakın önceki günü alır (OC-05).
 
 ## Migration komutları
 
