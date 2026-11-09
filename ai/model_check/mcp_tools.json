@@ -1,0 +1,599 @@
+{
+ "description": "The tools the .NET MCP server publishes (tools/list), in the model's tool shape; written by phrasing_eval.py --refresh-tools.",
+ "tools": [
+  {
+   "type": "function",
+   "function": {
+    "name": "get_recurring_payments",
+    "description": "Son 6 ayda her ay düzenli tekrarlanan ödemeleri (abonelikler) ve aylık toplamlarını döndürür. Argüman almaz.",
+    "parameters": {
+     "type": "object",
+     "properties": {}
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "simulate_savings",
+    "description": "Bir harcamayı yüzde kaç azaltırsa ayda ve yılda tahminen ne kadar biriktireceğini hesaplar; yatırım getirisi değildir. reductionPercent: azaltma oranı, 1-100 (yarıya = 50). months: geriye kaç tam ay, 1-12; verilmezse 6. categoryCode ya da merchant: azaltılacak harcama bir kategori ya da işyeriyse.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "reductionPercent": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 100
+      },
+      "categoryCode": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "FOOD",
+        "GROCERY",
+        "CLOTHING",
+        "TRANSPORTATION",
+        "ENTERTAINMENT",
+        "SUBSCRIPTION",
+        "TRAVEL",
+        "FUEL",
+        "BILLS",
+        "HEALTH",
+        "OTHER",
+        null
+       ],
+       "default": null
+      },
+      "merchant": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null,
+       "minLength": 1,
+       "maxLength": 150
+      },
+      "months": {
+       "type": "integer",
+       "default": 6,
+       "minimum": 1,
+       "maximum": 12
+      }
+     },
+     "required": [
+      "reductionPercent"
+     ]
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "check_budget",
+    "description": "Yalnız kullanıcı bir bütçe tutarı söylediyse: bu ayın harcamasını o bütçeyle karşılaştırır (kalan, ay sonu tahmini). amount: bütçe tutarı. currencyCode: TRY=TL/lira, EUR=euro, USD=dolar, GBP=sterlin. categoryCode ya da merchant: bütçe bir kategori ya da işyeri içinse.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "amount": {
+       "type": "number"
+      },
+      "currencyCode": {
+       "type": "string",
+       "enum": [
+        "TRY",
+        "USD",
+        "EUR",
+        "GBP"
+       ]
+      },
+      "categoryCode": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "FOOD",
+        "GROCERY",
+        "CLOTHING",
+        "TRANSPORTATION",
+        "ENTERTAINMENT",
+        "SUBSCRIPTION",
+        "TRAVEL",
+        "FUEL",
+        "BILLS",
+        "HEALTH",
+        "OTHER",
+        null
+       ],
+       "default": null
+      },
+      "merchant": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null,
+       "minLength": 1,
+       "maxLength": 150
+      }
+     },
+     "required": [
+      "amount",
+      "currencyCode"
+     ]
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "what_if_monthly",
+    "description": "Aynı TL tutarı son 12 ayın her ayı dolar, euro ve gram altın olarak biriktirseydi bugün ne ederdi ve fiyat ne kadar dalgalandı; yatırım tavsiyesi değildir. amount: kullanıcının söylediği aylık tutar, currencyCode: TRY. fromAdvice: tutar yerine önerilen aylık tasarruf isteniyorsa true.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "amount": {
+       "type": [
+        "number",
+        "null"
+       ],
+       "default": null
+      },
+      "currencyCode": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "TRY",
+        null
+       ],
+       "default": null
+      },
+      "fromAdvice": {
+       "type": "boolean",
+       "default": false
+      }
+     }
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "get_highest_transactions",
+    "description": "Bir dönemdeki en yüksek tutarlı 5 harcamayı döndürür; yalnız \"en büyük / en pahalı harcamam\" soruları için, toplam harcama için değil. period: Today=bugün, Yesterday=dün, ThisWeek=bu hafta (pazartesiden bugüne), LastWeek=geçen hafta, Last7Days=son 7 gün, Last30Days=son 30 gün, ThisMonth=bu ay, LastMonth=geçen ay, Last3Months=son 3 ay, Last6Months=son 6 ay, ThisYear=bu yıl.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "period": {
+       "type": "string",
+       "enum": [
+        "Today",
+        "Yesterday",
+        "ThisWeek",
+        "LastWeek",
+        "Last7Days",
+        "Last30Days",
+        "ThisMonth",
+        "LastMonth",
+        "Last3Months",
+        "Last6Months",
+        "ThisYear",
+        "Custom"
+       ]
+      },
+      "from": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      },
+      "to": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "period"
+     ]
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "get_upcoming_payments",
+    "description": "Düzenli ödemelere göre önümüzdeki günlerde beklenen ödemeleri tahmini tarih ve tutarla döndürür. days: kaç gün ileriye bakılacağı, 1-31; verilmezse 30.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "days": {
+       "type": "integer",
+       "default": 30,
+       "minimum": 1,
+       "maximum": 31
+      }
+     }
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "get_merchant_spending",
+    "description": "Bir dönemde tek bir işyerine (merchant) yapılan harcamayı döndürür. merchant: kullanıcının söylediği işyeri adı. period: Today=bugün, Yesterday=dün, ThisWeek=bu hafta (pazartesiden bugüne), LastWeek=geçen hafta, Last7Days=son 7 gün, Last30Days=son 30 gün, ThisMonth=bu ay, LastMonth=geçen ay, Last3Months=son 3 ay, Last6Months=son 6 ay, ThisYear=bu yıl.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "merchant": {
+       "type": "string",
+       "minLength": 1,
+       "maxLength": 150
+      },
+      "period": {
+       "type": "string",
+       "enum": [
+        "Today",
+        "Yesterday",
+        "ThisWeek",
+        "LastWeek",
+        "Last7Days",
+        "Last30Days",
+        "ThisMonth",
+        "LastMonth",
+        "Last3Months",
+        "Last6Months",
+        "ThisYear",
+        "Custom"
+       ]
+      },
+      "from": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      },
+      "to": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "merchant",
+      "period"
+     ]
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "what_if_one_off",
+    "description": "Bir dönemin TL harcaması dönemin ilk günü dolar, euro ve gram altın olarak alınsaydı bugün geçmiş fiyatla ne ederdi; \"harcamasaydım / dolar alsaydım\" soruları için, yatırım tavsiyesi değildir. categoryCode: yalnız bir kategori içinse. period: Today=bugün, Yesterday=dün, ThisWeek=bu hafta (pazartesiden bugüne), LastWeek=geçen hafta, Last7Days=son 7 gün, Last30Days=son 30 gün, ThisMonth=bu ay, LastMonth=geçen ay, Last3Months=son 3 ay, Last6Months=son 6 ay, ThisYear=bu yıl.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "period": {
+       "type": "string",
+       "enum": [
+        "Today",
+        "Yesterday",
+        "ThisWeek",
+        "LastWeek",
+        "Last7Days",
+        "Last30Days",
+        "ThisMonth",
+        "LastMonth",
+        "Last3Months",
+        "Last6Months",
+        "ThisYear",
+        "Custom"
+       ]
+      },
+      "categoryCode": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "enum": [
+        "FOOD",
+        "GROCERY",
+        "CLOTHING",
+        "TRANSPORTATION",
+        "ENTERTAINMENT",
+        "SUBSCRIPTION",
+        "TRAVEL",
+        "FUEL",
+        "BILLS",
+        "HEALTH",
+        "OTHER",
+        null
+       ],
+       "default": null
+      },
+      "from": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      },
+      "to": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "period"
+     ]
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "compare_spending",
+    "description": "Harcamayı önceki dönemle karşılaştırır: iki dönemin toplamı, fark ve değişime yol açan kategoriler. comparison: PreviousFullMonth=geçen ay ile ondan önceki ay (\"geçen aya göre\"), MonthToDate=bu ayın bugüne kadarki kısmı ile geçen ayın aynı günleri.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "comparison": {
+       "type": "string",
+       "enum": [
+        "PreviousFullMonth",
+        "MonthToDate"
+       ]
+      }
+     },
+     "required": [
+      "comparison"
+     ]
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "get_spending_summary",
+    "description": "Bir dönemdeki toplam harcamayı para birimi başına döndürür; \"ne harcadım / ne kadar harcadım\" gibi genel harcama soruları için ilk tercih. period: Today=bugün, Yesterday=dün, ThisWeek=bu hafta (pazartesiden bugüne), LastWeek=geçen hafta, Last7Days=son 7 gün, Last30Days=son 30 gün, ThisMonth=bu ay, LastMonth=geçen ay, Last3Months=son 3 ay, Last6Months=son 6 ay, ThisYear=bu yıl.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "period": {
+       "type": "string",
+       "enum": [
+        "Today",
+        "Yesterday",
+        "ThisWeek",
+        "LastWeek",
+        "Last7Days",
+        "Last30Days",
+        "ThisMonth",
+        "LastMonth",
+        "Last3Months",
+        "Last6Months",
+        "ThisYear",
+        "Custom"
+       ]
+      },
+      "from": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      },
+      "to": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "period"
+     ]
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "get_category_breakdown",
+    "description": "Bir dönemdeki harcamanın kategorilere dağılımını döndürür. period: Today=bugün, Yesterday=dün, ThisWeek=bu hafta (pazartesiden bugüne), LastWeek=geçen hafta, Last7Days=son 7 gün, Last30Days=son 30 gün, ThisMonth=bu ay, LastMonth=geçen ay, Last3Months=son 3 ay, Last6Months=son 6 ay, ThisYear=bu yıl.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "period": {
+       "type": "string",
+       "enum": [
+        "Today",
+        "Yesterday",
+        "ThisWeek",
+        "LastWeek",
+        "Last7Days",
+        "Last30Days",
+        "ThisMonth",
+        "LastMonth",
+        "Last3Months",
+        "Last6Months",
+        "ThisYear",
+        "Custom"
+       ]
+      },
+      "from": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      },
+      "to": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "period"
+     ]
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "get_monthly_trend",
+    "description": "Son birkaç ayın harcamasını takvim ayı olarak döndürür, devam eden ay ayrıca işaretlidir; \"aylara göre nasıl değişti\" soruları için. months: geriye kaç tam ay, 1-12.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "months": {
+       "type": "integer",
+       "minimum": 1,
+       "maximum": 12
+      }
+     },
+     "required": [
+      "months"
+     ]
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "get_income_share",
+    "description": "Tamamlanmış bir ayın harcamasının maaşa (gelire) oranını ve kategorilerin gelir payını döndürür; \"maaşımın ne kadarını harcadım\" soruları için. period: LastMonth=geçen ay.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "period": {
+       "type": "string",
+       "enum": [
+        "LastMonth",
+        "Custom"
+       ]
+      },
+      "from": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      },
+      "to": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "period"
+     ]
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "get_spending_advice",
+    "description": "Tamamlanmış bir ayın harcamasını temel ve isteğe bağlı diye ayırır, yalnız kurallar tutarsa en fazla 2 tasarruf önerisi verir; \"nerede tasarruf edebilirim\" soruları için. period: LastMonth=geçen ay.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "period": {
+       "type": "string",
+       "enum": [
+        "LastMonth",
+        "Custom"
+       ]
+      },
+      "from": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      },
+      "to": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "period"
+     ]
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
+    "name": "get_merchant_breakdown",
+    "description": "Bir dönemdeki harcamanın işyerlerine (merchant) dağılımını en çoktan aza döndürür; \"en çok nereye harcadım\" soruları için. period: Today=bugün, Yesterday=dün, ThisWeek=bu hafta (pazartesiden bugüne), LastWeek=geçen hafta, Last7Days=son 7 gün, Last30Days=son 30 gün, ThisMonth=bu ay, LastMonth=geçen ay, Last3Months=son 3 ay, Last6Months=son 6 ay, ThisYear=bu yıl.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "period": {
+       "type": "string",
+       "enum": [
+        "Today",
+        "Yesterday",
+        "ThisWeek",
+        "LastWeek",
+        "Last7Days",
+        "Last30Days",
+        "ThisMonth",
+        "LastMonth",
+        "Last3Months",
+        "Last6Months",
+        "ThisYear",
+        "Custom"
+       ]
+      },
+      "from": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      },
+      "to": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "period"
+     ]
+    }
+   }
+  }
+ ]
+}

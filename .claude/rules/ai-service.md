@@ -18,6 +18,8 @@ ai/.venv/bin/python -m pytest ai -k "not real"                        # modelsiz
 python3 ai/model_check/run.py --model qwen3.5:4b --model qwen3.5:9b   # model ölçümü (yalnız standart kütüphane)
 ai/.venv/bin/python ai/model_check/explanation_eval.py              # açıklama prompt'u değerlendirmesi (AI-05, Ollama açık)
 ai/.venv/bin/python ai/model_check/answer_eval.py                   # cevap doğruluğu (SYN-15 personaları, gerçek zincir; AI servisi + MCP + .env)
+ai/.venv/bin/python ai/model_check/phrasings.py                     # modelsiz ifade açıkları (CHAT-09; --typos yazım hatalarını da)
+ai/.venv/bin/python ai/model_check/phrasing_eval.py --pause 1       # modelli ifade örneklemi (MCP + Ollama + .env; --typos, --refresh-tools)
 python3 ai/service/ollama_client.py                                  # elle kontrol (BANKINGAI_LLM_MODEL gerekir)
 ai/.venv/bin/uvicorn --app-dir ai/service --factory app:create_app --host 127.0.0.1 --port 8000   # AI servisi (AI-03)
 ```
@@ -59,7 +61,14 @@ Gelir, öneri ve "ne olurdu" (INC-03 PR2, `wealth.py`, ayrıntı `docs/local-ai.
 → `ask_complete_month`. `what_if_monthly`: `plan_monthly` (tutar mesajda yazılı, para birimi tutarın bitişiği `amount_currency_in`, TL dışı
 `LIRA_ONLY_TEXT`); `advised_saving_call` "önerdiğin tutarı biriktirseydim"i kodla seçer (4b seçemedi). `grounding.mentions_category`: uydurma
 `categoryCode` düşer. `ToolOutcome.appendix`: öneri cümleleri + yatırım uyarısı açıklamadan sonra kodla eklenir; `answer_check.has_advice` bulursa
-yalnız kalemler. Araç seçim eval'i (`tool_selection_eval.py`) bu kod adımlarını da uygular (91 vaka: W01–W20); cevap eval'i 23 vaka (A19–A23).
+yalnız kalemler. Cevap eval'i 23 vaka (A19–A23).
+
+Farklı yazılışlar (CHAT-09, `ai/model_check/phrasings.py`, ayrıntı `docs/local-ai.md`): ölçümler sohbetin adımlarını **kopyalamaz**; her
+ifade gerçek `ChatService`'ten geçer, `ProbeGateway` araç çağrısında `Captured` ile durur, model yerine `OracleSelector` (modelsiz) ya da gerçek
+seçici. `tool_selection_eval.py` (91 vaka) ve `phrasing_eval.py` (örneklem) bunu kullanır. `test_phrasings.py` 663 ifadeyi modelsiz çalıştırır;
+kırılan her ifade `phrasing_gaps.json`'da gerekçeli olmalı, düzelen açık listeden silinir (yoksa test kırılır). Yeni niyet/kalıp →
+`phrasing_templates.json`; gerçek kullanıcı cümlesi → `real`. Araç tanımı değişince `phrasing_eval.py --refresh-tools` (`mcp_tools.json`).
+`phrasings.py` çıktısı açıkları listeler. Test adında "real" geçmesin (`-k "not real"` modeli dışarıda bırakan süzgeçtir).
 Yeni wealth aracı/öneri satırı: `routing.GROUPS`, `facts.outcome_for`, `suggestions._TABLE`.
 
 MCP istemcisi (MCP-b, `ai/service/mcp_gateway.py`, `mcp` 2.3.0): `BANKINGAI_MCP_URL` (yoksa `http://127.0.0.1:5249/mcp`; yanlış biçimde

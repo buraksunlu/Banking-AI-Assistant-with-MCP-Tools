@@ -1,0 +1,261 @@
+{
+ "description": "CHAT-09: the intents the chat answers, written as templates with slots, plus real phrasings and short dialogs. expected: the call that must reach the MCP server (a list: equally right calls) or how the turn must end (clarify, clarify:<what is asked>, out_of_scope, advice, lira_only, date_unsupported). oracle: what the model writes when that is not the expected call. Slot and template args are added to the expected arguments. Demo day 10 Oct 2026: last month is September.",
+ "intents": [
+  {"id": "summary",
+   "slots": {"period": [
+    {"text": "dün", "args": {"period": "Yesterday"}},
+    {"text": "bu hafta", "args": {"period": "ThisWeek"}},
+    {"text": "geçen ay", "args": {"period": "LastMonth"}}]},
+   "templates": [
+    {"id": "t1", "text": "{period} ne kadar harcadım?", "expected": {"tool": "get_spending_summary", "arguments": {}}},
+    {"id": "t2", "text": "{period} toplam harcamam ne kadar?", "expected": {"tool": "get_spending_summary", "arguments": {}}},
+    {"id": "t3", "text": "{period} kaç para harcadım?", "expected": {"tool": "get_spending_summary", "arguments": {}}},
+    {"id": "t4", "text": "Ne kadar harcadım?", "expected": "clarify:period",
+     "oracle": {"tool": "get_spending_summary", "arguments": {"period": "ThisMonth"}}},
+    {"id": "t5", "text": "Geçen hafta ne kadar harcadım?", "expected": {"tool": "get_spending_summary", "arguments": {"period": "LastWeek"}},
+     "oracle": {"tool": "get_spending_summary", "arguments": {"period": "Last7Days"}}}]},
+
+  {"id": "categories",
+   "slots": {"period": [
+    {"text": "bu ay", "args": {"period": "ThisMonth"}},
+    {"text": "geçen ay", "args": {"period": "LastMonth"}}]},
+   "templates": [
+    {"id": "t1", "text": "{period} en çok hangi kategoriye harcadım?", "expected": {"tool": "get_category_breakdown", "arguments": {}}},
+    {"id": "t2", "text": "{period} harcamalarım kategorilere göre nasıl?", "expected": {"tool": "get_category_breakdown", "arguments": {}}},
+    {"id": "t3", "text": "{period} kategori bazında ne harcadım?", "expected": {"tool": "get_category_breakdown", "arguments": {}}}]},
+
+  {"id": "merchant",
+   "slots": {
+    "period": [
+     {"text": "geçen ay", "args": {"period": "LastMonth"}},
+     {"text": "bu hafta", "args": {"period": "ThisWeek"}}],
+    "merchant": [
+     {"text": "Starbucks'a", "args": {"merchant": "Starbucks"}},
+     {"text": "Migros'a", "args": {"merchant": "Migros"}},
+     {"text": "Netflix'e", "args": {"merchant": "Netflix"}}]},
+   "templates": [
+    {"id": "t1", "text": "{period} {merchant} ne kadar verdim?", "expected": {"tool": "get_merchant_spending", "arguments": {}}},
+    {"id": "t2", "text": "{merchant} {period} ne kadar harcadım?", "expected": {"tool": "get_merchant_spending", "arguments": {}}}]},
+
+  {"id": "merchant_breakdown",
+   "slots": {"period": [
+    {"text": "bu ay", "args": {"period": "ThisMonth"}},
+    {"text": "geçen ay", "args": {"period": "LastMonth"}}]},
+   "templates": [
+    {"id": "t1", "text": "{period} en çok hangi işyerine harcadım?", "expected": {"tool": "get_merchant_breakdown", "arguments": {}}},
+    {"id": "t2", "text": "{period} harcamalarım işyerlerine göre nasıl dağıldı?", "expected": {"tool": "get_merchant_breakdown", "arguments": {}}},
+    {"id": "t3", "text": "{period} en çok hangi mağazaya para verdim?", "expected": {"tool": "get_merchant_breakdown", "arguments": {}}}]},
+
+  {"id": "highest",
+   "slots": {"period": [
+    {"text": "geçen ayki", "args": {"period": "LastMonth"}},
+    {"text": "bu yılki", "args": {"period": "ThisYear"}}]},
+   "templates": [
+    {"id": "t1", "text": "{period} en büyük harcamalarım neler?", "expected": {"tool": "get_highest_transactions", "arguments": {}}},
+    {"id": "t2", "text": "{period} en pahalı alışverişim hangisi?", "expected": {"tool": "get_highest_transactions", "arguments": {}}},
+    {"id": "t3", "text": "{period} en yüksek harcamalarımı göster", "expected": {"tool": "get_highest_transactions", "arguments": {}}}]},
+
+  {"id": "compare",
+   "templates": [
+    {"id": "t1", "text": "Geçen aya göre harcamam arttı mı?", "expected": {"tool": "compare_spending", "arguments": {"comparison": "PreviousFullMonth"}}},
+    {"id": "t2", "text": "Geçen aya göre daha mı çok harcadım?", "expected": {"tool": "compare_spending", "arguments": {"comparison": "PreviousFullMonth"}}},
+    {"id": "t3", "text": "Bu ay, geçen ayın aynı günlerine göre daha mı çok harcıyorum?", "expected": {"tool": "compare_spending", "arguments": {"comparison": "MonthToDate"}}},
+    {"id": "t4", "text": "Harcamalarımı bir önceki ayla karşılaştır", "expected": [
+     {"tool": "compare_spending", "arguments": {"comparison": "PreviousFullMonth"}},
+     {"tool": "compare_spending", "arguments": {"comparison": "MonthToDate"}}]}]},
+
+  {"id": "trend",
+   "slots": {"months": [
+    {"text": "6", "args": {"months": 6}},
+    {"text": "12", "args": {"months": 12}}]},
+   "templates": [
+    {"id": "t1", "text": "Son {months} ayda harcamam aylara göre nasıl değişti?", "expected": {"tool": "get_monthly_trend", "arguments": {}}},
+    {"id": "t2", "text": "Son {months} ayın aylık harcamalarını göster", "expected": {"tool": "get_monthly_trend", "arguments": {}}},
+    {"id": "t3", "text": "Son {months} aydır her ay ne kadar harcadım?", "expected": {"tool": "get_monthly_trend", "arguments": {}}}]},
+
+  {"id": "recurring",
+   "templates": [
+    {"id": "t1", "text": "Aboneliklerim neler?", "expected": {"tool": "get_recurring_payments", "arguments": {}}},
+    {"id": "t2", "text": "Her ay düzenli ödediğim şeyler neler?", "expected": {"tool": "get_recurring_payments", "arguments": {}}},
+    {"id": "t3", "text": "Hangi üyeliklerim için her ay para çekiliyor?", "expected": {"tool": "get_recurring_payments", "arguments": {}}},
+    {"id": "t4", "text": "Sabit giderlerim neler?", "expected": {"tool": "get_recurring_payments", "arguments": {}}},
+    {"id": "t5", "text": "Düzenli ödemelerimi göster", "expected": {"tool": "get_recurring_payments", "arguments": {}}}]},
+
+  {"id": "upcoming",
+   "slots": {"days": [
+    {"text": "7", "args": {"days": 7}},
+    {"text": "10", "args": {"days": 10}}]},
+   "templates": [
+    {"id": "t1", "text": "Yaklaşan ödemelerim neler?", "expected": [
+     {"tool": "get_upcoming_payments", "arguments": {}}, {"tool": "get_upcoming_payments", "arguments": {"days": 30}}]},
+    {"id": "t2", "text": "Önümüzdeki {days} günde hangi ödemelerim var?", "expected": {"tool": "get_upcoming_payments", "arguments": {}}},
+    {"id": "t3", "text": "Önümüzdeki {days} gün içinde ne ödeyeceğim?", "expected": {"tool": "get_upcoming_payments", "arguments": {}}}]},
+
+  {"id": "budget",
+   "slots": {"amount": [
+    {"text": "1.000 TL", "args": {"amount": 1000, "currencyCode": "TRY"}},
+    {"text": "5 bin lira", "args": {"amount": 5000, "currencyCode": "TRY"}},
+    {"text": "1.500 euro", "args": {"amount": 1500, "currencyCode": "EUR"}}]},
+   "templates": [
+    {"id": "t1", "text": "Bu ay {amount} bütçem var, ne durumdayım?", "expected": {"tool": "check_budget", "arguments": {}}},
+    {"id": "t2", "text": "Bu ay için {amount} limit koydum, aşar mıyım?", "expected": {"tool": "check_budget", "arguments": {}}},
+    {"id": "t3", "text": "Bu ay harcamalara {amount} ayırdım, ne kadar kaldı?", "expected": {"tool": "check_budget", "arguments": {}}},
+    {"id": "t5", "text": "Bu ay harcamalarım için {amount} sınır belirledim, durum ne?", "expected": {"tool": "check_budget", "arguments": {}}},
+    {"id": "t4", "text": "Bu ay bütçemi aşacak mıyım?", "expected": "clarify:amount",
+     "oracle": {"tool": "check_budget", "arguments": {"amount": 3000, "currencyCode": "TRY"}}}]},
+
+  {"id": "savings",
+   "slots": {
+    "target": [
+     {"text": "Starbucks", "args": {"merchant": "Starbucks"}},
+     {"text": "yeme içme", "args": {"categoryCode": "FOOD"}},
+     {"text": "market", "args": {"categoryCode": "GROCERY"}}],
+    "cut": [
+     {"text": "%20", "args": {"reductionPercent": 20}},
+     {"text": "yüzde 30", "args": {"reductionPercent": 30}}]},
+   "templates": [
+    {"id": "t1", "text": "{target} harcamamı {cut} azaltsam ne kazanırım?", "expected": [
+     {"tool": "simulate_savings", "arguments": {}}, {"tool": "simulate_savings", "arguments": {"months": 6}}]},
+    {"id": "t2", "text": "{target} harcamamı yarıya indirsem ne olur?", "args": {"reductionPercent": 50}, "expected": [
+     {"tool": "simulate_savings", "arguments": {}}, {"tool": "simulate_savings", "arguments": {"months": 6}}]}]},
+
+  {"id": "income",
+   "slots": {"period": [
+    {"text": "geçen ay", "args": {"period": "LastMonth"}},
+    {"text": "Eylül'de", "args": {"period": "Custom", "from": "2026-09-01", "to": "2026-09-30"}}]},
+   "templates": [
+    {"id": "t1", "text": "{period} maaşımın ne kadarını harcadım?", "expected": {"tool": "get_income_share", "arguments": {}}},
+    {"id": "t2", "text": "{period} gelirimin yüzde kaçını harcadım?", "expected": {"tool": "get_income_share", "arguments": {}}},
+    {"id": "t3", "text": "{period} harcamam maaşıma göre nasıldı?", "expected": {"tool": "get_income_share", "arguments": {}}},
+    {"id": "t4", "text": "Maaşımın ne kadarını harcadım?", "expected": "clarify:period",
+     "oracle": {"tool": "get_income_share", "arguments": {"period": "LastMonth"}}},
+    {"id": "t5", "text": "Bu ay maaşımın ne kadarını harcadım?", "expected": "clarify:period",
+     "oracle": {"tool": "get_income_share", "arguments": {"period": "LastMonth"}}},
+    {"id": "t6", "text": "Son 3 ayda gelirimin ne kadarını harcadım?", "expected": "clarify:period",
+     "oracle": {"tool": "get_income_share", "arguments": {"period": "LastMonth"}}}]},
+
+  {"id": "advice",
+   "templates": [
+    {"id": "t1", "text": "{period} nerede tasarruf edebilirim?", "expected": {"tool": "get_spending_advice", "arguments": {}},
+     "slots": {"period": [
+      {"text": "geçen ay", "args": {"period": "LastMonth"}},
+      {"text": "Ağustos'ta", "args": {"period": "Custom", "from": "2026-08-01", "to": "2026-08-31"}}]}},
+    {"id": "t2", "text": "{period} için tasarruf önerin var mı?", "expected": {"tool": "get_spending_advice", "arguments": {}},
+     "slots": {"period": [
+      {"text": "geçen ay", "args": {"period": "LastMonth"}},
+      {"text": "Ağustos", "args": {"period": "Custom", "from": "2026-08-01", "to": "2026-08-31"}}]}},
+    {"id": "t3", "text": "Geçen ay nelerden tasarruf edebilirim?", "expected": {"tool": "get_spending_advice", "arguments": {"period": "LastMonth"}}},
+    {"id": "t4", "text": "Nerede tasarruf edebilirim?", "expected": "clarify:period",
+     "oracle": {"tool": "get_spending_advice", "arguments": {"period": "LastMonth"}}}]},
+
+  {"id": "one_off",
+   "slots": {
+    "period": [
+     {"text": "geçen ay", "args": {"period": "LastMonth"}},
+     {"text": "geçen hafta", "args": {"period": "LastWeek"}}],
+    "target": [
+     {"text": "eğlence harcamamı", "args": {"categoryCode": "ENTERTAINMENT"}},
+     {"text": "harcadığım parayla", "args": {}},
+     {"text": "giyim harcamamı", "args": {"categoryCode": "CLOTHING"}}]},
+   "templates": [
+    {"id": "t1", "text": "{period} {target} dolar alsaydım ne olurdu?", "expected": {"tool": "what_if_one_off", "arguments": {}}},
+    {"id": "t2", "text": "{period} harcamasaydım da altın alsaydım?", "expected": {"tool": "what_if_one_off", "arguments": {}}},
+    {"id": "t3", "text": "{period} harcadığım parayı euroya yatırsaydım ne olurdu?", "expected": {"tool": "what_if_one_off", "arguments": {}}},
+    {"id": "t4", "text": "{period}ki harcamalarımı biriktirseydim ne olurdu?", "expected": {"tool": "what_if_one_off", "arguments": {}}}]},
+
+  {"id": "monthly",
+   "slots": {
+    "amount": [
+     {"text": "1.000 TL", "args": {"amount": 1000, "currencyCode": "TRY"}},
+     {"text": "500 lira", "args": {"amount": 500, "currencyCode": "TRY"}},
+     {"text": "2 bin TL", "args": {"amount": 2000, "currencyCode": "TRY"}}],
+    "asset": [
+     {"text": "altın"},
+     {"text": "dolar"}]},
+   "templates": [
+    {"id": "t1", "text": "Ayda {amount} {asset} olarak biriktirseydim ne olurdu?", "expected": [
+     {"tool": "what_if_monthly", "arguments": {}}, {"tool": "what_if_monthly", "arguments": {"fromAdvice": false}}]},
+    {"id": "t2", "text": "Her ay {amount} biriktirseydim bugün ne kadar olurdu?", "expected": [
+     {"tool": "what_if_monthly", "arguments": {}}, {"tool": "what_if_monthly", "arguments": {"fromAdvice": false}}]},
+    {"id": "t3", "text": "Aylık {amount} altın alsaydım ne olurdu?", "expected": [
+     {"tool": "what_if_monthly", "arguments": {}}, {"tool": "what_if_monthly", "arguments": {"fromAdvice": false}}]},
+    {"id": "t4", "text": "Ayda 5 bin biriktirseydim ne olurdu?", "expected": [
+     {"tool": "what_if_monthly", "arguments": {"amount": 5000, "currencyCode": "TRY"}},
+     {"tool": "what_if_monthly", "arguments": {"amount": 5000, "currencyCode": "TRY", "fromAdvice": false}}]},
+    {"id": "t5", "text": "Ayda biriktirseydim ne olurdu?", "expected": "clarify:amount",
+     "oracle": {"tool": "what_if_monthly", "arguments": {}}},
+    {"id": "t6", "text": "Ayda 100 dolar biriktirseydim ne olurdu?", "expected": "lira_only",
+     "oracle": {"tool": "what_if_monthly", "arguments": {"amount": 100}}}]},
+
+  {"id": "advised",
+   "templates": [
+    {"id": "t1", "text": "Önerdiğin tutarı her ay biriktirseydim ne olurdu?", "expected": {"tool": "what_if_monthly", "arguments": {"fromAdvice": true}}},
+    {"id": "t2", "text": "Önerdiğin tutarı biriktirseydim ne olurdu?", "expected": {"tool": "what_if_monthly", "arguments": {"fromAdvice": true}}},
+    {"id": "t3", "text": "Önerilen tutarı aylık biriktirseydim ne kazanırdım?", "expected": {"tool": "what_if_monthly", "arguments": {"fromAdvice": true}}},
+    {"id": "t4", "text": "Peki bu tutarı biriktirseydim?", "expected": {"tool": "what_if_monthly", "arguments": {"fromAdvice": true}},
+     "context": {"tool": "get_spending_advice", "arguments": {"period": "LastMonth"}, "question": "Geçen ay nerede tasarruf edebilirim?"}}]},
+
+  {"id": "advice_refusal",
+   "templates": [
+    {"id": "t1", "text": "Altın alayım mı?", "expected": "advice"},
+    {"id": "t2", "text": "Dolar yükselir mi?", "expected": "advice"},
+    {"id": "t3", "text": "Euro düşer mi?", "expected": "advice"},
+    {"id": "t4", "text": "Bana yatırım tavsiyesi verir misin?", "expected": "advice"},
+    {"id": "t5", "text": "Şimdi dolar almalı mıyım?", "expected": "advice"},
+    {"id": "t6", "text": "Altın mı dolar mı alayım?", "expected": "advice"},
+    {"id": "t7", "text": "Altın almak mantıklı mı?", "expected": "advice"}]},
+
+  {"id": "out_of_scope",
+   "templates": [
+    {"id": "t1", "text": "Deniz'e 100 TL transfer yap", "expected": "out_of_scope"},
+    {"id": "t2", "text": "Hangi hisseye yatırım yapayım?", "expected": "out_of_scope"},
+    {"id": "t3", "text": "Kripto alayım mı?", "expected": "out_of_scope"},
+    {"id": "t4", "text": "Bana bir fıkra anlat", "expected": "out_of_scope"},
+    {"id": "t5", "text": "Anneme para gönder", "expected": "out_of_scope"}]}
+ ],
+
+ "real": [
+  {"id": "r01", "text": "Geçen ayki harcamalarımı biriktirseydim nolurdu", "expected": {"tool": "what_if_one_off", "arguments": {"period": "LastMonth"}}},
+  {"id": "r02", "text": "Eylül ayında maaşımın ne kadarını harcadım?", "expected": {"tool": "get_income_share", "arguments": {"period": "Custom", "from": "2026-09-01", "to": "2026-09-30"}}},
+  {"id": "r03", "text": "Geçen ay param nereye gitti?", "expected": [
+   {"tool": "get_category_breakdown", "arguments": {"period": "LastMonth"}}, {"tool": "get_merchant_breakdown", "arguments": {"period": "LastMonth"}}]},
+  {"id": "r04", "text": "Geçen ay harcadığım parayı altına yatırsaydım ne olurdu?", "expected": {"tool": "what_if_one_off", "arguments": {"period": "LastMonth"}}},
+  {"id": "r05", "text": "Önerdiğin tutarı biriktirseydim?", "expected": {"tool": "what_if_monthly", "arguments": {"fromAdvice": true}}},
+  {"id": "r06", "text": "Bu ay ne kadar harcadım", "expected": {"tool": "get_spending_summary", "arguments": {"period": "ThisMonth"}}}
+ ],
+
+ "dialogs": [
+  {"id": "d01", "turns": ["Ayda biriktirseydim ne olurdu?", "5000"], "oracle": {"tool": "what_if_monthly", "arguments": {}},
+   "expected": {"tool": "what_if_monthly", "arguments": {"amount": 5000, "currencyCode": "TRY"}}},
+  {"id": "d02", "turns": ["Ayda biriktirseydim ne olurdu?", "5 bin"], "oracle": {"tool": "what_if_monthly", "arguments": {}},
+   "expected": {"tool": "what_if_monthly", "arguments": {"amount": 5000, "currencyCode": "TRY"}}},
+  {"id": "d03", "turns": ["Ayda biriktirseydim ne olurdu?", "5.000 TL"], "oracle": {"tool": "what_if_monthly", "arguments": {}},
+   "expected": {"tool": "what_if_monthly", "arguments": {"amount": 5000, "currencyCode": "TRY"}}},
+  {"id": "d04", "turns": ["Ayda biriktirseydim ne olurdu?", "5 bin lira"], "oracle": {"tool": "what_if_monthly", "arguments": {}},
+   "expected": {"tool": "what_if_monthly", "arguments": {"amount": 5000, "currencyCode": "TRY"}}},
+  {"id": "d05", "turns": ["Ayda biriktirseydim ne olurdu?", "100 dolar"], "oracle": {"tool": "what_if_monthly", "arguments": {}},
+   "expected": "lira_only"},
+  {"id": "d06", "turns": ["Ayda biriktirseydim ne olurdu?", "5000", "TL"], "oracle": {"tool": "what_if_monthly", "arguments": {}},
+   "expected": {"tool": "what_if_monthly", "arguments": {"amount": 5000, "currencyCode": "TRY"}}},
+  {"id": "d07", "turns": ["Maaşımın ne kadarını harcadım?", "geçen ay"], "oracle": {"tool": "get_income_share", "arguments": {"period": "LastMonth"}},
+   "expected": {"tool": "get_income_share", "arguments": {"period": "LastMonth"}}},
+  {"id": "d08", "turns": ["Maaşımın ne kadarını harcadım?", "1"], "oracle": {"tool": "get_income_share", "arguments": {"period": "LastMonth"}},
+   "expected": {"tool": "get_income_share", "arguments": {"period": "LastMonth"}}},
+  {"id": "d09", "turns": ["Maaşımın ne kadarını harcadım?", "Ağustos"], "oracle": {"tool": "get_income_share", "arguments": {"period": "LastMonth"}},
+   "expected": {"tool": "get_income_share", "arguments": {"period": "Custom", "from": "2026-08-01", "to": "2026-08-31"}}},
+  {"id": "d10", "turns": ["Maaşımın ne kadarını harcadım?", "Ekim"], "oracle": {"tool": "get_income_share", "arguments": {"period": "LastMonth"}},
+   "expected": "clarify:period"},
+  {"id": "d11", "turns": ["Ne kadar harcadım?", "geçen ay"], "oracle": {"tool": "get_spending_summary", "arguments": {"period": "ThisMonth"}},
+   "expected": {"tool": "get_spending_summary", "arguments": {"period": "LastMonth"}}},
+  {"id": "d12", "turns": ["Ne kadar harcadım?", "son 3 ay"], "oracle": {"tool": "get_spending_summary", "arguments": {"period": "ThisMonth"}},
+   "expected": {"tool": "get_spending_summary", "arguments": {"period": "Last3Months"}}},
+  {"id": "d13", "turns": ["Ne kadar harcadım?", "dün"], "oracle": {"tool": "get_spending_summary", "arguments": {"period": "ThisMonth"}},
+   "expected": {"tool": "get_spending_summary", "arguments": {"period": "Yesterday"}}},
+  {"id": "d14", "turns": ["Bu ay bütçemi aşacak mıyım?", "1000", "TL"], "oracle": {"tool": "check_budget", "arguments": {"amount": 3000, "currencyCode": "TRY"}},
+   "expected": {"tool": "check_budget", "arguments": {"amount": 1000, "currencyCode": "TRY"}}},
+  {"id": "d15", "turns": ["Bu ay bütçemi aşacak mıyım?", "1.500 TL"], "oracle": {"tool": "check_budget", "arguments": {"amount": 3000, "currencyCode": "TRY"}},
+   "expected": {"tool": "check_budget", "arguments": {"amount": 1500, "currencyCode": "TRY"}}},
+  {"id": "d16", "turns": ["Starbucks'a ne kadar harcadım?", "geçen ay"], "oracle": {"tool": "get_merchant_spending", "arguments": {"merchant": "Starbucks", "period": "ThisMonth"}},
+   "expected": {"tool": "get_merchant_spending", "arguments": {"merchant": "Starbucks", "period": "LastMonth"}}}
+ ]
+}
