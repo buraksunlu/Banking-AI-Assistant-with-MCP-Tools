@@ -15,7 +15,7 @@ import time
 from dataclasses import dataclass
 from typing import Protocol
 
-from answer_check import fold_turkish
+from answer_check import fold_rule, fold_turkish
 from ollama_client import OllamaError
 
 GENERAL, PLANNING, WEALTH = "general", "planning", "wealth"
@@ -34,34 +34,45 @@ GROUPS = {
 _MODEL_GROUPS = {"spending": GENERAL, "payments": GENERAL, "planning": PLANNING}
 
 # K5-B: only requests that are clearly not about the user's spending; a question about transfers is not one of them.
-_OUT_OF_SCOPE = re.compile(
+_OUT_OF_SCOPE = re.compile(fold_rule(
     r"\btransfer\s+(?:yap|et|gönder)|\bpara\s+gönder|\bhavale\s+(?:yap|et)|\beft\s+(?:yap|et)"
-    r"|\bhisse|\byatirim\s+yap(?!sa[yd])|\bkripto|\bborsa|\bfikra|\bşaka")
+    r"|\bhisse|\byatirim\s+yap(?!sa[yd])|\bkripto|\bborsa|\bfikra|\bşaka"))
 
 # INC-03 K5-A: a request for advice or a forecast ("altın alayım mı", "dolar yükselir mi"). Answered with a fixed text and no model:
 # the backend computes the past, nobody here may say what to buy or what will happen. "yatirim yap…" is the out-of-scope rule's.
-_ADVICE_REQUEST = re.compile(
-    r"\balayim\s+mi|\balmali\s+miyim|\bhangisini\s+al|\bne\s+alayim|\bmantikli\s+mi|\btavsiye"
-    r"|\byüksel(?:ir|ecek)|\bdüş(?:er|ecek)\s+mi|\bkazandirir\s+mi|\bartar\s+mi")
+_ADVICE_REQUEST = re.compile(fold_rule(
+    # CHAT-09 K15-A: "alayım" in any shape ("alayım mı", "X mı Y mı alayım", "hangisini alayım") asks what to buy.
+    r"\balayim\b|\balmali\s+miyim|\bhangisini\s+al|\bmantikli\s+mi|\btavsiye"
+    r"|\byüksel(?:ir|ecek)|\bdüş(?:er|ecek)\s+mi|\bkazandirir\s+mi|\bartar\s+mi"))
 # INC-03 K3-A, K4-A: income share, saving advice and the "what if" scenarios. Checked before the planning and general words,
 # which they contain too ("maaşımın ne kadarını harcadım", "tasarruf", "biriktirseydim"); only -seydim/-saydım and "X olarak"
 # make a saving a what-if, "biriktiririm" stays planning.
-_WEALTH_WORDS = re.compile(
+_WEALTH_WORDS = re.compile(fold_rule(
     r"\bmaaş|\bgelir|\bn(?:erede|ereden|elerden)\s+tasarruf|\btasarruf\s+öneri"
-    r"|(?:sa|se)ydi(?:m|k)\b|\b(?:dolar|euro|altin)\s+(?:olarak|cinsinden)")
+    r"|(?:sa|se)ydi(?:m|k)\b|\b(?:dolar|euro|altin)\s+(?:olarak|cinsinden)"))
+
+# CHAT-09 K5-D: inside the wealth group, a what-if ("-seydim/-saydım", "X olarak") whose words name one scenario is shown only that
+# scenario's tool: spending words mean last period's spending bought at once, "ayda/her ay/aylık" a monthly saving. Both or neither
+# leaves the group as it is. The 4b model sent "Geçen ayki harcamalarımı biriktirseydim" to the monthly saving.
+_WHAT_IF = re.compile(fold_rule(r"(?:sa|se)ydi(?:m|k)\b|\b(?:dolar|euro|altin)\s+(?:olarak|cinsinden)"))
+_ONE_OFF_WORDS = re.compile(fold_rule(r"harca|\bmasraf|\bgider"))
+_MONTHLY_WORDS = re.compile(fold_rule(r"\bayda\b|\bher\s+ay\b|\baylık|\bdüzenli"))
+ONE_OFF, MONTHLY = "what_if_one_off", "what_if_monthly"
 
 # A planning word decides even when spending words are there too ("Starbucks harcamamı yarıya indirsem" is a savings question).
-_PLANNING_WORDS = re.compile(
-    r"bütçe|\blimit|\bayir(?:dim|acağim|sam)|tasarruf|biriktir|\bazalt|\bkis(?:sa|ar|al)|yariya|\bindirs|\bindirir|çeyre")
+_PLANNING_WORDS = re.compile(fold_rule(
+    r"bütçe|\blimit|\bayir(?:dim|acağim|sam)|tasarruf|biriktir|\bazalt|\bkis(?:sa|ar|al)|yariya|\bindirs|\bindirir|çeyre"
+    # CHAT-09 K14-A: "sınır" folds to "sinir" (nerve), so only a limit's own shapes: set, or followed by a figure or "aş…".
+    r"|\bsınır\s+(?:koy|belirle)|\bsınır(?:ı|ım|ımı)?\s+(?:\d|aş)"))
 # Spending and payment words: the general group without asking the model.
-_GENERAL_WORDS = re.compile(
+_GENERAL_WORDS = re.compile(fold_rule(
     r"harca|\bnereye|kategori|işyer|karşilaştir|\b(?:aya|aylara|döneme)\s+göre|\baylara\b|\bdeğiş"
     r"|\ben\s+(?:büyük|pahali|yüksek|çok)|\bverdim|\bödedim|\bgitti|alişveriş|\bmasraf|\bne\s+kadar"
-    r"|abonel|düzenli|yaklaşan|önümüzdeki|\böde(?:me|yece|necek)|\bödüyor|sabit\s+gider")
+    r"|abonel|düzenli|yaklaşan|önümüzdeki|\böde(?:me|yece|necek)|\bödüyor|sabit\s+gider"))
 
 # CHAT-08 K6-C: words that make a message a question about spending; with them and no period, "which period?" is asked instead of
 # the out-of-scope reply (a "ne kadar" alone could be a balance question).
-_SPENDING_WORDS = re.compile(r"harca|\bverdim|\bödedim|\bgitti|alişveriş|\bmasraf")
+_SPENDING_WORDS = re.compile(fold_rule(r"harca|\bverdim|\bödedim|\bgitti|alişveriş|\bmasraf"))
 
 # The model's question is a shortcut: a slow answer falls back to the general group instead of eating the turn.
 INTENT_SECONDS = 5.0
@@ -77,9 +88,13 @@ class Route:
     source: str = "rule"
     # INC-03 K5-A: an out-of-scope route that asked for advice or a forecast gets its own fixed text.
     advice: bool = False
+    # CHAT-09 K5-D: the one tool the words chose inside the groups, shown alone.
+    only: str | None = None
 
     def tools(self) -> frozenset[str]:
-        """The names of the groups' tools."""
+        """The names of the tools the model is shown: the one the words chose, or the groups' tools."""
+        if self.only is not None:
+            return frozenset((self.only,))
         return frozenset(name for group in self.groups for name in GROUPS[group])
 
 
@@ -121,9 +136,20 @@ def _without_dates(tool: dict) -> dict:
 
 
 def narrow(tools: list[dict], route: Route) -> list[dict]:
-    """The listed tools of the route's groups, in the server's order, plus every tool the table does not know."""
+    """The listed tools of the route's groups, in the server's order, plus every tool the table does not know; only the chosen
+    one when the words chose one (K5-D)."""
     allowed = route.tools()
+    if route.only is not None:
+        return [t for t in tools if t["function"]["name"] in allowed]
     return [t for t in tools if t["function"]["name"] in allowed or group_of(t["function"]["name"]) is None]
+
+
+def scenario_of(folded: str) -> str | None:
+    """The what-if tool the words of a folded message name (K5-D); None when they name both, neither, or no what-if at all."""
+    if _WHAT_IF.search(folded) is None:
+        return None
+    one_off, monthly = _ONE_OFF_WORDS.search(folded) is not None, _MONTHLY_WORDS.search(folded) is not None
+    return ONE_OFF if one_off and not monthly else MONTHLY if monthly and not one_off else None
 
 
 class Router:
@@ -140,7 +166,7 @@ class Router:
         if _ADVICE_REQUEST.search(folded):
             return Route((), out_of_scope=True, advice=True)
         if _WEALTH_WORDS.search(folded):
-            return Route((WEALTH,))
+            return Route((WEALTH,), only=scenario_of(folded))
         if _PLANNING_WORDS.search(folded):
             return Route((PLANNING,))
         if _GENERAL_WORDS.search(folded):

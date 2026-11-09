@@ -255,3 +255,33 @@ def test_monthly_without_advice_is_a_fixed_answer_that_invites_the_users_own_amo
 
     assert outcome.reply is not None and outcome.reply[0] == "answer" and outcome.facts == []
     assert "Ayda 1.000 TL biriktirseydim" in outcome.reply[1] and "tasarruf önerisi çıkmadığı" in outcome.reply[1]
+
+
+# --- CHAT-09 PR2 K7-A, K16-A: the question the explainer is given, and which value is whose -----------------------------------
+
+def test_one_off_gives_the_explainer_a_question_written_by_code():
+    # The simulator's explainer read "Geçen ayki ... nolurdu (5000) (Tl)" and wrote "Geçen ay 5.000 TL biriktirseydiniz".
+    outcome = outcome_for("what_if_one_off", {"period": "LastMonth", "categoryCode": "ENTERTAINMENT"}, one_off(THREE))
+
+    assert outcome.question == "1-30 Eylül 2026 dönemindeki eğlence harcamamla dolar, euro ya da gram altın alsaydım bugün ne olurdu?"
+    assert outcome.named_values == (("dolar", "2.297,38"), ("euro", "2.222,62"), ("altin", "2.194,89"))
+
+
+def test_one_off_without_a_category_or_with_a_missing_price_names_only_what_is_there():
+    stale = asset("Gram altın", "GRAM", None, None, None, None, None, status="Stale")
+
+    outcome = outcome_for("what_if_one_off", {"period": "LastMonth"}, one_off([THREE[0], stale], category=(None, None)))
+
+    assert outcome.question == "1-30 Eylül 2026 dönemindeki harcamamla dolar ya da gram altın alsaydım bugün ne olurdu?"
+    assert outcome.named_values == (("dolar", "2.297,38"),)
+
+
+def test_monthly_gives_the_explainer_the_months_and_the_amount():
+    outcome = outcome_for("what_if_monthly", {"fromAdvice": True}, monthly(assets=[GOLD]))
+
+    assert outcome.question == "Son 12 ay boyunca her ay 236,18 TL ile gram altın alsaydım bugün ne olurdu?"
+    assert outcome.named_values == (("altin", "3.000,60"),)
+
+
+def test_the_other_analyses_keep_the_users_question():
+    assert outcome_for("get_income_share", {"period": "LastMonth"}, income(income_row())).question is None

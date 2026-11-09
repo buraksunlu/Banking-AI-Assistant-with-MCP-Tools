@@ -44,6 +44,11 @@ class ToolOutcome:
     # INC-03 K6-A, K18-C: lines the backend wrote (the advice sentences, the investment warning) that code puts under the explained
     # answer; the model never retypes them.
     appendix: tuple[str, ...] = ()
+    # CHAT-09 K7-A: the question the explainer answers instead of the user's words (a what-if is asked back over several turns, and
+    # "Geçen ayki ... (5000) (Tl)" made the model write "geçen ay 5.000 TL"); None keeps the user's question.
+    question: str | None = None
+    # CHAT-09 K16-A: each priced asset's folded word with its value as the facts write it, for answer_check.misnamed.
+    named_values: tuple[tuple[str, str], ...] = ()
 
 
 def outcome_for(tool: str, arguments: dict, result: dict) -> ToolOutcome:
@@ -274,6 +279,8 @@ UNIT_NAMES = {"GRAM": "gram"}
 # The backend names the pairs "ABD Doları / Türk Lirası"; the model read the three values as one portfolio and added them up
 # (PR2 measurement, A21). Plain names in the user's words, and a note that the three are alternatives.
 ASSET_NAMES = {"USD": "Dolar", "EUR": "Euro", "GRAM": "Gram altın"}
+# The word an answer names each asset by, folded like answer_check folds the answer ("Gram altın", "altını" → "altin").
+ASSET_WORDS = {"USD": "dolar", "EUR": "euro", "GRAM": "altin"}
 ALTERNATIVES = "Bu üç seçenek birbirinin alternatifidir: aynı tutar yalnız birine yatırılmış sayılır; değerler toplanmaz."
 
 
@@ -334,7 +341,10 @@ def _one_off(arguments: dict, result: dict) -> ToolOutcome:
     facts += [_fact("Harcanan", money(result["spentAmount"], result["currencyCode"])),
               _fact("Alış günü", _day(result["buyDate"])), _fact("Değerleme günü", _day(result["valueDate"]))]
     facts.extend(_asset_fact(a, priced=True) for a in result["assets"])
-    return ToolOutcome([*facts, _fact("Not", ALTERNATIVES)], appendix=(result["disclaimer"],))
+    category = f"{_lower(result['categoryDisplayName'])} " if result["categoryDisplayName"] else ""
+    question = f"{_period(result).text} dönemindeki {category}harcamamla {_choices(result['assets'])} alsaydım bugün ne olurdu?"
+    return ToolOutcome([*facts, _fact("Not", ALTERNATIVES)], appendix=(result["disclaimer"],), question=question,
+                       named_values=_named_values(result["assets"]))
 
 
 def _monthly(arguments: dict, result: dict) -> ToolOutcome:
@@ -353,7 +363,26 @@ def _monthly(arguments: dict, result: dict) -> ToolOutcome:
         facts.append(_asset_fact(a, priced=False))
         if a["value"] is not None and a.get("volatility"):
             facts.extend(_volatility(a, currency))
-    return ToolOutcome([*facts, _fact("Not", ALTERNATIVES)], appendix=(result["disclaimer"],))
+    question = (f"Son {result['months']} ay boyunca her ay {money(result['amount'], currency)} ile {_choices(result['assets'])} "
+                "alsaydım bugün ne olurdu?")
+    return ToolOutcome([*facts, _fact("Not", ALTERNATIVES)], appendix=(result["disclaimer"],), question=question,
+                       named_values=_named_values(result["assets"]))
+
+
+def _choices(assets: list[dict]) -> str:
+    # "dolar, euro ya da gram altın": every asset of the result; one without a price is in the facts as "hesaplanamadı".
+    names = [_lower(_asset_name(a)) for a in assets] or ["döviz ya da altın"]
+    return names[0] if len(names) == 1 else f"{', '.join(names[:-1])} ya da {names[-1]}"
+
+
+def _named_values(assets: list[dict]) -> tuple[tuple[str, str], ...]:
+    return tuple((ASSET_WORDS[a["baseUnit"]], money(a["value"], "TRY").rsplit(" ", 1)[0])
+                 for a in assets if a["value"] is not None and a["baseUnit"] in ASSET_WORDS)
+
+
+def _lower(text: str) -> str:
+    # Turkish lower case: "Eğlence" → "eğlence", "İçme" → "içme".
+    return text.replace("I", "ı").replace("İ", "i").lower()
 
 
 def _asset_name(asset: dict) -> str:

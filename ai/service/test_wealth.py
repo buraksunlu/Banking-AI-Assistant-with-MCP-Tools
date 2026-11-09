@@ -47,7 +47,8 @@ def test_an_amount_and_its_lira_currency_run_as_they_are():
 
 def test_the_model_cannot_choose_the_amount():
     result = plan({"amount": 1000, "currencyCode": "TRY"}, "Ayda biriktirseydim ne olurdu?")
-    assert result == MonthlyPlan(ask="amount", known={}, later=("currencyCode",))
+    # CHAT-09 K6-B: only the amount is asked; the currency is not, since only lira can run.
+    assert result == MonthlyPlan(ask="amount", known={})
 
 
 def test_a_currency_the_model_wrote_is_not_the_users():
@@ -56,9 +57,12 @@ def test_a_currency_the_model_wrote_is_not_the_users():
     assert result == MonthlyPlan(lira_only=True)
 
 
-def test_an_amount_without_a_currency_asks_the_currency():
-    result = plan({"amount": 1000, "currencyCode": "TRY"}, "Ayda 1.000 biriktirseydim dolar olarak ne olurdu?")
-    assert result == MonthlyPlan(ask="currencyCode", known={"amount": 1000})
+@pytest.mark.parametrize("message", ["Ayda 1.000 biriktirseydim dolar olarak ne olurdu?", "Ayda 5 bin biriktirseydim ne olurdu?"])
+def test_an_amount_without_a_currency_is_lira(message):
+    # CHAT-09 K6-B (INC-03 K17-B for the monthly saving): the scenario takes lira only, so a bare amount is lira and is not asked;
+    # the answer's "Aylık tutar" line shows it as lira. "dolar olarak" names the asset, not the amount's currency.
+    amount = 5000 if "bin" in message else 1000
+    assert plan({"amount": amount}, message) == MonthlyPlan(run={"amount": amount, "currencyCode": "TRY"})
 
 
 def test_from_advice_runs_when_the_user_asks_for_the_advised_amount():
@@ -72,7 +76,7 @@ def test_from_advice_runs_in_a_follow_up_of_an_advice_answer():
 
 def test_from_advice_the_user_did_not_ask_for_is_a_guess():
     result = plan({"fromAdvice": True}, "Ayda biriktirseydim ne olurdu?")
-    assert result == MonthlyPlan(ask="amount", known={}, later=("currencyCode",))
+    assert result == MonthlyPlan(ask="amount", known={})
 
 
 def test_an_amount_the_user_wrote_wins_over_the_advice_flag():

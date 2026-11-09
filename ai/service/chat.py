@@ -22,7 +22,7 @@ from typing import Protocol
 
 from langchain_ollama import ChatOllama
 
-from answer_check import has_advice
+from answer_check import has_advice, misnamed
 from clarification import (Pending, PendingStore, ask_amount, ask_complete_month, ask_count, ask_currency, ask_merchant,
                            ask_percent, ask_period, check_question, resolve, template)
 from contracts import Fact
@@ -33,12 +33,12 @@ from ollama_client import OllamaError, OllamaSettings
 from prompts import (ADVICE_DECLINED_TEXT, CLARIFY_TEXT, DATE_SCHEMA, LIRA_ONLY_TEXT, INTENT_SCHEMA, OUT_OF_SCOPE_TEXT, build_clarify_messages, build_date_messages,
                      build_intent_messages, build_tool_messages)
 from dates import CustomerDay, DateReading, check_range, period_line, read_dates, with_span_replaced
-from grounding import check_arguments, mentions_period
-from routing import DATE_FIELDS, Router, hide_dates, is_spending_question, narrow
+from grounding import category_in, check_arguments, mentions_period
+from routing import DATE_FIELDS, ONE_OFF, Router, hide_dates, is_spending_question, narrow
 from suggestions import OUT_OF_SCOPE_SUGGESTIONS, OfferedStore, follow_ups, match
 from tools import ToolArgumentsRejected, ToolGateway
-from wealth import (LIRA, MONTH_TOOLS, MONTHLY_TOOL, WEALTH_TOOLS, advised_saving_call, has_complete_month, needs_month_question,
-                    plan_monthly)
+from wealth import (LIRA, MONTH_TOOLS, MONTHLY_TOOL, WEALTH_TOOLS, advised_saving_call, chosen_scenario_arguments, has_complete_month,
+                    needs_month_question, plan_monthly)
 
 logger = logging.getLogger("bankingai.ai")
 
@@ -263,6 +263,14 @@ class ChatService:
         # Listed first: when the tools cannot answer, the single local model is not kept busy for nothing.
         listed = narrow(self.gateway.list_tools(token, deadline), route)
         calls = self.selector.select(shown, hide_dates(listed), deadline, context)
+        if not calls and route.only is not None and any(t["function"]["name"] == route.only for t in listed):
+            # CHAT-09 K13-A: the words chose the scenario and the model was shown it alone; choosing nothing there is the small
+            # model's indecision, not an out-of-scope question. Its arguments are read from the words, and checked below as always.
+            arguments = chosen_scenario_arguments(route.only, shown)
+            if arguments is None:
+                known = {"categoryCode": category} if (category := category_in(shown)) else {}
+                return self._ask(ask_period(route.only, known, message), [], token, deadline)
+            calls = [ToolCall(route.only, arguments)]
         if not calls:
             if is_spending_question(message) and not mentions_period(shown):
                 # A spending question whose period is missing is not out of scope: it is asked (CHAT-08 K6-C).
@@ -290,11 +298,17 @@ class ChatService:
         if call.tool in MONTH_TOOLS and reading.kind != "found" and needs_month_question(shown, call.arguments, context):
             return self._ask(ask_complete_month(call.tool, {}, message, day.today if day else None), [], token, deadline)
 
-        # A period or count the user did not say is the model's guess: asked back, the tool does not run (K1-C, K2-A).
-        grounding = check_arguments(call.arguments, schemas[call.tool], shown, context.arguments if context else None)
+        # A period or count the user did not say is the model's guess: asked back, the tool does not run (K1-C, K2-A). With a date
+        # read by code the period is code's own (below): the "bu ay" put in the date's place is no period the user named (CHAT-09 K12-A).
+        checked = {k: v for k, v in call.arguments.items() if not (reading.kind == "found" and k == "period")}
+        grounding = check_arguments(checked, schemas[call.tool], shown, context.arguments if context else None)
         if grounding.missing is not None:
             return self._ask(self._question_for(call, grounding.unsaid, schemas[call.tool], message), [], token, deadline)
         arguments = grounding.arguments
+        if call.tool == ONE_OFF and "categoryCode" not in arguments and (category := category_in(shown)) is not None:
+            # CHAT-09 (model run of PR2, W07): the category the user named and the model left out; without it all spending of the
+            # period would be bought. Read from the words, as K13-A reads them.
+            arguments = {**arguments, "categoryCode": category}
         if reading.kind == "found":
             arguments = {**arguments, "period": "Custom", "from": reading.start.isoformat(), "to": reading.end.isoformat()}
         elif carried and takes_dates and arguments.get("period") == MASKED_PERIOD and not mentions_period(message):
@@ -347,10 +361,12 @@ class ChatService:
             kind, text = outcome.reply
             return ChatReply(kind, text, used, outcome.facts)
 
-        answer = self.explainer.explain(question, outcome.facts, deadline=deadline)
-        if call.tool in WEALTH_TOOLS and has_advice(answer):
-            # K7-A: the model must not say what to buy or what a price will do; the figures alone stand.
-            logger.info("Explanation of %s sounded like advice; the facts are shown instead", call.tool)
+        # CHAT-09 K7-A: a what-if is explained from the question code wrote, not from the user's words and replies.
+        answer = self.explainer.explain(outcome.question or question, outcome.facts, deadline=deadline)
+        if call.tool in WEALTH_TOOLS and (has_advice(answer) or misnamed(answer, outcome.named_values)):
+            # INC-03 K7-A: the model must not say what to buy or what a price will do; CHAT-09 K16-A: nor leave the reader to guess
+            # which value is whose. The figures alone stand.
+            logger.info("Explanation of %s sounded like advice or mixed up the assets; the facts are shown instead", call.tool)
             answer = "\n".join(f"{fact.label}: {fact.text}" for fact in outcome.facts)
         # After the answer check, by code: the user sees which days were meant, whatever the model wrote (CHAT-08 K16-A).
         if (line := period_line(call.arguments)) is not None:

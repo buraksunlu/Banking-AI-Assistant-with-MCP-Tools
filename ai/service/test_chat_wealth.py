@@ -158,19 +158,19 @@ def test_the_amount_is_asked_when_the_user_did_not_write_it_and_the_model_wrote_
     asked = chat.answer("Ayda biriktirseydim ne olurdu?", TOKEN, DAY)
     done = chat.answer("1.000 TL", TOKEN, DAY)
 
-    assert asked.type == "clarification" and "Ayda ne kadar biriktirirdiniz?" in asked.answer
+    assert asked == ChatReply("clarification", "Ayda kaç TL biriktirirdiniz? Örneğin 1.000.", [], [])
     assert done.type == "answer" and gateway.calls[0][:2] == ("what_if_monthly", {"amount": 1000, "currencyCode": "TRY"})
 
 
-def test_an_amount_without_a_currency_asks_the_currency_next():
+@pytest.mark.parametrize("reply", ["1000", "1.000", "bin", "1000 TL", "1 bin lira"])
+def test_a_bare_amount_in_the_reply_runs_as_lira_without_a_currency_question(reply):
+    # CHAT-09 K6-B: the simulator asked "TL, Euro, Dolar or Sterlin?" after "5000" although only lira can run.
     chat, _, gateway, _ = wealth([monthly("User", Decimal("1000.00"), assets=[GOLD])], [[MONTHLY_1000]])
     chat.answer("Ayda biriktirseydim ne olurdu?", TOKEN, DAY)
 
-    second = chat.answer("1000", TOKEN, DAY)
-    third = chat.answer("TL", TOKEN, DAY)
+    done = chat.answer(reply, TOKEN, DAY)
 
-    assert second.type == "clarification" and "para biriminde" in second.answer
-    assert third.type == "answer" and gateway.calls[0][1] == {"amount": 1000, "currencyCode": "TRY"}
+    assert done.type == "answer" and gateway.calls[0][1] == {"amount": 1000, "currencyCode": "TRY"}
 
 
 @pytest.mark.parametrize("message", ["Ayda 100 dolar biriktirseydim ne olurdu?"])
@@ -185,9 +185,8 @@ def test_an_amount_in_another_currency_is_a_fixed_answer(message):
 def test_the_currency_chosen_in_the_reply_is_checked_too():
     chat, _, gateway, _ = wealth([], [[MONTHLY_1000]])
     chat.answer("Ayda biriktirseydim ne olurdu?", TOKEN, DAY)
-    chat.answer("100", TOKEN, DAY)
 
-    reply = chat.answer("Dolar", TOKEN, DAY)
+    reply = chat.answer("100 dolar", TOKEN, DAY)
 
     assert reply.answer == LIRA_ONLY_TEXT and gateway.calls == []
 
@@ -274,3 +273,91 @@ def test_the_advised_saving_runs_even_when_the_model_chooses_no_tool(message):
 
     assert reply.type == "answer" and gateway.calls[0][:2] == ("what_if_monthly", {"fromAdvice": True})
     assert selector.calls == []
+
+
+# --- CHAT-09 PR2: the scenario the words chose (K5-D) and a model that chooses nothing there (K13-A) --------------------------
+
+def test_the_model_is_shown_only_the_scenario_the_words_chose():
+    call = ToolCall("what_if_one_off", {"period": "LastMonth"})
+    chat, selector, gateway, _ = wealth([one_off(THREE)], [[call]])
+
+    chat.answer("Geçen ayki harcamalarımı biriktirseydim nolurdu", TOKEN, DAY)
+
+    assert [t["function"]["name"] for t in selector.calls[0][1]] == ["what_if_one_off"]
+    assert gateway.calls[0][:2] == ("what_if_one_off", {"period": "LastMonth"})
+
+
+def test_a_monthly_scenario_the_model_did_not_choose_asks_the_amount():
+    # The model run of PR1: "AYDA BİRİKTİRSEYDİM NE OLURDU?" got the out-of-scope text with the monthly tool alone on the list.
+    chat, _, gateway, _ = wealth([], [[]])
+
+    reply = chat.answer("AYDA BİRİKTİRSEYDİM NE OLURDU?", TOKEN, DAY)
+
+    assert reply == ChatReply("clarification", "Ayda kaç TL biriktirirdiniz? Örneğin 1.000.", [], []) and gateway.calls == []
+
+
+def test_a_monthly_scenario_with_its_amount_runs_when_the_model_chose_nothing():
+    chat, _, gateway, _ = wealth([monthly("User", Decimal("1000.00"), assets=[GOLD])], [[]])
+
+    chat.answer("Her ay 1.000 TL biriktirseydim ne olurdu?", TOKEN, DAY)
+
+    assert gateway.calls[0][:2] == ("what_if_monthly", {"amount": 1000, "currencyCode": "TRY"})
+
+
+def test_a_one_off_scenario_the_model_did_not_choose_runs_the_period_the_user_named():
+    chat, _, gateway, _ = wealth([one_off(THREE)], [[]])
+
+    chat.answer("Geçen ay harcadığım parayla altın alsaydım ne olurdu?", TOKEN, DAY)
+
+    assert gateway.calls[0][:2] == ("what_if_one_off", {"period": "LastMonth"})
+
+
+def test_a_one_off_scenario_without_a_period_asks_it_when_the_model_chose_nothing():
+    chat, _, gateway, _ = wealth([one_off(THREE)], [[], []])
+
+    asked = chat.answer("Harcadığım parayla altın alsaydım ne olurdu?", TOKEN, DAY)
+    chat.answer("geçen hafta", TOKEN, DAY)
+
+    assert asked.type == "clarification" and "Hangi dönem için?" in asked.answer
+    assert gateway.calls[0][:2] == ("what_if_one_off", {"period": "LastWeek"})
+
+
+def test_the_category_waits_with_the_period_question():
+    chat, _, gateway, _ = wealth([one_off(THREE)], [[], []])
+
+    chat.answer("Eğlence harcamamı dolar alsaydım ne olurdu?", TOKEN, DAY)
+    chat.answer("geçen ay", TOKEN, DAY)
+
+    assert gateway.calls[0][:2] == ("what_if_one_off", {"categoryCode": "ENTERTAINMENT", "period": "LastMonth"})
+
+
+def test_the_explainer_answers_the_question_code_wrote_for_a_what_if():
+    # K7-A: the user's question went through two questions back ("(5000) (Tl)"); the explainer gets the scenario instead.
+    chat, _, _, explainer = wealth([monthly("User", Decimal("5000.00"), assets=[GOLD])], [[]])
+    chat.answer("Ayda biriktirseydim ne olurdu?", TOKEN, DAY)
+
+    chat.answer("5000", TOKEN, DAY)
+
+    assert explainer.calls[0][0] == "Son 12 ay boyunca her ay 5.000,00 TL ile gram altın alsaydım bugün ne olurdu?"
+
+
+def test_values_written_next_to_another_assets_name_are_replaced_by_the_facts():
+    # K16-A: the simulator's "dolar, euro veya gram altın ... sırasıyla A, B ve C".
+    sentence = ("Bu miktar dolar, euro veya gram altın olarak değerlendirilirse değerler sırasıyla 2.297,38 TL, 2.222,62 TL ve "
+                "2.194,89 TL olur.")
+    call = ToolCall("what_if_one_off", {"period": "LastMonth", "categoryCode": "ENTERTAINMENT"})
+    chat, _, _, _ = wealth([one_off(THREE)], [[call]], explainer=FakeExplainer(sentence))
+
+    reply = chat.answer("Geçen ay eğlence harcamamı dolar alsaydım ne olurdu?", TOKEN, DAY)
+
+    assert sentence not in reply.answer
+    assert "Dolar alsaydınız: alışta 41,15 TL" in reply.answer and reply.answer.endswith(DISCLAIMER)
+
+
+def test_a_category_the_user_named_and_the_model_left_out_is_put_in_by_code():
+    # Model run of PR2: with the one-off tool shown alone, W07 came back without its category and would have bought all spending.
+    chat, _, gateway, _ = wealth([one_off(THREE)], [[ToolCall("what_if_one_off", {"period": "LastMonth"})]])
+
+    chat.answer("Geçen ay eğlence harcamamı dolar alsaydım ne olurdu?", TOKEN, DAY)
+
+    assert gateway.calls[0][:2] == ("what_if_one_off", {"period": "LastMonth", "categoryCode": "ENTERTAINMENT"})

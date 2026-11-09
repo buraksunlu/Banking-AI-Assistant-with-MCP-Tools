@@ -11,11 +11,10 @@ import re
 import time
 from dataclasses import dataclass
 
-from answer_check import FORBIDDEN_MENTIONS, fold_turkish
-from decimal import Decimal
+from answer_check import FORBIDDEN_MENTIONS, fold_rule, fold_turkish
 
 from formatting import MONTH_NAMES
-from grounding import amounts_in, count_in, currency_in, percent_in, period_in
+from grounding import amounts_in, json_number, count_in, currency_in, percent_in, period_in
 from memory import TokenMemory
 
 # The periods offered when the user named none; any other tool period in the reply counts too (grounding.period_in).
@@ -25,10 +24,14 @@ MAX_REPLY_WORDS = 4
 MONTH_EXAMPLES = (3, 6, 12)
 # The currencies of a budget as people say them; the value is the tool's code.
 CURRENCY_OPTIONS = (("TL", "TRY"), ("Euro", "EUR"), ("Dolar", "USD"), ("Sterlin", "GBP"))
+# The monthly "what if" saving (INC-03): lira only, so its amount question names the currency.
+MONTHLY_SAVING = "what_if_monthly"
 # Examples for a cut, not numbered: "20" then means 20 %, not an option.
 PERCENT_EXAMPLES = (10, 25, 50)
-_ORDINALS = {"birinci": 1, "ilk": 1, "ilki": 1, "ikinci": 2, "ikincisi": 2, "üçüncü": 3, "üçüncüsü": 3, "dördüncü": 4,
-             "dördüncüsü": 4, "beşinci": 5, "beşincisi": 5}
+# Folded like the reply they are matched against (K11-A).
+_ORDINALS = {fold_rule(word): number for word, number in {
+    "birinci": 1, "ilk": 1, "ilki": 1, "ikinci": 2, "ikincisi": 2, "üçüncü": 3, "üçüncüsü": 3, "dördüncü": 4,
+    "dördüncüsü": 4, "beşinci": 5, "beşincisi": 5}.items()}
 
 
 @dataclass(frozen=True)
@@ -134,6 +137,10 @@ def resolve(pending: Pending, reply: str) -> dict | None:
     # "3000 TL" answers the amount and the currency asked next in one go.
     if pending.kind == "amount" and "currencyCode" in pending.later and (currency := currency_in(reply)) is not None:
         completed["currencyCode"] = currency
+    if pending.kind == "amount" and pending.tool == MONTHLY_SAVING:
+        # CHAT-09 K6-B: a monthly saving is lira only and its currency is never asked; "100 dolar" keeps its dollar, so the chat
+        # refuses it instead of running 100 lira.
+        completed["currencyCode"] = currency_in(reply) or "TRY"
     return completed
 
 
@@ -142,8 +149,9 @@ def template(pending: Pending) -> str:
     if pending.kind == "count":
         numbers = [str(o.value) for o in pending.options]
         return f"Kaç aylık bakayım? Örneğin son {', '.join(numbers[:-1])} ya da {numbers[-1]} ay."
-    if pending.kind == "amount" and pending.tool == "what_if_monthly":
-        return "Ayda ne kadar biriktirirdiniz? Örneğin 1.000 TL."
+    if pending.kind == "amount" and pending.tool == MONTHLY_SAVING:
+        # CHAT-09 K6-B: the question says the currency, so a bare "5000" answers it whole.
+        return "Ayda kaç TL biriktirirdiniz? Örneğin 1.000."
     if pending.kind == "amount":
         return "Bütçeniz ne kadar? Örneğin 3.000 TL."
     if pending.kind == "percent":
@@ -152,8 +160,6 @@ def template(pending: Pending) -> str:
     choices = " ".join(f"{n}) {o.label}" for n, o in enumerate(pending.options, start=1))
     if pending.kind == "merchant":
         return f"‘{pending.asked}’ birden fazla işyeriyle eşleşti: {choices}. Hangisini kastettiniz?"
-    if pending.kind == "currency" and pending.tool == "what_if_monthly":
-        return f"Tutar hangi para biriminde? {choices}"
     if pending.kind == "currency":
         return f"Bütçeniz hangi para biriminde? {choices}"
     return f"{pending.note + ' ' if pending.note else ''}Hangi dönem için? {choices}{' ' + pending.hint if pending.hint else ''}"
@@ -201,7 +207,7 @@ def _value(pending: Pending, reply: str) -> str | int | float | None:
         return count if count is not None and pending.minimum <= count <= pending.maximum else None
     if pending.kind == "amount":
         amount = next((a for a in amounts_in(reply) if a > 0), None)
-        return None if amount is None else _json_number(amount)
+        return None if amount is None else json_number(amount)
     if pending.kind == "percent":
         # A bare "20" is the cut itself: the examples are not numbered.
         cut = percent_in(reply) or count_in(reply)
@@ -214,11 +220,6 @@ def _value(pending: Pending, reply: str) -> str | int | float | None:
     if pending.kind == "currency":
         return currency_in(reply)
     return _merchant(pending.options, reply)
-
-
-def _json_number(amount: Decimal) -> int | float:
-    # The same types the model's own arguments arrive in; two decimals survive a float exactly as JSON text ("2500.5").
-    return int(amount) if amount == amount.to_integral_value() else float(amount)
 
 
 def _choice_number(reply: str) -> int | None:

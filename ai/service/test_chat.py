@@ -185,7 +185,9 @@ def test_arguments_the_server_refuses_get_the_fixed_clarification(call):
 
     reply = chat.answer("Dün ne harcadım?", TOKEN)
 
-    assert (reply.type, reply.answer, reply.facts, reply.tool_calls) == ("clarification", CLARIFY_TEXT, [], [call])
+    # CHAT-09 K12-A: the period the user named ("dün") is what runs, so the call sent is the model's tool with the user's period.
+    assert (reply.type, reply.answer, reply.facts) == ("clarification", CLARIFY_TEXT, [])
+    assert [c.tool for c in reply.tool_calls] == [call.tool] and reply.tool_calls[0].arguments["period"] == "Yesterday"
     assert len(gateway.calls) == 1 and explainer.calls == []
 
 
