@@ -1606,6 +1606,85 @@
         ]
       }
     },
+    "/api/analytics/what-if/monthly": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "\"had I saved it every month\" (INV-01)",
+        "description": "`GET /api/analytics/what-if/monthly`: \"had I saved it every month\" (INV-01): the same lira amount bought on the first\nday of each of the last twelve complete months as USD, EUR and gram gold, valued on the customer's today with past prices\nonly, with each asset's volatility (worst and best month, largest fall, worst moment of the saving). The amount is either\n`amount` + `currencyCode=TRY` or `fromAdvice=true` (INC-02's advice for the last complete month), never\nboth. Every result carries the fixed warning: not a forecast, not investment advice.",
+        "parameters": [
+          {
+            "name": "amount",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "currencyCode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fromAdvice",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonthlyWhatIf"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
     "/api/analytics/merchants": {
       "get": {
         "tags": [
@@ -2708,6 +2787,13 @@
         ],
         "type": "string"
       },
+      "AdviceAmountStatus": {
+        "enum": [
+          "Used",
+          "NoAdvice"
+        ],
+        "type": "string"
+      },
       "AdviceCategory": {
         "required": [
           "categoryCode",
@@ -2891,6 +2977,30 @@
           }
         },
         "description": "The fixed thresholds, returned with every result so the reader sees why advice was or was not given."
+      },
+      "AssetVolatility": {
+        "required": [
+          "worstMonth",
+          "bestMonth",
+          "maxDrawdown",
+          "worstMoment"
+        ],
+        "type": "object",
+        "properties": {
+          "worstMonth": {
+            "$ref": "#/components/schemas/MonthChange"
+          },
+          "bestMonth": {
+            "$ref": "#/components/schemas/MonthChange"
+          },
+          "maxDrawdown": {
+            "$ref": "#/components/schemas/Drawdown"
+          },
+          "worstMoment": {
+            "$ref": "#/components/schemas/RunningReturn"
+          }
+        },
+        "description": "Past volatility of one asset (OC-05, K16-C): the price's worst and best month and its largest fall, and the worst moment of the\nsaving itself, which is milder because every month buys again."
       },
       "AssetWhatIf": {
         "required": [
@@ -3845,6 +3955,51 @@
         },
         "description": "Sum of the estimated amounts in one currency."
       },
+      "Drawdown": {
+        "required": [
+          "percent",
+          "peakDate",
+          "peakPrice",
+          "troughDate",
+          "troughPrice"
+        ],
+        "type": "object",
+        "properties": {
+          "percent": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "peakDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "peakPrice": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "troughDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "troughPrice": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          }
+        },
+        "description": "The largest fall of the price from a peak to a later trough over the monthly points and today, with the price days. Zero and\nno days when the price never fell below an earlier point."
+      },
       "GroupSpending": {
         "required": [
           "group",
@@ -4227,6 +4382,172 @@
         },
         "description": "`GET /api/me`: who the token belongs to. The internal customer id is deliberately left out; clients\nnever need it because every request is scoped by the token."
       },
+      "MonthChange": {
+        "required": [
+          "month",
+          "changePercent"
+        ],
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "format": "date"
+          },
+          "changePercent": {
+            "type": "number",
+            "format": "decimal"
+          }
+        },
+        "description": "A month's price change from its first day to the next month's first day (`Month` is the month's first day)."
+      },
+      "MonthlyAssetWhatIf": {
+        "required": [
+          "symbol",
+          "name",
+          "baseUnit",
+          "invested",
+          "valueDate",
+          "valuePriceDate",
+          "valuePrice",
+          "units",
+          "value",
+          "difference",
+          "differencePercent",
+          "status",
+          "source",
+          "buys",
+          "volatility"
+        ],
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "baseUnit": {
+            "type": "string"
+          },
+          "invested": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "valueDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "valuePriceDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "valuePrice": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "units": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "value": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "difference": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "differencePercent": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PriceStatus"
+          },
+          "source": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "buys": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MonthlyBuy"
+            }
+          },
+          "volatility": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AssetVolatility"
+              }
+            ]
+          }
+        },
+        "description": "One asset's monthly saving (OC-04): the twelve buys, the units and their value today, and the volatility. Figures and\nvolatility are null unless every price is usable; `Status` is then the worst one (K18-A). `Invested` is always shown."
+      },
+      "MonthlyBuy": {
+        "required": [
+          "buyDate",
+          "priceDate",
+          "price",
+          "units",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "buyDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "priceDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "price": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "units": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PriceStatus"
+          }
+        },
+        "description": "One monthly buy: the day, the price used and the units bought. Units are null unless the whole asset has figures."
+      },
       "MonthlySpending": {
         "required": [
           "year",
@@ -4269,6 +4590,99 @@
             "format": "int32"
           }
         }
+      },
+      "MonthlyWhatIf": {
+        "required": [
+          "amountSource",
+          "adviceStatus",
+          "advicePeriod",
+          "currencyCode",
+          "amount",
+          "months",
+          "firstBuyDate",
+          "lastBuyDate",
+          "valueDate",
+          "invested",
+          "method",
+          "disclaimer",
+          "assets"
+        ],
+        "type": "object",
+        "properties": {
+          "amountSource": {
+            "$ref": "#/components/schemas/WhatIfAmountSource"
+          },
+          "adviceStatus": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AdviceAmountStatus"
+              }
+            ]
+          },
+          "advicePeriod": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ResolvedPeriod"
+              }
+            ]
+          },
+          "currencyCode": {
+            "type": "string"
+          },
+          "amount": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "months": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "firstBuyDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "lastBuyDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "valueDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "invested": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "method": {
+            "type": "string"
+          },
+          "disclaimer": {
+            "type": "string"
+          },
+          "assets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MonthlyAssetWhatIf"
+            }
+          }
+        },
+        "description": "\"Had I saved it every month\" (OC-04): the amount bought on the first day of each of the last twelve complete months and valued\ntoday, with each asset's volatility. `AdvicePeriod` is the advice month when the amount comes from INC-02.\n`Amount` and `Invested` are null, and there are no asset rows, when there is no advice."
       },
       "MonthWindow": {
         "required": [
@@ -4630,6 +5044,34 @@
             "format": "date"
           }
         }
+      },
+      "RunningReturn": {
+        "required": [
+          "date",
+          "invested",
+          "value",
+          "returnPercent"
+        ],
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "invested": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "value": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "returnPercent": {
+            "type": "number",
+            "format": "decimal"
+          }
+        },
+        "description": "The saving itself on one day: what was invested so far, what it was worth and the return on the invested amount."
       },
       "SavingsSimulation": {
         "required": [
@@ -5169,6 +5611,14 @@
           }
         },
         "description": "Result of UpcomingPaymentService: the window `From` (today) – `To` (today + days, inclusive),\nthe expected payments (earliest first, overdue ones included) and the estimated total per currency."
+      },
+      "WhatIfAmountSource": {
+        "enum": [
+          "User",
+          "Advice"
+        ],
+        "type": "string",
+        "description": "Where the monthly amount comes from (K13-B)."
       }
     },
     "securitySchemes": {

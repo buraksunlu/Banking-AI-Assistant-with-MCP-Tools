@@ -15,9 +15,21 @@ public sealed class WhatIfServiceTests
         Assert.False(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BANKINGAI_CONNECTION_STRING")),
             "PostgreSQL testi için önce .env ortam değişkenlerini yükleyin.");
         await using var db = new BankingDbContext();
+        return await Service(db).OneOffAsync(query);
+    }
+
+    private static WhatIfService Service(BankingDbContext db)
+    {
         var periods = new PeriodResolver(new FixedTimeProvider(DemoNowUtc));
-        return await new WhatIfService(db, periods, new CategoryBreakdownService(db, periods), new MarketPriceReader(db))
-            .OneOffAsync(query);
+        var categories = new CategoryBreakdownService(db, periods);
+        var advice = new SpendingAdviceService(db, periods, new IncomeShareService(db, periods, categories));
+        return new WhatIfService(db, periods, categories, advice, new MarketPriceReader(db));
+    }
+
+    private static async Task<MonthlyWhatIf> MonthlyAsync(MonthlyWhatIfQuery query)
+    {
+        await using var db = new BankingDbContext();
+        return await Service(db).MonthlyAsync(query);
     }
 
     // Symbol, units, value, difference, percent.
@@ -113,4 +125,91 @@ public sealed class WhatIfServiceTests
     [Trait("Category", "PostgreSQL")]
     public async Task An_unknown_customer_is_refused() =>
         await Assert.ThrowsAsync<CustomerNotFoundException>(() => OneOffAsync(new(Guid.NewGuid(), PeriodKind.LastMonth)));
+
+    // ---- INV-01 PR2: monthly saving (OC-04/05). Buys on every 1st from 1 Oct 2025 to 1 Sep 2026, valued on 10 Oct 2026.
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Selins_advice_saving_is_bought_on_every_first_of_the_last_twelve_months()
+    {
+        var result = await MonthlyAsync(new(Selin, FromAdvice: true));
+
+        // INC-02's only advice for September: Eğlence, ayda 236,18.
+        Assert.Equal((WhatIfAmountSource.Advice, (AdviceAmountStatus?)AdviceAmountStatus.Used, (decimal?)236.18m, "TRY"),
+            (result.AmountSource, result.AdviceStatus, result.Amount, result.CurrencyCode));
+        Assert.Equal(((DateOnly?)new DateOnly(2026, 9, 1), (DateOnly?)new DateOnly(2026, 9, 30)),
+            (result.AdvicePeriod?.StartDate, result.AdvicePeriod?.EndDate));
+        Assert.Equal((12, new DateOnly(2025, 10, 1), new DateOnly(2026, 9, 1), new DateOnly(2026, 10, 10), (decimal?)2834.16m),
+            (result.Months, result.FirstBuyDate, result.LastBuyDate, result.ValueDate, result.Invested));
+        Assert.Equal(("MonthlyBuyOnFirstDay", WhatIfMath.Disclaimer), (result.Method, result.Disclaimer));
+        Assert.Equal(
+            [("USDTRY", 63.934549m, 3140.94m, 306.78m, 10.82m), ("EURTRY", 54.858260m, 3023.30m, 189.14m, 6.67m),
+             ("GRAM_GOLD_TRY", 0.453730m, 3000.60m, 166.44m, 5.87m)],
+            result.Assets.Select(a => (a.Symbol, a.Units, a.Value, a.Difference, a.DifferencePercent)));
+        Assert.All(result.Assets, a => Assert.Equal(
+            (PriceStatus.Ok, 12, new DateOnly(2025, 11, 1), (DateOnly?)new DateOnly(2025, 10, 31)),
+            (a.Status, a.Buys.Count, a.Buys[1].BuyDate, a.Buys[1].PriceDate)));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task A_users_amount_gives_the_hand_computed_figures_and_volatility()
+    {
+        var result = await MonthlyAsync(new(Ada, 1000m, "TRY"));
+
+        Assert.Equal((WhatIfAmountSource.User, (AdviceAmountStatus?)null, (decimal?)1000m, (decimal?)12000m),
+            (result.AmountSource, result.AdviceStatus, result.Amount, result.Invested));
+        Assert.Null(result.AdvicePeriod);
+        Assert.Equal([13298.92m, 12800.85m, 12704.72m], result.Assets.Select(a => a.Value!.Value));
+        var gold = result.Assets[2].Volatility!;
+        Assert.Equal((-9.13m, 18.54m, -17.97m, -3.24m),
+            (gold.WorstMonth.ChangePercent, gold.BestMonth.ChangePercent, gold.MaxDrawdown.Percent, gold.WorstMoment.ReturnPercent));
+        Assert.Equal(0m, result.Assets[0].Volatility!.MaxDrawdown.Percent);
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("Ada")]    // spending within every rule (NoRuleMatched)
+    [InlineData("Elif")]   // only euro: no lira advice
+    public async Task Without_lira_advice_there_is_no_amount_and_no_asset_row(string name)
+    {
+        var result = await MonthlyAsync(new(name == "Ada" ? Ada : Elif, FromAdvice: true));
+
+        Assert.Equal((WhatIfAmountSource.Advice, (AdviceAmountStatus?)AdviceAmountStatus.NoAdvice, (decimal?)null, (decimal?)null),
+            (result.AmountSource, result.AdviceStatus, result.Amount, result.Invested));
+        Assert.Empty(result.Assets);
+        Assert.Equal(new DateOnly(2025, 10, 1), result.FirstBuyDate);
+    }
+
+    [Theory]
+    [InlineData(null, null, false, "Amount", "Aylık tutar zorunlu: amount ile currencyCode ya da fromAdvice=true verilmeli.")]
+    [InlineData("1000", "TRY", true, "Amount", "Tutar (amount) ile fromAdvice birlikte verilemez.")]
+    [InlineData(null, "TRY", true, "CurrencyCode", "fromAdvice ile para birimi verilmez; öneri tutarı TL'dir.")]
+    [InlineData("1000", null, false, "CurrencyCode", "Tutarın para birimi (currencyCode) verilmeli.")]
+    [InlineData("1000", "USD", false, "CurrencyCode", "Birikim senaryosu yalnız TL (TRY) tutarla hesaplanır; varlık fiyatları TL'dir.")]
+    [InlineData("1000", "XYZ", false, "CurrencyCode", "TRY/USD/EUR/GBP olmalı.")]
+    [InlineData("0", "TRY", false, "Amount", "Tutar 0.01 ile parasal üst sınır arasında olmalı.")]
+    [InlineData("1000000.01", "TRY", false, "Amount", "Aylık tutar en fazla 1.000.000 olmalı.")]
+    public async Task Amount_and_source_are_checked_before_the_database(
+        string? amount, string? currency, bool fromAdvice, string field, string message)
+    {
+        // No connection is opened: the query is refused first, so this test needs no PostgreSQL.
+        await using var db = new BankingDbContext();
+        var error = await Assert.ThrowsAsync<ArgumentException>(() => Service(db).MonthlyAsync(
+            new(Selin, amount is null ? null : decimal.Parse(amount, System.Globalization.CultureInfo.InvariantCulture), currency, fromAdvice)));
+
+        Assert.Equal((field, message), (error.ParamName, error.Message.Split(" (Parameter")[0]));
+    }
+
+    [Fact]
+    public void One_million_is_still_allowed() =>
+        Assert.Null(Record.Exception(() => WhatIfService.ValidateMonthly(new(Selin, 1_000_000m, "TRY"))));
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task An_unknown_customer_is_refused_for_the_saving(bool fromAdvice) =>
+        await Assert.ThrowsAsync<CustomerNotFoundException>(() => MonthlyAsync(
+            fromAdvice ? new(Guid.NewGuid(), FromAdvice: true) : new(Guid.NewGuid(), 1000m, "TRY")));
 }

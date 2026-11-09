@@ -620,6 +620,35 @@ Beklenen değerler (fiyat satırlarından elle; 1 Eylül ve 9 Ekim 2026 fiyatlar
 Sınırlar: TL'nin faizi ve enflasyon yok (K2-D, uyarıda yazılı; mevduat faizi INV-02 havuzunda); tek alım varsayımı (harcama günleri
 değil dönemin ilk günü); işyeri filtresi yok.
 
+## INV-01 PR2 — "Biriktirseydim" ve dalgalanma (`WhatIfService.MonthlyAsync`, 9 Kasım 2026)
+
+Soru: "Ayda şu kadarı dolar/euro/altın olarak biriktirseydim bugün ne olurdu, yolda ne kadar sallanırdı?" Kararlar K13-B … K22-A
+(todo §13): tutar ya `amount` + `currencyCode=TRY` ya `fromAdvice=true` (ikisi birden ya da hiçbiri 400); öneri tutarı INC-02'nin
+son tam ay için verdiği TL önerilerinin `monthlySaving` toplamı, öneri yoksa `adviceStatus` `NoAdvice`, tutar ve satır yok.
+
+```text
+alım günleri   = son 12 tam ayın her 1'i (bugün 10 Eki 2026 → 1 Eki 2025 … 1 Eyl 2026); fiyat o gün ya da en yakın önceki gün
+birim          = Σ tutar / alım fiyatı (tam)      değer = birim × bugünkü fiyat      yatırılan = 12 × tutar
+ay değişimi    = ayın 1'i → sonraki ayın 1'i (son ayı devam eden ayın 1'i kapatır); en kötü ve en iyi ay (eşitlikte erken ay)
+en büyük düşüş = aylık noktalar + bugün üzerinde fiyatta tepe → sonraki dip (gün = fiyat günü); hiç düşmediyse 0, günler null
+en kötü an     = birikimin kendisi: her 1'inde o ayın alımından önce ve bugün, (değer − yatırılan) / yatırılan
+```
+
+Fiyat ölçüleri varlığın ne kadar oynak olduğunu, "en kötü an" kullanıcının gerçekte yaşayacağını söyler (K16-C): her ay yeniden alım
+yapıldığı için birikim fiyattan çok daha az düşer. 14 fiyat noktasından biri bile `Stale`/`Missing` ise o varlıkta rakam ve
+dalgalanma yok; alım günleri ve fiyatları yine görünür (K18-A). Ölçülen sorgu sayısı: kullanıcı tutarıyla 3 (müşteri, varlıklar,
+fiyatlar), `fromAdvice` ile 9 (+6 INC-02'nin kendi sorguları).
+
+Beklenen değerler (fiyat satırlarından elle; yüzdeler tutardan bağımsız):
+
+| Varlık | Ayda 1.000 (yatırılan 12.000) | Selin, öneriyle ayda 236,18 (2.834,16) | En kötü / en iyi ay | En büyük düşüş | En kötü an |
+| --- | --- | --- | --- | --- | --- |
+| USD | 270,702639 → 13.298,92 (+%10,82) | 63,934549 → 3.140,94 (+306,78) | Eki 2025 +%0,91 / May 2026 +%1,90 | yok (0) | 1 Kas 2025 +%0,91 |
+| EUR | 232,273098 → 12.800,85 (+%6,67) | 54,858260 → 3.023,30 (+189,14) | Eyl 2026 −%1,04 / Oca 2026 +%2,81 | 1 Eyl 55,8769 → 9 Eki 55,1112, −%1,37 | 1 Kas 2025 −%0,59 |
+| Gram altın | 1,921118 g → 12.704,72 (+%5,87) | 0,453730 g → 3.000,60 (+166,44) | Haz 2026 −%9,13 / Oca 2026 +%18,54 | 27 Şub 7.341,43 → 1 Tem 6.022,29, −%17,97 | 1 Tem 2026: 9.000 → 8.708,11, −%3,24 |
+
+Sınırlar: pencere sabit 12 ay; öneri yalnız son tam aydan; faiz, enflasyon, alış-satış farkı yok (uyarıda yazılı); TL dışı tutar 400.
+
 ## ANA-08 — Kenar durumları (`AnalyticsEdgeCaseTests`)
 
 Geçici kayıtlar testin kendi DB transaction'ında eklenir ve rollback edilir; demo verisi 116

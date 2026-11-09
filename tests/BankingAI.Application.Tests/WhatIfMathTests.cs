@@ -117,6 +117,146 @@ public sealed class WhatIfMathTests
             (row.Units, row.Value, row.Difference, row.DifferencePercent));
     }
 
+    // ---- OC-04/05: monthly saving and volatility (PR2). The real rows of every 1st from 1 Oct 2025 to 1 Oct 2026 and of 9 Oct
+    // 2026 (the price of Saturday 10 October), as returned by the price reader.
+
+    private static readonly MarketAssetInfo Eur = new(2, "EURTRY", "Euro / Türk Lirası", "EUR");
+
+    private static readonly (DateOnly Day, DateOnly PriceDate)[] Firsts =
+    [
+        (new(2025, 10, 1), new(2025, 10, 1)), (new(2025, 11, 1), new(2025, 10, 31)), (new(2025, 12, 1), new(2025, 12, 1)),
+        (new(2026, 1, 1), new(2025, 12, 31)), (new(2026, 2, 1), new(2026, 1, 30)), (new(2026, 3, 1), new(2026, 2, 27)),
+        (new(2026, 4, 1), new(2026, 4, 1)), (new(2026, 5, 1), new(2026, 4, 30)), (new(2026, 6, 1), new(2026, 6, 1)),
+        (new(2026, 7, 1), new(2026, 7, 1)), (new(2026, 8, 1), new(2026, 7, 31)), (new(2026, 9, 1), new(2026, 9, 1)),
+        (new(2026, 10, 1), new(2026, 10, 1)),
+    ];
+
+    private static readonly decimal[] UsdFirsts =
+        [41.513m, 41.8922m, 42.416m, 42.8457m, 43.3414m, 43.8m, 44.3938m, 44.9692m, 45.8248m, 46.5867m, 47.3452m, 48.1891m, 48.9466m];
+
+    private static readonly decimal[] EurFirsts =
+        [48.7508m, 48.462m, 49.2708m, 50.2859m, 51.699m, 51.7008m, 51.4787m, 52.5723m, 53.4042m, 53.089m, 54.4841m, 55.8769m, 55.2967m];
+
+    private static readonly decimal[] GoldFirsts =
+    [
+        5166.27701575m, 5400.92775127m, 5783.06204160m, 5963.02008344m, 7068.41801573m, 7341.43300024m, 6761.18862755m,
+        6659.36323437m, 6627.36793970m, 6022.29268152m, 6180.15000344m, 6789.78069267m, 6563.80267736m,
+    ];
+
+    private static readonly DateOnly Today = new(2026, 10, 10);
+
+    private static MonthlyAssetWhatIf Monthly(MarketAssetInfo asset, decimal amount, decimal[] firsts, decimal today,
+        PriceStatus status = PriceStatus.Ok, int statusAt = -1)
+    {
+        var points = Firsts
+            .Select((f, i) => i == statusAt && status == PriceStatus.Missing
+                ? new PricePoint(f.Day, null, null, status, null)
+                : new PricePoint(f.Day, f.PriceDate, firsts[i], i == statusAt ? status : PriceStatus.Ok, "TCMB"))
+            .ToList();
+        return WhatIfMath.Monthly(asset, amount, points.Take(12).ToList(), points[12],
+            new PricePoint(Today, new(2026, 10, 9), today, statusAt == 13 ? status : PriceStatus.Ok, "TCMB"));
+    }
+
+    private static (decimal?, decimal?, decimal?, decimal?) Totals(MonthlyAssetWhatIf a) =>
+        (a.Units, a.Value, a.Difference, a.DifferencePercent);
+
+    [Fact]
+    public void A_thousand_lira_on_every_first_for_twelve_months_is_valued_today()
+    {
+        // Σ 1.000 / price over the twelve buys, × the price of 9 October; invested 12.000.
+        Assert.Equal((270.702639m, 13298.92m, 1298.92m, 10.82m), Totals(Monthly(Usd, 1000m, UsdFirsts, 49.1274m)));
+        Assert.Equal((232.273098m, 12800.85m, 800.85m, 6.67m), Totals(Monthly(Eur, 1000m, EurFirsts, 55.1112m)));
+        Assert.Equal((1.921118m, 12704.72m, 704.72m, 5.87m), Totals(Monthly(Gold, 1000m, GoldFirsts, 6613.19001236m)));
+    }
+
+    [Fact]
+    public void Selins_advice_amount_gives_the_same_percent_as_a_thousand()
+    {
+        var gold = Monthly(Gold, 236.18m, GoldFirsts, 6613.19001236m);
+
+        Assert.Equal((0.453730m, 3000.60m, 166.44m, 5.87m), Totals(gold));
+        Assert.Equal((2834.16m, -3.24m), (gold.Invested, gold.Volatility!.WorstMoment.ReturnPercent));
+    }
+
+    [Fact]
+    public void Every_buy_row_carries_its_day_its_price_and_its_units()
+    {
+        var gold = Monthly(Gold, 1000m, GoldFirsts, 6613.19001236m);
+
+        Assert.Equal(12, gold.Buys.Count);
+        Assert.Equal((new DateOnly(2025, 10, 1), (DateOnly?)new DateOnly(2025, 10, 1), (decimal?)5166.27701575m, (decimal?)0.193563m, PriceStatus.Ok),
+            (gold.Buys[0].BuyDate, gold.Buys[0].PriceDate, gold.Buys[0].Price, gold.Buys[0].Units, gold.Buys[0].Status));
+        // 1 November 2025 is a Saturday: Friday 31 October's price.
+        Assert.Equal((DateOnly?)new DateOnly(2025, 10, 31), gold.Buys[1].PriceDate);
+        Assert.Equal((new DateOnly(2026, 9, 1), (decimal?)0.147280m), (gold.Buys[11].BuyDate, gold.Buys[11].Units));
+        Assert.Equal(("GRAM_GOLD_TRY", "GRAM", Today, (DateOnly?)new DateOnly(2026, 10, 9), (decimal?)6613.19001236m, PriceStatus.Ok, "TCMB"),
+            (gold.Symbol, gold.BaseUnit, gold.ValueDate, gold.ValuePriceDate, gold.ValuePrice, gold.Status, gold.Source));
+    }
+
+    [Fact]
+    public void Gold_shows_its_worst_and_best_month_and_the_largest_fall()
+    {
+        var volatility = Monthly(Gold, 1000m, GoldFirsts, 6613.19001236m).Volatility!;
+
+        // June: 1 Jun 6.627,37 → 1 Jul 6.022,29 = −%9,13; January: 5.963,02 → 7.068,42 = +%18,54.
+        Assert.Equal(new MonthChange(new(2026, 6, 1), -9.13m), volatility.WorstMonth);
+        Assert.Equal(new MonthChange(new(2026, 1, 1), 18.54m), volatility.BestMonth);
+        // The price peak of 27 Feb (bought on 1 Mar) to the trough of 1 Jul: −%17,97.
+        Assert.Equal(new Drawdown(-17.97m, new(2026, 2, 27), 7341.43300024m, new(2026, 7, 1), 6022.29268152m), volatility.MaxDrawdown);
+        // The saving itself: on 1 Jul, before the July buy, 9.000 invested was worth 8.708,11.
+        Assert.Equal(new RunningReturn(new(2026, 7, 1), 9000m, 8708.11m, -3.24m), volatility.WorstMoment);
+    }
+
+    [Fact]
+    public void Euro_falls_at_the_end_from_its_peak_to_today()
+    {
+        var volatility = Monthly(Eur, 1000m, EurFirsts, 55.1112m).Volatility!;
+
+        Assert.Equal(new MonthChange(new(2026, 9, 1), -1.04m), volatility.WorstMonth);
+        Assert.Equal(new MonthChange(new(2026, 1, 1), 2.81m), volatility.BestMonth);
+        // The trough is the valuation price of 9 October.
+        Assert.Equal(new Drawdown(-1.37m, new(2026, 9, 1), 55.8769m, new(2026, 10, 9), 55.1112m), volatility.MaxDrawdown);
+        Assert.Equal(new RunningReturn(new(2025, 11, 1), 1000m, 994.08m, -0.59m), volatility.WorstMoment);
+    }
+
+    [Fact]
+    public void A_price_that_never_fell_has_a_zero_drawdown_without_days()
+    {
+        var volatility = Monthly(Usd, 1000m, UsdFirsts, 49.1274m).Volatility!;
+
+        // Even the worst month rose: October 2025 +%0,91; the saving was never at a loss.
+        Assert.Equal(new MonthChange(new(2025, 10, 1), 0.91m), volatility.WorstMonth);
+        Assert.Equal(new MonthChange(new(2026, 5, 1), 1.90m), volatility.BestMonth);
+        Assert.Equal(new Drawdown(0m, null, null, null, null), volatility.MaxDrawdown);
+        Assert.Equal(new RunningReturn(new(2025, 11, 1), 1000m, 1009.13m, 0.91m), volatility.WorstMoment);
+    }
+
+    [Theory]
+    [InlineData(PriceStatus.Stale, 3)]
+    [InlineData(PriceStatus.Missing, 0)]
+    [InlineData(PriceStatus.Stale, 12)]
+    [InlineData(PriceStatus.Stale, 13)]
+    public void One_unusable_price_anywhere_leaves_the_asset_without_figures(PriceStatus status, int at)
+    {
+        var gold = Monthly(Gold, 1000m, GoldFirsts, 6613.19001236m, status, at);
+
+        Assert.Equal(status, gold.Status);
+        Assert.Equal(((decimal?)null, (decimal?)null, (decimal?)null, (decimal?)null), Totals(gold));
+        Assert.Null(gold.Volatility);
+        // The days and prices are still shown, only the units are not.
+        Assert.Equal(12, gold.Buys.Count);
+        Assert.All(gold.Buys, b => Assert.Null(b.Units));
+        Assert.Equal(12000m, gold.Invested);
+    }
+
+    [Fact]
+    public void The_monthly_engine_needs_twelve_buys_and_a_positive_amount()
+    {
+        var point = new PricePoint(Today, Today, 49m, PriceStatus.Ok, "TCMB");
+        Assert.Throws<ArgumentException>(() => WhatIfMath.Monthly(Usd, 1000m, [point], point, point));
+        Assert.Throws<ArgumentOutOfRangeException>(() => WhatIfMath.Monthly(Usd, 0m, Enumerable.Repeat(point, 12).ToList(), point, point));
+    }
+
     // ---- OC-09: the fixed warning
 
     [Fact]
