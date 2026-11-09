@@ -2,7 +2,9 @@
 
 İnceleme tarihi: 10 Ekim 2026. Bu belge kaynak araştırmasıdır; import henüz uygulanmadı.
 
-> Durum (13 Ekim 2026): USD/EUR için TCMB günlük XML adayı; altın (SRC-02) sağlayıcıdan yanıt bekliyor.
+> Durum (9 Kasım 2026): USD/EUR TCMB'den iki yıllık olarak DB'de (IMP-a, aşağıda "USD/EUR import").
+> Kullanıcı kararıyla varlık başına günde **tek değer** saklanır (TCMB döviz alış); 10 Ekim'deki alış/satış
+> çifti kararı kaldırıldı. Altın (SRC-02) ayrı adımda: önce resmî kaynak denenir.
 > Market kolu API/analytics/AI işlerini engellemez; yalnız opportunity-cost (todo bölüm 13) bunu bekler.
 
 ## Saklanacak değer
@@ -221,3 +223,45 @@ Erişilebilir alternatif bulundu, fakat bir yıllık gram/TL satış + güncel
 alış gereksinimini tam karşılayan alternatif doğrulanamadı. Hesaplı Altın
 destek yanıtı beklenirken altın SRC-02 açık tutulur. Döviz çalışmaları
 altın beklenmeden ayrı kapsamda ilerleyebilir. Bu kontrolde DB/kod değişmedi.
+
+## USD/EUR import (IMP-a) — 9 Kasım 2026
+
+Kullanıcı kararları: K1-C (altın için önce resmî kaynak; günde tek değer yeter), tek `Price` korunur
+(alış/satış ayrımı yok, migration yok), USD/EUR için **TCMB döviz alış** (`ForexBuying`), K3-C (son iki yıl),
+K4-B (indirme ve içe aktarma ayrı komut), K5-A (eksik gün DB'ye yazılmaz, okuma tarafı en yakın önceki
+günü alır), K6-A (farklı değer çelişkidir, üzerine yazılmaz), K7-A (altın ayrı PR).
+
+Komutlar (repo kökünden):
+
+```sh
+dotnet run --project src/BankingAI.Cli -- market download tcmb --from 2024-11-09 --to 2026-11-09
+dotnet run --project src/BankingAI.Cli -- market import tcmb --from 2024-11-09 --to 2026-11-09
+```
+
+- İndirme: yalnız hafta içi günler, sırayla (istekler arası 300 ms), 10 sn zaman aşımı, 5xx/zaman aşımında
+  en fazla 3 deneme; 404 "yayın yok" sayılır ve tekrar denenmez. Gövde o günün bülteni olarak okunamıyorsa
+  kaydedilmez. Arşiv `data/raw/market/tcmb/yyyy-MM-dd.xml` (git dışı); var olan gün tekrar istenmez.
+- İçe aktarma: dosya başına USD ve EUR; birim 1, bülten tarihi dosyanın günü, değer yalnız rakam + nokta.
+  Okunamayan gün "reddedildi", dosyası olmayan hafta içi gün "eksik" olarak raporlanır; ikisi de doldurulmaz.
+
+Sonuç (9 Kasım 2026, 09:36):
+
+| | Değer |
+| --- | --- |
+| İstenen hafta içi gün | 521 (2024-11-11 … 2026-11-09) |
+| Yayın günü (arşivde) | 495; başarısız 0 |
+| Yayın yok (404) | 26 |
+| DB satırı | 990 (USDTRY 495 + EURTRY 495), Source `TCMB`, 2024-11-11 … 2026-11-06 |
+| İkinci içe aktarma | eklenen 0, değişmeyen 990, çelişki 0 |
+
+Yayın olmayan 26 günün 25'i resmî tatil ya da arife (elle karşılaştırıldı): 1 Ocak, Ramazan Bayramı
+(31 Mart–1 Nisan 2025; 19–20 Mart 2026), 23 Nisan, 1 Mayıs, 19 Mayıs, Kurban Bayramı (5–9 Haziran 2025;
+26–29 Mayıs 2026), 15 Temmuz, 28–29 Ekim. Biri (9 Kasım 2026) bugündür: bülten 15:30'da yayınlanır.
+İşlemlerin ilk günü 1 Nisan 2025 bayramdır; en yakın önceki kur 28 Mart 2025 (USD 37,7656 / EUR 40,7019).
+
+Bağımsız kontroller: eski indirmeyle (2025-10-10 … 2026-10-09) örtüşen 248 dosya bayt bayt aynı; DB'de
+2025-10-10 USD 41,6388 / EUR 48,1872 ve 2026-10-09 USD 49,1274 / EUR 55,1112 (bu belgedeki tabloyla aynı),
+hafta sonu satırı 0.
+
+Sınırlar: güncelleme elle (zamanlayıcı yok); kur günü TCMB bülten günüdür (15:30 gösterge), banka işlem
+fiyatı değildir; altın (GRAM_GOLD_TRY) henüz yok (SRC-02, IMP-04).

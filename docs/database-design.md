@@ -22,13 +22,14 @@ Aktif veritabanı `bankingai_foundation`dır. Şu altı domain tablosu uygulanm�
 
 `CustomerCredentials` tablosunda üç demo girişi vardır (ada, deniz, ege).
 `MarketAssets` tablosunda üç başlangıç seed kaydı vardır; `DailyMarketPrices`
-henüz boştur. 11 kategori, demo dahil dört Customer ve yedi dummy Account (biri Business) vardır.
+9 Kasım 2026'dan beri 990 satır taşır (USDTRY ve EURTRY, 2024-11-11 … 2026-11-06, TCMB döviz alış;
+altın henüz yok, [market kaynak belgesi](market-data-sources.md) "USD/EUR import"). 11 kategori, demo dahil dört Customer ve yedi dummy Account (biri Business) vardır.
 Transactions tablosunda 44 kategorisiz Credit ve 72 Debit bulunur; 9 PairId çifti vardır (KIND-04b sonrası). 2025 dataset'i
 34 kayıtla korunur; Nisan–Eylül 2026 için `recent-spending` kapsamında 36 kayıt
 (12 maaş Credit'i, 24 harcama Debit'i) eklendi. SYN-13 kullanıcı kararıyla banking
 harcama tarih kapsamına daraltıldı; gerçek fiyat verisi ve tarih örtüşmesi SRC/IMP
 çalışmalarında doğrulanacak.
-Historical market import henüz yoktur.
+Historical market import USD/EUR için `market download|import tcmb` komutlarıyla yapılır (IMP-a).
 
 Aktif veritabanında on iki migration uygulanmıştır (13 Ekim 2026'da doğrulandı):
 
@@ -58,7 +59,8 @@ komutu veya API'nin başlaması kendiliğinden migration/seed/import çalıştı
 | --- | --- | --- |
 | `migrate` | Bekleyen EF Core migration'larını uygular; tablo, kolon, index ve constraint oluşturur | Yalnızca şema metadata'sı ve migration'ın açıkça tanımladığı şema işlemleri |
 | `seed <scope>` | Önceden tanımlı lookup veya synthetic veriyi açıkça üretir | Evet; yalnızca seçilen scope |
-| `import <scope> ...` | Dış kaynaktan tarihsel market verisini alır | Evet; yalnızca belirtilen varlık ve tarih aralığı |
+| `market download tcmb --from --to` | TCMB bültenlerini yerel ham arşive indirir (git dışı) | Hayır; yalnız dosya |
+| `market import tcmb --from --to` | Arşivdeki USD/EUR değerlerini `DailyMarketPrices`'a yazar | Evet; yalnız eksik varlık/gün, farklı değer çelişki olarak raporlanır |
 | `show` | Örnek veriyi okur | Hayır |
 
 İlk manuel komut sözleşmesi şöyledir:
@@ -68,7 +70,8 @@ dotnet run --project src/BankingAI.Cli -- migrate
 dotnet run --project src/BankingAI.Cli -- seed categories
 dotnet run --project src/BankingAI.Cli -- seed market-assets
 dotnet run --project src/BankingAI.Cli -- seed synthetic
-dotnet run --project src/BankingAI.Cli -- import market-prices --asset USDTRY --from 2024-01-01 --to 2024-01-31
+dotnet run --project src/BankingAI.Cli -- market download tcmb --from 2024-11-09 --to 2026-11-09
+dotnet run --project src/BankingAI.Cli -- market import tcmb --from 2024-11-09 --to 2026-11-09
 ```
 
 `seed categories` SEED-02 ile, `seed market-assets` SEED-04 ile uygulanmıştır.
@@ -82,7 +85,7 @@ SYN-09'un sabit beklenen toplamları 2025-08 GROCERY=24.000 TRY ve
 [synthetic seed belgesinde](synthetic-seed.md) bulunur.
 Hesap seed'inden önce müşteri seed'i çalıştırılır; sabit dummy hesaplar ve
 doğrulama sonuçları [synthetic seed belgesinde](synthetic-seed.md) açıklanır.
-`seed synthetic` ve `import market-prices` henüz mevcut değildir. Her scope
+`seed synthetic` henüz mevcut değildir; market import'u `market … tcmb` komutlarıdır. Her scope
 uygulanmadan önce kapsamı olmayan `seed` veya `import`
 komutu kullanım hatası vermelidir. İlk aşamada genel `seed all` komutu
 tanımlanmaz; böylece yeni bir seed scope'u eklenmesi mevcut veriye sessizce
@@ -105,7 +108,7 @@ başlangıcında otomatik çalışma bu aşamanın dışındadır.
 `seed market-assets`, `seed customers`, `seed accounts` ve
 `seed transactions` altındaki `credits`, `subscriptions`, `category-examples`,
 `grocery-growth`, `categorization-boundaries`, `recent-spending`, `demo-coverage`, `pairs` kapsamlarıdır. Genel
-`seed synthetic` ve market-price `import` komutları henüz uygulanmamıştır.
+`seed synthetic` uygulanmamıştır; `market download tcmb` ve `market import tcmb` IMP-a ile eklendi.
 
 ## İlişkiler
 
@@ -313,39 +316,31 @@ yatırılmış kabul edilir. Her harcama tarihinde ayrı alım yaklaşımı kald
 Örneğin son bir yıllık giyim toplamı 200.000 TRY ise, bu tutarın bir yıl önce
 mevcut olduğu varsayılır; gerçek harcama nakit akışının getirisi hesaplanmaz.
 
-| İşlem | Sağlayıcı tarafındaki fiyat |
-| --- | --- |
-| Müşteri dönem başlangıcında varlık alır | Satış |
-| Müşteri değerleme tarihinde varlığı satar | Alış |
+9 Kasım 2026 kullanıcı kararı: alış/satış ayrımı yapılmaz. Her varlığın günde tek
+değeri vardır (USD/EUR: TCMB döviz alış) ve başlangıçta da değerlemede de o seri
+kullanılır; makas hesaba girmez.
 
 ```text
-birim = totalSpent / başlangıç satış fiyatı
-currentValue = birim × değerleme alış fiyatı
+birim = totalSpent / başlangıç günü değeri
+currentValue = birim × değerleme günü değeri
 difference = currentValue - totalSpent
 percentageDifference = difference / totalSpent × 100
 ```
 
 Harcama sıfırsa yüzde null olur; ara birimler erken yuvarlanmaz.
 USD ve EUR birimleri döviz adedi, altın birimi gram; sonuç TRY'dir.
-Makas bu iki fiyatla kapsanır; ek ücret/vergi/enflasyon kapsamı ayrıca netleşir.
+Ek ücret/vergi/enflasyon kapsamı hesaplama adımında (OC-01) netleşir. Cevapta değerin
+referans kur olduğu, banka işlem fiyatı olmadığı yazılır.
 
-Kullanıcıya “geçmiş alım / bugünkü satış” denir; bu ifadeler müşteri yönündedir.
-Bu senaryoda geçmiş sağlayıcı satış ve güncel sağlayıcı alış yeterlidir.
-Geçmiş sağlayıcı alış verisi zorunlu değildir; eksik değer uydurulmaz.
-Geçmiş değerleme tarihi desteği istenirse o günün alış fiyatı ayrıca gerekir.
+### Tablo
 
-### Mevcut tablo ve bekleyen değişiklik
-
-Yukarıdaki DailyMarketPrices tablosu mevcut şemayı gösterir: yalnızca `Price`
-vardır. Ayrı alış/satış alanları henüz uygulanmadı. Kaynaklar doğrulandıktan
-sonra alan isimleri, doğrulamalar ve geçiş ayrı adımda tasarlanacak; yeni
-migration kullanılacak, uygulanmış migration'lar silinmeyecek.
-Ortalama XAU fiyatı iki taraflı gram/TL kotasyonu yerine kullanılamaz;
-makas uydurulmaz. Bu belge değişikliği kod/DB değişikliği değildir.
+DailyMarketPrices tek `Price` alanıyla kalır (migration yok; MP-06 kararı).
+Altın kaynağı (SRC-02) seçilince aynı tabloya aynı kurala göre yazılır; ortalama
+XAU'dan türetilmiş bir değer kullanılacaksa bu kaynak adında ve cevapta açıkça belirtilir.
 
 ### Historical price fallback
 
-Başlangıç satış fiyatı ve değerleme alış fiyatı için ayrı ayrı, aynı varlığın
+Başlangıç ve değerleme günü için ayrı ayrı, aynı varlığın
 hedef gün veya öncesindeki en yakın uygun fiyatı seçilir:
 
 ```sql
@@ -363,7 +358,7 @@ hafta sonu/tatil için yeni fiyat satırı üretilmez. Gerçek kullanılan tarih
 
 Backend harcama toplamını ve hesabı üretir; LLM yalnızca sonucu açıklar.
 Çıktı toplamı, birimi, değeri, farkı/yüzdeyi, dönem başlangıcını, değerleme
- tarihini, kullanılan alış/satış fiyatlarını ve kaynak tarihlerini içerir.
+ tarihini, kullanılan başlangıç ve değerleme değerlerini ve kaynak tarihlerini içerir.
 Günlük veri anlık veya müşteriye garanti edilen işlem fiyatı olarak sunulmaz.
 Hesap runtime yapılır; InvestmentSimulations tablosu yoktur. Karşılaştırma her
 sorguda çalışmaz; tetiklenecek sorgular ayrıca netleştirilecektir.

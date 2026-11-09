@@ -1355,9 +1355,12 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   geriye uygulanmaz. Önceki fiyat yoksa sonuç eksik veri olarak bildirilir.
 - Dönem ve değerleme piyasa günleri Türkiye takvimine göre belirlenir.
   Kullanılan gerçek fiyat tarihleri gösterilir; günlük veri anlık fiyat diye sunulmaz.
-- Mevcut DailyMarketPrice tek Price alanlıdır; alış/satış model değişikliği henüz
-  yapılmadı. Kaynak doğrulamasından sonra alanlar ve incremental migration ayrı
-  adımda incelenecek. Ortalama XAU verisinden alış/satış makası uydurulmaz.
+- 9 Kasım 2026 kullanıcı kararı (yukarıdaki alış/satış maddelerinin yerine geçer):
+  varlık başına günde TEK değer saklanır ve hem başlangıçta hem değerlemede o seri
+  kullanılır; makas hesaba girmez. USD/EUR değeri TCMB döviz alış (ForexBuying).
+  DailyMarketPrice tek Price alanıyla kalır, migration yok. Formül:
+  birim = totalSpent / başlangıç günü değeri; currentValue = birim × değerleme günü
+  değeri. Cevapta "referans kur; banka işlem fiyatı değildir" yazılır.
 - Backend totalSpent, birimler, currentValue, difference, percentageDifference,
   yöntem, kaynak ve kullanılan fiyat tarihlerini üretir. LLM yalnızca açıklar.
   Ara birimler erken yuvarlanmaz; harcama sıfırsa yüzde fark null olur.
@@ -1369,10 +1372,15 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   kullanıcıyla netleşir; açıkça istenen varlık korunur. Eksik veride kazanan uydurulmaz.
 
 ==================================================
-29. MEVCUT PROJE DURUMU — 23 EKİM 2026
+29. MEVCUT PROJE DURUMU — 9 KASIM 2026
 ==================================================
 
 COMPLETED
+- USD/EUR market verisi (IMP-a, 9 Kasım 2026; docs/market-data-sources.md "USD/EUR import"): Data/Market/ altında TCMB bülten
+  okuyucu (döviz alış, birim 1, gün kontrolü, DTD yok), yerel ham arşiv (yalnız hafta içi; eksik/reddedilen gün raporlanır,
+  doldurulmaz), sıralı indirici (404 = yayın yok, 3 deneme, yanlış gövde kaydedilmez) ve idempotent importer (farklı değer
+  çelişki, üzerine yazılmaz). CLI `market download|import tcmb --from --to`. Kullanıcı kararı: günde tek değer, alış/satış yok,
+  migration yok. 990 satır; Data 84 → 129 test, 13 kasıtlı bozma yakalandı. Altın (SRC-02/IMP-04) sırada.
 - IOS-05 hesap detayı ve tarih filtresi (23 Ekim 2026; docs/ios.md "iOS-g"): karttan AccountDetailView, başlangıç verisi + hesap
   yenileme; güncel bakiye dönemden bağımsız. Hesaba ait imleçli liste (20), AllTime varsayılan; beş hazır dönem ve özel aralık,
   alt panelde Uygula/Vazgeç. Başarıda liste/dönem/imleç birlikte değişir, iptal/geç cevap nesil kontrolü, hata eski sonucu korur;
@@ -1392,7 +1400,7 @@ COMPLETED
   sınır dışı bakiye BalanceLimitException).
 - Demo veri: 4 Customer (Ada, Deniz, Ege + hesapsız Demo Customer), 7 Account (1 Business
   dükkân), 11 kategori, 116 Transaction (44 Credit, 72 Debit, 9 çift), 3 MarketAsset;
-  DailyMarketPrices boş.
+  DailyMarketPrices 990 satır (USDTRY + EURTRY, 2024-11-11 … 2026-11-06, TCMB döviz alış; IMP-a, 9 Kasım 2026).
 - Deterministik analytics (ANA-01–08, REC-01–03): PeriodResolver, CustomerScope/PurchaseScope,
   özet, kategori, merchant (MerchantMatcher), arama, en yüksek işlemler, karşılaştırma +
   aylık seri, düzenli ödemeler (docs/analytics.md).
