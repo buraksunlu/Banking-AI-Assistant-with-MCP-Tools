@@ -25,6 +25,7 @@ Makine okunur sözleşme: `docs/openapi/v1.json`; tarayıcıda `http://localhost
 | `GET /api/analytics/savings-simulation` | evet | uygulandı | ANA-14 |
 | `GET /api/analytics/income-share` | evet | uygulandı | INC-01 |
 | `GET /api/analytics/spending-advice` | evet | uygulandı | INC-02 |
+| `GET /api/analytics/what-if/one-off` | evet | uygulandı | INV-01 |
 | `GET /api/analytics/merchants`, `merchant-group-spending` | evet | uygulandı | ANA-10 |
 | `GET /api/transactions` (bütün hesaplarda filtreli arama) | evet | uygulandı | ANA-09 (3. parça) |
 | `POST /api/assistant/messages`, `GET /api/assistant/status` (sohbet asistanı) | evet | uygulandı | AI-14b + AI-07 |
@@ -723,6 +724,27 @@ olağan harcaması olmayan kategoride `null`.
                     "message": "Eylül 2026 ayında Eğlence harcamanız 2.253,50 TL oldu; …" } ],
       "reason": null } ] }
 ```
+
+### `GET /api/analytics/what-if/one-off?period=…[&categoryCode=…]` (INV-01 PR1)
+
+"Harcamasaydım ne olurdu?": dönemin (isteğe bağlı tek kategorinin) TRY harcaması dönemin ilk günü USD, EUR ve gram altın olarak
+alınmış sayılır, müşterinin bugününde geçmiş fiyatla değerlenir. Dönem parametreleri harcama analizleriyle aynı (`AllTime` yok).
+TRY harcama yoksa `spentAmount` 0 ve `assets` boş. Fiyat 10 günden eskiyse `status` `Stale`, hiç yoksa `Missing`; o satırda
+`units`/`value`/`difference`/`differencePercent` `null`. `disclaimer` her cevapta aynı sabit metindir (yatırım tavsiyesi değildir).
+
+```json
+{ "period": { "kind": "LastMonth", "startDate": "2026-09-01", "endDate": "2026-09-30", "…": "…" },
+  "categoryCode": "ENTERTAINMENT", "categoryDisplayName": "Eğlence", "currencyCode": "TRY", "spentAmount": 2253.50,
+  "buyDate": "2026-09-01", "valueDate": "2026-10-10", "method": "SingleBuyAtPeriodStart",
+  "disclaimer": "Geçmiş fiyatlarla yapılmış bir hesaptır; …",
+  "assets": [ { "symbol": "USDTRY", "name": "ABD Doları / Türk Lirası", "baseUnit": "USD",
+                "buyDate": "2026-09-01", "buyPriceDate": "2026-09-01", "buyPrice": 48.1891,
+                "valueDate": "2026-10-10", "valuePriceDate": "2026-10-09", "valuePrice": 49.1274,
+                "units": 46.763687, "value": 2297.38, "difference": 43.88, "differencePercent": 1.95,
+                "status": "Ok", "source": "TCMB" }, "…" ] }
+```
+
+Hatalar (400): dönem yok, dönem adı + tarih birlikte, tanımsız `categoryCode`; token yoksa 401.
 
 ## Sohbet asistanı (AI-14b + AI-07, 19 Ekim 2026)
 

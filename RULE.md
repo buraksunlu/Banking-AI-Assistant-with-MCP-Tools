@@ -1378,6 +1378,11 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- "Harcamasaydım" senaryosu (INV-01 PR1, 9 Kasım 2026; docs/analytics.md "INV-01 PR1"): Application/Investment/ altında
+  MarketPriceReader (en yakın önceki gün, 10 gün sınırı ölçülerek, Stale/Missing), saf WhatIfMath (tek motor, birim tam, sabit
+  uyarı metni) ve WhatIfService + GET /api/analytics/what-if/one-off. Yalnız TRY harcama, dönemin ilk günü alım, bugünkü fiyatla
+  değer; alış-satış farkı yok (tek günlük değer). OC-01–10 K10-B'ye göre yeniden yazıldı (todo §13). Application 417 → 442,
+  Api 545 → 554; 11 kasıtlı bozmanın hepsi yakalandı. Sırada PR2 (aylık birikim + dalgalanma).
 - Seçici tasarruf önerisi (INC-02, 9 Kasım 2026; docs/analytics.md "INC-02"): SpendingGroups (C# tablosu: Temel / İsteğe bağlı /
   Bilinmiyor; K1-B Yeme & İçme temel) + saf SpendingAdviceRules + SpendingAdviceService + GET /api/analytics/spending-advice.
   Yalnız isteğe bağlı harcama: toplam > %30 (50/30/20) ya da kategori önceki 6 ayın ≥ 1,5 katı; fark gelirin ≥ %2'si; TL farkına

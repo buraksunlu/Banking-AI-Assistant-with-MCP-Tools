@@ -1,6 +1,7 @@
 ---
 paths:
   - "src/BankingAI.Application/Analytics/**"
+  - "src/BankingAI.Application/Investment/**"
   - "tests/BankingAI.Application.Tests/**"
   - "docs/analytics.md"
 ---
@@ -40,3 +41,8 @@ paths:
   kontrolü join'lenen satıra koy (`o.PairId != null && o.PairId == t.PairId`). (3) Npgsql 10
   `DateTimeOffset` saat dilimi dönüşümünü (`ConvertTimeBySystemTimeZoneId`) SQL'e çeviremez; yerel ay
   gruplaması için UTC pencere sınırlarını kullan.
+- `Application/Investment/` (INV-01, todo 12f/§13): geçmiş fiyatla "ne olurdu" senaryoları. `MarketPriceReader` (tek sorgu, en yakın
+  önceki gün, > 10 gün `Stale`, yok `Missing`; sonraki gün fiyatı asla), saf `WhatIfMath` (tek motor: TL / alış fiyatı → birim ×
+  değerleme fiyatı; birim tam, yalnız rapor yuvarlanır; iki fiyat da `Ok` değilse rakam yok) ve `WhatIfService`. Harcama tutarı
+  `CategoryBreakdownService`'ten, yalnız TRY (varlıklar TL fiyatlı, para birimi dönüştürülmez). Her sonuçta sabit
+  `WhatIfMath.Disclaimer`; tahmin, ürün önerisi ya da emir yok; sonuç saklanmaz.

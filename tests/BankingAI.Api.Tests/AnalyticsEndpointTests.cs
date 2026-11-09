@@ -713,6 +713,58 @@ public sealed class AnalyticsEndpointTests
     public async Task Spending_advice_needs_a_token() =>
         Assert.Equal(HttpStatusCode.Unauthorized, (await GetAsync("/api/analytics/spending-advice?period=LastMonth", null)).Status);
 
+    // ---- what-if/one-off (INV-01 PR1)
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task What_if_one_off_returns_the_days_the_warning_and_one_row_per_asset()
+    {
+        var body = Ok(await GetAsync("/api/analytics/what-if/one-off?period=LastMonth&categoryCode=ENTERTAINMENT", Selin));
+
+        Assert.Equal(
+            ["period", "categoryCode", "categoryDisplayName", "currencyCode", "spentAmount", "buyDate", "valueDate", "method",
+             "disclaimer", "assets"],
+            body.AsObject().Select(p => p.Key));
+        Assert.Equal(("ENTERTAINMENT", "TRY", 2253.50m, "2026-09-01", "2026-10-10", "SingleBuyAtPeriodStart"),
+            (body["categoryCode"]!.GetValue<string>(), body["currencyCode"]!.GetValue<string>(), Amount(body["spentAmount"]),
+             body["buyDate"]!.GetValue<string>(), body["valueDate"]!.GetValue<string>(), body["method"]!.GetValue<string>()));
+        Assert.StartsWith("Geçmiş fiyatlarla yapılmış bir hesaptır;", body["disclaimer"]!.GetValue<string>());
+        var assets = body["assets"]!.AsArray();
+        Assert.Equal(["USDTRY", "EURTRY", "GRAM_GOLD_TRY"], assets.Select(a => a!["symbol"]!.GetValue<string>()));
+        Assert.Equal(
+            ["symbol", "name", "baseUnit", "buyDate", "buyPriceDate", "buyPrice", "valueDate", "valuePriceDate", "valuePrice", "units",
+             "value", "difference", "differencePercent", "status", "source"],
+            assets[0]!.AsObject().Select(p => p.Key));
+        Assert.Equal(("2026-10-09", 46.763687m, 2297.38m, 43.88m, "Ok"),
+            (assets[0]!["valuePriceDate"]!.GetValue<string>(), Amount(assets[0]!["units"]), Amount(assets[0]!["value"]),
+             Amount(assets[0]!["difference"]), assets[0]!["status"]!.GetValue<string>()));
+        Assert.Equal(-58.61m, Amount(assets[2]!["difference"]));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task What_if_one_off_without_lira_spending_has_no_rows()
+    {
+        var body = Ok(await GetAsync("/api/analytics/what-if/one-off?period=LastMonth", Elif));
+
+        Assert.Equal(0m, Amount(body["spentAmount"]));
+        Assert.Empty(body["assets"]!.AsArray());
+        Assert.Null(body["categoryCode"]);
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("", "period", "Dönem zorunlu: period ya da from ile to verilmeli.")]
+    [InlineData("period=LastMonth&categoryCode=YEMEK", "categoryCode", "Tanımlı bir kategori kodu olmalı.")]
+    [InlineData("period=LastMonth&from=2026-09-01&to=2026-09-30", "period", "Dönem adı ile tarih aralığı birlikte verilemez.")]
+    public async Task What_if_one_off_parameters_are_checked(string query, string field, string message) =>
+        await AssertInvalidAsync($"/api/analytics/what-if/one-off?{query}", Selin, field, message);
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task What_if_one_off_needs_a_token() =>
+        Assert.Equal(HttpStatusCode.Unauthorized, (await GetAsync("/api/analytics/what-if/one-off?period=LastMonth", null)).Status);
+
     // ---- savings-simulation (ANA-14)
 
     [Fact]

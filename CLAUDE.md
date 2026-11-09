@@ -32,7 +32,7 @@ yüklenir. Bir alanda çalışmadan önce ilgili dosyayı oku, yeni kural da ora
 | `ai-service.md` | `ai/**`, `docs/local-ai.md` | Python komutları, sohbet akışı, MCP istemcisi, prompt, LangChain, çıktı doğrulama |
 | `api.md` | `src/BankingAI.Api/**`, `Hosting`, `Api.Tests`, `docs/api.md`, `docs/security.md`, `docs/openapi/**` | token, JSON, DI, hatalar, sohbet kapısı (.NET) |
 | `data.md` | `src/BankingAI.Data/**`, `Cli`, `Application/Transactions`, `Data.Tests`, seed/DB belgeleri | işlem yazma, seed'ler, CLI ve migration komutları |
-| `analytics.md` | `Application/Analytics/**`, `Application.Tests`, `docs/analytics.md` | dönem, kapsam, servisler, EF tuzakları |
+| `analytics.md` | `Application/Analytics/**`, `Application/Investment/**`, `Application.Tests`, `docs/analytics.md` | dönem, kapsam, servisler, "ne olurdu" senaryoları, EF tuzakları |
 | `mcp-server.md` | `src/BankingAI.McpServer/**`, testleri, `docs/mcp.md` | araçlar, argüman filtresi, hata sözleşmesi |
 | `ios.md` | `ios/**`, `docs/ios.md` | `xcodebuild` komutu, iOS kuralları |
 | `tests.md` | `tests/**` | test projeleri, kilitler, sözleşme testi, kasıtlı bozma |
@@ -178,7 +178,8 @@ seçer (todo "Şu anki sonraki adım"). iOS-a (IOS-01/13: `ios/BankingAI`, giri�
 araç daraltma, iki grup; seçim 68/71) ve IOS-04/07 (iPhone hesaplar, son işlemler) ve API-17 (imleçli sayfalama + `AllTime`) ve IMP-a/IMP-b (market verisi: USD/EUR TCMB döviz alış, gram altın gold-api ons ×
 USDTRY; iki yıl, 1.485 satır; günde tek değer, alış/satış yok; `market download|import`) ve INC-01 (gelire göre harcama
 payı, `GET /api/analytics/income-share`; todo 12e) ve INC-02 (seçici tasarruf önerisi, `GET /api/analytics/spending-advice`) tamam.
-9 Kasım 2026: ürün yönü "harcama ve yatırım asistanı" (todo 12f; ilk seviye K10-B, özellik havuzu INV-02).
+9 Kasım 2026: ürün yönü "harcama ve yatırım asistanı" (todo 12f; ilk seviye K10-B, özellik havuzu INV-02); INV-01 PR1 ("harcamasaydım",
+`GET /api/analytics/what-if/one-off`) tamam, PR2 (aylık birikim + dalgalanma) sırada.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
 içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d. 19 Ekim 2026 todo taraması: AI-14 (uçtan uca

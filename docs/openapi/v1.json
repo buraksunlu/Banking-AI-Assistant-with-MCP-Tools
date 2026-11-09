@@ -1518,6 +1518,94 @@
         ]
       }
     },
+    "/api/analytics/what-if/one-off": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "\"had I not spent it\" (INV-01)",
+        "description": "`GET /api/analytics/what-if/one-off`: \"had I not spent it\" (INV-01): the period's lira spending (optionally one\ncategory) bought on the period's first day as USD, EUR and gram gold, valued on the customer's today with past prices only.\nOne row per asset in a fixed order; a stale or missing price gives a row without figures. Every result carries the fixed\nwarning: not a forecast, not investment advice.",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "categoryCode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OneOffWhatIf"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
     "/api/analytics/merchants": {
       "get": {
         "tags": [
@@ -2803,6 +2891,111 @@
           }
         },
         "description": "The fixed thresholds, returned with every result so the reader sees why advice was or was not given."
+      },
+      "AssetWhatIf": {
+        "required": [
+          "symbol",
+          "name",
+          "baseUnit",
+          "buyDate",
+          "buyPriceDate",
+          "buyPrice",
+          "valueDate",
+          "valuePriceDate",
+          "valuePrice",
+          "units",
+          "value",
+          "difference",
+          "differencePercent",
+          "status",
+          "source"
+        ],
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "baseUnit": {
+            "type": "string"
+          },
+          "buyDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "buyPriceDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "buyPrice": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "valueDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "valuePriceDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "valuePrice": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "units": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "value": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "difference": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "differencePercent": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "status": {
+            "$ref": "#/components/schemas/PriceStatus"
+          },
+          "source": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One asset's \"what if\": the buy and valuation days, the prices used, the units bought and their value today. Figures are null\nunless both prices are usable; `Status` is then the worse of the two. `Source` is the valuation price's source."
       },
       "AssistantFact": {
         "required": [
@@ -4117,6 +4310,66 @@
         ],
         "type": "string"
       },
+      "OneOffWhatIf": {
+        "required": [
+          "period",
+          "categoryCode",
+          "categoryDisplayName",
+          "currencyCode",
+          "spentAmount",
+          "buyDate",
+          "valueDate",
+          "method",
+          "disclaimer",
+          "assets"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "categoryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "categoryDisplayName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "currencyCode": {
+            "type": "string"
+          },
+          "spentAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "buyDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "valueDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "method": {
+            "type": "string"
+          },
+          "disclaimer": {
+            "type": "string"
+          },
+          "assets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssetWhatIf"
+            }
+          }
+        },
+        "description": "\"Had I not spent it\" (OC-03): the period's lira spending bought on the period's first day and valued today. No asset rows\nwithout lira spending."
+      },
       "PeriodKind": {
         "enum": [
           "ThisMonth",
@@ -4134,6 +4387,15 @@
           "AllTime"
         ],
         "type": "string"
+      },
+      "PriceStatus": {
+        "enum": [
+          "Ok",
+          "Stale",
+          "Missing"
+        ],
+        "type": "string",
+        "description": "Whether a price could be used for a day."
       },
       "Problem": {
         "required": [
