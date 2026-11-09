@@ -11,26 +11,27 @@ import re
 from dataclasses import dataclass
 from decimal import Decimal
 
-from answer_check import fold_turkish, parse_turkish_numbers
+from answer_check import fold_rule, fold_turkish, parse_turkish_numbers
 
-# Any expression of time. Folded text (fold_turkish): every i-like letter is "i", the other Turkish letters stay.
-_TIME = re.compile(
+# Any expression of time. Every rule here is written in Turkish and folded (fold_rule) like the text it reads (fold_turkish, K11-A).
+_TIME = re.compile(fold_rule(
     r"\bbugün|\bdün"                               # bugün, dün, dünkü
     r"|\bhafta"                                     # hafta, haftanın, haftada
     r"|\bay(?:da|in|i|dan|ki|a)?\b"                 # ay, ayın, ayda, ayki; not "aylık" or "aylara" (no period in them)
     r"|\b(?:yil|sene)"                              # yıl, yılın, sene, senenin
     r"|\b\d+\s*gün|\bgünlük"                        # 30 gün, son 7 günde
     r"|\b(?:ocak|şubat|mart\b|marti|nisan|mayis|haziran|temmuz|ağustos|eylül|ekim|kasim|aralik)"  # month names, "mart" not "market"
-)
+))
 
-_NUMBER_WORDS = {"bir": 1, "iki": 2, "üç": 3, "dört": 4, "beş": 5, "alti": 6, "yedi": 7, "sekiz": 8, "dokuz": 9, "on": 10,
-                 "yirmi": 20, "otuz": 30}
+_NUMBER_WORDS = {fold_rule(word): number for word, number in {
+    "bir": 1, "iki": 2, "üç": 3, "dört": 4, "beş": 5, "alti": 6, "yedi": 7, "sekiz": 8, "dokuz": 9, "on": 10, "yirmi": 20,
+    "otuz": 30}.items()}
 
 # "5 bin", "1,5 bin" and "bin" alone; written-out amounts ("bin beş yüz") are a documented limit (K3-A).
 _THOUSANDS = re.compile(r"(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?)?\s*\bbin\b")
 
-# Folded text; a letter must not touch the code ("atletizm" is no "tl"), a digit may ("3000TL").
-_LETTER = "a-zçğöşü"
+# Folded text, so plain letters only (K11-A); a letter must not touch the code ("atletizm" is no "tl"), a digit may ("3000TL").
+_LETTER = "a-z"
 _CURRENCIES = {
     "TRY": rf"(?<![{_LETTER}])(?:tl|try)(?![{_LETTER}])|\blira|₺",
     "EUR": rf"\beuro|\bavro|€|(?<![{_LETTER}])eur(?![{_LETTER}])",
@@ -39,15 +40,18 @@ _CURRENCIES = {
 }
 
 # A cut in percent: "%20", "20%", "yüzde 20", "yüzde yirmi beş", and three words people use instead of a number (K4-A).
-_PERCENT_DIGITS = re.compile(r"%\s*(\d+)|(\d+)\s*%|\byüzde\s*(\d+)")
+_PERCENT_DIGITS = re.compile(fold_rule(r"%\s*(\d+)|(\d+)\s*%|\byüzde\s*(\d+)"))
 # "yarın" (tomorrow) is not a half.
-_PERCENT_WORDS = (("yari(?!n)", 50), ("çeyre", 25), ("tamamen", 100))
-_UNITS = {"bir": 1, "iki": 2, "üç": 3, "dört": 4, "beş": 5, "alti": 6, "yedi": 7, "sekiz": 8, "dokuz": 9}
-_TENS = {"on": 10, "yirmi": 20, "otuz": 30, "kirk": 40, "elli": 50, "altmiş": 60, "yetmiş": 70, "seksen": 80, "doksan": 90, "yüz": 100}
+_PERCENT_WORDS = tuple((fold_rule(word), cut) for word, cut in (("yari(?!n)", 50), ("çeyre", 25), ("tamamen", 100)))
+_UNITS = {fold_rule(word): number for word, number in {"bir": 1, "iki": 2, "üç": 3, "dört": 4, "beş": 5, "alti": 6, "yedi": 7,
+                                                         "sekiz": 8, "dokuz": 9}.items()}
+_TENS = {fold_rule(word): number for word, number in {
+    "on": 10, "yirmi": 20, "otuz": 30, "kirk": 40, "elli": 50, "altmiş": 60, "yetmiş": 70, "seksen": 80, "doksan": 90,
+    "yüz": 100}.items()}
 
 # The words people use for each category code (INC-03 PR2 measurement: the model filled in OTHER and FOOD for "harcadığım parayla altın
 # alsaydım"). Folded text; the codes are the server's closed set (ToolCategory), the words are only for checking that the user said it.
-_CATEGORY_WORDS = {
+_CATEGORY_WORDS = {code: fold_rule(words) for code, words in {
     "FOOD": r"yeme|yemek|içme|restoran|lokanta|kafe|kahve",
     "GROCERY": r"market|bakkal|manav|kasap",
     "CLOTHING": r"giyim|kiyafet|elbise|ayakkabi",
@@ -59,10 +63,10 @@ _CATEGORY_WORDS = {
     "BILLS": r"fatura|elektrik|doğalgaz|internet",
     "HEALTH": r"sağlik|saglik|eczane|hastane|doktor",
     "OTHER": r"diğer|diger|çeşitli",
-}
+}.items()}
 
 # The tools' own periods (ToolPeriod), each with the words that name it; the order matters ("son 30 gün" before "gün").
-_PERIODS = [
+_PERIODS = [(name, fold_rule(pattern)) for name, pattern in [
     ("Last30Days", r"\bson\s+(?:30|otuz)\s+gün"),
     ("Last7Days", r"\bson\s+(?:7|yedi)\s+gün"),
     ("Last3Months", r"\bson\s+(?:3|üç)\s+ay"),
@@ -74,7 +78,7 @@ _PERIODS = [
     ("ThisYear", r"\bbu\s+(?:yil|sene)"),
     ("Today", r"\bbugün"),
     ("Yesterday", r"\bdün"),
-]
+]]
 
 
 @dataclass(frozen=True)
@@ -105,7 +109,7 @@ def mentions_count(message: str, value: int) -> bool:
     folded = fold_turkish(message)
     if value in _counts(folded):
         return True
-    return value == 12 and re.search(r"\b(?:son|geçen|bir|1)\s+(?:yil|sene)", folded) is not None
+    return value == 12 and re.search(fold_rule(r"\b(?:son|geçen|bir|1)\s+(?:yil|sene)"), folded) is not None
 
 
 def count_in(reply: str) -> int | None:
@@ -121,6 +125,11 @@ def amounts_in(text: str) -> list[Decimal]:
     rest = _THOUSANDS.sub(" ", folded)
     # The rest keeps its positions only roughly; the order of "5 bin" against a plain number never matters to a caller.
     return [value for _, value in found] + parse_turkish_numbers(rest)
+
+
+def json_number(amount: Decimal) -> int | float:
+    """An amount in the types the model's own arguments arrive in; two decimals survive a float exactly as JSON text ("2500.5")."""
+    return int(amount) if amount == amount.to_integral_value() else float(amount)
 
 
 def mentions_amount(message: str, value) -> bool:
@@ -158,6 +167,13 @@ def mentions_category(message: str, code) -> bool:
     return pattern is not None and re.search(rf"\b(?:{pattern})", fold_turkish(message)) is not None
 
 
+def category_in(message: str) -> str | None:
+    """The one category code the message names in people's words ("eğlence" → ENTERTAINMENT); None for none, or for two."""
+    folded = fold_turkish(message)
+    named = [code for code, words in _CATEGORY_WORDS.items() if re.search(rf"\b(?:{words})", folded)]
+    return named[0] if len(named) == 1 else None
+
+
 def mentions_currency(message: str, code) -> bool:
     """True when the message names this currency and no other."""
     return isinstance(code, str) and currency_in(message) == code
@@ -169,7 +185,7 @@ def percent_in(text: str) -> int | None:
     digits = _PERCENT_DIGITS.search(folded)
     if digits:
         return int(next(group for group in digits.groups() if group))
-    words = re.search(r"\byüzde\s+([a-zçğöşü]+)(?:\s+([a-zçğöşü]+))?", folded)
+    words = re.search(fold_rule(r"\byüzde\s+([a-zçğöşü]+)(?:\s+([a-zçğöşü]+))?"), folded)
     if words and words.group(1) in _TENS:
         return _TENS[words.group(1)] + _UNITS.get(words.group(2) or "", 0)
     return next((value for word, value in _PERCENT_WORDS if re.search(rf"\b{word}", folded)), None)
@@ -190,6 +206,16 @@ def check_arguments(arguments: dict, schema: dict, message: str, previous: dict 
     previous = previous or {}
     kept, unsaid = dict(arguments), set()
     for name, value in arguments.items():
+        if name == "period" and (said := _said_period(value, properties.get(name, {}), message)) is not None:
+            # CHAT-09 K12-A: a period the user named decides, before anything carried over: the model's Last7Days for "geçen
+            # hafta" would answer for other days, and the check used to ask only whether some period was said.
+            if said:
+                kept[name] = said
+            elif name in required:
+                unsaid.add(name)
+            else:
+                del kept[name]
+            continue
         if name not in required and isinstance(value, str) and not value.strip():
             # A blank optional argument is the model's way of leaving it out; the server would refuse "" as a code.
             del kept[name]
@@ -208,6 +234,24 @@ def check_arguments(arguments: dict, schema: dict, message: str, previous: dict 
     unsaid.update(name for name in required if name not in arguments and _figure(name, properties.get(name, {})))
     order = [name for name in properties if name in unsaid]
     return Grounding(order[0] if order else None, dict(arguments) if order else kept, tuple(order))
+
+
+def periods_in(message: str) -> list[str]:
+    """Every tool period the message names, in the table's order ("bu hafta mı geçen hafta mı" → ThisWeek, LastWeek)."""
+    folded = fold_turkish(message)
+    return [name for name, pattern in _PERIODS if re.search(pattern, folded)]
+
+
+def _said_period(value, rule: dict, message: str) -> str | None:
+    """None when the message names no tool period (the other checks decide); otherwise the period to run: the model's when it is
+    one the user named, the user's when they named exactly one the tool offers, "" (asked) for anything else."""
+    named = periods_in(message)
+    if not named:
+        return None
+    if value in named:
+        return value
+    offered = rule.get("enum")
+    return named[0] if len(named) == 1 and (offered is None or named[0] in offered) else ""
 
 
 def _figure(name: str, rule: dict) -> bool:
@@ -243,7 +287,7 @@ def _named(value, message: str) -> bool:
 
 
 def _counts(folded: str) -> list[int]:
-    words = re.findall(r"\d+|[a-zçğöşü]+", folded)
+    words = re.findall(fold_rule(r"\d+|[a-zçğöşü]+"), folded)
     found, skip = [], False
     for word, following in zip(words, [*words[1:], ""]):
         if skip:

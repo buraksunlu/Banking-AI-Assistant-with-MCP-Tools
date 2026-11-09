@@ -18,6 +18,15 @@ if TYPE_CHECKING:
 # Words that only appear when the model talks about the system instead of the user's money (AI-05 eval, X09).
 FORBIDDEN_MENTIONS = ("<veri", "</veri", "backend")
 
+# CHAT-09 K11-A: the six Turkish letters as plain ones, for the text (fold_turkish) and for the rules (fold_rule).
+_PLAIN = str.maketrans("çğıöşü", "cgiosu")
+
+
+def fold_rule(pattern: str) -> str:
+    """A rule pattern written in Turkish (lower case), folded like the text it is matched against."""
+    return pattern.translate(_PLAIN)
+
+
 # Thousands-separated form first; otherwise "1.840,00" would be read as 1 and 840,00. No sign: "-415,00" and
 # "415,00 TL azaldı" are the same fact.
 _TURKISH_NUMBER = re.compile(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?")
@@ -25,10 +34,35 @@ _TURKISH_NUMBER = re.compile(r"\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?")
 
 # INC-03 K7-A: wording that tells the reader what to buy or what a price will do. The what-if answers describe the past; a model
 # answer with any of these is replaced by the facts. A closed list: it catches the usual phrasings, not every possible one.
-_ADVICE = re.compile(
+_ADVICE = re.compile(fold_rule(
     r"\balmali\b|\balmalisiniz|\balin\b|\balabilirsiniz|tavsiye\s+ed|\byapmali|\böner(?:irim|iriz|ilir)\b"
     r"|\byüksel(?:ecek|ir)\b|\bdüş(?:ecek|er)\b|\bartacak|\bkazandir(?:ir|abilir)|\bdeğerlen(?:ecek|ir)\b|\bgetirir\b"
-    r"|\bmantikli\b|\bfirsat")
+    r"|\bmantikli\b|\bfirsat"))
+
+
+# A sentence ends at . ! ? before a space or the end, or at a line break; the dot inside "66.494,58" does not end one.
+_SENTENCE_END = re.compile(r"[.!?](?=\s|$)|\n")
+
+
+def misnamed(answer: str, named_values: tuple[tuple[str, str], ...]) -> bool:
+    """True when a what-if value stands next to another asset's name (CHAT-09 K16-A).
+
+    ``named_values`` pairs each asset's folded word ("dolar", "euro", "altin") with its value as the facts write it. The asset of a
+    value is the nearest name before it in its sentence, or the nearest after it when none comes before. The simulator's answer
+    named the three assets and then their values "sırasıyla": every value then sits after "altın", and the reader has to guess.
+    """
+    folded = fold_turkish(answer)
+    words = [word for word, _ in named_values]
+    for word, value in named_values:
+        for found in re.finditer(re.escape(value), folded):
+            start = max((m.end() for m in _SENTENCE_END.finditer(folded, 0, found.start())), default=0)
+            end = next((m.start() for m in _SENTENCE_END.finditer(folded, found.end())), len(folded))
+            before = [(m.start(), w) for w in words for m in re.finditer(rf"\b{w}", folded[start:found.start()])]
+            after = [(m.start(), w) for w in words for m in re.finditer(rf"\b{w}", folded[found.end():end])]
+            nearest = max(before)[1] if before else min(after)[1] if after else None
+            if nearest is not None and nearest != word:
+                return True
+    return False
 
 
 def has_advice(answer: str) -> bool:
@@ -46,9 +80,14 @@ def parse_turkish_numbers(text: str) -> list[Decimal]:
 
 
 def fold_turkish(text: str) -> str:
-    """Lower case with every i-like letter as "i", so "TALIMAT", "TALİMAT" and "talımat" compare equal."""
+    """Lower case with every Turkish letter as its plain one, so "TALİMAT", "talımat" and "Dün"/"dun" compare equal.
+
+    CHAT-09 K11-A: people type without the Turkish letters ("Dun ne kadar harcadim"); every rule reads folded text and is folded
+    itself (``fold_rule``), so both spellings meet in the middle.
+    """
     # "İ" goes first because str.lower() would turn it into "i" plus a combining dot; "I" already lowers to "i".
-    return text.replace("İ", "i").lower().replace("ı", "i")
+    return text.replace("İ", "i").lower().translate(_PLAIN)
+
 
 
 @dataclass(frozen=True)

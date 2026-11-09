@@ -43,9 +43,8 @@ class DateReading:
 
 _NONE = DateReading("none")
 
-# Folded to ASCII-like text (every i-like letter "i", ç ğ ö ş ü as c g o s u): people type both "Eylül" and "eylul". The length
-# does not change, so a position in the folded text is the same position in the message.
-_ASCII = str.maketrans("çğöşü", "cgosu")
+# The patterns read folded text (answer_check.fold_turkish: every Turkish letter plain, CHAT-09 K11-A): people type both "Eylül"
+# and "eylul". The length does not change, so a position in the folded text is the same position in the message.
 
 _MONTH = "ocak|subat|mart|nisan|mayis|haziran|temmuz|agustos|eylul|ekim|kasim|aralik"
 _MONTH_NUMBER = {name: number for number, name in enumerate(_MONTH.split("|"), start=1)}
@@ -100,7 +99,7 @@ _UNREADABLE = re.compile(
 
 def read_dates(message: str, today: date) -> DateReading:
     """The dates ``message`` writes, relative to the customer's ``today``; see the module description for the four kinds."""
-    text = fold_turkish(message).translate(_ASCII)
+    text = fold_turkish(message)
     part = _MONTH_PART.search(text)
     if part:
         return DateReading("unreadable", span=part.span())

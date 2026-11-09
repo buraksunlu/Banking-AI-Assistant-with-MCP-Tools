@@ -130,3 +130,24 @@ def test_advice_and_forecast_wording_is_found(answer):
 ])
 def test_a_plain_description_of_the_past_is_not_advice(answer):
     assert has_advice(answer) is False
+
+
+# --- CHAT-09 PR2 K16-A: every what-if value next to its own asset ---------------------------------------------------------------
+
+from answer_check import misnamed  # noqa: E402
+
+NAMED = (("dolar", "66.494,58"), ("euro", "64.004,25"), ("altin", "63.523,60"))
+
+
+@pytest.mark.parametrize(("answer", "wrong"), [
+    # The simulator's answer (9 Nov 2026): three names, then three values "in that order"; the nearest name before each is "altın".
+    ("Geçen ay 5.000 TL biriktirseydiniz, toplam tutar 60.000,00 TL olurdu. Bu miktar dolar, euro veya gram altın olarak "
+     "değerlendirilirse değerler sırasıyla 66.494,58 TL, 64.004,25 TL ve 63.523,60 TL olur.", True),
+    ("Her ay dolar alsaydınız birikiminiz 66.494,58 TL, euro alsaydınız 64.004,25 TL, gram altın alsaydınız 63.523,60 TL olurdu.", False),
+    ("Dolar: 66.494,58 TL; altin: 63.523,60 TL.", False),
+    ("Dolar için değer 66.494,58 TL. 64.004,25 TL ise euro için.", False),     # no name before it in its sentence: the next one
+    ("Euro alsaydınız 66.494,58 TL olurdu.", True),
+    ("Toplam 60.000,00 TL yatırmış olurdunuz.", False),                         # no value of an asset in it
+])
+def test_a_value_must_sit_next_to_its_own_asset(answer, wrong):
+    assert misnamed(answer, NAMED) is wrong

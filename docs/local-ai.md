@@ -667,6 +667,27 @@ Modelli koşunun kendi bulguları: ekran görüntüsündeki cümle düz yazımda
 yazımda aylığa (K5); "AYDA BİRİKTİRSEYDİM NE OLURDU?" araç seçilmeden kapsam dışı. Sınırlar: şablonlar yine bizim aklımıza gelen
 kalıpları çoğaltır (gerçek ifadeler listesi büyüdükçe azalır); modelli örneklem 100 ifade, tek koşu.
 
+### Kural düzeltmeleri (CHAT-09 PR2, 9 Kasım 2026)
+
+68 açığın hepsi kapandı (`phrasing_gaps.json` boş). Kararlar K5-D, K6-B, K7-A ve K11-A…K16-A (todo CHAT-09).
+
+| Düzeltme | Nerede | Ne yapar |
+|---|---|---|
+| Tek katlama (K11) | `answer_check.fold_turkish`, `fold_rule` | metin ve kurallar aynı düz harfe: "Dun ne kadar harcadim" = "Dün ne kadar harcadım"; `test_folding.py` katlanmamış kalıbı yakalar |
+| Söylenen dönem (K12) | `grounding._said_period` | "geçen hafta" denmişse model `Last7Days` yazsa da `LastWeek` çalışır; şemada olmayan ya da iki dönem → geri soru |
+| Senaryo daraltma (K5) | `routing.scenario_of`, `Route.only` | "harcamalarımı …-seydim" → yalnız `what_if_one_off`; "ayda/her ay/aylık" → yalnız `what_if_monthly` |
+| Model seçmezse (K13) | `chat`, `wealth.chosen_scenario_arguments` | tek araçlı listede boş cevap kapsam dışı değil: kod aracı seçer, argümanlar sözden |
+| Aylıkta TL (K6) | `wealth.plan_monthly`, `clarification` | "Ayda kaç TL…?"; çıplak "5000" TL; "100 dolar" sabit metin; para birimi sorusu yok |
+| "sınır", "alayım" (K14, K15) | `routing` | "…sınır belirledim" bütçe; "X mı Y mı alayım" tavsiye reddi |
+| Açıklama sorusu (K7) | `facts.ToolOutcome.question` | açıklayan model kullanıcının "(5000) (Tl)" zincirini değil kodun sorusunu görür |
+| Değer–ad (K16) | `answer_check.misnamed` | "dolar, euro, altın … sırasıyla A, B, C" → kalemler gösterilir |
+
+Ölçüm (`qwen3.5:4b`): araç seçimi 89/91 → **90/91** (S40 kaldı: planlama listesinde model araç seçmiyor), ifade örneklemi 89/100 →
+**104/105** (karaktersiz 25/26, büyük harf 26/26), yazım hatası 16/20 (rapor), cevap doğruluğu 22/23 → **23/23**. Modelli koşu bir şey daha
+buldu: tek araç gösterilince model W07'de kategoriyi bıraktı (bütün harcama alınacaktı); kullanıcının söylediği kategori kodla eklenir.
+Sınırlar: "harcadığım kadar her ay" gibi iki senaryolu cümleler bütün grubu görür (geri soru PR3); katlama "sınır/sinir", "düş/duş" gibi
+kelimeleri eşitler (ölçülen kurallarda yalnız "sınır" çakıştı, biçimle ayrıldı).
+
 ## Kararlar (hepsi kullanıcı kararı, 19 Ekim 2026)
 
 K1-A `POST /api/assistant/messages` · K2-A .NET'in kendi DTO'su (`type` tam adla, `answer`, `toolCalls`, `facts`; `model`

@@ -130,10 +130,9 @@ def test_a_question_back_says_what_it_asks_when_the_waiting_question_is_known():
     assert matches("clarify", Outcome("clarify:currency")) and not matches("clarify:amount", Outcome("clarify:currency"))
 
 
-def test_the_currency_question_of_the_screenshot_is_seen_as_such():
-    outcome = run_variant(variant("Ayda biriktirseydim ne olurdu?", "clarify:amount", oracle={"tool": "what_if_monthly", "arguments": {}},
-                                  turns=("Ayda biriktirseydim ne olurdu?", "5000")))
-    assert outcome == Outcome("clarify:currency")
+def test_the_amount_question_is_seen_as_such():
+    outcome = run_variant(variant("Ayda biriktirseydim ne olurdu?", "clarify:amount", oracle={"tool": "what_if_monthly", "arguments": {}}))
+    assert outcome == Outcome("clarify:amount")
 
 
 def test_a_tool_call_that_reached_the_server_is_the_call():

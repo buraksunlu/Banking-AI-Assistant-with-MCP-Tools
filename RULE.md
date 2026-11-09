@@ -1378,6 +1378,11 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Farklı yazılışlara kural düzeltmeleri (CHAT-09 PR2, 9 Kasım 2026; docs/local-ai.md "Kural düzeltmeleri"): tek Türkçe harf katlama
+  (metin + kurallar, K11-A), mesajda adı geçen dönem modelinkini ezer (K12-A), zenginlik grubunda senaryo kelimeleriyle tek araç
+  (K5-D) ve orada model seçmezse kod seçer (K13-A), aylık birikimde çıplak tutar TL ve para birimi sorusu yok (K6-B), "sınır" ve
+  "alayım" kuralları (K14-A, K15-A), açıklayana kodun sorusu ve değer–ad kontrolü (K7-A, K16-A). Açık 68 → 0 (695 ifade); araç seçimi
+  90/91, ifade örneklemi 104/105, cevap doğruluğu 23/23. Python 979 → 1066 modelsiz; 21 kasıtlı bozmanın 20'si yakalandı (biri eşdeğer).
 - Farklı yazılışlara dayanıklılık ölçümü (CHAT-09 PR1, 9 Kasım 2026; docs/local-ai.md "Farklı yazılışlar"): `ai/model_check/phrasings.py`
   20 niyetin şablonlarından + gerçek ifadelerden + kısa diyaloglardan 663 ifade üretir (Türkçe karaktersiz, büyük harf, küçük harf/noktalamasız,
   konuşma dili; yazım hatası yalnız rapor) ve her birini gerçek `ChatService`'ten geçirir (araç çağrısında durur; eval'de sohbet kopyası yok).

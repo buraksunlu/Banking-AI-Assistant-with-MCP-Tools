@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from grounding import (mentions_category, amounts_in, check_arguments, count_in, currency_in, mentions_amount, mentions_count, mentions_currency,
+from grounding import (Grounding, mentions_category, amounts_in, check_arguments, count_in, currency_in, mentions_amount, mentions_count, mentions_currency,
                        mentions_percent, mentions_period, percent_in, period_in)
 
 # CHAT-03 K2-A: an argument the model filled in must come from the user's own words. Expected values are written by hand.
@@ -303,3 +303,40 @@ def test_an_invented_optional_category_is_dropped_and_a_said_one_is_kept():
 
     assert invented.arguments == {"period": "LastMonth"} and invented.missing is None
     assert said.arguments["categoryCode"] == "ENTERTAINMENT" and carried.arguments["categoryCode"] == "FOOD"
+
+
+# --- CHAT-09 PR2 K12-A: the period the user named wins over the model's --------------------------------------------------------
+
+@pytest.mark.parametrize(("message", "written", "run"), [
+    ("Geçen hafta ne kadar harcadım?", "Last7Days", "LastWeek"),       # 28 Sep - 4 Oct asked, 4 - 10 Oct would have been answered
+    ("GEÇEN HAFTA NE KADAR HARCADIM?", "ThisWeek", "LastWeek"),
+    ("Dun ne kadar harcadim?", "Today", "Yesterday"),
+    ("Son 30 günde ne harcadım?", "ThisMonth", "Last30Days"),
+    ("Bu ay ne harcadım?", "ThisMonth", "ThisMonth"),                   # the same period stays as it is
+])
+def test_the_period_the_user_named_is_run_whatever_the_model_wrote(message, written, run):
+    assert check_arguments({"period": written}, SUMMARY, message) == Grounding(None, {"period": run})
+
+
+def test_a_named_period_the_tool_does_not_offer_is_asked():
+    # A complete-month tool offers LastMonth (and Custom) only: "bu hafta" cannot be run there and is not replaced by a guess.
+    month = {"type": "object", "properties": {"period": {"type": "string", "enum": ["LastMonth", "Custom"]}}, "required": ["period"]}
+    assert check_arguments({"period": "LastMonth"}, month, "Bu hafta maaşımın ne kadarını harcadım?").missing == "period"
+
+
+def test_two_named_periods_keep_the_models_choice_only_when_it_is_one_of_them():
+    message = "Bu hafta mı geçen hafta mı daha çok harcadım?"
+    assert check_arguments({"period": "ThisWeek"}, SUMMARY, message).missing is None
+    assert check_arguments({"period": "Last7Days"}, SUMMARY, message).missing == "period"
+
+
+def test_a_follow_up_that_names_a_period_takes_it_although_the_last_call_had_another():
+    # Before K12 the carried-over period passed first: "Peki geçen hafta?" ran last call's this month when the model kept it.
+    previous = {"merchant": "Starbucks", "period": "ThisMonth"}
+    assert check_arguments({"merchant": "Starbucks", "period": "ThisMonth"}, MERCHANT, "Peki geçen hafta?", previous) == \
+        Grounding(None, {"merchant": "Starbucks", "period": "LastWeek"})
+
+
+def test_a_period_said_only_by_a_month_name_is_left_to_the_date_reader():
+    # "Eylül'de" names no tool period; the chat's date code puts the range in (CHAT-08), the model's period stays until then.
+    assert check_arguments({"period": "ThisMonth"}, SUMMARY, "Eylül'de ne harcadım?") == Grounding(None, {"period": "ThisMonth"})

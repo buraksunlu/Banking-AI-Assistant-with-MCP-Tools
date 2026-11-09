@@ -69,6 +69,12 @@ seçici. `tool_selection_eval.py` (91 vaka) ve `phrasing_eval.py` (örneklem) bu
 kırılan her ifade `phrasing_gaps.json`'da gerekçeli olmalı, düzelen açık listeden silinir (yoksa test kırılır). Yeni niyet/kalıp →
 `phrasing_templates.json`; gerçek kullanıcı cümlesi → `real`. Araç tanımı değişince `phrasing_eval.py --refresh-tools` (`mcp_tools.json`).
 `phrasings.py` çıktısı açıkları listeler. Test adında "real" geçmesin (`-k "not real"` modeli dışarıda bırakan süzgeçtir).
+**Katlama (CHAT-09 K11-A):** `fold_turkish` altı Türkçe harfi düz harfe çevirir; her kural kalıbı/kelime tablosu `fold_rule(...)` ile
+derlenir (kaynakta Türkçe yazılır). Katlanmamış Türkçe harfli kalıp `test_folding.py`'yi kırar. Katlama çakıştırırsa ("sınır"/"sinir")
+kural biçimle ayrılır. Dönem: mesajdaki tek adlı dönem modelinkini ezer (`grounding._said_period`, K12-A). Zenginlik grubunda
+`routing.scenario_of` → `Route.only` (K5-D); tek araçlı listede model boş dönerse `chat` aracı seçer (`wealth.chosen_scenario_arguments`,
+K13-A). Aylık birikimde para birimi sorulmaz, çıplak tutar TL (K6-B). Ne olurdu cevabında açıklayana `ToolOutcome.question` gider,
+`answer_check.misnamed` değer–ad karışıklığında kalemleri gösterir (K7-A, K16-A).
 Yeni wealth aracı/öneri satırı: `routing.GROUPS`, `facts.outcome_for`, `suggestions._TABLE`.
 
 MCP istemcisi (MCP-b, `ai/service/mcp_gateway.py`, `mcp` 2.3.0): `BANKINGAI_MCP_URL` (yoksa `http://127.0.0.1:5249/mcp`; yanlış biçimde

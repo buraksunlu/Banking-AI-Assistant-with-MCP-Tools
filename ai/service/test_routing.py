@@ -194,7 +194,9 @@ def test_hide_dates_leaves_the_listed_tools_untouched():
     "Aylık 500 TL dolar cinsinden biriktirsem ne olur?",
 ])
 def test_wealth_words_choose_the_wealth_group(message):
-    assert route(message) == Route((WEALTH,), source="rule")
+    # The group only; which what-if tool inside it the words choose is CHAT-09 K5-D's (below).
+    chosen = route(message)
+    assert (chosen.groups, chosen.source, chosen.out_of_scope) == ((WEALTH,), "rule", False)
 
 
 @pytest.mark.parametrize("message", [
@@ -223,3 +225,55 @@ def test_shares_and_crypto_stay_plainly_out_of_scope(message):
 
 def test_a_follow_up_of_a_wealth_call_stays_in_the_wealth_group():
     assert route("Peki geçen ay?", "get_income_share") == Route((WEALTH,), source="previous")
+
+
+# --- CHAT-09 PR2 -------------------------------------------------------------------------------------------------------------
+
+@pytest.mark.parametrize("message", ["Bu ay harcamalarım için 2.000 TL sınır belirledim, durum ne?", "Bu ay 1.000 TL sınır koydum, aşar mıyım?",
+                                     "Sınırım 5 bin lira, ne durumdayım?", "BU AY SINIRIMI AŞAR MIYIM?"])
+def test_a_spending_limit_is_a_planning_question(message):
+    # K14-A: "sınır" in these shapes; tool-selection case R03 got the general group, which has no budget tool.
+    assert route(message) == Route((PLANNING,), source="rule")
+
+
+@pytest.mark.parametrize("message", ["Bu hafta çok sinir oldum, ne kadar harcadım?", "Sinirim bozuldu, dün ne harcadım?"])
+def test_the_folded_word_for_nerves_is_no_limit(message):
+    # "sinir" (nerve) and "sınır" (limit) fold to the same word: only the limit's own shapes count.
+    assert route(message) == Route((GENERAL,), source="rule")
+
+
+@pytest.mark.parametrize("message", ["Altın mı dolar mı alayım?", "Hangisini alayım?", "Bu ay dolar alayım", "Euro mu alayım altın mı?"])
+def test_asking_what_to_buy_is_a_request_for_advice(message):
+    # K15-A: in this app, "alayım" always asks what to buy.
+    assert route(message) == Route((), out_of_scope=True, advice=True)
+
+
+@pytest.mark.parametrize(("message", "only"), [
+    ("Geçen ayki harcamalarımı biriktirseydim nolurdu", "what_if_one_off"),     # the simulator screenshot (9 Nov 2026)
+    ("GECEN AYKI HARCAMALARIMI BIRIKTIRSEYDIM NOLURDU", "what_if_one_off"),
+    ("Geçen ay harcadığım parayla altın alsaydım ne olurdu?", "what_if_one_off"),
+    ("Geçen hafta harcamasaydım da euro alsaydım?", "what_if_one_off"),
+    ("Geçen ay market masrafımı dolar alsaydım?", "what_if_one_off"),
+    ("Ayda 1.000 TL altın olarak biriktirseydim ne olurdu?", "what_if_monthly"),
+    ("Her ay 500 lira biriktirseydim?", "what_if_monthly"),
+    ("Aylık 2 bin TL altın alsaydım ne olurdu?", "what_if_monthly"),
+    ("AYDA BİRİKTİRSEYDİM NE OLURDU?", "what_if_monthly"),
+])
+def test_a_what_if_with_one_scenarios_words_shows_only_that_tool(message, only):
+    # K5-D: the words name the scenario; the model is shown that one tool (the screenshot's question reached the monthly one).
+    assert route(message) == Route((WEALTH,), source="rule", only=only)
+
+
+@pytest.mark.parametrize("message", [
+    "Biriktirseydim ne olurdu?",                                   # no scenario word: PR3 asks which one
+    "Her ay harcadığım kadar biriktirseydim ne olurdu?",           # both
+    "Geçen ay maaşımın ne kadarını harcadım?",                     # no what-if
+    "Geçen ay nerede tasarruf edebilirim?",
+])
+def test_otherwise_the_whole_wealth_group_is_shown(message):
+    assert route(message) == Route((WEALTH,), source="rule")
+
+
+def test_narrowing_keeps_only_the_scenarios_tool():
+    tools = [{"type": "function", "function": {"name": name}} for name in GROUPS[WEALTH]]
+    assert [t["function"]["name"] for t in narrow(tools, Route((WEALTH,), only="what_if_one_off"))] == ["what_if_one_off"]
