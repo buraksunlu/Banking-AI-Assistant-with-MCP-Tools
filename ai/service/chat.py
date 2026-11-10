@@ -23,7 +23,7 @@ from typing import Protocol
 from langchain_ollama import ChatOllama
 
 from answer_check import has_advice, misnamed
-from clarification import (CHOICE_KINDS, Pending, PendingStore, ask_amount, ask_complete_month, ask_count, ask_currency,
+from clarification import (CHOICE_KINDS, MAX_REPLY_WORDS, Pending, PendingStore, ask_amount, ask_amount_again, ask_complete_month, ask_count, ask_currency,
                            ask_merchant, ask_percent, ask_period, ask_scenario, ask_topic, check_question, chosen_tool,
                            is_bare_choice, resolve, template)
 from contracts import Fact
@@ -31,10 +31,10 @@ from conversation import ConversationStore, LastCall, is_follow_up
 from explainer import stream_message
 from facts import outcome_for
 from ollama_client import OllamaError, OllamaSettings
-from prompts import (ADVICE_DECLINED_TEXT, CLARIFY_TEXT, DATE_SCHEMA, LIRA_ONLY_TEXT, INTENT_SCHEMA, OUT_OF_SCOPE_TEXT, build_clarify_messages, build_date_messages,
+from prompts import (ADVICE_DECLINED_TEXT, BARE_CHOICE_TEXT, CLARIFY_TEXT, DATE_SCHEMA, LIRA_ONLY_TEXT, INTENT_SCHEMA, OUT_OF_SCOPE_TEXT, build_clarify_messages, build_date_messages,
                      build_intent_messages, build_tool_messages)
 from dates import CustomerDay, DateReading, check_range, period_line, read_dates, with_span_replaced
-from grounding import category_in, check_arguments, mentions_period
+from grounding import category_in, check_arguments, mentions_period, unclear_amounts
 from routing import DATE_FIELDS, ONE_OFF, PLANNING, Route, Router, group_of, hide_dates, is_spending_question, narrow, planning_of
 from suggestions import OUT_OF_SCOPE_SUGGESTIONS, OfferedStore, follow_ups, match
 from tools import ToolArgumentsRejected, ToolGateway
@@ -201,14 +201,24 @@ class ChatService:
 
     def answer(self, message: str, token: str, day: CustomerDay | None = None) -> ChatReply:
         """The reply to ``message`` for the user whose token is given; ``day`` is the customer's today and time zone (CHAT-08)."""
-        # One limit for the whole turn: listing, selection, tool call and explanation all take from it (AI-06 K5-B, AI-14).
-        deadline = self.clock() + self.settings.timeout_seconds
-
         # A reply to the question asked last time completes that call: no listing, no selection (K3-A). Anything else is a
         # new question, and the old one is dropped either way (K5-A).
         waiting = self.waiting.take(token)
         # Like the waiting question, an offer lasts for one message: whatever comes next, it is gone.
         offered = self.offered.take(token)
+        try:
+            return self._answer(message, token, day, waiting, offered)
+        except Exception:
+            # CHAT-10 K10-A: a turn that fails (an answer rejected, a timeout, the server down) used nothing up. "Tekrar dene" sends
+            # the same "1" again; without the question it answered, it became a new question in the INC-04 trial.
+            if waiting is not None:
+                self.waiting.put_back(token, waiting)
+            self.offered.put_back(token, offered)
+            raise
+
+    def _answer(self, message: str, token: str, day: CustomerDay | None, waiting: Pending | None, offered: list) -> ChatReply:
+        # One limit for the whole turn: listing, selection, tool call and explanation all take from it (AI-06 K5-B, AI-14).
+        deadline = self.clock() + self.settings.timeout_seconds
         completed = False
         # CHAT-09 K17-C/K19-C: the tool the user chose between two calculations; their question then goes the normal way with
         # that tool alone, and its own words and figures (plus the reply's, "her ay 2 bin") are checked as always.
@@ -234,6 +244,9 @@ class ChatService:
             else:
                 date_arguments = None
             arguments = date_arguments or resolve(waiting, message)
+            if arguments is None and waiting.kind == "amount" and len(message.split()) <= MAX_REPLY_WORDS and unclear_amounts(message):
+                # CHAT-10 K9-C: "5x" is no amount the code can read; asked again instead of taken as a new question or as 5.
+                return self._ask(ask_amount_again(waiting, message), [], token, deadline)
             if arguments is not None:
                 question = f"{waiting.question} ({message})"
                 # "3000" answered the amount; the currency the model guessed as well is asked next, not run.
@@ -247,6 +260,10 @@ class ChatService:
         chosen = match(offered, message)
         if chosen is not None:
             return self._run(ToolCall(chosen.tool, dict(chosen.arguments)), message, token, deadline, day)
+        if not completed and is_bare_choice(message):
+            # CHAT-10 K10-D: a choice's number that answers no waiting question means nothing on its own; the model would make a
+            # new question of it.
+            return ChatReply("clarification", BARE_CHOICE_TEXT, [], [])
 
         # Only a short or "peki…" message is read with the last call (K4-B); a full question stands on its own, as before.
         # The follow-up itself is what is explained and kept: a growing chain of questions led both the model (back to an

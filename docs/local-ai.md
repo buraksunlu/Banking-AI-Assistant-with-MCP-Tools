@@ -719,6 +719,32 @@ hepsi), soru yazımı `question_eval.py` **9/10** (eşik 8; geçemeyen soru soru
 bazen bozuk ("paramızı Euro'ya çevirirseniz"). Kısa bir soru kelimesi seçenek kelimesi içerirse ("Her ay ne harcadım?") seçim sayılabilir;
 "harca" bu yüzden tek seferliğin kelimelerinde yok.
 
+## Tutar birimleri ve "Tekrar dene" (CHAT-10 PR1, 10 Kasım 2026)
+
+INC-04 simülatör denemesinde döngü gibi görünen bir sıra bulundu: konu sorusu → "1" (bütçe) → "5k" → "1" (TL) → konu sorusu yine.
+Kök neden üç hatanın arka arkaya gelmesiydi:
+
+```text
+"5k"           → grounding.amounts_in "5" okudu (bitişik birim yok)       → bütçe 5 TL
+"1" (TL)       → check_budget(5 TL) → açıklama sayı kontrolünden geçmedi → 502
+"Tekrar dene"  → aynı "1" yine gitti; bekleyen soru ilk denemede silinmişti
+               → "1" yeni soru → sınıflandırıcı "planlama" → konu sorusu baştan
+```
+
+- **K9-C, birimler:** `amounts_in` artık `k` ("5k", "5 k", "2,5k"), bitişik ya da ekli `bin` ("5bin", "5 binlik") ve `milyon`
+  okuyor. Rakama bitişik bilinmeyen harf ("5x") tutar sayılmıyor (`unclear_amounts`): ilk soruda modelin "5"i dayanaksız kalır ve
+  tutar sorulur; tutar sorusunun cevabıysa soru notla yeniden sorulur ("‘5x’ tutarını anlayamadım. Bütçeniz ne kadar? …",
+  `ask_amount_again`). Para birimi kodu ve "-lik" bitişik olabilir ("3000TL", "5000lik").
+- **K10-A, hata sonrası:** `ChatService.answer` bekleyen soruyu ve sunulan önerileri turun başında alır; tur hata ile biterse (cevap
+  reddi, zaman aşımı, MCP) ikisi `put_back` ile geri konur. Aynı turda yeni bir soru sorulmuşsa ezilmez. "Tekrar dene" böylece aynı
+  çağrıyı tamamlar.
+- **K10-D, çıplak numara:** bekleyen soru yokken gelen "1", "ikincisi" modele gitmez; sabit `BARE_CHOICE_TEXT` döner. Sunulan öneri
+  eşleşmesine daha önce bakılır.
+
+Ölçüm: ifade şablonlarına `10k TL` yuvası ve denemedeki diyalog (`d24`) eklendi; 801 ifade, 0 açık (modelsiz). Python 1138 → 1181
+modelsiz. 11 kasıtlı bozmanın hepsi yakalandı (biri, "geri koyma yeni soruyu ezer", eklenen iki testle). Model ölçümü yapılmadı:
+araç seçimi değişmedi, değişiklikler kural tarafında.
+
 ## Kararlar (hepsi kullanıcı kararı, 19 Ekim 2026)
 
 K1-A `POST /api/assistant/messages` · K2-A .NET'in kendi DTO'su (`type` tam adla, `answer`, `toolCalls`, `facts`; `model`

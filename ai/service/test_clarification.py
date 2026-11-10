@@ -1,6 +1,6 @@
 import pytest
 
-from clarification import (PendingStore, ask_amount, ask_count, ask_currency, ask_merchant, ask_percent, ask_period, ask_scenario,
+from clarification import (PendingStore, ask_amount, ask_amount_again, ask_count, ask_currency, ask_merchant, ask_percent, ask_period, ask_scenario,
                            ask_topic, check_question, chosen_tool, resolve, template)
 from prompts import build_clarify_messages
 
@@ -181,12 +181,14 @@ PERCENT = ask_percent("simulate_savings", {"merchant": "Starbucks"}, "Starbucks'
     ("3.000", {"categoryCode": "FOOD", "amount": 3000}),
     ("2.500,50 lira", {"categoryCode": "FOOD", "amount": 2500.5, "currencyCode": "TRY"}),
     ("5 bin", {"categoryCode": "FOOD", "amount": 5000}),
+    ("5k", {"categoryCode": "FOOD", "amount": 5000}),                                 # CHAT-10 K9-C: was 5
+    ("10k TL", {"categoryCode": "FOOD", "amount": 10000, "currencyCode": "TRY"}),
 ])
 def test_an_amount_reply(reply, completed):
     assert resolve(AMOUNT, reply) == completed
 
 
-@pytest.mark.parametrize("reply", ["bilmiyorum", "0", "Bu ay market için ne kadar harcadım acaba?"])
+@pytest.mark.parametrize("reply", ["bilmiyorum", "0", "Bu ay market için ne kadar harcadım acaba?", "5x"])
 def test_a_reply_without_an_amount_is_a_new_question(reply):
     assert resolve(AMOUNT, reply) is None
 
@@ -299,3 +301,26 @@ def test_the_prompt_describes_both_calculations_and_asks_for_the_users_words():
 
 def test_a_short_spending_question_is_not_the_one_off_choice():
     assert chosen_tool(SCENARIO, "Dün ne harcadım?") is None
+
+
+# CHAT-10 K9-C: an amount the code cannot read is asked again, saying which words were not understood.
+def test_an_unread_amount_is_asked_again_with_what_was_not_understood():
+    again = ask_amount_again(AMOUNT, "5x")
+    assert template(again) == "‘5x’ tutarını anlayamadım. Bütçeniz ne kadar? Örneğin 3.000 TL."
+    assert (again.tool, again.arguments, again.later) == (AMOUNT.tool, AMOUNT.arguments, AMOUNT.later)
+    assert not again.model_worded
+
+
+def test_an_unread_monthly_amount_is_asked_again_in_its_own_words():
+    monthly = ask_amount("what_if_monthly", {}, "Her ay biriktirseydim ne olurdu?")
+    assert template(ask_amount_again(monthly, "2y")) == "‘2y’ tutarını anlayamadım. Ayda kaç TL biriktirirdiniz? Örneğin 1.000."
+
+
+# CHAT-10 K10-A: a failed turn gives its question back, but never over a question the same turn already asked.
+def test_a_question_is_given_back_only_when_nothing_newer_waits():
+    store = PendingStore()
+    store.put_back("t", AMOUNT)
+    assert store.take("t") == AMOUNT
+    store.put("t", CURRENCY)
+    store.put_back("t", AMOUNT)
+    assert store.take("t") == CURRENCY
