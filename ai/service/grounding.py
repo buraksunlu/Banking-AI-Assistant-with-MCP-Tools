@@ -27,8 +27,15 @@ _NUMBER_WORDS = {fold_rule(word): number for word, number in {
     "bir": 1, "iki": 2, "üç": 3, "dört": 4, "beş": 5, "alti": 6, "yedi": 7, "sekiz": 8, "dokuz": 9, "on": 10, "yirmi": 20,
     "otuz": 30}.items()}
 
-# "5 bin", "1,5 bin" and "bin" alone; written-out amounts ("bin beş yüz") are a documented limit (K3-A).
-_THOUSANDS = re.compile(r"(\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?)?\s*\bbin\b")
+# A number written the Turkish way: "1.000", "2.500,50", "2,5".
+_NUMBER = r"\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?"
+# "5 bin", "1,5 bin", "bin" alone and, CHAT-10 K9-C, glued or with the endings people add ("5bin", "5 binlik"), "5 milyon" and
+# "5k" (the "5k" of the INC-04 trial was read as 5). Written-out amounts ("bin beş yüz") are a documented limit (K3-A). Folded text.
+_SCALED = re.compile(rf"(?:({_NUMBER})\s*)?(?<![a-z])(bin|milyon)(?:lik|luk|e|i|de|den)?(?![a-z])|({_NUMBER})\s?(k)(?![a-z])")
+_SCALES = {"bin": 1000, "milyon": 1_000_000, "k": 1000}
+# What may follow a number with no space and still leave it an amount: a currency code, a unit above, or "-lik" ("5000lik bütçe").
+_GLUED = re.compile(rf"({_NUMBER})([a-z]+)")
+_KNOWN_GLUED = re.compile(r"(?:tl|try|eur|usd|gbp|lik|luk)")
 
 # Folded text, so plain letters only (K11-A); a letter must not touch the code ("atletizm" is no "tl"), a digit may ("3000TL").
 _LETTER = "a-z"
@@ -119,12 +126,27 @@ def count_in(reply: str) -> int | None:
 
 
 def amounts_in(text: str) -> list[Decimal]:
-    """Every amount a text writes, the Turkish way ("1.000", "2.500,50", "5 bin", "bin"), in order."""
+    """Every amount a text writes, the Turkish way ("1.000", "2.500,50", "5 bin", "5k", "bin"), in order.
+
+    A number with letters glued to it that are no currency or unit ("5x") is no amount at all (CHAT-10 K9-C): it is asked back by
+    the caller rather than read as the digits alone.
+    """
     folded = fold_turkish(text)
-    found = [(m.start(), Decimal((m.group(1) or "1").replace(".", "").replace(",", ".")) * 1000) for m in _THOUSANDS.finditer(folded)]
-    rest = _THOUSANDS.sub(" ", folded)
+    found = [_decimal(m.group(1) or m.group(3) or "1") * _SCALES[m.group(2) or m.group(4)] for m in _SCALED.finditer(folded)]
+    rest = _SCALED.sub(" ", folded)
+    rest = _GLUED.sub(lambda m: m.group(0) if _KNOWN_GLUED.match(m.group(2)) else " ", rest)
     # The rest keeps its positions only roughly; the order of "5 bin" against a plain number never matters to a caller.
-    return [value for _, value in found] + parse_turkish_numbers(rest)
+    return found + parse_turkish_numbers(rest)
+
+
+def unclear_amounts(text: str) -> list[str]:
+    """The numbers with letters glued to them that the code cannot read as an amount ("5x"), as the user wrote them."""
+    rest = _SCALED.sub(" ", fold_turkish(text))
+    return [m.group(0) for m in _GLUED.finditer(rest) if not _KNOWN_GLUED.match(m.group(2))]
+
+
+def _decimal(number: str) -> Decimal:
+    return Decimal(number.replace(".", "").replace(",", "."))
 
 
 def json_number(amount: Decimal) -> int | float:

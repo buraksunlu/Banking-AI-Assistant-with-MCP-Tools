@@ -95,7 +95,8 @@
    "slots": {"amount": [
     {"text": "1.000 TL", "args": {"amount": 1000, "currencyCode": "TRY"}},
     {"text": "5 bin lira", "args": {"amount": 5000, "currencyCode": "TRY"}},
-    {"text": "1.500 euro", "args": {"amount": 1500, "currencyCode": "EUR"}}]},
+    {"text": "1.500 euro", "args": {"amount": 1500, "currencyCode": "EUR"}},
+    {"text": "10k TL", "args": {"amount": 10000, "currencyCode": "TRY"}}]},
    "templates": [
     {"id": "t1", "text": "Bu ay {amount} bütçem var, ne durumdayım?", "expected": {"tool": "check_budget", "arguments": {}}},
     {"id": "t2", "text": "Bu ay için {amount} limit koydum, aşar mıyım?", "expected": {"tool": "check_budget", "arguments": {}}},
@@ -293,6 +294,7 @@
   {"id": "d20", "turns": ["Her ay harcadığım kadar biriktirseydim ne olurdu?", "bir kerede", "geçen ay"], "oracle": "nothing", "expected": {"tool": "what_if_one_off", "arguments": {"period": "LastMonth"}}},
   {"id": "d21", "turns": ["Bütçemi kısıp tasarruf etsem?", "2", "%20"], "oracle": "nothing", "expected": [{"tool": "simulate_savings", "arguments": {"reductionPercent": 20}}, {"tool": "simulate_savings", "arguments": {"reductionPercent": 20, "months": 6}}]},
   {"id": "d22", "turns": ["Bütçemi kısıp tasarruf etsem?", "bütçe", "3.000 TL"], "oracle": "nothing", "expected": {"tool": "check_budget", "arguments": {"amount": 3000, "currencyCode": "TRY"}}},
-  {"id": "d23", "turns": ["Biriktirseydim ne olurdu?", "Dün ne harcadım?"], "expected": {"tool": "get_spending_summary", "arguments": {"period": "Yesterday"}}}
+  {"id": "d23", "turns": ["Biriktirseydim ne olurdu?", "Dün ne harcadım?"], "expected": {"tool": "get_spending_summary", "arguments": {"period": "Yesterday"}}},
+  {"id": "d24", "turns": ["Bütçemi kısıp tasarruf etsem?", "1", "5k", "1"], "oracle": "nothing", "expected": {"tool": "check_budget", "arguments": {"amount": 5000, "currencyCode": "TRY"}}}
  ]
 }

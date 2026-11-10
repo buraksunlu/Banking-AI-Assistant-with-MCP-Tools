@@ -9,12 +9,12 @@ figure, and ``later`` holds the figures still to be asked after this one.
 
 import re
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from answer_check import FORBIDDEN_MENTIONS, fold_rule, fold_turkish
 
 from formatting import MONTH_NAMES
-from grounding import amounts_in, json_number, count_in, currency_in, percent_in, period_in
+from grounding import amounts_in, json_number, unclear_amounts, count_in, currency_in, percent_in, period_in
 from memory import TokenMemory
 
 # The periods offered when the user named none; any other tool period in the reply counts too (grounding.period_in).
@@ -139,6 +139,12 @@ def ask_currency(tool: str, arguments: dict, question: str, later: tuple[str, ..
     return Pending(tool, rest, "currencyCode", "currency", options, question, later=later)
 
 
+def ask_amount_again(pending: Pending, reply: str) -> Pending:
+    """The same amount question once more, saying which words were not read as an amount ("5x"; CHAT-10 K9-C)."""
+    unclear = " ".join(unclear_amounts(reply)) or reply.strip()
+    return replace(pending, note=f"‘{unclear}’ tutarını anlayamadım.")
+
+
 def ask_percent(tool: str, arguments: dict, question: str, later: tuple[str, ...] = ()) -> Pending:
     """The question for a cut the user did not name (MCP-18 K4-A)."""
     rest = {k: v for k, v in arguments.items() if k != "reductionPercent"}
@@ -199,11 +205,12 @@ def template(pending: Pending) -> str:
     if pending.kind == "count":
         numbers = [str(o.value) for o in pending.options]
         return f"Kaç aylık bakayım? Örneğin son {', '.join(numbers[:-1])} ya da {numbers[-1]} ay."
+    note = f"{pending.note} " if pending.note else ""
     if pending.kind == "amount" and pending.tool == MONTHLY_SAVING:
         # CHAT-09 K6-B: the question says the currency, so a bare "5000" answers it whole.
-        return "Ayda kaç TL biriktirirdiniz? Örneğin 1.000."
+        return f"{note}Ayda kaç TL biriktirirdiniz? Örneğin 1.000."
     if pending.kind == "amount":
-        return "Bütçeniz ne kadar? Örneğin 3.000 TL."
+        return f"{note}Bütçeniz ne kadar? Örneğin 3.000 TL."
     if pending.kind == "percent":
         labels = [o.label for o in pending.options]
         return f"Ne kadar azaltmayı düşünüyorsunuz? Örneğin {', '.join(labels[:-1])} ya da {labels[-1]}."
@@ -256,6 +263,11 @@ class PendingStore:
     def take(self, token: str) -> Pending | None:
         """The waiting question, removed (a reply is used once); None when there is none or it is too old."""
         return self._memory.pop(token)
+
+    def put_back(self, token: str, pending: Pending) -> None:
+        """Gives back a question whose reply failed to be answered (CHAT-10 K10-A), unless the turn already asked a new one."""
+        if self._memory.get(token) is None:
+            self._memory.put(token, pending)
 
 
 def _value(pending: Pending, reply: str) -> str | int | float | None:

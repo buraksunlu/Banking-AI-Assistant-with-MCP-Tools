@@ -84,6 +84,9 @@ yazılır (`clarify-v2`), `check_question` seçeneği etiketiyle ya da `Option.w
 (numara ya da kelime, ikisi birden → yeni soru); seçim sonrası özgün soru seçilen tek araçla yeniden işlenir, çıplak numara eklenmez
 (tutar sanılırdı). Tek seferliğin kelimelerinde "harca" yok: "Dün ne harcadım?" yeni sorudur.
 Yeni wealth aracı/öneri satırı: `routing.GROUPS`, `facts.outcome_for`, `suggestions._TABLE`.
+**Tutar birimi ve tekrar (CHAT-10 PR1):** `amounts_in` `k`/`bin`/`milyon`'u bitişik ya da ekli okur; rakama bitişik bilinmeyen harf tutar
+değildir (`unclear_amounts`; tutar cevabında `ask_amount_again` notla yeniden sorar). Hata ile biten turda bekleyen soru ve öneriler
+`put_back` ile geri konur (yeni soru ezilmez); bekleyen soru yokken çıplak numara `BARE_CHOICE_TEXT` alır, modele gitmez.
 
 MCP istemcisi (MCP-b, `ai/service/mcp_gateway.py`, `mcp` 2.3.0): `BANKINGAI_MCP_URL` (yoksa `http://127.0.0.1:5249/mcp`; yanlış biçimde
 servis açılmaz). Protokol `2026-07-28`'e sabit (el sıkışma/keşif isteği yok); her çağrı kendi kısa olay döngüsünde (`anyio.run`, sohbet

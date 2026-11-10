@@ -84,6 +84,8 @@ ADVICE_DECLINED_TEXT = ("Ne alacağınızı ya da fiyatların nereye gideceğini
                         "olurdu?” ya da “Ayda 1.000 TL biriktirseydim ne olurdu?”")
 LIRA_ONLY_TEXT = ("Birikim hesabı yalnız TL tutarlarla yapılır; varlık fiyatları TL cinsindendir ve para birimleri çevrilmez. "
                   "Örneğin: “Ayda 1.000 TL biriktirseydim ne olurdu?”")
+# CHAT-10 K10-D: a bare "1" with no question waiting answers nothing; sent to the model it became a new question in the INC-04 trial.
+BARE_CHOICE_TEXT = "Hangi seçeneği kastettiğinizi bulamadım; sorunuzu yeniden yazar mısınız?"
 CLARIFY_TEXT = ("Sorunuzu tam anlayamadım. Tek bir soru olarak ve dönemiyle sorabilir misiniz? "
                 "Örneğin: “Bu hafta ne kadar harcadım?”")
 

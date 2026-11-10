@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from grounding import (Grounding, mentions_category, amounts_in, check_arguments, count_in, currency_in, mentions_amount, mentions_count, mentions_currency,
+from grounding import (Grounding, unclear_amounts, mentions_category, amounts_in, check_arguments, count_in, currency_in, mentions_amount, mentions_count, mentions_currency,
                        mentions_percent, mentions_period, percent_in, period_in)
 
 # CHAT-03 K2-A: an argument the model filled in must come from the user's own words. Expected values are written by hand.
@@ -166,6 +166,30 @@ SAVINGS = {"type": "object", "properties": {
 ])
 def test_amounts_are_read_the_turkish_way(text, amounts):
     assert amounts_in(text) == [Decimal(a) for a in amounts]
+
+
+# CHAT-10 K9-C: a unit right after the number is read ("5k" was 5 lira in the INC-04 trial); a letter the code does not know makes
+# the number no amount at all, so it is asked back instead of read as something else.
+@pytest.mark.parametrize(("text", "amounts"), [
+    ("5k", ["5000"]), ("5K", ["5000"]), ("5 k", ["5000"]), ("2,5k", ["2500"]), ("10k TL", ["10000"]), ("bütçem 5k'lık", ["5000"]),
+    ("5bin", ["5000"]), ("5 binlik bütçe", ["5000"]), ("5 milyon", ["5000000"]), ("1,5 milyon lira", ["1500000"]),
+    ("3000TL", ["3000"]), ("5000lik bütçe", ["5000"]), ("5 kişiyiz", ["5"]),
+    ("5x", []), ("5abc TL", []), ("kabin", []),
+])
+def test_a_unit_after_the_number_is_read_and_an_unknown_one_is_no_amount(text, amounts):
+    assert amounts_in(text) == [Decimal(a) for a in amounts]
+
+
+@pytest.mark.parametrize(("text", "unclear"), [
+    ("5x", ["5x"]), ("bütçem 5abc", ["5abc"]), ("5k", []), ("3000TL", []), ("5bin", []), ("5000lik", []), ("Bu ay 1.000 TL", []),
+])
+def test_the_amounts_the_code_cannot_read(text, unclear):
+    assert unclear_amounts(text) == unclear
+
+
+def test_a_budget_in_thousands_is_the_users_own_figure():
+    assert mentions_amount("Bu ay 5k bütçem var", 5000)
+    assert not mentions_amount("Bu ay 5k bütçem var", 5)
 
 
 @pytest.mark.parametrize(("message", "value", "expected"), [

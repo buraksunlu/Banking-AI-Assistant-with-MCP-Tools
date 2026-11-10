@@ -234,3 +234,16 @@ def test_out_of_scope_suggestions_are_always_answerable_questions():
 def test_real_server_gives_ada_her_three_starters():
     starters = StarterQuestions(McpToolGateway(McpSettings.from_env(os.environ)))
     assert starters.for_token(_real_token()) == [UPCOMING_7, THIS_MONTH, RECURRING]
+
+
+# CHAT-10 K10-A: a failed follow-up gives its offer back, but never over a newer offer, and an empty offer is nothing to keep.
+def test_an_offer_is_given_back_only_when_nothing_newer_was_made():
+    store = OfferedStore()
+    old, new = [Suggestion("Eski?", "get_spending_summary")], [Suggestion("Yeni?", "get_category_breakdown")]
+    store.put_back("t", old)
+    assert store.take("t") == old
+    store.put("t", new)
+    store.put_back("t", old)
+    assert store.take("t") == new
+    store.put_back("t", [])
+    assert store.take("t") == []

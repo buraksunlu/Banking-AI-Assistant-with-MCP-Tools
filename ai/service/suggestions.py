@@ -172,6 +172,11 @@ class OfferedStore:
         """What was offered last, removed; an empty list when nothing was or it is too old."""
         return self._memory.pop(token) or []
 
+    def put_back(self, token: str, suggestions: list[Suggestion]) -> None:
+        """Gives back an offer whose follow-up failed to be answered (CHAT-10 K10-A), unless the turn already made a new one."""
+        if suggestions and self._memory.get(token) is None:
+            self._memory.put(token, list(suggestions))
+
 
 class StarterQuestions:
     """The questions shown when the chat opens: the first three whose condition holds for the customer (K4-B, K5-A)."""

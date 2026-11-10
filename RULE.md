@@ -1378,6 +1378,10 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Tutar birimleri ve "Tekrar dene" (CHAT-10 PR1, 10 Kasım 2026; docs/local-ai.md "Tutar birimleri"): "5k" 5 TL okunuyordu → `k`/`bin`/
+  `milyon` okunur, bilinmeyen harf tutar sayılmaz ve geri sorulur (K9-C); hata ile biten turda bekleyen soru ve öneriler geri konur,
+  "Tekrar dene" aynı çağrıyı tamamlar (K10-A); bekleyen soru yokken çıplak numara sabit metin (K10-D). Python 1138 → 1181 modelsiz,
+  801 ifade 0 açık, 11 kasıtlı bozma yakalandı.
 - iPhone gelir payı kartı (INC-04, 10 Kasım 2026; docs/ios.md "iOS-s"): ana ekranda "Bu ay harcama"nın altında
   "Gelire göre harcama" kartı; tek istek `spending-advice?period=LastMonth`, para birimi başına Temel / İsteğe bağlı / Bilinmiyor
   çubuğu (paylar backend'den, %100'ü aşan kırpılır, metin tam), en fazla 2 öneri satırı (dokununca backend'in sabit cümlesi),
