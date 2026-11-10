@@ -288,9 +288,9 @@ def test_a_follow_up_with_a_new_range_replaces_the_old_one():
 def test_an_offered_follow_up_keeps_the_range():
     chat, selector, gateway, _ = dated(results=[SEPTEMBER_FIRST_FIVE, YESTERDAY_CATEGORIES])
     first = chat.answer("1-5 Eylül arası ne kadar harcadım?", TOKEN, DAY)
-    assert "Kategorilere göre?" in first.suggestions
+    assert "1-5 Eylül 2026 döneminde kategorilere göre harcamam nasıl?" in first.suggestions
 
-    reply = chat.answer("Kategorilere göre?", TOKEN, DAY)
+    reply = chat.answer("1-5 Eylül 2026 döneminde kategorilere göre harcamam nasıl?", TOKEN, DAY)
 
     assert len(selector.calls) == 1
     assert gateway.calls[1][:2] == ("get_category_breakdown", FIRST_FIVE_DAYS)

@@ -519,6 +519,15 @@ dokunulan öneri model seçmeden 2,9–4,2 sn.
   hata ile biten turda `PendingStore.put_back`/`OfferedStore.put_back` (yeni soru/öneri ezilmez), `prompts.BARE_CHOICE_TEXT`. Ölçüm şablonları
   `10k TL` + diyalog `d24` (801 ifade, 0 açık). Python 1138 → 1181 modelsiz; 11 kasıtlı bozma yakalandı. Model ölçümü yapılmadı (araç seçimi
   değişmedi). Sırada PR2 (öneriler: K1–K3).
+  **PR2 alt kararları (10 Kasım 2026):** P1-B (dönemli kalıplar ifade şablonlarında her dönemle modelsiz, her kalıp 2 dönemle model vakası;
+  `test_suggestions` kuralı "kalıp ölçülmüş + her dönem modelsiz geçer"), P2-A (özel aralıkta tarih kodla yazılır: "1–5 Eylül 2026'da …"),
+  P3-A (işyeri önerisi ek almayan kalıp: "Son 3 ayda Starbucks harcamam ne kadar?"), P4-A (aday kalmazsa sorulmamış en fazla 2 genel soru;
+  "ne olurdu" cevaplarında hiç öneri yok).
+  **PR2 sonucu (10 Kasım 2026, dal `chat-10b-suggestions`; docs/local-ai.md "Öneriler: tekrar yok, sonuca göre, dönemli"):** `suggestions._TABLE`
+  sıralı adaylar + `PATTERNS`/`PERIOD_NAMES` dönemli tam sorular, `Shape`/`result_shape` (yalnız sayılar), `AskedStore` (yalnız gösterilen cevaptan
+  sonra yazılır), `follow_ups(tool, args, asked, shape)`; `chat._run` bağlar. Ölçüm: O01–O07 + ifade şablonlarında "offered" niyeti (her kalıp ×
+  her dönem). Araç seçimi 100/100 → 107/107, ifade 801 → 1097 (0 açık), Python 1181 → 1234 modelsiz; 13 kasıtlı bozma yakalandı. Bilinçli
+  değişen eski testler: öneri metinleri, tek işlemli "dün" verisiyle dokunma testleri (`YESTERDAY_TWO`), INC-03 zinciri. Sırada PR3 (K4–K8).
 
 ## 15d. İçgörü kartları — kullanıcı kararı 17 Ekim 2026
 

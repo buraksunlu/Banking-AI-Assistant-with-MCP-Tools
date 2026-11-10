@@ -745,6 +745,36 @@ Kök neden üç hatanın arka arkaya gelmesiydi:
 modelsiz. 11 kasıtlı bozmanın hepsi yakalandı (biri, "geri koyma yeni soruyu ezer", eklenen iki testle). Model ölçümü yapılmadı:
 araç seçimi değişmedi, değişiklikler kural tarafında.
 
+## Öneriler: tekrar yok, sonuca göre, dönemli (CHAT-10 PR2, 10 Kasım 2026)
+
+Öneri satırı bugüne kadar yalnız son çağrıyı eliyordu: "Aboneliklerim" ↔ "7 gün" ve "Kategorilere göre?" ↔ "işyerlerine göre?"
+ping-pong yapıyordu; tek işlemli bir günde bile "kategorilere göre" geliyordu; kısa metin hangi dönem için olduğunu söylemiyordu.
+
+```text
+_run(call) → sonuç → açıklama başarılı
+   asked = AskedStore.recall(token)          sohbette sorulanlar (30 dk, en fazla 50, sha256(token))
+   AskedStore.remember(token, call)          yalnız gösterilen cevaptan sonra: hata alan çağrı yine önerilir
+   follow_ups(tool, args, asked, result_shape(tool, result))
+      araç başına sıralı adaylar − çağrının kendisi − sorulanlar − sonuca göre anlamsızlar → ilk 3
+      adayların hepsi sorulduysa sorulmamış en fazla 2 genel soru; "ne olurdu"da hiç öneri yok
+```
+
+- **K1-C:** `_TABLE` araç başına 2–5 sıralı aday verir (özet → kategoriler, işyerleri, karşılaştırma/en büyükler, karşı dönemin toplamı).
+  Karşı dönem: bu ay ↔ geçen ay, bu hafta ↔ geçen hafta, bugün ↔ dün; diğerleri → bu ay.
+- **K2-B:** `Shape` yalnız sayı taşır: harcama var mı, işlem sayısı (özet), ödeme sayısı. Harcama yoksa yalnız başka dönem; tek işlemse
+  aynı dönemin kategori/işyeri/en büyükler önerisi yok; düzenli ödeme yoksa yaklaşan ödeme önerisi yok. Okunamayan sonuç kural değiştirmez.
+- **K3-B, P1–P3:** metinler tam soru ve dönemli: "{dönem} kategorilere göre harcamam nasıl?", "{dönem} harcamalarım işyerlerine göre nasıl
+  dağıldı?", "{dönem} en büyük harcamalarım neler?", "{dönem} toplam ne kadar harcadım?", "{dönem} {işyeri} harcamam ne kadar?" (ek yok),
+  gelir/öneri yalnız tam ay. Özel aralık kodla yazılır ("1-5 Eylül 2026 döneminde …"); elle yazılınca tarih kodu okur, model "bu ay" görür.
+  `PATTERNS` her kalıbın sunulduğu dönemleri tutar; `test_suggestions` her kalıbın 2 dönemle model vakası olmasını (gelir/öneri 1) ve
+  `phrasing_templates.json` "offered" niyetinde bütün dönemlerinin bulunmasını ister.
+
+Ölçüm: yeni model vakaları O01–O07; araç seçimi (gerçek `qwen3.5:4b`, `--pause 1`) 100/100 → **107/107**, eski vakalarda bozulan yok,
+ortalama 2,2 sn; ifade ölçümü 801 → 1097 ifade, 0 açık (modelsiz). Python 1181 → 1234 modelsiz; 13 kasıtlı
+bozmanın hepsi yakalandı (biri, "aynı çağrı iki kez tutulur", düzeltilen testle). Bilinçli değişen eski testler: CHAT-06/08 öneri testleri yeni
+metinlere; tek işlemli "dün" verisiyle yazılmış dokunma testleri iki işlemli `YESTERDAY_TWO`'ya (K2-B o günü bölmüyor);
+`test_a_tool_call_is_run_and_explained` artık "Bugün toplam ne kadar harcadım?" bekliyor; INC-03 öneri zinciri gelir payını ikinci kez önermiyor.
+
 ## Kararlar (hepsi kullanıcı kararı, 19 Ekim 2026)
 
 K1-A `POST /api/assistant/messages` · K2-A .NET'in kendi DTO'su (`type` tam adla, `answer`, `toolCalls`, `facts`; `model`

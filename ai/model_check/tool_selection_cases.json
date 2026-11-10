@@ -100,6 +100,13 @@
     {"id": "Q06", "message": "5.000 TL biriktirseydim ne olurdu?", "expected": [{"tool": "what_if_monthly", "arguments": {"amount": 5000, "currencyCode": "TRY"}}, {"tool": "what_if_monthly", "arguments": {"amount": 5000, "currencyCode": "TRY", "fromAdvice": false}}]},
     {"id": "Q07", "message": "Bütçemi kısıp tasarruf etsem?", "expected": "clarify"},
     {"id": "Q08", "message": "Tasarruf etsem ne olur?", "expected": "clarify"},
-    {"id": "Q09", "message": "Market bütçemi aşar mıyım?", "expected": "clarify"}
+    {"id": "Q09", "message": "Market bütçemi aşar mıyım?", "expected": "clarify"},
+    {"id": "O01", "message": "Bu ay kategorilere göre harcamam nasıl?", "expected": {"tool": "get_category_breakdown", "arguments": {"period": "ThisMonth"}}},
+    {"id": "O02", "message": "Bu ay harcamalarım işyerlerine göre nasıl dağıldı?", "expected": {"tool": "get_merchant_breakdown", "arguments": {"period": "ThisMonth"}}},
+    {"id": "O03", "message": "Geçen ay en büyük harcamalarım neler?", "expected": {"tool": "get_highest_transactions", "arguments": {"period": "LastMonth"}}},
+    {"id": "O04", "message": "Bu hafta en büyük harcamalarım neler?", "expected": {"tool": "get_highest_transactions", "arguments": {"period": "ThisWeek"}}},
+    {"id": "O05", "message": "Bu ay toplam ne kadar harcadım?", "expected": {"tool": "get_spending_summary", "arguments": {"period": "ThisMonth"}}},
+    {"id": "O06", "message": "Son 3 ayda Starbucks harcamam ne kadar?", "expected": {"tool": "get_merchant_spending", "arguments": {"merchant": "Starbucks", "period": "Last3Months"}}},
+    {"id": "O07", "message": "Geçen ay Migros harcamam ne kadar?", "expected": {"tool": "get_merchant_spending", "arguments": {"merchant": "Migros", "period": "LastMonth"}}}
   ]
 }
