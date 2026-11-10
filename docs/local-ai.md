@@ -688,6 +688,37 @@ buldu: tek araç gösterilince model W07'de kategoriyi bıraktı (bütün harcam
 Sınırlar: "harcadığım kadar her ay" gibi iki senaryolu cümleler bütün grubu görür (geri soru PR3); katlama "sınır/sinir", "düş/duş" gibi
 kelimeleri eşitler (ölçülen kurallarda yalnız "sınır" çakıştı, biçimle ayrıldı).
 
+### Belirsizlikte geri soru (CHAT-09 PR3, 10 Kasım 2026)
+
+İki hesaba uyan soruda model tahmin etmiyor; ya kelimeler/rakamlar aracı seçiyor ya kullanıcıya soruluyor. Kararlar K17-C, K18-B, K19-C,
+K20-B, K21-A (todo CHAT-09). Öncesi (sahte seçicilerle gerçek `ChatService`): "Dolar alsaydım ne olurdu?" modelin tahminine göre kapsam
+dışı, dönem sorusu ya da tutar sorusu oluyordu; "Her ay harcadığım kadar biriktirseydim" tek seferlik çalışabiliyordu; S40 "Bu ay
+bütçemi aşacak mıyım?" kapsam dışı metni alıyordu.
+
+```text
+"-seydim" + senaryo kelimesi yok / ikisi birden (Route.undecided)
+  ├─ yalnız "yok" ise rakamlara bak (wealth.scenario_by_figures): dönem/tarih/kategori → tek seferlik · dönem sayısı olmayan tutar → aylık
+  └─ karar yoksa ask_scenario → model kullanıcının sözleriyle yazar (clarify-v2) → check_question → yoksa sabit metin
+        cevap "2" / "her ay 2 bin" / "bir kerede" → chosen_tool → özgün soru seçilen tek araçla (K13-A yolu) → tutar ya da dönem sorusu
+planlama listesinde model boş → routing.planning_of (bütçe/limit/sınır/aş ↔ tasarruf/biriktir/azalt/kıs/yarıya) → bugünkü tutar/oran sorusu
+                                  └─ ikisi ya da hiçbiri → ask_topic (aynı yazım ve eşleşme)
+```
+
+| Parça | Nerede | Ne yapar |
+|---|---|---|
+| Belirsiz senaryo (K17) | `routing._scenario_words`, `Route.undecided` | "both"/"neither"; model ve MCP çağrılmadan soru |
+| Rakam ipucu (K18) | `wealth.scenario_by_figures` | "Geçen ay altın alsaydım" → tek seferlik; "5.000 TL biriktirseydim" → aylık; ikisi birden → soru |
+| "N ayda" | `routing._COUNTED_MONTHS` | "son 3 ayda", "bir ayda" dönemdir, "ayda" (aylık) değil (PR2'nin kuralında bulunan hata) |
+| Planlama (K19) | `routing.planning_of`, `chat` | modelin listesi aynı; boş dönerse kod seçer, kategori sözden |
+| Seçim sorusu (K20) | `clarification.ask_scenario/ask_topic`, `Option.words`, `chosen_tool` | model yazar, seçenek etiketi ya da eş anlamlısı aranır; cevap numara ya da kelime; ikisini birden anan ya da uzun cevap yeni soru |
+
+Ölçüm (`qwen3.5:4b`): araç seçimi 90/91 → **100/100** (S40 düzeldi; yeni Q01–Q09 9/9), ifade örneklemi **109/110** (781 ifade, modelsiz
+hepsi), soru yazımı `question_eval.py` **9/10** (eşik 8; geçemeyen soru soru işaretsizdi → sabit metin), cevap doğruluğu **23/23**
+(değişmedi). Modelli örneklemin tek hatası d21: model tasarrufa varsayılan `months: 6` yazdı; MCP-08 kuralıyla (S44) eşit doğru sayıldı. Sınırlar: modelin yazdığı soru
+çoğu zaman yalnız "1. Tek seferlik 2. Aylık birikim" diyor, sabit metindeki açıklamayı vermiyor (denetim yalnız seçenek adını arar); dil
+bazen bozuk ("paramızı Euro'ya çevirirseniz"). Kısa bir soru kelimesi seçenek kelimesi içerirse ("Her ay ne harcadım?") seçim sayılabilir;
+"harca" bu yüzden tek seferliğin kelimelerinde yok.
+
 ## Kararlar (hepsi kullanıcı kararı, 19 Ekim 2026)
 
 K1-A `POST /api/assistant/messages` · K2-A .NET'in kendi DTO'su (`type` tam adla, `answer`, `toolCalls`, `facts`; `model`

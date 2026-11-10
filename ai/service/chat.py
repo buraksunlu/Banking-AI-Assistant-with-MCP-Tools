@@ -23,8 +23,9 @@ from typing import Protocol
 from langchain_ollama import ChatOllama
 
 from answer_check import has_advice, misnamed
-from clarification import (Pending, PendingStore, ask_amount, ask_complete_month, ask_count, ask_currency, ask_merchant,
-                           ask_percent, ask_period, check_question, resolve, template)
+from clarification import (CHOICE_KINDS, Pending, PendingStore, ask_amount, ask_complete_month, ask_count, ask_currency,
+                           ask_merchant, ask_percent, ask_period, ask_scenario, ask_topic, check_question, chosen_tool,
+                           is_bare_choice, resolve, template)
 from contracts import Fact
 from conversation import ConversationStore, LastCall, is_follow_up
 from explainer import stream_message
@@ -34,11 +35,11 @@ from prompts import (ADVICE_DECLINED_TEXT, CLARIFY_TEXT, DATE_SCHEMA, LIRA_ONLY_
                      build_intent_messages, build_tool_messages)
 from dates import CustomerDay, DateReading, check_range, period_line, read_dates, with_span_replaced
 from grounding import category_in, check_arguments, mentions_period
-from routing import DATE_FIELDS, ONE_OFF, Router, hide_dates, is_spending_question, narrow
+from routing import DATE_FIELDS, ONE_OFF, PLANNING, Route, Router, group_of, hide_dates, is_spending_question, narrow, planning_of
 from suggestions import OUT_OF_SCOPE_SUGGESTIONS, OfferedStore, follow_ups, match
 from tools import ToolArgumentsRejected, ToolGateway
 from wealth import (LIRA, MONTH_TOOLS, MONTHLY_TOOL, WEALTH_TOOLS, advised_saving_call, chosen_scenario_arguments, has_complete_month,
-                    needs_month_question, plan_monthly)
+                    needs_month_question, plan_monthly, scenario_by_figures)
 
 logger = logging.getLogger("bankingai.ai")
 
@@ -209,7 +210,15 @@ class ChatService:
         # Like the waiting question, an offer lasts for one message: whatever comes next, it is gone.
         offered = self.offered.take(token)
         completed = False
-        if waiting is not None and waiting.tool == "":
+        # CHAT-09 K17-C/K19-C: the tool the user chose between two calculations; their question then goes the normal way with
+        # that tool alone, and its own words and figures (plus the reply's, "her ay 2 bin") are checked as always.
+        forced = None
+        if waiting is not None and waiting.kind in CHOICE_KINDS:
+            forced = chosen_tool(waiting, message)
+            if forced is not None:
+                message = waiting.original if is_bare_choice(message) else f"{waiting.original} ({message})"
+                completed = True
+        elif waiting is not None and waiting.tool == "":
             # A period asked before any tool was chosen (K12-C): the reply is added to the question and the whole goes the
             # normal way, dates and all.
             phrase = _period_phrase(waiting, message, day)
@@ -243,7 +252,10 @@ class ChatService:
         # The follow-up itself is what is explained and kept: a growing chain of questions led both the model (back to an
         # older merchant) and the explanation ("geçen ay" for this month) astray in the live trial.
         context = self.history.recall(token) if not completed and is_follow_up(message) else None
-        route = self.router.route(message, context.tool if context else None, deadline)
+        if forced is not None:
+            route = Route((group_of(forced),), only=forced)
+        else:
+            route = self.router.route(message, context.tool if context else None, deadline)
         if route.out_of_scope:
             # A request to move money or to advise is answered before any tool or model is involved (CHAT-01 K5-B).
             return _advice_declined() if route.advice else _out_of_scope()
@@ -259,10 +271,24 @@ class ChatService:
             return self._ask(ask_period("", {}, message, note=_note(reading), original=_without(message, reading.span)), [], token, deadline)
         shown = with_span_replaced(message, reading.span, "bu ay") if reading.kind == "found" else message
         context, carried = _mask_range(context)
+        if route.undecided is not None:
+            # CHAT-09 K17-C/K18-B: the model is not let guess between the two "what if"s; with no scenario word the user's figures
+            # may still tell (a period: the one-off, an amount: the monthly saving), else the user is asked.
+            figured = scenario_by_figures(shown) if route.undecided == "neither" else None
+            if figured is None:
+                return self._ask(ask_scenario(message), [], token, deadline)
+            route = replace(route, only=figured, undecided=None)
 
         # Listed first: when the tools cannot answer, the single local model is not kept busy for nothing.
         listed = narrow(self.gateway.list_tools(token, deadline), route)
         calls = self.selector.select(shown, hide_dates(listed), deadline, context)
+        if not calls and route.groups == (PLANNING,):
+            # CHAT-09 K19-C: the model chose nothing from the planning list; the words (or the user's choice) name the tool, its
+            # figures are then asked as always. Words that name both or neither are asked as a choice.
+            tool = route.only or planning_of(shown)
+            if tool is None:
+                return self._ask(ask_topic(message), [], token, deadline)
+            calls = [ToolCall(tool, {"categoryCode": category} if (category := category_in(shown)) else {})]
         if not calls and route.only is not None and any(t["function"]["name"] == route.only for t in listed):
             # CHAT-09 K13-A: the words chose the scenario and the model was shown it alone; choosing nothing there is the small
             # model's indecision, not an out-of-scope question. Its arguments are read from the words, and checked below as always.

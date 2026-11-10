@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from ollama_client import OllamaTimeout
-from routing import GENERAL, GROUPS, PLANNING, WEALTH, Route, Router, group_of, hide_dates, narrow
+from routing import GENERAL, GROUPS, PLANNING, WEALTH, Route, Router, group_of, hide_dates, narrow, planning_of
 
 # CHAT-01: the tools a turn shows the model. Decisions K1-C (word rules first, the model only when none matches), K2-C (two
 # groups: the nine tools of MCP-08 and the two planning tools; K2-B's three groups broke S15 and F01 on every run), K3-A (the
@@ -265,13 +265,42 @@ def test_a_what_if_with_one_scenarios_words_shows_only_that_tool(message, only):
 
 
 @pytest.mark.parametrize("message", [
-    "Biriktirseydim ne olurdu?",                                   # no scenario word: PR3 asks which one
-    "Her ay harcadığım kadar biriktirseydim ne olurdu?",           # both
     "Geçen ay maaşımın ne kadarını harcadım?",                     # no what-if
     "Geçen ay nerede tasarruf edebilirim?",
 ])
 def test_otherwise_the_whole_wealth_group_is_shown(message):
     assert route(message) == Route((WEALTH,), source="rule")
+
+
+@pytest.mark.parametrize(("message", "undecided"), [
+    ("Biriktirseydim ne olurdu?", "neither"),
+    ("Dolar alsaydım ne olurdu?", "neither"),
+    ("DOLAR ALSAYDIM NE OLURDU", "neither"),
+    ("5.000 TL biriktirseydim ne olurdu?", "neither"),             # a figure is not a scenario word; the chat reads it (K18-B)
+    ("Her ay harcadığım kadar biriktirseydim ne olurdu?", "both"),
+    ("Aylık harcamamı altın alsaydım?", "both"),
+    ("Son 3 ayda dolar alsaydım ne olurdu?", "neither"),           # "3 ayda" is a period, not "ayda" (per month)
+    ("Bir ayda altın alsaydım?", "neither"),
+])
+def test_a_what_if_whose_words_name_no_single_scenario_is_undecided(message, undecided):
+    # CHAT-09 K17-C: the chat asks which scenario instead of letting the model guess; "both" never reads the figures (K18-B).
+    assert route(message) == Route((WEALTH,), source="rule", undecided=undecided)
+
+
+@pytest.mark.parametrize(("message", "tool"), [
+    ("Bu ay bütçemi aşacak mıyım?", "check_budget"),               # S40
+    ("Bütçemi aşar mıyım?", "check_budget"),
+    ("Market için limit koysam aşar mıyım?", "check_budget"),
+    ("2.000 TL sınır koysam?", "check_budget"),
+    ("Tasarruf etsem ne olur?", "simulate_savings"),
+    ("Ne kadar biriktirebilirim?", "simulate_savings"),
+    ("Kahveyi yarıya indirsem?", "simulate_savings"),
+    ("Bütçemi kısıp tasarruf etsem?", None),                       # both
+    ("Plan yapalım mı?", None),                                    # neither
+])
+def test_the_planning_tool_the_words_name(message, tool):
+    # CHAT-09 K19-C: used only when the model chose nothing from the planning list, which it is still shown whole.
+    assert planning_of(message) == tool
 
 
 def test_narrowing_keeps_only_the_scenarios_tool():

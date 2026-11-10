@@ -226,7 +226,22 @@
     {"id": "t2", "text": "Hangi hisseye yatırım yapayım?", "expected": "out_of_scope"},
     {"id": "t3", "text": "Kripto alayım mı?", "expected": "out_of_scope"},
     {"id": "t4", "text": "Bana bir fıkra anlat", "expected": "out_of_scope"},
-    {"id": "t5", "text": "Anneme para gönder", "expected": "out_of_scope"}]}
+    {"id": "t5", "text": "Anneme para gönder", "expected": "out_of_scope"}]},
+
+  {"id": "choice",
+   "templates": [
+    {"id": "t1", "text": "Biriktirseydim ne olurdu?", "expected": "clarify:scenario", "oracle": {"tool": "what_if_monthly", "arguments": {}}},
+    {"id": "t2", "text": "Dolar alsaydım ne olurdu?", "expected": "clarify:scenario", "oracle": {"tool": "what_if_one_off", "arguments": {"period": "LastMonth"}}},
+    {"id": "t3", "text": "Altın olarak tutsaydım ne olurdu?", "expected": "clarify:scenario", "oracle": "nothing"},
+    {"id": "t4", "text": "Her ay harcadığım kadar biriktirseydim ne olurdu?", "expected": "clarify:scenario", "oracle": {"tool": "what_if_one_off", "arguments": {"period": "LastMonth"}}},
+    {"id": "t5", "text": "Geçen ay 5.000 TL biriktirseydim ne olurdu?", "expected": "clarify:scenario", "oracle": {"tool": "what_if_monthly", "arguments": {"amount": 5000, "currencyCode": "TRY"}}},
+    {"id": "t6", "text": "Geçen ay altın alsaydım ne olurdu?", "expected": {"tool": "what_if_one_off", "arguments": {"period": "LastMonth"}}, "oracle": "nothing"},
+    {"id": "t7", "text": "Son 3 ayda dolar alsaydım ne olurdu?", "expected": {"tool": "what_if_one_off", "arguments": {"period": "Last3Months"}}, "oracle": {"tool": "what_if_monthly", "arguments": {}}},
+    {"id": "t8", "text": "5.000 TL biriktirseydim ne olurdu?", "expected": {"tool": "what_if_monthly", "arguments": {"amount": 5000, "currencyCode": "TRY"}}, "oracle": {"tool": "what_if_one_off", "arguments": {"period": "LastMonth"}}},
+    {"id": "t9", "text": "Eğlence için dolar alsaydım ne olurdu?", "expected": "clarify:period", "oracle": "nothing"},
+    {"id": "t10", "text": "Bütçemi kısıp tasarruf etsem?", "expected": "clarify:topic", "oracle": "nothing"},
+    {"id": "t11", "text": "Tasarruf etsem ne olur?", "expected": "clarify:percent", "oracle": "nothing"},
+    {"id": "t12", "text": "Market bütçemi aşar mıyım?", "expected": "clarify:amount", "oracle": "nothing"}]}
  ],
 
  "real": [
@@ -271,6 +286,13 @@
   {"id": "d15", "turns": ["Bu ay bütçemi aşacak mıyım?", "1.500 TL"], "oracle": {"tool": "check_budget", "arguments": {"amount": 3000, "currencyCode": "TRY"}},
    "expected": {"tool": "check_budget", "arguments": {"amount": 1500, "currencyCode": "TRY"}}},
   {"id": "d16", "turns": ["Starbucks'a ne kadar harcadım?", "geçen ay"], "oracle": {"tool": "get_merchant_spending", "arguments": {"merchant": "Starbucks", "period": "ThisMonth"}},
-   "expected": {"tool": "get_merchant_spending", "arguments": {"merchant": "Starbucks", "period": "LastMonth"}}}
+   "expected": {"tool": "get_merchant_spending", "arguments": {"merchant": "Starbucks", "period": "LastMonth"}}},
+  {"id": "d17", "turns": ["Biriktirseydim ne olurdu?", "2", "1.000"], "oracle": "nothing", "expected": {"tool": "what_if_monthly", "arguments": {"amount": 1000, "currencyCode": "TRY"}}},
+  {"id": "d18", "turns": ["Dolar alsaydım ne olurdu?", "tek seferlik", "geçen ay"], "expected": {"tool": "what_if_one_off", "arguments": {"period": "LastMonth"}}},
+  {"id": "d19", "turns": ["Altın olarak tutsaydım ne olurdu?", "her ay 2 bin"], "oracle": "nothing", "expected": {"tool": "what_if_monthly", "arguments": {"amount": 2000, "currencyCode": "TRY"}}},
+  {"id": "d20", "turns": ["Her ay harcadığım kadar biriktirseydim ne olurdu?", "bir kerede", "geçen ay"], "oracle": "nothing", "expected": {"tool": "what_if_one_off", "arguments": {"period": "LastMonth"}}},
+  {"id": "d21", "turns": ["Bütçemi kısıp tasarruf etsem?", "2", "%20"], "oracle": "nothing", "expected": [{"tool": "simulate_savings", "arguments": {"reductionPercent": 20}}, {"tool": "simulate_savings", "arguments": {"reductionPercent": 20, "months": 6}}]},
+  {"id": "d22", "turns": ["Bütçemi kısıp tasarruf etsem?", "bütçe", "3.000 TL"], "oracle": "nothing", "expected": {"tool": "check_budget", "arguments": {"amount": 3000, "currencyCode": "TRY"}}},
+  {"id": "d23", "turns": ["Biriktirseydim ne olurdu?", "Dün ne harcadım?"], "expected": {"tool": "get_spending_summary", "arguments": {"period": "Yesterday"}}}
  ]
 }

@@ -57,6 +57,8 @@ _WEALTH_WORDS = re.compile(fold_rule(
 _WHAT_IF = re.compile(fold_rule(r"(?:sa|se)ydi(?:m|k)\b|\b(?:dolar|euro|altin)\s+(?:olarak|cinsinden)"))
 _ONE_OFF_WORDS = re.compile(fold_rule(r"harca|\bmasraf|\bgider"))
 _MONTHLY_WORDS = re.compile(fold_rule(r"\bayda\b|\bher\s+ay\b|\baylık|\bdüzenli"))
+# CHAT-09 PR3: "son 3 ayda", "bir ayda" are a period, not "per month"; found when a one-off scenario test reached the monthly tool.
+_COUNTED_MONTHS = re.compile(fold_rule(r"\b(?:\d+|bir|iki|üç|dört|beş|altı|yedi|sekiz|dokuz|on|on\s+iki)\s+ayda\b"))
 ONE_OFF, MONTHLY = "what_if_one_off", "what_if_monthly"
 
 # A planning word decides even when spending words are there too ("Starbucks harcamamı yarıya indirsem" is a savings question).
@@ -64,6 +66,14 @@ _PLANNING_WORDS = re.compile(fold_rule(
     r"bütçe|\blimit|\bayir(?:dim|acağim|sam)|tasarruf|biriktir|\bazalt|\bkis(?:sa|ar|al)|yariya|\bindirs|\bindirir|çeyre"
     # CHAT-09 K14-A: "sınır" folds to "sinir" (nerve), so only a limit's own shapes: set, or followed by a figure or "aş…".
     r"|\bsınır\s+(?:koy|belirle)|\bsınır(?:ı|ım|ımı)?\s+(?:\d|aş)"))
+# CHAT-09 K19-C: the planning tool the words name, used only when the model chose nothing from the planning list. "Aş…" (exceed)
+# and a limit are a budget's; cutting or putting aside is a saving's. "Kıs" folds like "kis", so its verb shapes only.
+_BUDGET_WORDS = re.compile(fold_rule(
+    r"bütçe|\blimit|\bsınır\s+(?:koy|belirle)|\bsınır(?:ı|ım|ımı)?\s+(?:\d|aş)|\baş(?:ar|acak|tı|ıyor|mam|ar\s+mı)"))
+_SAVING_WORDS = re.compile(fold_rule(
+    r"tasarruf|biriktir|\bazalt|\bkıs(?:sa|ar|al|ıp|mak)|yarıya|\bindirs|\bindirir|çeyre"))
+BUDGET, SAVING = "check_budget", "simulate_savings"
+
 # Spending and payment words: the general group without asking the model.
 _GENERAL_WORDS = re.compile(fold_rule(
     r"harca|\bnereye|kategori|işyer|karşilaştir|\b(?:aya|aylara|döneme)\s+göre|\baylara\b|\bdeğiş"
@@ -90,6 +100,8 @@ class Route:
     advice: bool = False
     # CHAT-09 K5-D: the one tool the words chose inside the groups, shown alone.
     only: str | None = None
+    # CHAT-09 K17-C: a what-if whose words name both scenarios or neither ("both", "neither"); the chat asks which one.
+    undecided: str | None = None
 
     def tools(self) -> frozenset[str]:
         """The names of the tools the model is shown: the one the words chose, or the groups' tools."""
@@ -146,10 +158,24 @@ def narrow(tools: list[dict], route: Route) -> list[dict]:
 
 def scenario_of(folded: str) -> str | None:
     """The what-if tool the words of a folded message name (K5-D); None when they name both, neither, or no what-if at all."""
+    words = _scenario_words(folded)
+    return words if words in (ONE_OFF, MONTHLY) else None
+
+
+def _scenario_words(folded: str) -> str | None:
+    """The scenario the words name, "both" or "neither"; None when the message is no what-if."""
     if _WHAT_IF.search(folded) is None:
         return None
-    one_off, monthly = _ONE_OFF_WORDS.search(folded) is not None, _MONTHLY_WORDS.search(folded) is not None
-    return ONE_OFF if one_off and not monthly else MONTHLY if monthly and not one_off else None
+    one_off = _ONE_OFF_WORDS.search(folded) is not None
+    monthly = _MONTHLY_WORDS.search(_COUNTED_MONTHS.sub(" ", folded)) is not None
+    return ("both" if monthly else ONE_OFF) if one_off else MONTHLY if monthly else "neither"
+
+
+def planning_of(message: str) -> str | None:
+    """The planning tool the words of a message name (K19-C); None when they name both or neither."""
+    folded = fold_turkish(message)
+    budget, saving = _BUDGET_WORDS.search(folded) is not None, _SAVING_WORDS.search(folded) is not None
+    return BUDGET if budget and not saving else SAVING if saving and not budget else None
 
 
 class Router:
@@ -166,7 +192,10 @@ class Router:
         if _ADVICE_REQUEST.search(folded):
             return Route((), out_of_scope=True, advice=True)
         if _WEALTH_WORDS.search(folded):
-            return Route((WEALTH,), only=scenario_of(folded))
+            words = _scenario_words(folded)
+            if words in ("both", "neither"):
+                return Route((WEALTH,), undecided=words)
+            return Route((WEALTH,), only=words)
         if _PLANNING_WORDS.search(folded):
             return Route((PLANNING,))
         if _GENERAL_WORDS.search(folded):
