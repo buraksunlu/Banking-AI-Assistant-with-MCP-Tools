@@ -50,6 +50,14 @@ extension APIRequest where Response == SpendingSummary {
     }
 }
 
+extension APIRequest where Response == SpendingAdvice {
+    /// `GET /api/analytics/spending-advice`: one complete month against income, with the rule-based advice (INC-02).
+    static func spendingAdvice(period: AnalyticsPeriod) -> APIRequest<SpendingAdvice> {
+        APIRequest(method: "GET", path: "api/analytics/spending-advice",
+                   query: [URLQueryItem(name: "period", value: period.rawValue)], body: nil, requiresToken: true)
+    }
+}
+
 extension APIRequest where Response == MonthlyTrend {
     /// `GET /api/analytics/monthly-trend`: the last `months` whole months and the month still running, per currency.
     static func monthlyTrend(months: Int) -> APIRequest<MonthlyTrend> {

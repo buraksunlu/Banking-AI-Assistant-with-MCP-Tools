@@ -1378,6 +1378,11 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- iPhone gelir payı kartı (INC-04, 10 Kasım 2026; docs/ios.md "iOS-s"): ana ekranda "Bu ay harcama"nın altında
+  "Gelire göre harcama" kartı; tek istek `spending-advice?period=LastMonth`, para birimi başına Temel / İsteğe bağlı / Bilinmiyor
+  çubuğu (paylar backend'den, %100'ü aşan kırpılır, metin tam), en fazla 2 öneri satırı (dokununca backend'in sabit cümlesi),
+  öneri yoksa sabit sebep, maaş yoksa sebep başlıkta. Model yok (AI kapalıyken de aynı); backend değişmedi. Kararlar K1-A K2-B
+  K3-A K4-B K5-B K6-A K7-A. iOS 313 → 338 test durumu; 10 kasıtlı bozmanın hepsi yakalandı.
 - Belirsizlikte geri soru (CHAT-09 PR3, 10 Kasım 2026; docs/local-ai.md "Belirsizlikte geri soru"): iki senaryoya uyan "ne olurdu"
   sorusunda model denenmeden senaryo sorusu (K17-C), işaret yoksa rakam ipucu (dönem/tarih/kategori → tek seferlik, tutar → aylık;
   K18-B), planlamada model boş dönerse kelimelerle kod seçer ya da konu sorusu (K19-C), seçim sorularını model kullanıcının sözleriyle

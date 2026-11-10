@@ -300,3 +300,59 @@ struct MonthlySpending: Decodable, Equatable, Identifiable {
 
     var id: String { String(format: "%04d-%02d", year, month) }
 }
+
+/// `GET /api/analytics/spending-advice` (INC-02): one complete month split into the three spending groups, at most two pieces
+/// of rule-based advice per currency and, when there is none, the reason. Only what the home card shows is decoded (INC-04).
+struct SpendingAdvice: Decodable, Equatable {
+    let period: SearchedPeriod
+    let currencies: [CurrencyAdvice]
+}
+
+/// One currency of the month. Without salary in it `incomeBase`, `spentShare` and the group shares are nil.
+struct CurrencyAdvice: Decodable, Equatable, Identifiable {
+    let currencyCode: String
+    let totalSpent: Decimal
+    let incomeBase: Decimal?
+    let spentShare: Decimal?
+    /// Always the three groups, in the backend's order.
+    let groups: [GroupSpending]
+    let advice: [AdviceItem]
+    let reason: NoAdviceReason?
+
+    var id: String { currencyCode }
+}
+
+/// The groups of INC-02 K1-B. Decoding fails on a name the app does not know, so a new group is never drawn as another one.
+enum SpendingGroup: String, Decodable, CaseIterable {
+    case essential = "Essential", discretionary = "Discretionary", unknown = "Unknown"
+}
+
+/// One group's spending; the share of income is nil without income.
+struct GroupSpending: Decodable, Equatable {
+    let group: SpendingGroup
+    let amount: Decimal
+    let incomeShare: Decimal?
+}
+
+/// Which INC-02 rule gave the advice.
+enum AdviceRule: String, Decodable {
+    case discretionaryShare = "DiscretionaryShare", categoryAboveUsual = "CategoryAboveUsual"
+}
+
+/// Why a currency has no advice.
+enum NoAdviceReason: String, Decodable {
+    case noIncome = "NoIncome", noRuleMatched = "NoRuleMatched"
+}
+
+/// One piece of advice. `categoryDisplayName` is nil for the share rule, which is about every discretionary category; `message`
+/// is the backend's fixed Turkish template, never a model's text.
+struct AdviceItem: Decodable, Equatable, Identifiable {
+    let rule: AdviceRule
+    let categoryCode: String?
+    let categoryDisplayName: String?
+    let monthlySaving: Decimal
+    let annualSaving: Decimal
+    let message: String
+
+    var id: String { "\(rule.rawValue)-\(categoryCode ?? "")" }
+}

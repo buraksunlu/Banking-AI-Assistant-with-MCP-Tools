@@ -22,6 +22,12 @@ enum Skeleton {
                          percentage: 25)
     }
 
+    /// The income card while it loads: half the bar in three parts and no advice, a shape and not a figure.
+    static let incomeShare = CurrencyAdvice(
+        currencyCode: "TRY", totalSpent: 100, incomeBase: 200, spentShare: 50,
+        groups: zip(SpendingGroup.allCases, [30, 15, 5] as [Decimal]).map { GroupSpending(group: $0, amount: 100, incomeShare: $1) },
+        advice: [], reason: .noRuleMatched)
+
     /// Fixed bar heights of the placeholder chart, as parts of its height: a shape, not data.
     static let barHeights: [Double] = [0.45, 0.7, 0.55, 0.85, 0.6, 0.75, 0.35]
 

@@ -612,3 +612,37 @@ BankingAITests/MotionTests.swift (yeni)
 
 Doğrulama: iOS 312 test durumu (+3 `MotionTests`), 0 kırmızı; kasıtlı bozma (`Motion` ayarı yok sayıyor) yakalandı. Simülatörde AX5 ana ekran önce/sonra görüldü.
 Sınırlar: titreşim simülatörde hissedilmez (kodda doğrulandı); giriş, sohbet ve işlem detayı ekranları AX5'te ve VoiceOver ile kullanıcı tarafından elle denenecek; Accessibility Inspector "Audit" kullanıcı tarafından çalıştırılacak; arayüz testi hedefi yok (koruma elle tarama).
+
+## iOS-s: gelir payı kartı (INC-04; 10 Kasım 2026)
+
+Ana ekranda "Bu ay harcama" kartının altında "Gelire göre harcama": geçen tam ayın harcaması gelirin yüzdesi olarak, Temel / İsteğe
+bağlı / Bilinmiyor gruplarına bölünmüş bir çubuk ve kurallar tuttuysa en fazla 2 tasarruf önerisi. Rakam, pay ve öneri metni
+backend'in (`GET /api/analytics/spending-advice?period=LastMonth`, docs/api.md INC-02); telefon toplamaz, çıkarmaz, yalnız çizer ve yazar.
+Model yok: öneri cümlesi .NET'in sabit şablonudur, kart AI servisi kapalıyken de aynıdır. Backend değişmedi.
+
+Kararlar: K1-A tek istek; K2-B üç gruplu çubuk + açıklama (isteğe bağlı vurgu mavisi, Temel `slate`, Bilinmiyor gri; yeşil/kırmızı
+yok, renk farkı ve kontrast testle); K3-A %100'ü aşan pay çubuğu doldurur ve kırpılır, başlık tam rakamı yazar, altında "Harcama
+gelirin üzerinde"; K4-B öneri kısa satır ("Eğlence · ayda 236,18 TL, yılda 2.834,20 TL"), dokununca backend'in cümlesi açılır; K5-B
+öneri yoksa sabit sebep ("Öneri yok; harcamalarınız kuralların içinde kalıyor."), maaş yoksa başlık sebebi söyler ve çubuk çizilmez;
+K6-A karttan başka ekrana bağlantı yok; K7-A bağımsız kart, IOS-12 içgörü bölümü gelince oraya taşınır.
+
+```text
+Networking/APIModels.swift      SpendingAdvice, CurrencyAdvice, GroupSpending, AdviceItem, SpendingGroup/AdviceRule/NoAdviceReason
+Networking/APIClient.swift      APIRequest.spendingAdvice(period:)
+Insights/IncomeShareViewModel   (yeni) ListLoader kalıbı; ay adı backend'in ilk gününden
+Insights/IncomeShareDisplay     (yeni) saf: ay, başlık, çubuk parçaları (Decimal'de kırpma), açıklama, öneri satırı, sebep, renk
+Insights/IncomeShareCard        (yeni) görünüm; yükleniyor iskelet, boş/hata StateMessage, yenileme hatası StatusBand
+DesignSystem/Skeleton.swift     Skeleton.incomeShare (nötr yer tutucu)
+Home/HomeView, App/BankingAIApp kartın yeri, aşağı çekip yenilemeye katıldı
+BankingAITests/IncomeShareTests (yeni) 25 test durumu
+```
+
+- Bilinmeyen grup adı çözümleme hatasıdır ("Tekrar dene"); başka bir grup gibi çizilmez.
+- Para birimleri ayrı blok (Zeynep TRY %43,11 ve USD %2,81); birden fazla para biriminde blokta kod yazılır.
+- "kadarı" ile yazılır ("Gelirinizin %90,36 kadarı"): yüzdeden sonra sesli uyuma göre değişen ek gerekmez.
+- Çubuk parçaları Decimal'de kırpılır (1 − 0,8 = 0,2; Double'da 0,19999… çıkıyordu, test yakaladı).
+
+Doğrulama: iOS 313 → 338 test durumu, 0 kırmızı. 10 kasıtlı bozma (dönem ThisMonth, kırpma yok, ay kayması, 3 öneri, sebeplerin yer
+değiştirmesi, yeşil grup rengi, başlık yanlış alandan, yenilemede ay silinmesi, %100'de aşım, gevşek grup çözümleme) hepsi yakalandı.
+Sınırlar: yalnız geçen tam ay (backend kuralı); demoda yalnız Selin öneri alır; simülatörde elle deneme kullanıcıda (API demo anıyla,
+`BANKINGAI_DEMO_NOW`, açılmazsa "geçen ay" Ekim 2026 olur ve rakamlar tablodan farklıdır); AX5 ve VoiceOver elle denenmedi.
