@@ -36,7 +36,7 @@ from prompts import (ADVICE_DECLINED_TEXT, BARE_CHOICE_TEXT, CLARIFY_TEXT, DATE_
 from dates import CustomerDay, DateReading, check_range, period_line, read_dates, with_span_replaced
 from grounding import category_in, check_arguments, mentions_period, unclear_amounts
 from routing import DATE_FIELDS, ONE_OFF, PLANNING, Route, Router, group_of, hide_dates, is_spending_question, narrow, planning_of
-from suggestions import OUT_OF_SCOPE_SUGGESTIONS, OfferedStore, follow_ups, match
+from suggestions import OUT_OF_SCOPE_SUGGESTIONS, AskedStore, OfferedStore, follow_ups, match, result_shape
 from tools import ToolArgumentsRejected, ToolGateway
 from wealth import (LIRA, MONTH_TOOLS, MONTHLY_TOOL, WEALTH_TOOLS, advised_saving_call, chosen_scenario_arguments, has_complete_month,
                     needs_month_question, plan_monthly, scenario_by_figures)
@@ -186,6 +186,7 @@ class ChatService:
     def __init__(self, selector: ToolSelector, gateway: ToolGateway, explainer, settings: OllamaSettings,
                  writer: ClarificationWriter | None = None, waiting: PendingStore | None = None,
                  history: ConversationStore | None = None, router: Router | None = None, offered: OfferedStore | None = None,
+                 asked: AskedStore | None = None,
                  interpreter: DateInterpreter | None = None):
         self.selector, self.gateway, self.explainer, self.settings = selector, gateway, explainer, settings
         # Without a classifier the router uses its rules and the spending group (tests; CHAT-01 K3-A).
@@ -195,6 +196,8 @@ class ChatService:
         self.waiting = waiting or PendingStore()
         self.history = history or ConversationStore()
         self.offered = offered or OfferedStore()
+        # CHAT-10 K1-C: what was answered in the conversation is never offered again.
+        self.asked = asked or AskedStore()
         # Without one a date code cannot read is asked back (tests, and the fallback of K1-C).
         self.interpreter = interpreter
         self.clock = time.monotonic
@@ -402,6 +405,7 @@ class ChatService:
             return self._ask(pending, used, token, deadline)
         if outcome.reply is not None:
             kind, text = outcome.reply
+            self.asked.remember(token, call.tool, call.arguments)
             return ChatReply(kind, text, used, outcome.facts)
 
         # CHAT-09 K7-A: a what-if is explained from the question code wrote, not from the user's words and replies.
@@ -420,7 +424,11 @@ class ChatService:
         # Kept only after an explained answer: the call, never its figures (CHAT-02 K2-A).
         self.history.remember(token, LastCall(call.tool, call.arguments, question))
         # Only under an explained answer (K6-B): under a question asked back they would lead away from it.
-        suggestions = follow_ups(call.tool, call.arguments)
+        # CHAT-10: only after the answer is shown, so a call whose answer failed is still offered; then the follow-ups leave out
+        # everything asked (K1-C) and what the answer's counts make pointless (K2-B).
+        asked = self.asked.recall(token)
+        self.asked.remember(token, call.tool, call.arguments)
+        suggestions = follow_ups(call.tool, call.arguments, asked, result_shape(call.tool, result))
         self.offered.put(token, suggestions)
         return ChatReply("answer", answer, used, outcome.facts, [s.text for s in suggestions])
 

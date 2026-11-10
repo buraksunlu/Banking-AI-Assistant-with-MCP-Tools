@@ -1378,6 +1378,10 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Öneriler: tekrar yok, sonuca göre, dönemli (CHAT-10 PR2, 10 Kasım 2026; docs/local-ai.md "Öneriler"): sohbette sorulan hiçbir çağrı
+  yeniden önerilmez (`AskedStore`, 30 dk; aday kalmazsa 2 genel soru, K1-C/P4-A), cevap yalnız sayılarla değerlendirilir (harcama yok →
+  başka dönem, tek işlem → bölme yok, ödeme yok → yaklaşan yok; K2-B), metinler dönemli tam soru (K3-B; özel aralık kodla yazılır P2-A,
+  işyeri eksiz P3-A). Araç seçimi 107/107 (O01–O07 yeni), ifade ölçümü 1097 ifade 0 açık, Python 1181 → 1234 modelsiz, 13 kasıtlı bozma yakalandı.
 - Tutar birimleri ve "Tekrar dene" (CHAT-10 PR1, 10 Kasım 2026; docs/local-ai.md "Tutar birimleri"): "5k" 5 TL okunuyordu → `k`/`bin`/
   `milyon` okunur, bilinmeyen harf tutar sayılmaz ve geri sorulur (K9-C); hata ile biten turda bekleyen soru ve öneriler geri konur,
   "Tekrar dene" aynı çağrıyı tamamlar (K10-A); bekleyen soru yokken çıplak numara sabit metin (K10-D). Python 1138 → 1181 modelsiz,

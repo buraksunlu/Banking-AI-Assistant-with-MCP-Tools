@@ -254,11 +254,12 @@ def test_the_income_answer_offers_the_advice_and_the_advice_offers_the_saving():
                                         [[INCOME_SHARE]])
 
     first = chat.answer("Geçen ay maaşımın ne kadarını harcadım?", TOKEN, DAY)
-    second = chat.answer("Peki nerede tasarruf edebilirim?", TOKEN, DAY)
-    third = chat.answer("Peki önerdiğin tutarı biriktirseydim?", TOKEN, DAY)
+    second = chat.answer("Geçen ay nerede tasarruf edebilirim?", TOKEN, DAY)
+    third = chat.answer("Önerdiğin tutarı her ay biriktirseydim ne olurdu?", TOKEN, DAY)
 
-    assert first.suggestions == ["Peki nerede tasarruf edebilirim?"]
-    assert second.suggestions == ["Peki önerdiğin tutarı biriktirseydim?", "Geçen ay maaşımın ne kadarını harcadım?"]
+    assert first.suggestions == ["Geçen ay nerede tasarruf edebilirim?", "Geçen ay kategorilere göre harcamam nasıl?"]
+    # CHAT-10 K1-C: the income share was just asked, so it is not offered again.
+    assert second.suggestions == ["Önerdiğin tutarı her ay biriktirseydim ne olurdu?", "Geçen ay kategorilere göre harcamam nasıl?"]
     # The offered texts ran their calls without a second tool selection.
     assert len(selector.calls) == 1 and [c[0] for c in gateway.calls] == ["get_income_share", "get_spending_advice", "what_if_monthly"]
     assert third.suggestions == [] and gateway.calls[2][1] == {"fromAdvice": True}

@@ -124,7 +124,8 @@ def test_a_tool_call_is_run_and_explained():
     reply = chat.answer("Dün ne harcadım?", TOKEN)
 
     assert reply == ChatReply("answer", ANSWER, [SUMMARY_YESTERDAY], YESTERDAY_FACTS,
-                              ["Kategorilere göre?", "Peki işyerlerine göre?", "En büyük harcamalarım neler?"])
+                              # CHAT-10 K2-B: one purchase yesterday, so it is not broken down; another day instead.
+                              ["Bugün toplam ne kadar harcadım?"])
     assert gateway.list_calls == [(TOKEN, 30.0)]
     # CHAT-01: the model is shown the general group only, not the planning tools the server lists too.
     assert selector.calls == [("Dün ne harcadım?", general_tools(), 30.0)]
@@ -746,6 +747,8 @@ def test_real_model_picks_yesterday():
 
 # CHAT-06: follow-ups under an explained answer; the offered text in the next message runs its call without a selection.
 
+# Two purchases, so the breakdowns of the day are offered (CHAT-10 K2-B leaves them out for one).
+YESTERDAY_TWO = {**YESTERDAY, "currencies": [{**YESTERDAY["currencies"][0], "transactionCount": 2}]}
 YESTERDAY_CATEGORIES = {"period": {"kind": "Yesterday", "startDate": "2026-10-09", "endDate": "2026-10-09"},
                         "currencies": [{"currencyCode": "TRY", "totalAmount": Decimal("145.00"),
                                         "categories": [{"displayName": "Market", "amount": Decimal("145.00"),
@@ -753,25 +756,26 @@ YESTERDAY_CATEGORIES = {"period": {"kind": "Yesterday", "startDate": "2026-10-09
 
 
 def test_an_offered_follow_up_runs_its_call_without_listing_or_selecting():
-    chat, selector, gateway, explainer = service([SUMMARY_YESTERDAY], gateway=FakeGateway([YESTERDAY, YESTERDAY_CATEGORIES]))
+    chat, selector, gateway, explainer = service([SUMMARY_YESTERDAY], gateway=FakeGateway([YESTERDAY_TWO, YESTERDAY_CATEGORIES]))
     chat.answer("Dün ne harcadım?", TOKEN)
 
-    reply = chat.answer("Kategorilere göre?", TOKEN)
+    reply = chat.answer("Dün kategorilere göre harcamam nasıl?", TOKEN)
 
     assert len(selector.calls) == 1 and len(gateway.list_calls) == 1
     assert gateway.calls[1][:3] == ("get_category_breakdown", {"period": "Yesterday"}, TOKEN)
     assert reply.tool_calls == [ToolCall("get_category_breakdown", {"period": "Yesterday"})]
     # The model still writes the sentence; only the choice of tool was code's.
-    assert (reply.type, explainer.calls[1][0]) == ("answer", "Kategorilere göre?")
-    assert reply.suggestions == ["Peki işyerlerine göre?", "En büyük harcamalarım neler?"]
+    assert (reply.type, explainer.calls[1][0]) == ("answer", "Dün kategorilere göre harcamam nasıl?")
+    assert reply.suggestions == ["Dün harcamalarım işyerlerine göre nasıl dağıldı?", "Dün en büyük harcamalarım neler?",
+                                 "Bugün kategorilere göre harcamam nasıl?"]
 
 
 def test_the_offered_call_becomes_the_context_of_the_next_follow_up():
-    gateway = FakeGateway([YESTERDAY, YESTERDAY_CATEGORIES, YESTERDAY_CATEGORIES])
+    gateway = FakeGateway([YESTERDAY_TWO, YESTERDAY_CATEGORIES, YESTERDAY_CATEGORIES])
     turns = [[SUMMARY_YESTERDAY], [ToolCall("get_category_breakdown", {"period": "Today"})]]
     chat, selector, gateway, explainer = service([], gateway=gateway, turns=turns)
     chat.answer("Dün ne harcadım?", TOKEN)
-    chat.answer("Kategorilere göre?", TOKEN)
+    chat.answer("Dün kategorilere göre harcamam nasıl?", TOKEN)
 
     chat.answer("Peki bugün?", TOKEN)
 
@@ -782,7 +786,7 @@ def test_an_offer_belongs_to_its_token_only():
     chat, selector, gateway, explainer = service([SUMMARY_YESTERDAY])
     chat.answer("Dün ne harcadım?", TOKEN)
 
-    chat.answer("Kategorilere göre?", "another-users-token")
+    chat.answer("Dün kategorilere göre harcamam nasıl?", "another-users-token")
 
     assert len(selector.calls) == 2
 
@@ -792,7 +796,7 @@ def test_an_offer_lasts_for_the_next_message_only():
     chat.answer("Dün ne harcadım?", TOKEN)
     chat.answer("Peki ya?", TOKEN)                  # out of scope: the offer is gone
 
-    chat.answer("Kategorilere göre?", TOKEN)
+    chat.answer("Dün kategorilere göre harcamam nasıl?", TOKEN)
 
     assert len(selector.calls) == 3
 

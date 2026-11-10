@@ -11,7 +11,7 @@ from answer_check import AnswerRejected
 from chat import ChatReply, ToolCall
 from prompts import BARE_CHOICE_TEXT
 from routing import Router
-from test_chat import (AMOUNT_QUESTION, BUDGET_RESULT, CURRENCY_QUESTION, SUMMARY_YESTERDAY, TOKEN, YESTERDAY, YESTERDAY_CATEGORIES,
+from test_chat import (AMOUNT_QUESTION, BUDGET_RESULT, CURRENCY_QUESTION, SUMMARY_YESTERDAY, TOKEN, YESTERDAY_TWO, YESTERDAY_CATEGORIES,
                        FakeExplainer, FakeGateway, service)
 from test_chat_wealth import DAY
 from test_clarification import TOPIC_TEXT
@@ -90,13 +90,13 @@ def test_the_waiting_question_given_back_is_still_used_once():
 
 
 def test_retrying_a_failed_offered_follow_up_runs_it_without_the_model():
-    gateway = FakeGateway([YESTERDAY, YESTERDAY_CATEGORIES, YESTERDAY_CATEGORIES])
+    gateway = FakeGateway([YESTERDAY_TWO, YESTERDAY_CATEGORIES, YESTERDAY_CATEGORIES])
     chat, selector, gateway, _ = service([SUMMARY_YESTERDAY], gateway=gateway, explainer=FailingOnce(fail_at=2))
     chat.answer("Dün ne harcadım?", TOKEN)
     with pytest.raises(AnswerRejected):
-        chat.answer("Kategorilere göre?", TOKEN)
+        chat.answer("Dün kategorilere göre harcamam nasıl?", TOKEN)
 
-    retried = chat.answer("Kategorilere göre?", TOKEN)
+    retried = chat.answer("Dün kategorilere göre harcamam nasıl?", TOKEN)
 
     assert retried.tool_calls == [ToolCall("get_category_breakdown", {"period": "Yesterday"})]
     assert len(selector.calls) == 1
@@ -116,10 +116,10 @@ def test_a_bare_choice_with_nothing_waiting_is_not_sent_to_the_model(message):
 
 def test_a_bare_choice_that_is_an_offered_follow_up_is_still_that_follow_up():
     # Nothing in the table is a bare number today; the offer is looked at first all the same, as before K10-D.
-    chat, selector, _, _ = service([SUMMARY_YESTERDAY], gateway=FakeGateway([YESTERDAY, YESTERDAY_CATEGORIES]))
+    chat, selector, _, _ = service([SUMMARY_YESTERDAY], gateway=FakeGateway([YESTERDAY_TWO, YESTERDAY_CATEGORIES]))
     chat.answer("Dün ne harcadım?", TOKEN)
 
-    assert chat.answer("Kategorilere göre?", TOKEN).type == "answer" and len(selector.calls) == 1
+    assert chat.answer("Dün kategorilere göre harcamam nasıl?", TOKEN).type == "answer" and len(selector.calls) == 1
 
 
 # --- K9-C: an amount the code cannot read --------------------------------------------------------------------------------------

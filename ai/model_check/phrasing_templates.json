@@ -242,7 +242,15 @@
     {"id": "t9", "text": "Eğlence için dolar alsaydım ne olurdu?", "expected": "clarify:period", "oracle": "nothing"},
     {"id": "t10", "text": "Bütçemi kısıp tasarruf etsem?", "expected": "clarify:topic", "oracle": "nothing"},
     {"id": "t11", "text": "Tasarruf etsem ne olur?", "expected": "clarify:percent", "oracle": "nothing"},
-    {"id": "t12", "text": "Market bütçemi aşar mıyım?", "expected": "clarify:amount", "oracle": "nothing"}]}
+    {"id": "t12", "text": "Market bütçemi aşar mıyım?", "expected": "clarify:amount", "oracle": "nothing"}]},
+  {"id": "offered", "description": "CHAT-10 PR2 P1-B: the follow-ups offered under the answers, every period they are offered with.", "slots": {"period": [{"text": "Bugün", "args": {"period": "Today"}}, {"text": "Dün", "args": {"period": "Yesterday"}}, {"text": "Bu hafta", "args": {"period": "ThisWeek"}}, {"text": "Geçen hafta", "args": {"period": "LastWeek"}}, {"text": "Son 7 günde", "args": {"period": "Last7Days"}}, {"text": "Son 30 günde", "args": {"period": "Last30Days"}}, {"text": "Bu ay", "args": {"period": "ThisMonth"}}, {"text": "Geçen ay", "args": {"period": "LastMonth"}}, {"text": "Son 3 ayda", "args": {"period": "Last3Months"}}, {"text": "Son 6 ayda", "args": {"period": "Last6Months"}}, {"text": "Bu yıl", "args": {"period": "ThisYear"}}, {"text": "1-5 Eylül 2026 döneminde", "args": {"period": "Custom", "from": "2026-09-01", "to": "2026-09-05"}}], "merchant": [{"text": "Starbucks", "args": {"merchant": "Starbucks"}}, {"text": "Migros", "args": {"merchant": "Migros"}}]}, "templates": [
+    {"id": "t1", "text": "{period} kategorilere göre harcamam nasıl?", "expected": {"tool": "get_category_breakdown", "arguments": {}}},
+    {"id": "t2", "text": "{period} harcamalarım işyerlerine göre nasıl dağıldı?", "expected": {"tool": "get_merchant_breakdown", "arguments": {}}},
+    {"id": "t3", "text": "{period} en büyük harcamalarım neler?", "expected": {"tool": "get_highest_transactions", "arguments": {}}},
+    {"id": "t4", "text": "{period} toplam ne kadar harcadım?", "expected": {"tool": "get_spending_summary", "arguments": {}}},
+    {"id": "t5", "text": "{period} {merchant} harcamam ne kadar?", "expected": {"tool": "get_merchant_spending", "arguments": {}}},
+    {"id": "t6", "text": "{period} maaşımın ne kadarını harcadım?", "expected": {"tool": "get_income_share", "arguments": {}}, "slots": {"period": [{"text": "Geçen ay", "args": {"period": "LastMonth"}}, {"text": "1-31 Ağustos 2026 döneminde", "args": {"period": "Custom", "from": "2026-08-01", "to": "2026-08-31"}}]}},
+    {"id": "t7", "text": "{period} nerede tasarruf edebilirim?", "expected": {"tool": "get_spending_advice", "arguments": {}}, "slots": {"period": [{"text": "Geçen ay", "args": {"period": "LastMonth"}}, {"text": "1-31 Ağustos 2026 döneminde", "args": {"period": "Custom", "from": "2026-08-01", "to": "2026-08-31"}}]}}]}
  ],
 
  "real": [

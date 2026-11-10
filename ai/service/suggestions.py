@@ -6,44 +6,75 @@ K3-C (an offered follow-up is remembered with its call; the same text in the nex
 selection, anything else takes the normal path), K6-B (follow-ups under an explained answer only; three fixed questions under
 an out-of-scope reply), K7-A (the reply carries the texts only).
 
-The short texts are the eval's follow-up cases (F03, F04, F05, F07, F11); a full question offered is one of its measured cases
-(test_suggestions checks both), so a typed or late one still reaches the right tool.
+CHAT-10 PR2: each tool has an ordered list of candidates; nothing already asked in the conversation is offered (K1-C, AskedStore),
+the answer is looked at by counts only (K2-B, Shape), and every text is a full question that says its period (K3-B). A text with a
+period is a pattern measured for two periods and run for every period by the modelless phrasing test (P1-B); a range is written out
+by code (P2-A), a merchant's name takes no ending (P3-A), and with every candidate asked two general questions not asked yet are
+offered (P4-A). A typed or late offered text therefore still reaches the right tool.
 """
 
 import re
 import time
 from dataclasses import dataclass, field
+from datetime import date
 
 from answer_check import fold_turkish
+from formatting import period as format_period
 from memory import TokenMemory
 
 MAX_SUGGESTIONS = 3
+# P4-A: when every candidate was asked, at most this many general questions instead.
+MAX_GENERAL = 2
 
-CATEGORIES = "Kategorilere göre?"
-MERCHANTS = "Peki işyerlerine göre?"
-COMPARE = "Bir önceki ayla karşılaştır"
-HIGHEST = "En büyük harcamalarım neler?"
-LAST_MONTH = "Peki geçen ay?"
-LAST_3_MONTHS = "Ya son 3 ayda?"
-SIX_MONTHS = "6 aylık göster"
-UPCOMING_7 = "Önümüzdeki 7 günde hangi ödemelerim çıkacak?"
+# Starters and the out-of-scope reply (CHAT-06): questions every customer gets an answer to.
 THIS_MONTH = "Bu ay ne kadar harcadım?"
 RECURRING = "Aboneliklerim neler?"
+UPCOMING_7 = "Önümüzdeki 7 günde hangi ödemelerim çıkacak?"
 TOP_CATEGORY = "Geçen ay en çok hangi kategoriye harcadım?"
 LAST_MONTH_TOTAL = "Geçen ay toplam ne kadar harcadım?"
-TOP_MERCHANT_THIS_MONTH = "Bu ay en çok hangi işyerine harcadım?"
+OUT_OF_SCOPE_SUGGESTIONS = (THIS_MONTH, TOP_CATEGORY, LAST_MONTH_TOTAL)
+
+# Full questions without a period, each a measured case (test_suggestions).
+SAME_DAYS = "Bu ay, geçen ayın aynı günlerine göre daha mı çok harcıyorum?"
 ROSE = "Geçen aya göre harcamam arttı mı?"
 TREND_6 = "Son 6 ayda harcamam aylara göre nasıl değişti?"
-SAVE_WHERE = "Peki nerede tasarruf edebilirim?"
-SAVE_ADVISED = "Peki önerdiğin tutarı biriktirseydim?"
-INCOME_LAST_MONTH = "Geçen ay maaşımın ne kadarını harcadım?"
+SAVE_ADVISED = "Önerdiğin tutarı her ay biriktirseydim ne olurdu?"
 
-# Questions every customer gets an answer to, even one with no spending yet ("harcama bulunamadı" is an answer).
-OUT_OF_SCOPE_SUGGESTIONS = (THIS_MONTH, TOP_CATEGORY, LAST_MONTH_TOTAL)
+# CHAT-10 K3-B: the texts that say their period, as patterns. Each is measured for two periods and is a phrasing template for every
+# period it is offered with (P1-B); the value is the periods it may be offered with.
+CATEGORIES_IN = "{period} kategorilere göre harcamam nasıl?"
+MERCHANTS_IN = "{period} harcamalarım işyerlerine göre nasıl dağıldı?"
+HIGHEST_IN = "{period} en büyük harcamalarım neler?"
+TOTAL_IN = "{period} toplam ne kadar harcadım?"
+# P3-A: the merchant's name takes no ending, so no Turkish suffix is made up for a name the code does not know.
+MERCHANT_IN = "{period} {merchant} harcamam ne kadar?"
+INCOME_IN = "{period} maaşımın ne kadarını harcadım?"
+SAVE_WHERE_IN = "{period} nerede tasarruf edebilirim?"
+
+# The periods of the tools, as a sentence starts with them.
+PERIOD_NAMES = {
+    "Today": "Bugün", "Yesterday": "Dün", "ThisWeek": "Bu hafta", "LastWeek": "Geçen hafta", "Last7Days": "Son 7 günde",
+    "Last30Days": "Son 30 günde", "ThisMonth": "Bu ay", "LastMonth": "Geçen ay", "Last3Months": "Son 3 ayda",
+    "Last6Months": "Son 6 ayda", "ThisYear": "Bu yıl",
+}
+_ANY_PERIOD = (*PERIOD_NAMES, "Custom")
+# Income and advice take a complete month only (INC-01 K2-A).
+_COMPLETE_MONTH = ("LastMonth", "Custom")
+PATTERNS = {CATEGORIES_IN: _ANY_PERIOD, MERCHANTS_IN: _ANY_PERIOD, HIGHEST_IN: _ANY_PERIOD, TOTAL_IN: _ANY_PERIOD,
+            MERCHANT_IN: _ANY_PERIOD, INCOME_IN: _COMPLETE_MONTH, SAVE_WHERE_IN: _COMPLETE_MONTH}
+
+# The period a follow-up turns to ("Peki geçen ay?" as a full question); a period with no counterpart turns to this month.
+_OTHER_PERIOD = {"ThisMonth": "LastMonth", "LastMonth": "ThisMonth", "ThisWeek": "LastWeek", "LastWeek": "ThisWeek",
+                 "Today": "Yesterday", "Yesterday": "Today"}
 
 # Only a month has a month to compare with; the comparison of a day or a week is not a tool.
 _COMPARISON_OF = {"ThisMonth": "MonthToDate", "LastMonth": "PreviousFullMonth"}
+_COMPARISON_TEXT = {"MonthToDate": SAME_DAYS, "PreviousFullMonth": ROSE}
 _PERIOD_OF = {"MonthToDate": "ThisMonth", "PreviousFullMonth": "LastMonth"}
+
+# Kept as long as a conversation is likely to last (K1-C), and bounded like every memory of the service.
+ASKED_SECONDS = 1800.0
+MAX_ASKED = 50
 
 # The starters are a nicety: a slow server shows the fixed examples on the phone instead of keeping the chat closed.
 STARTER_SECONDS = 5.0
@@ -58,41 +89,86 @@ class Suggestion:
     arguments: dict = field(default_factory=dict)
 
 
+@dataclass(frozen=True)
+class Shape:
+    """What an answer holds, by counts only (K2-B): never a figure. ``None`` is "not known from this answer"."""
+
+    spent: bool | None = None
+    transactions: int | None = None
+    payments: int | None = None
+
+
 def _s(text: str, tool: str, **arguments) -> Suggestion:
     return Suggestion(text, tool, arguments)
 
 
+def _in(pattern: str, tool: str, period: dict, **arguments) -> Suggestion:
+    """A pattern written for one period: a name ("Bu ay"), or a range written out by code (P2-A)."""
+    if period["period"] == "Custom":
+        name = f"{format_period(date.fromisoformat(period['from']), date.fromisoformat(period['to']))} döneminde"
+    else:
+        name = PERIOD_NAMES[period["period"]]
+    text = pattern.format(period=name, merchant=arguments.get("merchant", ""))
+    return Suggestion(text, tool, {**arguments, **period})
+
+
+def _period(arguments: dict) -> dict:
+    """The period of a call with its days when it is a range, so a follow-up about the same period runs the same days."""
+    return {key: arguments[key] for key in ("period", "from", "to") if key in arguments}
+
+
+def _other(arguments: dict) -> dict:
+    return {"period": _OTHER_PERIOD.get(arguments["period"], "ThisMonth")}
+
+
+def _named(name: str) -> dict:
+    return {"period": name}
+
+
 def _summary(a: dict) -> list[Suggestion]:
-    p = a["period"]
-    last = (_s(COMPARE, "compare_spending", comparison=_COMPARISON_OF[p]) if p in _COMPARISON_OF
-            else _s(HIGHEST, "get_highest_transactions", period=p))
-    return [_s(CATEGORIES, "get_category_breakdown", period=p), _s(MERCHANTS, "get_merchant_breakdown", period=p), last]
+    p = _period(a)
+    rows = [_in(CATEGORIES_IN, "get_category_breakdown", p), _in(MERCHANTS_IN, "get_merchant_breakdown", p)]
+    if a["period"] in _COMPARISON_OF:
+        comparison = _COMPARISON_OF[a["period"]]
+        rows.append(_s(_COMPARISON_TEXT[comparison], "compare_spending", comparison=comparison))
+    rows.append(_in(HIGHEST_IN, "get_highest_transactions", p))
+    return rows + [_in(TOTAL_IN, "get_spending_summary", _other(a))]
 
 
 def _categories(a: dict) -> list[Suggestion]:
-    p = a["period"]
-    rows = [_s(MERCHANTS, "get_merchant_breakdown", period=p), _s(HIGHEST, "get_highest_transactions", period=p)]
-    return rows + [_s(LAST_MONTH, "get_category_breakdown", period="LastMonth")] if p == "ThisMonth" else rows
-
-
-def _merchant(a: dict) -> list[Suggestion]:
-    return [_s(LAST_3_MONTHS, "get_merchant_spending", merchant=a["merchant"], period="Last3Months"),
-            _s(MERCHANTS, "get_merchant_breakdown", period=a["period"])]
+    p = _period(a)
+    return [_in(MERCHANTS_IN, "get_merchant_breakdown", p), _in(HIGHEST_IN, "get_highest_transactions", p),
+            _in(CATEGORIES_IN, "get_category_breakdown", _other(a))]
 
 
 def _merchants(a: dict) -> list[Suggestion]:
-    return [_s(CATEGORIES, "get_category_breakdown", period=a["period"]),
-            _s(HIGHEST, "get_highest_transactions", period=a["period"])]
+    p = _period(a)
+    return [_in(CATEGORIES_IN, "get_category_breakdown", p), _in(HIGHEST_IN, "get_highest_transactions", p),
+            _in(MERCHANTS_IN, "get_merchant_breakdown", _other(a))]
 
 
 def _highest(a: dict) -> list[Suggestion]:
-    return [_s(CATEGORIES, "get_category_breakdown", period=a["period"]),
-            _s(MERCHANTS, "get_merchant_breakdown", period=a["period"])]
+    p = _period(a)
+    return [_in(CATEGORIES_IN, "get_category_breakdown", p), _in(MERCHANTS_IN, "get_merchant_breakdown", p),
+            _in(HIGHEST_IN, "get_highest_transactions", _other(a))]
+
+
+def _merchant(a: dict) -> list[Suggestion]:
+    m = a["merchant"]
+    return [_in(MERCHANT_IN, "get_merchant_spending", _named("Last3Months"), merchant=m),
+            _in(MERCHANTS_IN, "get_merchant_breakdown", _period(a)),
+            _in(MERCHANT_IN, "get_merchant_spending", _other(a), merchant=m)]
 
 
 def _comparison(a: dict) -> list[Suggestion]:
-    return [_s(CATEGORIES, "get_category_breakdown", period=_PERIOD_OF[a["comparison"]]),
-            _s(SIX_MONTHS, "get_monthly_trend", months=6)]
+    p = _named(_PERIOD_OF[a["comparison"]])
+    return [_in(CATEGORIES_IN, "get_category_breakdown", p), _s(TREND_6, "get_monthly_trend", months=6),
+            _in(HIGHEST_IN, "get_highest_transactions", p)]
+
+
+def _income(a: dict) -> list[Suggestion]:
+    p = _period(a)
+    return [_in(SAVE_WHERE_IN, "get_spending_advice", p), _in(CATEGORIES_IN, "get_category_breakdown", p)]
 
 
 def _advice(a: dict) -> list[Suggestion]:
@@ -100,9 +176,12 @@ def _advice(a: dict) -> list[Suggestion]:
     # a different month than the one on the screen.
     if a["period"] != "LastMonth":
         return []
-    return [_s(SAVE_ADVISED, "what_if_monthly", fromAdvice=True), _s(INCOME_LAST_MONTH, "get_income_share", period="LastMonth")]
+    last = _named("LastMonth")
+    return [_s(SAVE_ADVISED, "what_if_monthly", fromAdvice=True), _in(INCOME_IN, "get_income_share", last),
+            _in(CATEGORIES_IN, "get_category_breakdown", last)]
 
 
+# The candidates of each tool, best first (K1-C); the first three not asked and fitting the answer are offered.
 _TABLE = {
     "get_spending_summary": _summary,
     "get_category_breakdown": _categories,
@@ -111,41 +190,98 @@ _TABLE = {
     "get_highest_transactions": _highest,
     "compare_spending": _comparison,
     "get_monthly_trend": lambda a: [_s(ROSE, "compare_spending", comparison="PreviousFullMonth"),
-                                    _s(TOP_CATEGORY, "get_category_breakdown", period="LastMonth")],
-    "get_recurring_payments": lambda a: [_s(UPCOMING_7, "get_upcoming_payments", days=7)],
-    "get_upcoming_payments": lambda a: [_s(RECURRING, "get_recurring_payments")],
+                                    _in(CATEGORIES_IN, "get_category_breakdown", _named("LastMonth")),
+                                    _in(TOTAL_IN, "get_spending_summary", _named("ThisMonth"))],
+    "get_recurring_payments": lambda a: [_s(UPCOMING_7, "get_upcoming_payments", days=7), _s(TREND_6, "get_monthly_trend", months=6)],
+    "get_upcoming_payments": lambda a: [_s(RECURRING, "get_recurring_payments"),
+                                        _in(TOTAL_IN, "get_spending_summary", _named("ThisMonth"))],
     # A budget is about the running month only (ANA-13).
-    "check_budget": lambda a: [_s(TOP_MERCHANT_THIS_MONTH, "get_merchant_breakdown", period="ThisMonth"),
-                               _s(CATEGORIES, "get_category_breakdown", period="ThisMonth")],
+    "check_budget": lambda a: [_in(MERCHANTS_IN, "get_merchant_breakdown", _named("ThisMonth")),
+                               _in(CATEGORIES_IN, "get_category_breakdown", _named("ThisMonth")),
+                               _in(HIGHEST_IN, "get_highest_transactions", _named("ThisMonth"))],
     # INC-03 K19-B: income share → advice → advised saving; the what-if answers offer nothing (no "buy more" chain).
-    "get_income_share": lambda a: [_s(SAVE_WHERE, "get_spending_advice", period=a["period"])],
+    "get_income_share": _income,
     "get_spending_advice": _advice,
     # No other cut is offered: a figure the user did not say would be the backend's suggestion (MCP-17/18).
     "simulate_savings": lambda a: [_s(TREND_6, "get_monthly_trend", months=6),
-                                   _s(TOP_CATEGORY, "get_category_breakdown", period="LastMonth")],
+                                   _in(CATEGORIES_IN, "get_category_breakdown", _named("LastMonth"))],
 }
 
+# P4-A: offered when every candidate was asked; never under an answer that offers nothing on purpose.
+_GENERAL = (_s(THIS_MONTH, "get_spending_summary", period="ThisMonth"), _s(ROSE, "compare_spending", comparison="PreviousFullMonth"),
+            _s(RECURRING, "get_recurring_payments"), _s(UPCOMING_7, "get_upcoming_payments", days=7),
+            _s(TREND_6, "get_monthly_trend", months=6))
 
-def follow_ups(tool: str, arguments: dict) -> list[Suggestion]:
-    """The follow-ups to offer after ``tool`` ran with ``arguments``; never the very same call, at most three."""
+_BREAKDOWNS = ("get_category_breakdown", "get_merchant_breakdown", "get_highest_transactions")
+
+
+def follow_ups(tool: str, arguments: dict, asked=(), shape: Shape | None = None) -> list[Suggestion]:
+    """The follow-ups to offer after ``tool`` ran with ``arguments``: its candidates without the call itself, anything ``asked`` in
+    the conversation and what the answer's ``shape`` makes pointless; at most three."""
     build = _TABLE.get(tool)
     if build is None:
         return []
     try:
         rows = build(arguments)
-        if arguments.get("period") == "Custom":
-            # CHAT-08 K7-A: an offered question about the same days runs over the same days.
-            rows = [_over_range(row, arguments) for row in rows]
     except KeyError:
         # An argument the table needs is missing (a tool whose schema changed on the server): nothing is offered.
         return []
-    return [r for r in rows if (r.tool, r.arguments) != (tool, arguments)][:MAX_SUGGESTIONS]
+    if not rows:
+        return []
+    seen = [(tool, arguments), *asked]
+    kept = [r for r in rows if (r.tool, r.arguments) not in seen and _fits(r, arguments, shape or Shape())]
+    if not kept and all((r.tool, r.arguments) in seen for r in rows):
+        # Every candidate was asked: the conversation goes on with what it has not touched yet (P4-A).
+        kept = [g for g in _GENERAL if (g.tool, g.arguments) not in seen][:MAX_GENERAL]
+    return [Suggestion(r.text, r.tool, dict(r.arguments)) for r in kept[:MAX_SUGGESTIONS]]
 
 
-def _over_range(row: Suggestion, arguments: dict) -> Suggestion:
-    if row.arguments.get("period") != "Custom":
-        return row
-    return Suggestion(row.text, row.tool, {**row.arguments, "from": arguments["from"], "to": arguments["to"]})
+def _fits(row: Suggestion, arguments: dict, shape: Shape) -> bool:
+    """False for a follow-up the answer already makes pointless (K2-B)."""
+    same_period = "period" in arguments and _period(row.arguments) == _period(arguments)
+    if shape.spent is False:
+        # Nothing was spent: only another period can show something.
+        return "period" in row.arguments and not same_period
+    if shape.transactions == 1 and same_period and row.tool in _BREAKDOWNS:
+        # One purchase has one category, one merchant and is itself the biggest one.
+        return False
+    if shape.payments == 0 and row.tool == "get_upcoming_payments":
+        return False
+    return True
+
+
+def result_shape(tool: str, result: dict) -> Shape:
+    """The counts of a result that the follow-ups look at; a result the code cannot read is an unknown shape, never an error."""
+    try:
+        if tool in ("get_recurring_payments", "get_upcoming_payments"):
+            return Shape(payments=len(result["payments"]))
+        if tool == "get_spending_summary":
+            rows = result["currencies"]
+            return Shape(spent=any(r["totalAmount"] > 0 for r in rows), transactions=sum(r["transactionCount"] for r in rows))
+        if tool == "get_highest_transactions":
+            return Shape(spent=any(r["items"] for r in result["currencies"]))
+        if tool in ("get_category_breakdown", "get_merchant_breakdown", "get_merchant_spending"):
+            return Shape(spent=bool(result["currencies"]))
+    except (KeyError, TypeError):
+        pass
+    return Shape()
+
+
+class AskedStore:
+    """The calls each user asked in the conversation (K1-C): kept per token, forgotten ``ttl_seconds`` after the last one."""
+
+    def __init__(self, ttl_seconds: float = ASKED_SECONDS, capacity: int = 1000, clock=time.monotonic):
+        self._memory = TokenMemory(ttl_seconds, capacity, clock)
+
+    def remember(self, token: str, tool: str, arguments: dict) -> None:
+        """Adds a call that was answered; the same call twice is kept once, the oldest goes past ``MAX_ASKED``."""
+        call = (tool, dict(arguments))
+        kept = [c for c in (self._memory.get(token) or []) if c != call]
+        self._memory.put(token, [*kept, call][-MAX_ASKED:])
+
+    def recall(self, token: str) -> list[tuple[str, dict]]:
+        """The calls asked, oldest first; an empty list when none were or the conversation went quiet too long."""
+        return list(self._memory.get(token) or [])
 
 
 def _plain(text: str) -> str:
@@ -194,3 +330,4 @@ class StarterQuestions:
         rules = ((due_soon, UPCOMING_7), (spent, THIS_MONTH), (recurring, RECURRING), (True, TOP_CATEGORY),
                  (True, LAST_MONTH_TOTAL))
         return [text for holds, text in rules if holds][:MAX_SUGGESTIONS]
+
