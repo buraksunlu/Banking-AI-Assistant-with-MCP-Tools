@@ -28,6 +28,9 @@ CURRENCY_OPTIONS = (("TL", "TRY"), ("Euro", "EUR"), ("Dolar", "USD"), ("Sterlin"
 MONTHLY_SAVING = "what_if_monthly"
 # Examples for a cut, not numbered: "20" then means 20 %, not an option.
 PERCENT_EXAMPLES = (10, 25, 50)
+# CHAT-09 K17-C, K19-C: the two "what if" scenarios and the two planning calculations, as the user is offered them. No spending
+# word among the one-off's: "Dün ne harcadım?" after the question is a new question, not the one-off.
+CHOICE_KINDS = ("scenario", "topic")
 # Folded like the reply they are matched against (K11-A).
 _ORDINALS = {fold_rule(word): number for word, number in {
     "birinci": 1, "ilk": 1, "ilki": 1, "ikinci": 2, "ikincisi": 2, "üçüncü": 3, "üçüncüsü": 3, "dördüncü": 4,
@@ -40,6 +43,25 @@ class Option:
 
     label: str
     value: str | int
+    # CHAT-09 K20-B: a choice between two calculations says what each one is, and is recognised by any of its words, so the
+    # model may word it the user's way and the user may answer in theirs ("bir kerede", "her ay 2 bin").
+    detail: str = ""
+    words: re.Pattern | None = None
+
+
+SCENARIOS = (
+    Option("tek seferlik", "what_if_one_off",
+           "bir dönemdeki harcamanızla o dönemin başında dolar, euro ya da altın alsaydınız",
+           re.compile(fold_rule(r"\btek\s+sefer|\bbir\s+(?:ker|defa|sefer)|\btoplu"))),
+    Option("aylık birikim", MONTHLY_SAVING, "son 12 ay boyunca her ay belirli bir TL tutarı biriktirseydiniz",
+           re.compile(fold_rule(r"\baylık|\bher\s+ay\b|\bayda\b|\bdüzenli|\bbirikim"))),
+)
+TOPICS = (
+    Option("bütçe kontrolü", "check_budget", "bu ayki harcamanız söylediğiniz bütçeyi aşar mı",
+           re.compile(fold_rule(r"bütçe|\blimit|\bsınır|\baş(?:ar|acak|ma)"))),
+    Option("tasarruf hesabı", "simulate_savings", "bir harcamayı azaltırsanız ne kadar biriktirirsiniz",
+           re.compile(fold_rule(r"tasarruf|\bazalt|\bkıs|biriktir|\bindir|\byarı"))),
+)
 
 
 @dataclass(frozen=True)
@@ -67,12 +89,12 @@ class Pending:
     @property
     def numbered(self) -> bool:
         """Periods, merchants and currencies are numbered choices; counts, amounts and cuts are examples."""
-        return self.kind in ("period", "merchant", "currency")
+        return self.kind in ("period", "merchant", "currency", *CHOICE_KINDS)
 
     @property
     def model_worded(self) -> bool:
         """True when the model may word the question (CHAT-03 K4-B); a figure question is always the fixed text."""
-        return self.kind in ("period", "count", "merchant") and not self.note
+        return self.kind in ("period", "count", "merchant", *CHOICE_KINDS) and not self.note
 
 
 def ask_period(tool: str, arguments: dict, question: str, note: str = "", original: str = "") -> Pending:
@@ -124,11 +146,39 @@ def ask_percent(tool: str, arguments: dict, question: str, later: tuple[str, ...
     return Pending(tool, rest, "reductionPercent", "percent", examples, question, minimum=1, maximum=100, later=later)
 
 
+def ask_scenario(question: str) -> Pending:
+    """Which "what if" the user meant (CHAT-09 K17-C): no tool yet, the user's question kept for after the choice."""
+    return Pending("", {}, "tool", "scenario", SCENARIOS, question, original=question)
+
+
+def ask_topic(question: str) -> Pending:
+    """Which planning calculation the user meant (CHAT-09 K19-C)."""
+    return Pending("", {}, "tool", "topic", TOPICS, question, original=question)
+
+
+def chosen_tool(pending: Pending, reply: str) -> str | None:
+    """The tool a short reply to a choice question names, by number or by its words; None when it names both, neither, or
+    the question was no choice (then the reply is a new question, K5-A)."""
+    if pending.kind not in CHOICE_KINDS or len(reply.split()) > MAX_REPLY_WORDS:
+        return None
+    number = _choice_number(reply)
+    if number is not None:
+        return pending.options[number - 1].value if 1 <= number <= len(pending.options) else None
+    folded = fold_turkish(reply)
+    named = [o.value for o in pending.options if o.words.search(folded)]
+    return named[0] if len(named) == 1 else None
+
+
+def is_bare_choice(reply: str) -> bool:
+    """True for a reply that is only a choice's number ("2", "ikincisi"): it adds no words to the user's question."""
+    return _choice_number(reply) is not None
+
+
 def resolve(pending: Pending, reply: str) -> dict | None:
     """The completed arguments when the reply is one of the choices; None when it is something else (a new question)."""
     # A reply is short ("geçen ay", "son 3 ay olsun", "Şehir Ulaşım"); a longer message that happens to name a period or a
     # merchant ("Bu hafta Starbucks'a ne kadar verdim?") is a question of its own and must not lose its other words.
-    if len(reply.split()) > MAX_REPLY_WORDS:
+    if len(reply.split()) > MAX_REPLY_WORDS or pending.kind in CHOICE_KINDS:
         return None
     value = _value(pending, reply)
     if value is None:
@@ -157,6 +207,9 @@ def template(pending: Pending) -> str:
     if pending.kind == "percent":
         labels = [o.label for o in pending.options]
         return f"Ne kadar azaltmayı düşünüyorsunuz? Örneğin {', '.join(labels[:-1])} ya da {labels[-1]}."
+    if pending.kind in CHOICE_KINDS:
+        both = " ".join(f"{n}) {o.label} ({o.detail})" for n, o in enumerate(pending.options, start=1))
+        return f"Bunu iki şekilde hesaplayabilirim: {both}. Hangisini istersiniz?"
     choices = " ".join(f"{n}) {o.label}" for n, o in enumerate(pending.options, start=1))
     if pending.kind == "merchant":
         return f"‘{pending.asked}’ birden fazla işyeriyle eşleşti: {choices}. Hangisini kastettiniz?"
@@ -177,11 +230,15 @@ def check_question(text: str, pending: Pending) -> bool:
     if pending.kind == "count":
         if any(not re.search(rf"\b{o.value}\b", text) for o in pending.options):
             return False
+    elif pending.kind in CHOICE_KINDS:
+        # K20-B: an option counts as named by its label or any of its words, so the question may follow the user's phrasing.
+        if any(fold_turkish(o.label) not in folded and not o.words.search(folded) for o in pending.options):
+            return False
     elif any(fold_turkish(o.label) not in folded for o in pending.options):
         return False
     # Every number must be an option's number, part of an option, or the user's own (a choice or a figure cannot be added).
     allowed = {str(n) for n in range(1, len(pending.options) + 1)} if pending.numbered else set()
-    for source in (*(o.label for o in pending.options), pending.asked, pending.question):
+    for source in (*(o.label for o in pending.options), *(o.detail for o in pending.options), pending.asked, pending.question):
         allowed.update(re.findall(r"\d+", source))
     return set(re.findall(r"\d+", text)) <= allowed
 

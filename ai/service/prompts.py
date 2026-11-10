@@ -159,7 +159,7 @@ def build_intent_messages(message: str) -> list[dict]:
     return [{"role": "system", "content": INTENT_SYSTEM_PROMPT}, {"role": "user", "content": _neutralize(message)}]
 
 
-CLARIFY_PROMPT_VERSION = "clarify-v1"
+CLARIFY_PROMPT_VERSION = "clarify-v2"
 
 # CHAT-03 K4-B: the model only words the question; the options come from the backend or a fixed list, and the code checks
 # the result (clarification.check_question) before it is shown, else the fixed question is.
@@ -170,7 +170,14 @@ CLARIFY_SYSTEM_PROMPT = ("Sen bir bankacılık harcama asistanısın. Kullanıc�
 # question word for word in the CHAT-03 trial.
 _SITUATION = {"period": "Kullanıcı hangi dönemi sorduğunu söylemedi.",
               "count": "Kullanıcı kaç aylık bir dönem istediğini söylemedi.",
-              "merchant": "Kullanıcının yazdığı ‘{asked}’ adı birden fazla işyerine uyuyor; hangisini kastettiğini sor."}
+              "merchant": "Kullanıcının yazdığı ‘{asked}’ adı birden fazla işyerine uyuyor; hangisini kastettiğini sor.",
+              # CHAT-09 K20-B (clarify-v2): two calculations fit the question; the model says them the user's way.
+              "scenario": ("Kullanıcının sorusu iki şekilde hesaplanabilir. Tek seferlik: bir dönemdeki harcamasıyla o dönemin başında "
+                           "bir kerede dolar, euro ya da altın alsaydı. Aylık birikim: son 12 ay boyunca her ay aynı TL tutarını "
+                           "biriktirseydi. Hangisini istediğini sor; soruyu kullanıcının kendi sözlerine ve konuşma diline uydur."),
+              "topic": ("Kullanıcının sorusu iki şekilde hesaplanabilir. Bütçe kontrolü: bu ayki harcaması söylediği bütçeyi aşar "
+                        "mı. Tasarruf hesabı: bir harcamayı azaltırsa ne kadar biriktirir. Hangisini istediğini sor; soruyu "
+                        "kullanıcının kendi sözlerine ve konuşma diline uydur.")}
 
 
 def build_clarify_messages(question: str, kind: str, options: list[str], numbered: bool, asked: str = "") -> list[dict]:
