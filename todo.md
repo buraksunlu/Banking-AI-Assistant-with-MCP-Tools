@@ -316,7 +316,16 @@ ayrı PR), K9-A (en fazla 2 öneri, TL etkisine göre; istekte hesaplanır, sakl
   kaçtı). Ölçüm: araç seçimi main 68/71 → dalda eski vakalarda bozulan yok, yeni 20/20 (eval sohbetin kod adımlarını uygulayınca 89/91); cevap
   doğruluğu 22/23 (yeni 5/5; eski A12 aynı cevabı main kodunda da veriyor). Bulgular: model üç varlığı toplayıp tek portföy sandı (A21);
   `fromAdvice` ve uydurma `categoryCode` kodla korundu. Sırada INC-04 (iPhone kartı).
-- [ ] INC-04 — iPhone kartı (IOS-12/INS ile birlikte düşünülür): gelir payı çubuğu + en fazla 2 öneri; AI kapalıyken şablon metin.
+- [x] INC-04 — iPhone kartı (IOS-12/INS ile birlikte düşünülür): gelir payı çubuğu + en fazla 2 öneri; AI kapalıyken şablon metin.
+  **Sonuç (10 Kasım 2026, dal `inc-04-income-card`; docs/ios.md "iOS-s"):** ana ekranda "Gelire göre harcama" kartı (`Insights/`:
+  `IncomeShareViewModel`, saf `IncomeShareDisplay`, `IncomeShareCard`). Kararlar: K1-A (tek istek `spending-advice?period=LastMonth`;
+  gruplar, paylar ve öneriler aynı cevapta), K2-B (Temel / İsteğe bağlı / Bilinmiyor yığılmış çubuk + açıklama; isteğe bağlı vurgu
+  mavisi, diğerleri nötr; "kalan %" yazılmaz), K3-A (%100'ü aşan çubuk dolar ve kırpılır, metin tam, "Harcama gelirin üzerinde"),
+  K4-B (öneri satırı "Eğlence · ayda 236,18 TL, yılda 2.834,20 TL", dokununca backend'in sabit cümlesi), K5-B (öneri yoksa sabit
+  sebep; maaş yoksa kart görünür, sebep başlıkta), K6-A (karttan başka ekrana bağlantı yok), K7-A (bağımsız kart, IOS-12'de bölüme
+  taşınır). "AI kapalıyken şablon" kendiliğinden: öneri metni zaten .NET şablonu, kart modele hiç bağlı değil. Backend değişmedi.
+  Testler: iOS 313 → 338 (+25: ViewModel 9, görünüm kuralları 16); 10 kasıtlı bozmanın hepsi yakalandı. Sınırlar: yalnız geçen tam
+  ay; demoda yalnız Selin öneri alır; simülatörde elle deneme kullanıcıda (demo anıyla açılmış API gerekir).
 
 ## 12f. Harcama ve yatırım asistanı — kullanıcı kararı 9 Kasım 2026 (⭐ uzun vadeli yön)
 

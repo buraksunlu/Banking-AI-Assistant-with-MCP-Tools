@@ -182,7 +182,7 @@ payı, `GET /api/analytics/income-share`; todo 12e) ve INC-02 (seçici tasarruf 
 `GET /api/analytics/what-if/one-off`) ve PR2 (aylık birikim + dalgalanma) tamam; INC-03 (gelir payı, öneri ve iki "ne olurdu" sohbette: PR1 MCP araçları,
 PR2 sohbet) tamam. CHAT-09 (farklı yazılışlara dayanıklılık, üç PR): PR1 ölçüm (663 ifade gerçek sohbet kodundan, 68 açık) ve PR2 kural
 düzeltmeleri (Türkçe harf katlama, söylenen dönem, senaryo daraltma, aylıkta TL; 68 → 0 açık, araç seçimi 90/91, cevap 23/23) tamam;
-sırada PR3 (belirsizlikte geri soru), sonra INC-04 (iPhone kartı).
+PR3 (belirsizlikte geri soru) tamam; INC-04 (iPhone gelir payı kartı, 10 Kasım 2026) tamam.
 13 Ekim 2026 genişletme kararları: yeni soru tipleri (todo 12b, ANA-10–14 + MCP-15–18) ve güvenilir cevap
 katmanı (todo 15b, AI-09–13 + IOS-11). 17 Ekim 2026: sohbet yetenekleri (15c, CHAT-01–05), yeni analizler (12c, ANA-15–19 + MCP-19–23) ve
 içgörü kartları (15d, INS-01–03 + IOS-12); sıra omurga → 15c → 12c → 15d. 19 Ekim 2026 todo taraması: AI-14 (uçtan uca

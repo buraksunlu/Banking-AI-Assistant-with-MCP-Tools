@@ -1378,6 +1378,11 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- iPhone gelir payı kartı (INC-04, 10 Kasım 2026; docs/ios.md "iOS-s"): ana ekranda "Bu ay harcama"nın altında
+  "Gelire göre harcama" kartı; tek istek `spending-advice?period=LastMonth`, para birimi başına Temel / İsteğe bağlı / Bilinmiyor
+  çubuğu (paylar backend'den, %100'ü aşan kırpılır, metin tam), en fazla 2 öneri satırı (dokununca backend'in sabit cümlesi),
+  öneri yoksa sabit sebep, maaş yoksa sebep başlıkta. Model yok (AI kapalıyken de aynı); backend değişmedi. Kararlar K1-A K2-B
+  K3-A K4-B K5-B K6-A K7-A. iOS 313 → 338 test durumu; 10 kasıtlı bozmanın hepsi yakalandı.
 - Farklı yazılışlara kural düzeltmeleri (CHAT-09 PR2, 9 Kasım 2026; docs/local-ai.md "Kural düzeltmeleri"): tek Türkçe harf katlama
   (metin + kurallar, K11-A), mesajda adı geçen dönem modelinkini ezer (K12-A), zenginlik grubunda senaryo kelimeleriyle tek araç
   (K5-D) ve orada model seçmezse kod seçer (K13-A), aylık birikimde çıplak tutar TL ve para birimi sorusu yok (K6-B), "sınır" ve
