@@ -91,6 +91,15 @@
     {"id": "W17", "message": "1.000 TL'yi aylık dolar olarak biriktirseydim ne olurdu?", "expected": [{"tool": "what_if_monthly", "arguments": {"amount": 1000, "currencyCode": "TRY"}}, {"tool": "what_if_monthly", "arguments": {"amount": 1000, "currencyCode": "TRY", "fromAdvice": false}}]},
     {"id": "W18", "message": "Geçen ay giyim harcamamı altın alsaydım ne olurdu?", "expected": {"tool": "what_if_one_off", "arguments": {"period": "LastMonth", "categoryCode": "CLOTHING"}}},
     {"id": "W19", "message": "Altın alayım mı?", "expected": null},
-    {"id": "W20", "message": "Dolar yükselir mi?", "expected": null}
+    {"id": "W20", "message": "Dolar yükselir mi?", "expected": null},
+    {"id": "Q01", "message": "Biriktirseydim ne olurdu?", "expected": "clarify"},
+    {"id": "Q02", "message": "Dolar alsaydım ne olurdu?", "expected": "clarify"},
+    {"id": "Q03", "message": "Her ay harcadığım kadar biriktirseydim ne olurdu?", "expected": "clarify"},
+    {"id": "Q04", "message": "Geçen ay altın alsaydım ne olurdu?", "expected": {"tool": "what_if_one_off", "arguments": {"period": "LastMonth"}}},
+    {"id": "Q05", "message": "Son 3 ayda dolar alsaydım ne olurdu?", "expected": {"tool": "what_if_one_off", "arguments": {"period": "Last3Months"}}},
+    {"id": "Q06", "message": "5.000 TL biriktirseydim ne olurdu?", "expected": [{"tool": "what_if_monthly", "arguments": {"amount": 5000, "currencyCode": "TRY"}}, {"tool": "what_if_monthly", "arguments": {"amount": 5000, "currencyCode": "TRY", "fromAdvice": false}}]},
+    {"id": "Q07", "message": "Bütçemi kısıp tasarruf etsem?", "expected": "clarify"},
+    {"id": "Q08", "message": "Tasarruf etsem ne olur?", "expected": "clarify"},
+    {"id": "Q09", "message": "Market bütçemi aşar mıyım?", "expected": "clarify"}
   ]
 }

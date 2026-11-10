@@ -12,13 +12,15 @@ from datetime import date
 
 from answer_check import fold_rule, fold_turkish
 from conversation import LastCall
-from grounding import amount_currency_in, amounts_in, category_in, json_number, mentions_amount, mentions_period, period_in
+from grounding import (amount_currency_in, amounts_in, category_in, json_number, mentions_amount, mentions_period, period_in,
+                       periods_in)
 
 # The analyses that take a complete month (the server publishes LastMonth and Custom only).
 MONTH_TOOLS = ("get_income_share", "get_spending_advice")
 MONTHLY_TOOL = "what_if_monthly"
+ONE_OFF_TOOL = "what_if_one_off"
 # The tools whose answers carry a figure that is a past price or a rule's advice: a text that sounds like advice is never shown.
-WEALTH_TOOLS = (*MONTH_TOOLS, "what_if_one_off", MONTHLY_TOOL)
+WEALTH_TOOLS = (*MONTH_TOOLS, ONE_OFF_TOOL, MONTHLY_TOOL)
 
 LIRA = "TRY"
 LAST_MONTH = "LastMonth"
@@ -68,6 +70,20 @@ def chosen_scenario_arguments(tool: str, message: str) -> dict | None:
         return None
     category = category_in(message)
     return {"period": period, **({"categoryCode": category} if category else {})}
+
+
+# The counts inside the tools' period names: the 3 of "son 3 ayda" is not an amount (K18-B).
+_PERIOD_COUNTS = {"Last3Months": 3, "Last6Months": 6, "Last7Days": 7, "Last30Days": 30}
+
+
+def scenario_by_figures(message: str) -> str | None:
+    """The "what if" the user's figures point to when no scenario word did (CHAT-09 K18-B): a period, date or category belongs
+    to the one-off (the monthly saving takes none), an amount to the monthly saving (the one-off takes none). None for both or
+    neither: then the user is asked. ``message`` has its dates already replaced by a period name (CHAT-08)."""
+    one_off = mentions_period(message) or category_in(message) is not None
+    counts = {_PERIOD_COUNTS.get(period) for period in periods_in(message)}
+    monthly = any(amount > 0 and amount not in counts for amount in amounts_in(message))
+    return ONE_OFF_TOOL if one_off and not monthly else MONTHLY_TOOL if monthly and not one_off else None
 
 
 def advised_saving_call(message: str, previous: LastCall | None) -> tuple[str, dict] | None:

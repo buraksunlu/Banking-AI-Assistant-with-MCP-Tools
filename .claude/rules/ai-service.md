@@ -20,6 +20,7 @@ ai/.venv/bin/python ai/model_check/explanation_eval.py              # açıklama
 ai/.venv/bin/python ai/model_check/answer_eval.py                   # cevap doğruluğu (SYN-15 personaları, gerçek zincir; AI servisi + MCP + .env)
 ai/.venv/bin/python ai/model_check/phrasings.py                     # modelsiz ifade açıkları (CHAT-09; --typos yazım hatalarını da)
 ai/.venv/bin/python ai/model_check/phrasing_eval.py --pause 1       # modelli ifade örneklemi (MCP + Ollama + .env; --typos, --refresh-tools)
+ai/.venv/bin/python ai/model_check/question_eval.py --pause 1       # model yazımı seçim soruları (CHAT-09 PR3, clarify-v2; yalnız Ollama)
 python3 ai/service/ollama_client.py                                  # elle kontrol (BANKINGAI_LLM_MODEL gerekir)
 ai/.venv/bin/uvicorn --app-dir ai/service --factory app:create_app --host 127.0.0.1 --port 8000   # AI servisi (AI-03)
 ```
@@ -65,7 +66,7 @@ yalnız kalemler. Cevap eval'i 23 vaka (A19–A23).
 
 Farklı yazılışlar (CHAT-09, `ai/model_check/phrasings.py`, ayrıntı `docs/local-ai.md`): ölçümler sohbetin adımlarını **kopyalamaz**; her
 ifade gerçek `ChatService`'ten geçer, `ProbeGateway` araç çağrısında `Captured` ile durur, model yerine `OracleSelector` (modelsiz) ya da gerçek
-seçici. `tool_selection_eval.py` (91 vaka) ve `phrasing_eval.py` (örneklem) bunu kullanır. `test_phrasings.py` 663 ifadeyi modelsiz çalıştırır;
+seçici. `tool_selection_eval.py` (100 vaka; Q01–Q09 PR3) ve `phrasing_eval.py` (örneklem) bunu kullanır. `test_phrasings.py` 781 ifadeyi modelsiz çalıştırır;
 kırılan her ifade `phrasing_gaps.json`'da gerekçeli olmalı, düzelen açık listeden silinir (yoksa test kırılır). Yeni niyet/kalıp →
 `phrasing_templates.json`; gerçek kullanıcı cümlesi → `real`. Araç tanımı değişince `phrasing_eval.py --refresh-tools` (`mcp_tools.json`).
 `phrasings.py` çıktısı açıkları listeler. Test adında "real" geçmesin (`-k "not real"` modeli dışarıda bırakan süzgeçtir).
@@ -75,6 +76,13 @@ kural biçimle ayrılır. Dönem: mesajdaki tek adlı dönem modelinkini ezer (`
 `routing.scenario_of` → `Route.only` (K5-D); tek araçlı listede model boş dönerse `chat` aracı seçer (`wealth.chosen_scenario_arguments`,
 K13-A). Aylık birikimde para birimi sorulmaz, çıplak tutar TL (K6-B). Ne olurdu cevabında açıklayana `ToolOutcome.question` gider,
 `answer_check.misnamed` değer–ad karışıklığında kalemleri gösterir (K7-A, K16-A).
+**Belirsizlikte geri soru (CHAT-09 PR3):** "-seydim" sorusunda senaryo kelimesi ikisi ya da hiçbiri ise `Route.undecided`; model denenmez,
+işaret yoksa `wealth.scenario_by_figures` (dönem/tarih/kategori → tek seferlik, dönem sayısı olmayan tutar → aylık; "son 3 ayda"nın 3'ü
+tutar değil), yine belirsizse `ask_scenario` (K17-C, K18-B). Planlamada model boş dönerse `routing.planning_of` aracı seçer, bulamazsa
+`ask_topic` (K19-C; modelin listesi değişmez). Seçim soruları (`CHOICE_KINDS`, `Pending.tool == ""`) modelce kullanıcının sözleriyle
+yazılır (`clarify-v2`), `check_question` seçeneği etiketiyle ya da `Option.words` kalıbıyla arar; cevap `chosen_tool` ile kodla eşleşir
+(numara ya da kelime, ikisi birden → yeni soru); seçim sonrası özgün soru seçilen tek araçla yeniden işlenir, çıplak numara eklenmez
+(tutar sanılırdı). Tek seferliğin kelimelerinde "harca" yok: "Dün ne harcadım?" yeni sorudur.
 Yeni wealth aracı/öneri satırı: `routing.GROUPS`, `facts.outcome_for`, `suggestions._TABLE`.
 
 MCP istemcisi (MCP-b, `ai/service/mcp_gateway.py`, `mcp` 2.3.0): `BANKINGAI_MCP_URL` (yoksa `http://127.0.0.1:5249/mcp`; yanlış biçimde

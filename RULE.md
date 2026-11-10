@@ -1374,10 +1374,16 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   kullanıcıyla netleşir; açıkça istenen varlık korunur. Eksik veride kazanan uydurulmaz.
 
 ==================================================
-29. MEVCUT PROJE DURUMU — 9 KASIM 2026
+29. MEVCUT PROJE DURUMU — 10 KASIM 2026
 ==================================================
 
 COMPLETED
+- Belirsizlikte geri soru (CHAT-09 PR3, 10 Kasım 2026; docs/local-ai.md "Belirsizlikte geri soru"): iki senaryoya uyan "ne olurdu"
+  sorusunda model denenmeden senaryo sorusu (K17-C), işaret yoksa rakam ipucu (dönem/tarih/kategori → tek seferlik, tutar → aylık;
+  K18-B), planlamada model boş dönerse kelimelerle kod seçer ya da konu sorusu (K19-C), seçim sorularını model kullanıcının sözleriyle
+  yazar ve kod denetler, cevap numara ya da kelimeyle kodla eşleşir (K20-B, clarify-v2), genel konu menüsü yok (K21-A). Bulgu: "son 3
+  ayda" PR2'nin aylık kuralına takılıyordu. Araç seçimi 100/100 (S40 düzeldi), ifade örneklemi 109/110 (781 ifade), soru yazımı 9/10,
+  cevap doğruluğu 23/23. Python 1066 → 1138 modelsiz; 18 kasıtlı bozmanın hepsi yakalandı (ikisi eklenen testlerle). CHAT-09 tamam.
 - Farklı yazılışlara kural düzeltmeleri (CHAT-09 PR2, 9 Kasım 2026; docs/local-ai.md "Kural düzeltmeleri"): tek Türkçe harf katlama
   (metin + kurallar, K11-A), mesajda adı geçen dönem modelinkini ezer (K12-A), zenginlik grubunda senaryo kelimeleriyle tek araç
   (K5-D) ve orada model seçmezse kod seçer (K13-A), aylık birikimde çıplak tutar TL ve para birimi sorusu yok (K6-B), "sınır" ve
