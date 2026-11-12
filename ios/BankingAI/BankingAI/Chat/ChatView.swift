@@ -83,8 +83,8 @@ struct ChatView: View {
         .task { await model.open() }
         // A light tap whenever a question goes out: typed, a suggestion or a retry (K7-A).
         .sensoryFeedback(.impact(weight: .light), trigger: model.isWaiting) { _, waiting in waiting }
-        // Leaving the screen or the app stops a pending question (decision AI-08 K5-C).
-        .onDisappear { model.stop() }
+        // Leaving the app stops a pending question (AI-08 K5-C). Switching tabs does not: the answer waits in its tab, so a
+        // look at the balance mid-question costs nothing (UI-07 K5-B).
         .onChange(of: scenePhase) {
             if scenePhase == .background { model.stop() }
         }

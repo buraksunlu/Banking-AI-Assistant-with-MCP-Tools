@@ -682,3 +682,55 @@ Doğrulama: iOS 338 → 360 test durumu (xcodebuild sayımı), 0 kırmızı. 6 k
 atlanır, gönderimde boşalmaz, hatada geri gelir, seçenekle öneri birlikte) hepsi yakalandı. Görünüme ait iki şey (dokununca etiket
 yerine başka metin, satırın yeri) birim testinde değil, simülatörde denendi.
 
+
+## iOS-u: alt sekme çubuğu ve Profil (UI-07; 12 Kasım 2026)
+
+Giriş yapılınca uygulama dört sekmeli: Ana sayfa · Analiz · Asistan · Profil. Her sekmenin kendi gezinme yığını var; ekran
+modellerinin hepsi `App/MainTabView`'da yaşar, sekme değişince sohbet ve grafikler olduğu gibi kalır, çıkışta hepsi silinir
+(AI-08 K4-D). Backend değişmedi.
+
+```text
+RootView ─► MainTabView (ViewModel'ler, seçili sekme, müşterinin saat dilimi)
+             ├─ Ana sayfa  ─ HomeView (kendi NavigationStack'i; yüzen "Asistana sor" kapsülü kalktı)
+             ├─ Analiz     ─ NavigationStack ─ AnalyticsView
+             ├─ Asistan    ─ NavigationStack ─ ChatView
+             └─ Profil     ─ NavigationStack ─ ProfileView
+```
+
+Kararlar: K1-A sistem `TabView`'i (iOS 26'da cam çubuk, iOS 17–18'de düz koyu; erişilebilirlik sistemden); K2-A sıra Ana sayfa ·
+Analiz · Asistan · Profil; K3-A sekme adı "Asistan" (ekran başlığı `Brand.assistantName`), simgeler `house` · `chart.pie` ·
+`bubble.left.and.text.bubble.right` · `person.crop.circle`; K4-A "Bu ay harcama" kartı Analiz sekmesine geçirir (ekran iki yerde
+açılmaz, `AnalyticsRoute` silindi); K5-B sekme değişince bekleyen soru durmaz (yalnız Durdur ve uygulamanın arka plana geçmesi;
+AI-08 K5-C daraldı); K6-B Profil: ad soyad, kullanıcı adı, müşteri numarası, para birimi, saat dilimi, uygulama sürümü (hepsi
+`GET /api/me`'den; ikinci istek yok, `HomeViewModel.profile`); K7-B Çıkış onaylı ("Sohbet geçmişi silinir."); K8-B başlıktaki baş
+harf dairesi Profil sekmesine geçirir (menü kalktı); K9-C saat dilimi `Europe/Istanbul · GMT+03:00` (fark o günün, yaz saatine göre);
+K10-A tek PR.
+
+```text
+App/AppTab.swift                (yeni) sekmelerin sırası, adı, simgesi
+App/MainTabView.swift           (yeni) TabView, ViewModel'ler, sekme geçişi, saat dilimi ortamı bütün sekmelere
+App/BankingAIApp.swift          RootView → MainTabView
+Profile/ProfileDisplay.swift    (yeni) saf: ad soyad, sürüm ("1.0 (1)", eksikse satır yok), saat dilimi
+Profile/ProfileView.swift       (yeni) görünüm; yükleniyor iskelet, hata StateMessage + Tekrar dene, onaylı Çıkış
+Home/HomeView, HomeHeader       kapsül ve Analiz yolu kalktı; kart ve daire sekmeye geçirir
+Home/HomeViewModel              /api/me cevabını `profile` olarak tutar
+Chat/ChatView                   onDisappear'daki durdurma kalktı (K5-B)
+DesignSystem/Skeleton.swift     Skeleton.profile (nötr yer tutucu)
+BankingAITests/NavigationProfileTests (yeni) 11 test durumu
+```
+
+- Saat dilimi ortamı (`customerTimeZone`) eskiden yalnız Ana sayfa yığınındaydı; sohbet artık ayrı yığında olduğu için `MainTabView`'a
+  taşındı (yoksa sohbetten açılan işlem detayında saat yanlış dilimde görünürdü).
+- Bilinmeyen saat dilimi adı farksız, olduğu gibi yazılır; sürüm anahtarlarından biri eksikse satır gizlenir (uydurma değer yok).
+
+Doğrulama: iOS 360 → 371 test durumu, 0 kırmızı. 5 kasıtlı bozma (sekme sırası, sürüm parçalarının yer değiştirmesi, farkın işareti,
+yaz saatinin yok sayılması, profilin saklanmaması) hepsi yakalandı. Sekme geçişi ve K5-B görünüm katmanında; birim testi değil
+simülatör.
+Simülatör (Murat, API demo anıyla; AI servisi kapalı): dört sekme cam çubukta; kart Analiz'e, daire Profil'e geçirir; Profil satırları
+`CUST-6722`, `Europe/Istanbul · GMT+03:00`, `1.0 (1)`; Asistan sekmesinde kapalı bandı ve giriş kapsülü çubuğun üstünde. Üç görünüm
+hatası bulundu ve düzeltildi: (1) Çıkış beyazdı (düğme stili yazı rengini eziyordu; renk yazının kendisinde); (2) onay iOS 26'da
+sayfanın tepesinde balon olarak çıkıyordu (onay sayfaya bağlıydı; düğmeye bağlandı, balon düğmeyi gösterir; "Vazgeç" bu biçimde
+dışarı dokunmaktır); (3) en büyük yazıda sürüm kartı daralıyor, Çıkış çubuğa yapışıyordu (kartlar tam genişlik, altta boşluk).
+K5-B'nin "cevap beklerken sekme değiş" davranışı modelle denenmedi (AI servisi kapalıydı).
+Sınırlar: açık sekmeye yeniden dokununca yığının başına dönme yok; cevap gelince sekme rozeti yok (K5-C seçilmedi); Profil yalnız
+gösterir.

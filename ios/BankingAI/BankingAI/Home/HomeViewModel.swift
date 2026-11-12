@@ -1,7 +1,7 @@
 import Foundation
 import Observation
 
-/// The signed-in home screen: who is signed in, and signing out.
+/// Who is signed in, for the home header and the profile tab, and signing out.
 @Observable
 final class HomeViewModel {
     private(set) var greeting: String?
@@ -9,6 +9,8 @@ final class HomeViewModel {
     private(set) var initials: String?
     /// The customer's own IANA time zone from `GET /api/me`; the detail screen shows times in it.
     private(set) var timeZone: TimeZone?
+    /// The whole `GET /api/me` answer; the profile tab reads it from here instead of asking again (UI-07).
+    private(set) var profile: MeResponse?
     private(set) var errorMessage: String?
     @ObservationIgnored private let api: APIClient
     @ObservationIgnored private let session: SessionStore
@@ -22,6 +24,7 @@ final class HomeViewModel {
         errorMessage = nil
         do {
             let me = try await api.send(.me)
+            profile = me
             greeting = "Merhaba, \(me.firstName)!"
             initials = HomeDisplay.initials(first: me.firstName, last: me.lastName)
             timeZone = TimeZone(identifier: me.timeZone)

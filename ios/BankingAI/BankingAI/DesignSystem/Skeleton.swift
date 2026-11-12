@@ -28,6 +28,10 @@ enum Skeleton {
         groups: zip(SpendingGroup.allCases, [30, 15, 5] as [Decimal]).map { GroupSpending(group: $0, amount: 100, incomeShare: $1) },
         advice: [], reason: .noRuleMatched)
 
+    /// The profile while `GET /api/me` loads (UI-07): the real rows' shape, no real person.
+    static let profile = MeResponse(username: "kullanici", customerNumber: "C-0000", firstName: "Ad", lastName: "Soyad",
+                                    preferredCurrency: "TRY", timeZone: "Europe/Istanbul")
+
     /// Fixed bar heights of the placeholder chart, as parts of its height: a shape, not data.
     static let barHeights: [Double] = [0.45, 0.7, 0.55, 0.85, 0.6, 0.75, 0.35]
 

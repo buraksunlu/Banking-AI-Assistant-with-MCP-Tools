@@ -17,9 +17,12 @@ xcodebuild -project ios/BankingAI/BankingAI.xcodeproj -scheme BankingAI -destina
 iOS kuralları: `View → @Observable ViewModel → APIClient → URLSession`; View'da ağ kodu yok, kütüphane yok. Proje "eşitlenen klasör"
 kullanır: `ios/BankingAI/BankingAI/` altına eklenen dosya projeye kendiliğinden girer, `project.pbxproj` elle düzenlenmez. Kod varsayılan
 olarak `MainActor` (Xcode 26 ayarı). Token yalnız Keychain'de; token'lı çağrıda 401 → oturum kapanır (giriş çağrısında değil).
-Testlerde ağ `MockURLProtocol` ile, test başına ayrı uydurma sunucu adıyla (paralel güvenli). Sohbet (AI-08): `ChatViewModel` ana
-ekranın `@State`'inde yaşar (geçmiş yalnız bellekte, çıkışta silinir); yalnız sohbet isteği 40 sn bekler (30 → 35 → 40); 503 bant + kapalı
-giriş, diğer hatalar balonda "Tekrar dene" (aynı balon); Durdur ve ekrandan çıkış isteği iptal eder. Öneriler (CHAT-06): `suggestions` son cevabın altında, gönderince boşalır; boş sohbette
+Testlerde ağ `MockURLProtocol` ile, test başına ayrı uydurma sunucu adıyla (paralel güvenli). Gezinme (UI-07): giriş sonrası `App/MainTabView` (sistem `TabView`, sekmeler `AppTab`: Ana sayfa · Analiz · Asistan · Profil, her
+sekme kendi `NavigationStack`'inde); bütün ekran modelleri orada yaşar, saat dilimi ortamı (`customerTimeZone`) orada bütün sekmelere
+verilir; bir ekran tek yerde açılır (Ana sayfadaki kart ve daire sekmeye geçirir, aynı ekranı push etmez). Profil `HomeViewModel.profile`'ı
+okur (ikinci `/api/me` yok), Çıkış onaylıdır. Sohbet (AI-08): `ChatViewModel` `MainTabView`'ın
+`@State`'inde yaşar (geçmiş yalnız bellekte, çıkışta silinir); yalnız sohbet isteği 40 sn bekler (30 → 35 → 40); 503 bant + kapalı
+giriş, diğer hatalar balonda "Tekrar dene" (aynı balon); Durdur ve uygulamanın arka plana geçmesi isteği iptal eder; sekme değişimi etmez (UI-07 K5-B). Öneriler (CHAT-06): `suggestions` son cevabın altında, gönderince boşalır; boş sohbette
 `open()` başlangıç sorularını ister (hata/boş → `ChatViewModel.examples`). Seçenekler (CHAT-10 PR3): geri sorunun `choices`'u son cevabın altında tek
 kart (`Chat/ChoiceList`), dokununca yalnız etiket gider (ekranda Türkçe baş harf, gönderilen değişmez); kartın SwiftUI kimliği soruya bağlı
 (sabit kimlik eski satırları tutar); tutar sorusunda son satır `inputHint`, dokununca yazı alanına odaklanır (mesaj göndermez); gönderimde ve hatada boşalır, seçenekli cevapta öneri gösterilmez; `choices` alanı zorunlu

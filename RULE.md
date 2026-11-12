@@ -1378,6 +1378,11 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Alt sekme çubuğu ve Profil (UI-07, 12 Kasım 2026; docs/ios.md "iOS-u"): giriş sonrası dört sekme (Ana sayfa · Analiz ·
+  Asistan · Profil), sistem TabView'i, her sekmenin kendi yığını; ViewModel'ler MainTabView'da (sekme değişince sohbet ve grafik
+  korunur, çıkışta silinir). "Bu ay harcama" kartı ve baş harf dairesi sekmeye geçirir, "Asistana sor" kapsülü kalktı; sekme
+  değişince bekleyen soru durmaz (K5-B). Profil `/api/me`'den (ikinci istek yok), saat dilimi ad + o günün GMT farkı, sürüm, onaylı
+  Çıkış. Backend değişmedi. iOS 371 test durumu. Arayüz serisi (UI-01–07) tamam.
 - Dokunulabilir seçenekler, iPhone (CHAT-10 PR3b, 12 Kasım 2026; docs/ios.md "iOS-t"): geri sorunun seçenekleri son cevabın altında
   tek kart (ince çizgili satırlar, Türkçe baş harf, vurgu oku), dokununca etiket gider; satırlar gönderimde ve hatada kaybolur,
   seçenekli cevapta öneri çipi yok; `choices` zorunlu, bozuk seçenek cevabı düşürür; her sorunun kartı kendi kimliğinde (sabit kimlik
