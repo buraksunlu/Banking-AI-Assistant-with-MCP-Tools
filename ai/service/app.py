@@ -22,7 +22,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
 from answer_check import AnswerRejected
-from contracts import (ChatRequest, ChatResponse, ExplanationRequest, ExplanationResponse, HealthResponse, SuggestionsResponse,
+from contracts import (ChatRequest, ChatResponse, ChoiceOut, ExplanationRequest, ExplanationResponse, HealthResponse, SuggestionsResponse,
                        ToolCallOut)
 from chat import (ChatService, LangChainClarificationWriter, LangChainDateInterpreter, LangChainIntentClassifier,
                   LangChainToolSelector)
@@ -156,7 +156,8 @@ def create_app(
         return ChatResponse(
             type=reply.type, answer=reply.answer,
             tool_calls=[ToolCallOut(tool=c.tool, arguments={k: _as_text(v) for k, v in c.arguments.items()}) for c in reply.tool_calls],
-            facts=reply.facts, suggestions=reply.suggestions, model=request.app.state.settings.model)
+            facts=reply.facts, suggestions=reply.suggestions,
+            choices=[ChoiceOut(label=c.label, detail=c.detail) for c in reply.choices], model=request.app.state.settings.model)
 
     @app.get("/v1/suggestions", response_model=SuggestionsResponse)
     def suggestions(

@@ -14,7 +14,7 @@ from dataclasses import dataclass, replace
 from answer_check import FORBIDDEN_MENTIONS, fold_rule, fold_turkish
 
 from formatting import MONTH_NAMES
-from grounding import amounts_in, json_number, unclear_amounts, count_in, currency_in, percent_in, period_in
+from grounding import amounts_in, json_number, unclear_amounts, count_in, currency_in, percent_in, period_in, periods_in
 from memory import TokenMemory
 
 # The periods offered when the user named none; any other tool period in the reply counts too (grounding.period_in).
@@ -28,6 +28,10 @@ CURRENCY_OPTIONS = (("TL", "TRY"), ("Euro", "EUR"), ("Dolar", "USD"), ("Sterlin"
 MONTHLY_SAVING = "what_if_monthly"
 # Examples for a cut, not numbered: "20" then means 20 %, not an option.
 PERCENT_EXAMPLES = (10, 25, 50)
+# CHAT-10 P1-D: the amount examples are tappable too. A budget's carries "TL", so one tap also answers the currency asked next;
+# the monthly saving is lira only (CHAT-09 K6-B).
+BUDGET_EXAMPLES = (1000, 3000, 5000)
+MONTHLY_EXAMPLES = (500, 1000, 2000)
 # CHAT-09 K17-C, K19-C: the two "what if" scenarios and the two planning calculations, as the user is offered them. No spending
 # word among the one-off's: "Dün ne harcadım?" after the question is a new question, not the one-off.
 CHOICE_KINDS = ("scenario", "topic")
@@ -65,6 +69,14 @@ TOPICS = (
 
 
 @dataclass(frozen=True)
+class Choice:
+    """One option as the app shows it under the question (CHAT-10 K4-A); tapping it sends ``label`` as the reply (K6-A)."""
+
+    label: str
+    detail: str = ""
+
+
+@dataclass(frozen=True)
 class Pending:
     """A tool call waiting for one argument: ``arguments`` holds the rest, ``kind`` is "period", "count", "merchant",
     "amount", "currency" or "percent"; ``later`` names the figures to ask once this one is answered (MCP-17)."""
@@ -83,13 +95,8 @@ class Pending:
     # ``original``; the reply is added to it and the whole is a new question (K12-C). ``note`` says why a date was refused.
     original: str = ""
     note: str = ""
-    # INC-03 K15-A: words added after the numbered choices ("or write a month's name").
+    # INC-03 K15-A: words added after the question ("or write a month's name").
     hint: str = ""
-
-    @property
-    def numbered(self) -> bool:
-        """Periods, merchants and currencies are numbered choices; counts, amounts and cuts are examples."""
-        return self.kind in ("period", "merchant", "currency", *CHOICE_KINDS)
 
     @property
     def model_worded(self) -> bool:
@@ -127,9 +134,11 @@ def ask_merchant(tool: str, arguments: dict, asked: str, candidates: list[str], 
 
 
 def ask_amount(tool: str, arguments: dict, question: str, later: tuple[str, ...] = ()) -> Pending:
-    """The question for a budget amount the user did not write (MCP-17 K3-A)."""
+    """The question for a budget amount the user did not write (MCP-17 K3-A), or a monthly saving's (INC-03)."""
     rest = {k: v for k, v in arguments.items() if k != "amount"}
-    return Pending(tool, rest, "amount", "amount", (), question, later=later)
+    examples = MONTHLY_EXAMPLES if tool == MONTHLY_SAVING else BUDGET_EXAMPLES
+    options = tuple(Option(f"{n:,} TL".replace(",", "."), n) for n in examples)
+    return Pending(tool, rest, "amount", "amount", options, question, later=later)
 
 
 def ask_currency(tool: str, arguments: dict, question: str, later: tuple[str, ...] = ()) -> Pending:
@@ -160,6 +169,11 @@ def ask_scenario(question: str) -> Pending:
 def ask_topic(question: str) -> Pending:
     """Which planning calculation the user meant (CHAT-09 K19-C)."""
     return Pending("", {}, "tool", "topic", TOPICS, question, original=question)
+
+
+def choices(pending: Pending) -> list[Choice]:
+    """The options the app shows as rows under the question (CHAT-10 K4-A); every question has them, examples too (P1-D)."""
+    return [Choice(o.label, o.detail) for o in pending.options]
 
 
 def chosen_tool(pending: Pending, reply: str) -> str | None:
@@ -201,50 +215,51 @@ def resolve(pending: Pending, reply: str) -> dict | None:
 
 
 def template(pending: Pending) -> str:
-    """The fixed question: what the user sees when the model's wording is not used."""
-    if pending.kind == "count":
-        numbers = [str(o.value) for o in pending.options]
-        return f"Kaç aylık bakayım? Örneğin son {', '.join(numbers[:-1])} ya da {numbers[-1]} ay."
+    """The fixed question: what the user sees when the model's wording is not used. Only the question (CHAT-10 K5-B, P3-A): the
+    options are the rows under it, so listing them here would show them twice."""
     note = f"{pending.note} " if pending.note else ""
+    if pending.kind == "count":
+        return "Kaç aylık bakayım?"
     if pending.kind == "amount" and pending.tool == MONTHLY_SAVING:
         # CHAT-09 K6-B: the question says the currency, so a bare "5000" answers it whole.
-        return f"{note}Ayda kaç TL biriktirirdiniz? Örneğin 1.000."
+        return f"{note}Ayda kaç TL biriktirirdiniz?"
     if pending.kind == "amount":
-        return f"{note}Bütçeniz ne kadar? Örneğin 3.000 TL."
+        return f"{note}Bütçeniz ne kadar?"
     if pending.kind == "percent":
-        labels = [o.label for o in pending.options]
-        return f"Ne kadar azaltmayı düşünüyorsunuz? Örneğin {', '.join(labels[:-1])} ya da {labels[-1]}."
+        return "Ne kadar azaltmayı düşünüyorsunuz?"
     if pending.kind in CHOICE_KINDS:
-        both = " ".join(f"{n}) {o.label} ({o.detail})" for n, o in enumerate(pending.options, start=1))
-        return f"Bunu iki şekilde hesaplayabilirim: {both}. Hangisini istersiniz?"
-    choices = " ".join(f"{n}) {o.label}" for n, o in enumerate(pending.options, start=1))
+        return "Bunu iki şekilde hesaplayabilirim. Hangisini istersiniz?"
     if pending.kind == "merchant":
-        return f"‘{pending.asked}’ birden fazla işyeriyle eşleşti: {choices}. Hangisini kastettiniz?"
+        return f"‘{pending.asked}’ birden fazla işyeriyle eşleşti. Hangisini kastettiniz?"
     if pending.kind == "currency":
-        return f"Bütçeniz hangi para biriminde? {choices}"
-    return f"{pending.note + ' ' if pending.note else ''}Hangi dönem için? {choices}{' ' + pending.hint if pending.hint else ''}"
+        return "Bütçeniz hangi para biriminde?"
+    return f"{note}Hangi dönem için?{' ' + pending.hint if pending.hint else ''}"
 
 
 def check_question(text: str, pending: Pending) -> bool:
-    """True when a written question asks, names every option and adds no other number, choice or figure."""
+    """True when a written question asks and adds no choice, number or figure of its own. CHAT-10 K5-B: the options are the
+    rows under it, so it need not name them; a numbered list would show them twice, so the option numbers are not allowed."""
     # It must ask: in the CHAT-03 trial the model sometimes wrote only the list, or a statement without a question.
     if not text.strip() or len(text) > 400 or "?" not in text:
         return False
     folded = fold_turkish(text)
     if any(word in folded for word in FORBIDDEN_MENTIONS):
         return False
-    # A count's examples may be written together ("son 3, 6 ya da 12 ay"), so for counts the number itself must be there.
-    if pending.kind == "count":
-        if any(not re.search(rf"\b{o.value}\b", text) for o in pending.options):
-            return False
-    elif pending.kind in CHOICE_KINDS:
-        # K20-B: an option counts as named by its label or any of its words, so the question may follow the user's phrasing.
-        if any(fold_turkish(o.label) not in folded and not o.words.search(folded) for o in pending.options):
-            return False
-    elif any(fold_turkish(o.label) not in folded for o in pending.options):
+    # A list under the question (lines, "- ", "; ") would show the rows twice; inline "bu ay mı, geçen ay mı?" is a sentence.
+    if re.search(r"\n|;|(?:^|\s)[-•*]\s", text.strip()):
         return False
-    # Every number must be an option's number, part of an option, or the user's own (a choice or a figure cannot be added).
-    allowed = {str(n) for n in range(1, len(pending.options) + 1)} if pending.numbered else set()
+    # The clarify-v3 trial asked "Hangi şehir için …?" for ‘şehir’: a merchant question must say it is about a merchant.
+    if pending.kind == "merchant" and "isyer" not in folded:
+        return False
+    # Naming some options and not the others leans the user to one ("Bir kerede mi hesaplayayım?"); naming none is fine.
+    named = [_named(o, folded, pending.kind) for o in pending.options]
+    if any(named) and not all(named):
+        return False
+    # A period the rows do not offer would be a choice the tap cannot make ("bu hafta mı?" under bu ay / geçen ay / son 3 ay).
+    if pending.kind == "period" and not set(periods_in(text)) <= {o.value for o in pending.options}:
+        return False
+    # Every number must be part of an option or the user's own: no figure and no "1) 2)" list can be added.
+    allowed = set()
     for source in (*(o.label for o in pending.options), *(o.detail for o in pending.options), pending.asked, pending.question):
         allowed.update(re.findall(r"\d+", source))
     return set(re.findall(r"\d+", text)) <= allowed
@@ -268,6 +283,11 @@ class PendingStore:
         """Gives back a question whose reply failed to be answered (CHAT-10 K10-A), unless the turn already asked a new one."""
         if self._memory.get(token) is None:
             self._memory.put(token, pending)
+
+
+def _named(option: Option, folded: str, kind: str) -> bool:
+    # CHAT-09 K20-B: a calculation counts as named by its label or any of its words, so the question may follow the user.
+    return fold_turkish(option.label) in folded or (kind in CHOICE_KINDS and option.words.search(folded) is not None)
 
 
 def _value(pending: Pending, reply: str) -> str | int | float | None:

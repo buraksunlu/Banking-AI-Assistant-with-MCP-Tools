@@ -4,6 +4,7 @@ from decimal import Decimal
 import pytest
 
 from chat import ChatReply, ChatService, ToolCall
+from clarification import SCENARIOS, TOPICS, Choice
 from contracts import Fact
 from ollama_client import OllamaSettings, OllamaTimeout, OllamaUnavailable, Readiness, check_ready
 from prompts import CLARIFY_TEXT, OUT_OF_SCOPE_TEXT
@@ -228,15 +229,29 @@ CITY_SIX_MONTHS = {"period": {"kind": "Last6Months", "startDate": "2026-04-10", 
 LAST_MONTH = {"period": {"kind": "LastMonth", "startDate": "2026-09-01", "endDate": "2026-09-30"},
               "currencies": [{"currencyCode": "TRY", "totalAmount": Decimal("624.98"), "transactionCount": 4,
                               "uncategorizedAmount": Decimal("0.00"), "uncategorizedCount": 0}]}
-PERIOD_QUESTION = "Hangi dönem için? 1) bu ay 2) geçen ay 3) son 3 ay"
+PERIOD_QUESTION = "Hangi dönem için?"
+
+
+def rows(*labels):
+    """CHAT-10 K4-A: a question's options as the tappable rows the reply carries."""
+    return [Choice(label) for label in labels]
+
+
+PERIOD_CHOICES = rows("bu ay", "geçen ay", "son 3 ay")
+AMOUNT_CHOICES = rows("1.000 TL", "3.000 TL", "5.000 TL")
+MONTHLY_CHOICES = rows("500 TL", "1.000 TL", "2.000 TL")
+CURRENCY_CHOICES = rows("TL", "Euro", "Dolar", "Sterlin")
+PERCENT_CHOICES = rows("%10", "%25", "%50")
+SCENARIO_CHOICES = [Choice(o.label, o.detail) for o in SCENARIOS]
+TOPIC_CHOICES = [Choice(o.label, o.detail) for o in TOPICS]
 
 
 class FakeWriter:
     def __init__(self, text=None, error=None):
         self.text, self.error, self.calls = text, error, []
 
-    def write(self, question, kind, options, numbered, deadline, asked=""):
-        self.calls.append((question, kind, options, numbered, deadline, asked))
+    def write(self, question, kind, options, deadline, asked=""):
+        self.calls.append((question, kind, options, deadline, asked))
         if self.error:
             raise self.error
         return self.text
@@ -247,7 +262,7 @@ def test_a_guessed_period_is_asked_back_and_nothing_runs():
 
     reply = chat.answer("Ne kadar harcadım?", TOKEN)
 
-    assert reply == ChatReply("clarification", PERIOD_QUESTION, [], [])
+    assert reply == ChatReply("clarification", PERIOD_QUESTION, [], [], choices=PERIOD_CHOICES)
     assert gateway.calls == [] and explainer.calls == []
 
 
@@ -276,7 +291,8 @@ def test_a_merchant_choice_keeps_the_period_of_the_question():
     asked = chat.answer("Son 6 ayda şehir'e ne kadar harcadım?", TOKEN)
     reply = chat.answer("1", TOKEN)
 
-    assert asked.answer == "‘şehir’ birden fazla işyeriyle eşleşti: 1) Şehir Ulaşım 2) Şehirlerarası Otobüs. Hangisini kastettiniz?"
+    assert asked.answer == "‘şehir’ birden fazla işyeriyle eşleşti. Hangisini kastettiniz?"
+    assert asked.choices == rows("Şehir Ulaşım", "Şehirlerarası Otobüs")
     assert gateway.calls[1][:2] == ("get_merchant_spending", {"period": "Last6Months", "merchant": "Şehir Ulaşım"})
     assert reply.type == "answer"
     assert ("Toplam harcama", "5.600,00 TL") in [(f.label, f.text) for f in explainer.calls[0][1]]
@@ -292,7 +308,8 @@ def test_a_guessed_count_is_asked_and_the_number_completes_it():
     asked = chat.answer("Harcamam aylara göre nasıl değişti?", TOKEN)
     chat.answer("6", TOKEN)
 
-    assert asked.answer == "Kaç aylık bakayım? Örneğin son 3, 6 ya da 12 ay."
+    assert asked.answer == "Kaç aylık bakayım?"
+    assert asked.choices == rows("son 3 ay", "son 6 ay", "son 12 ay")
     assert gateway.calls[0][:2] == ("get_monthly_trend", {"months": 6})
 
 
@@ -327,19 +344,19 @@ def test_a_waiting_question_belongs_to_its_token_only():
     assert [c[0] for c in selector.calls] == ["Ne kadar harcadım?", "geçen ay"]
 
 
-def test_a_written_question_is_shown_when_it_names_exactly_the_options():
-    writer = FakeWriter("Hangi döneme ait harcamaları öğrenmek istiyorsunuz?\n1. Bu ay\n2. Geçen ay\n3. Son 3 ay")
+def test_a_written_question_is_shown_with_the_options_as_rows():
+    writer = FakeWriter("Hangi döneme ait harcamaları öğrenmek istiyorsunuz?")
     chat, *_ = service([ToolCall("get_spending_summary", {"period": "ThisMonth"})], writer=writer)
 
     reply = chat.answer("Ne kadar harcadım?", TOKEN)
 
-    assert reply.answer == writer.text
+    assert (reply.answer, reply.choices) == (writer.text, PERIOD_CHOICES)
     # At most 8 s for the wording (2 s of selection passed): the fixed question is better than a long wait.
-    assert writer.calls == [("Ne kadar harcadım?", "period", ["bu ay", "geçen ay", "son 3 ay"], True, 10.0, "")]
+    assert writer.calls == [("Ne kadar harcadım?", "period", ["bu ay", "geçen ay", "son 3 ay"], 10.0, "")]
 
 
 @pytest.mark.parametrize("writer", [
-    FakeWriter("Hangi dönem? 1) bu ay 2) geçen ay"),                              # an option left out
+    FakeWriter("Hangi dönem? 1) bu ay 2) geçen ay 3) son 3 ay"),                  # the rows again as a list (K5-B)
     FakeWriter("Bu ay 735,00 TL harcadınız; başka dönem? 1) bu ay 2) geçen ay 3) son 3 ay"),  # an invented figure
     FakeWriter(error=OllamaTimeout("slow")),
     FakeWriter(error=OllamaUnavailable("down")),
@@ -349,11 +366,11 @@ def test_otherwise_the_fixed_question_is_shown(writer):
 
     reply = chat.answer("Ne kadar harcadım?", TOKEN)
 
-    assert (reply.type, reply.answer) == ("clarification", PERIOD_QUESTION)
+    assert (reply.type, reply.answer, reply.choices) == ("clarification", PERIOD_QUESTION, PERIOD_CHOICES)
 
 
 def test_the_choice_is_matched_against_the_stored_options_whatever_the_model_wrote():
-    writer = FakeWriter("Hangi işyerini kastettiniz? 1. Şehir Ulaşım 2. Şehirlerarası Otobüs")
+    writer = FakeWriter("Hangi işyerini kastettiniz?")
     gateway = FakeGateway([AMBIGUOUS_CITY, CITY_SIX_MONTHS])
     call = ToolCall("get_merchant_spending", {"merchant": "şehir", "period": "Last6Months"})
     chat, selector, gateway, explainer = service([call], gateway=gateway, writer=writer)
@@ -361,7 +378,7 @@ def test_the_choice_is_matched_against_the_stored_options_whatever_the_model_wro
     chat.answer("Son 6 ayda şehir'e ne kadar harcadım?", TOKEN)
     chat.answer("ikincisi", TOKEN)
 
-    assert writer.calls[0][5] == "şehir"  # the model is told which words matched several merchants
+    assert writer.calls[0][4] == "şehir"  # the model is told which words matched several merchants
     assert gateway.calls[1][1] == {"period": "Last6Months", "merchant": "Şehirlerarası Otobüs"}
 
 
@@ -370,14 +387,14 @@ def test_the_writer_asks_the_model_for_one_short_question():
     from prompts import build_clarify_messages
     from test_explainer import FakeOllamaStream, chunk, final
 
-    with FakeOllamaStream([chunk("Hangi dönem? "), chunk("1) bu ay 2) geçen ay 3) son 3 ay\n"), final()]) as fake:
+    with FakeOllamaStream([chunk("Hangi dönemi "), chunk("görmek istersiniz?\n"), final()]) as fake:
         writer = LangChainClarificationWriter(OllamaSettings(fake.url, "qwen3.5:4b", 5.0))
-        text = writer.write("Ne kadar harcadım?", "period", ["bu ay", "geçen ay", "son 3 ay"], True, writer.clock() + 5.0)
+        text = writer.write("Ne kadar harcadım?", "period", ["bu ay", "geçen ay", "son 3 ay"], writer.clock() + 5.0)
 
-    assert text == "Hangi dönem? 1) bu ay 2) geçen ay 3) son 3 ay"
+    assert text == "Hangi dönemi görmek istersiniz?"
     body = fake.requests[0][1]
     assert (body["options"]["num_predict"], body["keep_alive"], body["think"]) == (MAX_QUESTION_TOKENS, "30m", False)
-    expected = build_clarify_messages("Ne kadar harcadım?", "period", ["bu ay", "geçen ay", "son 3 ay"], numbered=True)
+    expected = build_clarify_messages("Ne kadar harcadım?", "period", ["bu ay", "geçen ay", "son 3 ay"])
     assert [{"role": m["role"], "content": m["content"]} for m in body["messages"]] == expected
 
 
@@ -456,7 +473,7 @@ def test_an_argument_neither_said_nor_carried_over_is_asked_back():
     chat.answer("Geçen ay Starbucks'a ne kadar harcadım?", TOKEN)
     reply = chat.answer("Peki Kahve Durağı'na?", TOKEN)
 
-    assert (reply.type, reply.answer) == ("clarification", PERIOD_QUESTION)
+    assert (reply.type, reply.answer, reply.choices) == ("clarification", PERIOD_QUESTION, PERIOD_CHOICES)
     assert len(gateway.calls) == 1
 
 
@@ -537,8 +554,8 @@ SAVINGS_RESULT = {"from": "2026-04-01", "to": "2026-09-30", "months": 6, "reduct
                   "categoryDisplayName": None, "merchantMatch": {"status": "Matched", "merchant": "Starbucks", "isPartialMatch": False,
                                                                  "candidates": []},
                   "method": "FullMonthAverageTimesReduction", "currencies": []}
-AMOUNT_QUESTION = "Bütçeniz ne kadar? Örneğin 3.000 TL."
-CURRENCY_QUESTION = "Bütçeniz hangi para biriminde? 1) TL 2) Euro 3) Dolar 4) Sterlin"
+AMOUNT_QUESTION = "Bütçeniz ne kadar?"
+CURRENCY_QUESTION = "Bütçeniz hangi para biriminde?"
 
 
 def test_a_budget_in_the_users_words_runs():
@@ -557,7 +574,7 @@ def test_a_misread_amount_is_asked_with_the_fixed_question_and_nothing_runs():
 
     reply = chat.answer("Bu ay 1.000 TL bütçem var, ne durumdayım?", TOKEN)
 
-    assert reply == ChatReply("clarification", AMOUNT_QUESTION, [], [])
+    assert reply == ChatReply("clarification", AMOUNT_QUESTION, [], [], choices=AMOUNT_CHOICES)
     # A figure question is never worded by the model: it could suggest an amount (K3-A).
     assert writer.calls == [] and gateway.calls == []
 
@@ -595,7 +612,7 @@ def test_a_guessed_cut_is_asked_and_the_reply_completes_it():
     asked = chat.answer("Starbucks harcamamı biraz azaltsam ne kazanırım?", TOKEN)
     chat.answer("%30", TOKEN)
 
-    assert asked.answer == "Ne kadar azaltmayı düşünüyorsunuz? Örneğin %10, %25 ya da %50."
+    assert (asked.answer, asked.choices) == ("Ne kadar azaltmayı düşünüyorsunuz?", PERCENT_CHOICES)
     assert gateway.calls[0][:2] == ("simulate_savings", {"merchant": "Starbucks", "reductionPercent": 30})
 
 

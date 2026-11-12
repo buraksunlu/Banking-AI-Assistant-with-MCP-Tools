@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from answer_check import AnswerRejected
 from app import create_app, get_chat_service, get_explainer, get_readiness, get_starter_questions, get_tools_ready
+from clarification import Choice
 from chat import ChatReply, ChatService, LangChainClarificationWriter, LangChainToolSelector, ToolCall
 from contracts import Fact
 from dates import CustomerDay
@@ -310,6 +311,7 @@ def test_chat_returns_the_reply_in_the_agreed_shape():
         "toolCalls": [{"tool": "get_spending_summary", "arguments": {"period": "Yesterday"}}],
         "facts": [{"label": "Dönem", "text": "9 Ekim 2026"}, {"label": "Toplam harcama", "text": "145,00 TL"}],
         "suggestions": [],
+        "choices": [],
         "model": "qwen3.5:4b",
     }
     assert fake.calls == [("Dün ne harcadım?", "abc")]
@@ -329,6 +331,18 @@ def test_chat_returns_the_offered_follow_ups():
     response = chat_client(FakeChat(reply)).post("/v1/chat", json={"message": "Dün?", **DAY}, headers={"Authorization": "Bearer abc"})
 
     assert response.json()["suggestions"] == ["Kategorilere göre?", "Peki işyerlerine göre?"]
+
+
+def test_chat_returns_a_questions_options_as_choices():
+    # CHAT-10 K4-A: every choice has both fields, detail empty when the label says it alone (P5-A).
+    reply = ChatReply("clarification", "Bunu iki şekilde hesaplayabilirim. Hangisini istersiniz?", [], [],
+                      choices=[Choice("tek seferlik", "bir dönemdeki harcamanızla"), Choice("aylık birikim", "")])
+
+    response = chat_client(FakeChat(reply)).post("/v1/chat", json={"message": "Dolar alsaydım?", **DAY},
+                                                 headers={"Authorization": "Bearer abc"})
+
+    assert response.json()["choices"] == [{"label": "tek seferlik", "detail": "bir dönemdeki harcamanızla"},
+                                          {"label": "aylık birikim", "detail": ""}]
 
 
 

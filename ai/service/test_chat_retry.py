@@ -11,7 +11,7 @@ from answer_check import AnswerRejected
 from chat import ChatReply, ToolCall
 from prompts import BARE_CHOICE_TEXT
 from routing import Router
-from test_chat import (AMOUNT_QUESTION, BUDGET_RESULT, CURRENCY_QUESTION, SUMMARY_YESTERDAY, TOKEN, YESTERDAY_TWO, YESTERDAY_CATEGORIES,
+from test_chat import (AMOUNT_CHOICES, AMOUNT_QUESTION, CURRENCY_CHOICES, BUDGET_RESULT, CURRENCY_QUESTION, SUMMARY_YESTERDAY, TOKEN, YESTERDAY_TWO, YESTERDAY_CATEGORIES,
                        FakeExplainer, FakeGateway, service)
 from test_chat_wealth import DAY
 from test_clarification import TOPIC_TEXT
@@ -56,7 +56,7 @@ def test_the_trial_reads_5k_as_five_thousand():
     asked = chat.answer("5k", TOKEN, DAY)
     reply = chat.answer("1", TOKEN, DAY)
 
-    assert asked == ChatReply("clarification", CURRENCY_QUESTION, [], [])
+    assert asked == ChatReply("clarification", CURRENCY_QUESTION, [], [], choices=CURRENCY_CHOICES)
     assert reply.type == "answer"
     assert gateway.calls[0][:2] == ("check_budget", {"amount": 5000, "currencyCode": "TRY"})
 
@@ -132,7 +132,7 @@ def test_an_amount_reply_the_code_cannot_read_is_asked_again():
     again = chat.answer("5x", TOKEN, DAY)
     chat.answer("5000 TL", TOKEN, DAY)
 
-    assert again == ChatReply("clarification", "‘5x’ tutarını anlayamadım. " + AMOUNT_QUESTION, [], [])
+    assert again == ChatReply("clarification", "‘5x’ tutarını anlayamadım. " + AMOUNT_QUESTION, [], [], choices=AMOUNT_CHOICES)
     assert gateway.calls[0][:2] == ("check_budget", {"amount": 5000, "currencyCode": "TRY"})
 
 
@@ -143,4 +143,4 @@ def test_a_question_with_an_amount_the_code_cannot_read_asks_the_amount():
 
     reply = chat.answer("Bu ay 5x TL bütçemi aşar mıyım?", TOKEN)
 
-    assert reply == ChatReply("clarification", AMOUNT_QUESTION, [], []) and gateway.calls == []
+    assert reply == ChatReply("clarification", AMOUNT_QUESTION, [], [], choices=AMOUNT_CHOICES) and gateway.calls == []

@@ -161,18 +161,21 @@ def build_intent_messages(message: str) -> list[dict]:
     return [{"role": "system", "content": INTENT_SYSTEM_PROMPT}, {"role": "user", "content": _neutralize(message)}]
 
 
-CLARIFY_PROMPT_VERSION = "clarify-v2"
+CLARIFY_PROMPT_VERSION = "clarify-v3"
 
 # CHAT-03 K4-B: the model only words the question; the options come from the backend or a fixed list, and the code checks
-# the result (clarification.check_question) before it is shown, else the fixed question is.
+# the result (clarification.check_question) before it is shown, else the fixed question is. CHAT-10 K5-B (clarify-v3): the
+# options are rows under the question, so the model writes the question alone; it still sees them, to word it to fit.
 CLARIFY_SYSTEM_PROMPT = ("Sen bir bankacılık harcama asistanısın. Kullanıcının sorusunu cevaplamak için bir bilgi eksik. Kullanıcıya "
-                         "kısa ve kibar bir geri soru yaz; 'siz' diye hitap et. Seçenek olarak YALNIZ verilen seçenekleri, verilen "
-                         "yazımla yaz; başka seçenek ekleme, hiçbirini atlama. Rakam, tutar ya da cevap verme.")
+                         "kısa ve kibar tek bir geri soru cümlesi yaz; 'siz' diye hitap et. Verilen seçenekler sorunun altında "
+                         "dokunulabilir satırlar olarak ayrıca gösterilecek: onları listeleme ve numaralandırma, başka seçenek "
+                         "önerme. Rakam, tutar ya da cevap verme.")
 # What is missing, said as a fact about the question: a bare label ("Eksik bilgi: hangi işyeri") was copied into the
 # question word for word in the CHAT-03 trial.
 _SITUATION = {"period": "Kullanıcı hangi dönemi sorduğunu söylemedi.",
               "count": "Kullanıcı kaç aylık bir dönem istediğini söylemedi.",
-              "merchant": "Kullanıcının yazdığı ‘{asked}’ adı birden fazla işyerine uyuyor; hangisini kastettiğini sor.",
+              "merchant": ("Kullanıcının yazdığı ‘{asked}’ adı birden fazla işyerine uyuyor; işyeri adlarını yazmadan hangi "
+                           "işyerini kastettiğini sor."),
               # CHAT-09 K20-B (clarify-v2): two calculations fit the question; the model says them the user's way.
               "scenario": ("Kullanıcının sorusu iki şekilde hesaplanabilir. Tek seferlik: bir dönemdeki harcamasıyla o dönemin başında "
                            "bir kerede dolar, euro ya da altın alsaydı. Aylık birikim: son 12 ay boyunca her ay aynı TL tutarını "
@@ -182,10 +185,14 @@ _SITUATION = {"period": "Kullanıcı hangi dönemi sorduğunu söylemedi.",
                         "kullanıcının kendi sözlerine ve konuşma diline uydur.")}
 
 
-def build_clarify_messages(question: str, kind: str, options: list[str], numbered: bool, asked: str = "") -> list[dict]:
+_LISTED_KINDS = ("period", "merchant")
+
+
+def build_clarify_messages(question: str, kind: str, options: list[str], asked: str = "") -> list[dict]:
     """The chat messages for wording one question back: the rules, the user's question, the situation and the options."""
-    how = "Seçenekleri numaralandır." if numbered else "Seçenekleri numaralandırma, örnek olarak yaz."
     situation = _SITUATION[kind].format(asked=_neutralize(asked))
-    content = (f"Kullanıcının sorusu: {_neutralize(question)}\nDurum: {situation}\n"
-               f"Seçenekler: {'; '.join(options)}\n{how}")
+    # The clarify-v3 trial: given the periods or merchants, the model copied them as a list under the question. Only the
+    # wording of a count or of two calculations needs them.
+    shown = f"Altta gösterilecek seçenekler: {'; '.join(options)}\n" if kind not in _LISTED_KINDS else ""
+    content = f"Kullanıcının sorusu: {_neutralize(question)}\nDurum: {situation}\n{shown}Yalnız soru cümlesini yaz."
     return [{"role": "system", "content": CLARIFY_SYSTEM_PROMPT}, {"role": "user", "content": content}]

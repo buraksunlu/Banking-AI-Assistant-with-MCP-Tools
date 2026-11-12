@@ -14,7 +14,7 @@ public sealed class AssistantLinkEndToEndTests
 {
     private static string Reply(string arguments) => $$"""
         {"type":"answer","answer":"x","toolCalls":[{"tool":"get_spending_summary","arguments":{{arguments}}}],
-         "facts":[],"suggestions":[],"model":"m"}
+         "facts":[],"suggestions":[],"choices":[],"model":"m"}
         """;
 
     private static async Task<(int Count, decimal Sum, string Url)> OpenLinkAsync(string reply)

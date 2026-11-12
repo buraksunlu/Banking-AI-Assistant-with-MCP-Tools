@@ -528,6 +528,17 @@ dokunulan öneri model seçmeden 2,9–4,2 sn.
   sonra yazılır), `follow_ups(tool, args, asked, shape)`; `chat._run` bağlar. Ölçüm: O01–O07 + ifade şablonlarında "offered" niyeti (her kalıp ×
   her dönem). Araç seçimi 100/100 → 107/107, ifade 801 → 1097 (0 açık), Python 1181 → 1234 modelsiz; 13 kasıtlı bozma yakalandı. Bilinçli
   değişen eski testler: öneri metinleri, tek işlemli "dün" verisiyle dokunma testleri (`YESTERDAY_TWO`), INC-03 zinciri. Sırada PR3 (K4–K8).
+  **PR3 alt kararları (12 Kasım 2026):** P1-D (her soru dokunulabilir: ay sayısı, yüzde ve tutar örnekleri de; K7-B'nin yerine,
+  kullanıcı kararı), P2-A (`clarify-v3`: model yalnız soru cümlesi), P3-A (metinde numara yok), P4-A (dokununca yalnız etiket),
+  P5-A (`detail` yalnız iki hesap seçiminde), P6-A (hata sonrası satırlar gizli, "Tekrar dene" aynı etiketi gönderir), P7-B (iki PR:
+  PR3a Python + .NET, PR3b iPhone; arka arkaya birleşir, çünkü PR3a'dan sonra metin seçenekleri saymıyor).
+  **PR3a sonucu (12 Kasım 2026, dal `chat-10c-choices`; docs/local-ai.md "Dokunulabilir seçenekler", docs/api.md):**
+  `clarification.Choice` + `choices(pending)`, `ChatReply.choices`, `contracts.ChoiceOut`; `template` yalnız soru; tutar örnekleri
+  (`BUDGET_EXAMPLES`, `MONTHLY_EXAMPLES`); `check_question` seçenek saymaz ama eksik seçenekli, listeli, sunulmayan dönemli, sayılı ve
+  "işyeri" demeyen işyeri sorusunu reddeder; `clarify-v3` dönem/işyeri seçeneklerini modele vermez. .NET `AssistantChoice`, zorunlu
+  `Choices` (eksik/`null` → 502), OpenAPI. Soru yazımı (14 vaka) 13/14 → denetim sıkılaştı 11/14 → prompt düzeltmesi **14/14**.
+  Python 1234 → 1257 modelsiz, Api 569 → 575; 15 kasıtlı bozmanın hepsi yakalandı (Python 12, .NET 3; "sunulmayan dönem" ilk turda yakalanmadı, test eklendi). Bilinçli değişen eski testler: sabit soru metinleri,
+  `ChatReply` eşitlikleri (`choices`), yazıcı imzası (`numbered` kalktı), seçenek sayan yazım denetimi testleri. Sırada PR3b (iPhone).
 
 ## 15d. İçgörü kartları — kullanıcı kararı 17 Ekim 2026
 

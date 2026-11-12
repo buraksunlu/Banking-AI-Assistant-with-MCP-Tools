@@ -29,11 +29,21 @@ public sealed record AssistantToolCall(string Tool, IReadOnlyDictionary<string, 
 public sealed record AssistantFact(string Label, string Text);
 
 /// <summary>
+/// One option of a question back, shown as a tappable row under it (CHAT-10 K4-A). Tapping it sends <c>label</c> as the
+/// next message, exactly as written; the AI service matches it in code, so typing the same words works too (K6-A).
+/// </summary>
+/// <param name="Label">What the row says and what a tap sends, for example <c>geçen ay</c> or <c>1.000 TL</c>.</param>
+/// <param name="Detail">What the option is, for a choice between two calculations; empty when the label says it alone.</param>
+public sealed record AssistantChoice(string Label, string Detail);
+
+/// <summary>
 /// Reply of <c>POST /api/assistant/messages</c>. The figures in <c>answer</c> come from <c>facts</c>, which the
 /// backend computed; the model only chose the tool and wrote the sentence. <c>suggestions</c> are up to three questions
 /// to offer under the reply, from a fixed table (CHAT-06); sent back as written, one runs the call it stands for.
 /// <c>links</c> are the buttons under an answer that open the list of transactions behind its figure (CHAT-07); the
-/// backend builds them from the checked tool calls and the AI service never sees them.
+/// backend builds them from the checked tool calls and the AI service never sees them. <c>choices</c> are a question
+/// back's options as tappable rows (CHAT-10), empty in any other reply; the <c>answer</c> of a question then holds only
+/// the question, not the options.
 /// </summary>
 public sealed record AssistantReply(
     AssistantReplyType Type,
@@ -41,6 +51,7 @@ public sealed record AssistantReply(
     IReadOnlyList<AssistantToolCall> ToolCalls,
     IReadOnlyList<AssistantFact> Facts,
     IReadOnlyList<string> Suggestions,
+    IReadOnlyList<AssistantChoice> Choices,
     IReadOnlyList<AssistantLink> Links);
 
 /// <summary>

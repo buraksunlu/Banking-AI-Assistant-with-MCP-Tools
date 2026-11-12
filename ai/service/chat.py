@@ -23,8 +23,8 @@ from typing import Protocol
 from langchain_ollama import ChatOllama
 
 from answer_check import has_advice, misnamed
-from clarification import (CHOICE_KINDS, MAX_REPLY_WORDS, Pending, PendingStore, ask_amount, ask_amount_again, ask_complete_month, ask_count, ask_currency,
-                           ask_merchant, ask_percent, ask_period, ask_scenario, ask_topic, check_question, chosen_tool,
+from clarification import (CHOICE_KINDS, MAX_REPLY_WORDS, Choice, Pending, PendingStore, ask_amount, ask_amount_again, ask_complete_month, ask_count, ask_currency,
+                           ask_merchant, ask_percent, ask_period, ask_scenario, ask_topic, check_question, choices, chosen_tool,
                            is_bare_choice, resolve, template)
 from contracts import Fact
 from conversation import ConversationStore, LastCall, is_follow_up
@@ -55,13 +55,14 @@ class ToolCall:
 @dataclass(frozen=True)
 class ChatReply:
     """The answer of one turn; ``type`` is "answer", "clarification" or "outOfScope"; ``suggestions`` are the questions to
-    offer under it (CHAT-06)."""
+    offer under it (CHAT-06); ``choices`` are a question's options as tappable rows (CHAT-10 K4-A), empty in any other reply."""
 
     type: str
     answer: str
     tool_calls: list[ToolCall]
     facts: list[Fact]
     suggestions: list[str] = field(default_factory=list)
+    choices: list[Choice] = field(default_factory=list)
 
 
 class ToolSelector(Protocol):
@@ -88,7 +89,7 @@ DATE_SECONDS = 5.0
 class ClarificationWriter(Protocol):
     """Words a question back with the given options (CHAT-03 K4-B)."""
 
-    def write(self, question: str, kind: str, options: list[str], numbered: bool, deadline: float, asked: str = "") -> str: ...
+    def write(self, question: str, kind: str, options: list[str], deadline: float, asked: str = "") -> str: ...
 
 
 class LangChainToolSelector:
@@ -121,9 +122,9 @@ class LangChainClarificationWriter:
         )
         self.clock = time.monotonic
 
-    def write(self, question: str, kind: str, options: list[str], numbered: bool, deadline: float, asked: str = "") -> str:
+    def write(self, question: str, kind: str, options: list[str], deadline: float, asked: str = "") -> str:
         """The question as the model words it (not yet checked); ``asked`` is the merchant text that matched several."""
-        messages = build_clarify_messages(question, kind, options, numbered, asked)
+        messages = build_clarify_messages(question, kind, options, asked)
         return str(stream_message(self.llm, messages, deadline, self.clock, self.settings).content).strip()
 
 
@@ -449,7 +450,7 @@ class ChatService:
         # A figure question stays the fixed text: a worded one could suggest an amount or a cut (MCP-17/18).
         if self.writer is not None and pending.model_worded:
             try:
-                written = self.writer.write(pending.question, pending.kind, [o.label for o in pending.options], pending.numbered,
+                written = self.writer.write(pending.question, pending.kind, [o.label for o in pending.options],
                                             min(deadline, self.clock() + QUESTION_SECONDS), pending.asked)
                 if check_question(written, pending):
                     text = written
@@ -459,7 +460,7 @@ class ChatService:
             except OllamaError as error:
                 logger.info("No model question (%s); the fixed question is used", type(error).__name__)
         self.waiting.put(token, pending)
-        return ChatReply("clarification", text, used, [])
+        return ChatReply("clarification", text, used, [], choices=choices(pending))
 
 
 # The period a follow-up is shown instead of the last call's date range (CHAT-08 K7-A): a name the model was measured with.

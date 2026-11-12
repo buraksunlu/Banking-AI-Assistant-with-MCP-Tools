@@ -177,11 +177,12 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
         }
 
         model = reply?.Model;
-        if (reply is { Type: not null, Answer: not null, ToolCalls: not null, Facts: not null, Suggestions: not null }
+        if (reply is { Type: not null, Answer: not null, ToolCalls: not null, Facts: not null, Suggestions: not null, Choices: not null }
             && ReplyTypes.TryGetValue(reply.Type, out var type)
             && reply.ToolCalls.All(c => c is { Tool: not null, Arguments: not null })
             && reply.Facts.All(f => f is { Label: not null, Text: not null })
-            && reply.Suggestions.All(s => s is not null))
+            && reply.Suggestions.All(s => s is not null)
+            && reply.Choices.All(c => c is { Label: not null, Detail: not null }))
         {
             return new AssistantReply(
                 type, reply.Answer,
@@ -189,6 +190,7 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
                 reply.ToolCalls.Select(c => new AssistantToolCall(c!.Tool!, c.Arguments!)).ToList(),
                 reply.Facts.Select(f => new AssistantFact(f!.Label!, f.Text!)).ToList(),
                 reply.Suggestions.Select(s => s!).ToList(),
+                reply.Choices.Select(c => new AssistantChoice(c!.Label!, c.Detail!)).ToList(),
                 // Built by the controller from the checked tool calls (CHAT-07), never read from the AI service.
                 []);
         }
@@ -238,11 +240,14 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
     private sealed record ChatRequest(string Message, DateOnly Today, string TimeZone);
 
     private sealed record ChatResponse(
-        string? Type, string? Answer, List<ChatToolCall?>? ToolCalls, List<ChatFact?>? Facts, List<string?>? Suggestions, string? Model);
+        string? Type, string? Answer, List<ChatToolCall?>? ToolCalls, List<ChatFact?>? Facts, List<string?>? Suggestions, List<ChatChoice?>? Choices,
+        string? Model);
 
     private sealed record SuggestionsResponse(List<string?>? Suggestions);
 
     private sealed record ChatToolCall(string? Tool, Dictionary<string, string>? Arguments);
 
     private sealed record ChatFact(string? Label, string? Text);
+
+    private sealed record ChatChoice(string? Label, string? Detail);
 }

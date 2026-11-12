@@ -20,6 +20,7 @@ internal sealed class FakeAssistantService(Func<HttpRequestMessage, Cancellation
          "toolCalls":[{"tool":"get_spending_summary","arguments":{"period":"Yesterday"}}],
          "facts":[{"label":"Toplam harcama","text":"145,00 TL"}],
          "suggestions":["Kategorilere göre?","Peki işyerlerine göre?"],
+         "choices":[],
          "model":"qwen3.5:4b"}
         """;
 

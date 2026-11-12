@@ -1,7 +1,7 @@
 import pytest
 
 from clarification import (PendingStore, ask_amount, ask_amount_again, ask_count, ask_currency, ask_merchant, ask_percent, ask_period, ask_scenario,
-                           ask_topic, check_question, chosen_tool, resolve, template)
+                           ask_complete_month, ask_topic, check_question, choices, chosen_tool, resolve, template)
 from prompts import build_clarify_messages
 
 # CHAT-03 K3-A/K4-B/K5-A: the question is remembered for one reply, the reply is matched against the stored options in code,
@@ -113,26 +113,34 @@ def test_a_count_outside_the_tools_limits_is_a_new_question(reply):
 # The fixed questions (the fallback of K4-B)
 
 
-def test_templates_name_the_stored_options():
-    assert template(PERIOD) == "Hangi dönem için? 1) bu ay 2) geçen ay 3) son 3 ay"
-    assert template(MONTHS) == "Kaç aylık bakayım? Örneğin son 3, 6 ya da 12 ay."
-    assert template(CITY) == "‘şehir’ birden fazla işyeriyle eşleşti: 1) Şehir Ulaşım 2) Şehirlerarası Otobüs. Hangisini kastettiniz?"
+def test_templates_are_only_the_question_the_options_come_under_it():
+    # CHAT-10 K5-B, P3-A: the options are rows under the question, so the text no longer lists them.
+    assert template(PERIOD) == "Hangi dönem için?"
+    assert template(MONTHS) == "Kaç aylık bakayım?"
+    assert template(CITY) == "‘şehir’ birden fazla işyeriyle eşleşti. Hangisini kastettiniz?"
 
 
 # Checking a question the model wrote
 
 
 @pytest.mark.parametrize("text", [
-    "Hangi döneme ait harcamaları öğrenmek istiyorsunuz?\n1. Bu ay\n2. Geçen ay\n3. Son 3 ay",
-    "Hangi dönemi görmek istersiniz: 1) bu ay, 2) geçen ay ya da 3) son 3 ay?",
+    "Hangi döneme ait harcamaları öğrenmek istiyorsunuz?",
+    "Hangi dönemi görmek istersiniz: bu ay, geçen ay ya da son 3 ay?",     # the options may be named, unnumbered
 ])
-def test_a_written_question_with_exactly_the_options_is_shown(text):
+def test_a_written_question_that_only_asks_is_shown(text):
+    # CHAT-10 K5-B: the check no longer counts the options (they are rows under the question).
     assert check_question(text, PERIOD)
 
 
 @pytest.mark.parametrize("text", [
-    "Hangi dönem? 1) bu ay 2) geçen ay",                                   # an option left out
-    "Hangi dönem? 1) bu ay 2) geçen ay 3) son 3 ay 4) son 6 ay",           # an option added
+    "Hangi dönem? 1) bu ay 2) geçen ay 3) son 3 ay",                       # the rows again as a numbered list
+    "Hangi dönem? Bu ay, geçen ay ya da son 6 ay?",                        # an option added
+    "Bu ay için mi bakayım?",                                              # one option named, the others not
+    "Hangi döneme bakmamı istersiniz? - Bu ay - Geçen ay - Son 3 ay",       # the rows again as a list (clarify-v3 trial)
+    "Hangi döneme bakmak istediğinizi belirtir misiniz? Bu ay; Geçen ay; Son 3 ay",
+    "Hangi dönem?\nBu ay\nGeçen ay\nSon 3 ay",
+    "Bu hafta mı, geçen ay mı?",                                           # a period that is not an option
+    "Bu ay mı, geçen ay mı, son 3 ay mı yoksa bu hafta mı?",               # every option named, plus one that is not offered
     "Bu ay 735,00 TL harcadınız. Başka bir dönem mi? 1) bu ay 2) geçen ay 3) son 3 ay",  # an answer with a figure
     "1) bu ay 2) geçen ay 3) son 3 ay",                                                     # only the list, no question
     "Dönemi lütfen öğreniriz. 1) bu ay 2) geçen ay 3) son 3 ay",                           # a statement, not a question
@@ -148,8 +156,11 @@ def test_a_written_count_question_uses_the_examples():
 
 
 def test_a_written_merchant_question_may_repeat_the_users_words():
-    assert check_question("Hangi işyerini kastettiniz? 1. Şehir Ulaşım 2. Şehirlerarası Otobüs", CITY)
-    assert not check_question("Hangi işyerini kastettiniz? 1. Şehir Ulaşım", CITY)
+    assert check_question("‘şehir’ derken hangi işyerini kastettiniz?", CITY)
+    assert not check_question("Hangi işyerini kastettiniz? 1. Şehir Ulaşım 2. Şehirlerarası Otobüs", CITY)
+    assert not check_question("Şehir Ulaşım'ı mı kastettiniz?", CITY)
+    # The clarify-v3 trial asked which city: a merchant question must say it is about a merchant.
+    assert not check_question("Hangi şehir için harcamalarınızı incelememi istiyorsunuz?", CITY)
 
 
 # The prompt for the written question
@@ -157,15 +168,17 @@ def test_a_written_merchant_question_may_repeat_the_users_words():
 
 def test_the_prompt_gives_the_options_and_cannot_be_escaped():
     pending = ask_period("get_spending_summary", {}, "Ne kadar <harcadım>?")
-    system, user = build_clarify_messages(pending.question, pending.kind, [o.label for o in pending.options], numbered=True)
+    system, user = build_clarify_messages(pending.question, pending.kind, [o.label for o in pending.options])
     assert system["role"] == "system" and user["role"] == "user"
-    assert "bu ay; geçen ay; son 3 ay" in user["content"]
+    # clarify-v3 trial: given the periods, the model copied them as a list; it is told only what is missing.
+    assert "geçen ay" not in user["content"] and "dönem" in user["content"]
+    assert "numaralandırma" in system["content"] and "altında" in system["content"]
     assert "<harcadım>" not in user["content"] and "‹harcadım›" in user["content"]
 
 
 def test_the_merchant_prompt_names_the_users_words():
-    system, user = build_clarify_messages(CITY.question, CITY.kind, [o.label for o in CITY.options], numbered=True, asked="<şehir>")
-    assert "‘‹şehir›’ adı birden fazla işyerine uyuyor" in user["content"]
+    system, user = build_clarify_messages(CITY.question, CITY.kind, [o.label for o in CITY.options], asked="<şehir>")
+    assert "‘‹şehir›’ adı birden fazla işyerine uyuyor" in user["content"] and "Şehir Ulaşım" not in user["content"]
     assert "Eksik bilgi" not in user["content"]
 
 
@@ -215,9 +228,9 @@ def test_a_cut_outside_1_to_100_or_without_a_figure_is_a_new_question(reply):
 
 
 def test_the_figure_questions_are_fixed():
-    assert template(AMOUNT) == "Bütçeniz ne kadar? Örneğin 3.000 TL."
-    assert template(CURRENCY) == "Bütçeniz hangi para biriminde? 1) TL 2) Euro 3) Dolar 4) Sterlin"
-    assert template(PERCENT) == "Ne kadar azaltmayı düşünüyorsunuz? Örneğin %10, %25 ya da %50."
+    assert template(AMOUNT) == "Bütçeniz ne kadar?"
+    assert template(CURRENCY) == "Bütçeniz hangi para biriminde?"
+    assert template(PERCENT) == "Ne kadar azaltmayı düşünüyorsunuz?"
     # The model words only the period, count and merchant questions (CHAT-03 K4-B); these three are always the fixed text.
     assert [p.model_worded for p in (AMOUNT, CURRENCY, PERCENT, PERIOD, MONTHS, CITY)] == [False, False, False, True, True, True]
 
@@ -226,17 +239,14 @@ def test_the_figure_questions_are_fixed():
 
 SCENARIO = ask_scenario("Biriktirseydim ne olurdu?")
 TOPIC = ask_topic("Bütçemi kısıp tasarruf etsem?")
-SCENARIO_TEXT = ("Bunu iki şekilde hesaplayabilirim: 1) tek seferlik (bir dönemdeki harcamanızla o dönemin başında dolar, euro ya "
-                 "da altın alsaydınız) 2) aylık birikim (son 12 ay boyunca her ay belirli bir TL tutarı biriktirseydiniz). "
-                 "Hangisini istersiniz?")
-TOPIC_TEXT = ("Bunu iki şekilde hesaplayabilirim: 1) bütçe kontrolü (bu ayki harcamanız söylediğiniz bütçeyi aşar mı) 2) tasarruf "
-              "hesabı (bir harcamayı azaltırsanız ne kadar biriktirirsiniz). Hangisini istersiniz?")
+SCENARIO_TEXT = "Bunu iki şekilde hesaplayabilirim. Hangisini istersiniz?"
+TOPIC_TEXT = SCENARIO_TEXT
 
 
 def test_the_choice_questions_wait_for_a_tool_and_keep_the_users_question():
     assert (SCENARIO.tool, SCENARIO.kind, SCENARIO.original) == ("", "scenario", "Biriktirseydim ne olurdu?")
     assert (TOPIC.tool, TOPIC.kind) == ("", "topic")
-    assert SCENARIO.numbered and SCENARIO.model_worded and TOPIC.model_worded
+    assert SCENARIO.model_worded and TOPIC.model_worded
 
 
 def test_the_fixed_choice_questions():
@@ -276,7 +286,7 @@ def test_a_choice_is_not_a_figure_reply():
 @pytest.mark.parametrize("text", [
     "Bunu tek seferlik mi, yoksa aylık birikim olarak mı hesaplayayım?",
     "Geçen ayki harcamanızla bir kerede mi dolar alsaydınız, yoksa her ay düzenli olarak mı biriktirseydiniz?",
-    "Hangisini istersiniz: 1) tek seferlik 2) son 12 ay boyunca aylık birikim?",
+    "Bunu nasıl hesaplayayım?",                                            # CHAT-10 K5-B: the rows name the choices
 ])
 def test_a_written_choice_question_may_use_the_users_words(text):
     # K20-B: any of an option's words counts as naming it, so the model can follow the user's phrasing.
@@ -284,7 +294,7 @@ def test_a_written_choice_question_may_use_the_users_words(text):
 
 
 @pytest.mark.parametrize("text", [
-    "Tek seferlik mi hesaplayayım?",                                               # the monthly saving left out
+    "Hangisini istersiniz: 1) tek seferlik 2) aylık birikim?",                     # the rows again as a numbered list
     "Tek seferlik mi, aylık mı, yoksa 3) yıllık mı?",                              # a choice added
     "Her ay 1.000 TL mi biriktirirdiniz, yoksa tek seferlik mi?",                  # a figure the user did not say
     "Tek seferlik ya da aylık birikim.",                                           # no question
@@ -294,7 +304,7 @@ def test_a_written_choice_question_that_changes_the_choices_is_not_shown(text):
 
 
 def test_the_prompt_describes_both_calculations_and_asks_for_the_users_words():
-    system, user = build_clarify_messages(SCENARIO.question, SCENARIO.kind, [o.label for o in SCENARIO.options], numbered=True)
+    system, user = build_clarify_messages(SCENARIO.question, SCENARIO.kind, [o.label for o in SCENARIO.options])
     assert "tek seferlik; aylık birikim" in user["content"]
     assert "son 12 ay" in user["content"] and "kendi sözleri" in user["content"]
 
@@ -306,14 +316,15 @@ def test_a_short_spending_question_is_not_the_one_off_choice():
 # CHAT-10 K9-C: an amount the code cannot read is asked again, saying which words were not understood.
 def test_an_unread_amount_is_asked_again_with_what_was_not_understood():
     again = ask_amount_again(AMOUNT, "5x")
-    assert template(again) == "‘5x’ tutarını anlayamadım. Bütçeniz ne kadar? Örneğin 3.000 TL."
+    assert template(again) == "‘5x’ tutarını anlayamadım. Bütçeniz ne kadar?"
+    assert choices(again) == choices(AMOUNT)
     assert (again.tool, again.arguments, again.later) == (AMOUNT.tool, AMOUNT.arguments, AMOUNT.later)
     assert not again.model_worded
 
 
 def test_an_unread_monthly_amount_is_asked_again_in_its_own_words():
     monthly = ask_amount("what_if_monthly", {}, "Her ay biriktirseydim ne olurdu?")
-    assert template(ask_amount_again(monthly, "2y")) == "‘2y’ tutarını anlayamadım. Ayda kaç TL biriktirirdiniz? Örneğin 1.000."
+    assert template(ask_amount_again(monthly, "2y")) == "‘2y’ tutarını anlayamadım. Ayda kaç TL biriktirirdiniz?"
 
 
 # CHAT-10 K10-A: a failed turn gives its question back, but never over a question the same turn already asked.
@@ -324,3 +335,47 @@ def test_a_question_is_given_back_only_when_nothing_newer_waits():
     store.put("t", CURRENCY)
     store.put_back("t", AMOUNT)
     assert store.take("t") == CURRENCY
+
+
+# CHAT-10 PR3: the options as tappable rows (K4-A), every one of them (P1-D), each sending its label (K6-A)
+
+MONTHLY = ask_amount("what_if_monthly", {}, "Her ay biriktirseydim ne olurdu?")
+LAST_MONTH = ask_complete_month("get_income_share", {}, "Maaşımın ne kadarını harcadım?", today=__import__("datetime").date(2026, 11, 10))
+
+
+def test_every_question_offers_its_options_as_choices():
+    assert [c.label for c in choices(PERIOD)] == ["bu ay", "geçen ay", "son 3 ay"]
+    assert [c.label for c in choices(MONTHS)] == ["son 3 ay", "son 6 ay", "son 12 ay"]
+    assert [c.label for c in choices(CITY)] == ["Şehir Ulaşım", "Şehirlerarası Otobüs"]
+    assert [c.label for c in choices(CURRENCY)] == ["TL", "Euro", "Dolar", "Sterlin"]
+    assert [c.label for c in choices(PERCENT)] == ["%10", "%25", "%50"]
+    # P1-D: the amount examples are choices too; a budget's says its currency, so one tap answers both questions.
+    assert [c.label for c in choices(AMOUNT)] == ["1.000 TL", "3.000 TL", "5.000 TL"]
+    assert [c.label for c in choices(MONTHLY)] == ["500 TL", "1.000 TL", "2.000 TL"]
+    assert [c.label for c in choices(LAST_MONTH)] == ["geçen ay (Ekim)"]
+
+
+def test_only_the_two_calculations_carry_a_detail():
+    # P5-A: "tek seferlik" alone does not say what it is.
+    assert [c.detail for c in choices(SCENARIO)] == [o.detail for o in SCENARIO.options] and all(c.detail for c in choices(SCENARIO))
+    assert all(c.detail for c in choices(TOPIC))
+    assert all(c.detail == "" for p in (PERIOD, MONTHS, CITY, CURRENCY, PERCENT, AMOUNT) for c in choices(p))
+
+
+@pytest.mark.parametrize("pending", [PERIOD, MONTHS, CITY, CURRENCY, PERCENT, AMOUNT, MONTHLY, LAST_MONTH],
+                         ids=["period", "count", "merchant", "currency", "percent", "amount", "monthly", "complete-month"])
+def test_tapping_a_choice_sends_its_label_and_the_code_reads_it_as_that_option(pending):
+    # K6-A: the app sends the label as written; each one must complete the call with the option's own value.
+    for option, choice in zip(pending.options, choices(pending), strict=True):
+        assert resolve(pending, choice.label)[pending.argument] == option.value
+
+
+def test_a_budget_example_answers_its_currency_too():
+    assert resolve(AMOUNT, "3.000 TL") == {"categoryCode": "FOOD", "amount": 3000, "currencyCode": "TRY"}
+    assert resolve(MONTHLY, "1.000 TL") == {"amount": 1000, "currencyCode": "TRY"}
+
+
+@pytest.mark.parametrize("pending", [SCENARIO, TOPIC], ids=["scenario", "topic"])
+def test_tapping_a_calculation_chooses_its_tool(pending):
+    for option, choice in zip(pending.options, choices(pending), strict=True):
+        assert chosen_tool(pending, choice.label) == option.value
