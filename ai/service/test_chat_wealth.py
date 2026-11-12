@@ -16,7 +16,7 @@ from dates import CustomerDay
 from facts import NO_ADVICE_AMOUNT
 from prompts import ADVICE_DECLINED_TEXT, LIRA_ONLY_TEXT
 from suggestions import OUT_OF_SCOPE_SUGGESTIONS
-from test_chat import MONTHLY_CHOICES, rows, ANSWER, DEFINITIONS, TOKEN, FakeExplainer, FakeGateway, service
+from test_chat import AMOUNT_HINT, MONTHLY_CHOICES, rows, ANSWER, DEFINITIONS, TOKEN, FakeExplainer, FakeGateway, service
 from test_facts_wealth import ADVICE_SENTENCE, DISCLAIMER, GOLD, THREE, advice, advice_row, income, income_row, monthly, one_off
 
 DAY = CustomerDay(date(2026, 10, 10), "Europe/Istanbul")
@@ -136,11 +136,13 @@ def test_a_follow_up_without_a_period_keeps_the_last_calls_month():
 
 def test_the_one_off_scenario_gets_the_warning_under_the_answer():
     call = ToolCall("what_if_one_off", {"period": "LastMonth", "categoryCode": "ENTERTAINMENT"})
-    chat, _, _, _ = wealth([one_off(THREE)], [[call]])
+    chat, _, _, explainer = wealth([one_off(THREE)], [[call]])
 
     reply = chat.answer("Geçen ay eğlence harcamamı dolar alsaydım ne olurdu?", TOKEN, DAY)
 
-    assert reply.answer == f"{ANSWER}\n\n{DISCLAIMER}" and reply.tool_calls == [call]
+    # CHAT-10 PR3b D10-A: code writes the answer; the model is not asked to explain it.
+    assert reply.answer.startswith("1-30 Eylül 2026 döneminde eğlence için 2.253,50 TL harcadınız.")
+    assert reply.answer.endswith(f"\n\n{DISCLAIMER}") and reply.tool_calls == [call] and explainer.calls == []
 
 
 def test_a_monthly_amount_the_user_wrote_runs_with_its_lira_currency():
@@ -158,7 +160,7 @@ def test_the_amount_is_asked_when_the_user_did_not_write_it_and_the_model_wrote_
     asked = chat.answer("Ayda biriktirseydim ne olurdu?", TOKEN, DAY)
     done = chat.answer("1.000 TL", TOKEN, DAY)
 
-    assert asked == ChatReply("clarification", "Ayda kaç TL biriktirirdiniz?", [], [], choices=MONTHLY_CHOICES)
+    assert asked == ChatReply("clarification", "Ayda kaç TL biriktirirdiniz?", [], [], choices=MONTHLY_CHOICES, input_hint=AMOUNT_HINT)
     assert done.type == "answer" and gateway.calls[0][:2] == ("what_if_monthly", {"amount": 1000, "currencyCode": "TRY"})
 
 
@@ -238,13 +240,13 @@ def test_advice_or_a_forecast_is_refused_with_a_fixed_text_and_no_model(message)
 
 @pytest.mark.parametrize("sentence", ["Altın almalısınız, çok kazandırır.", "Dolar yükselecek, tavsiye ederim.",
                                       "Euro düşecek gibi görünüyor."])
-def test_an_explanation_that_sounds_like_advice_is_replaced_by_the_facts_and_the_warning(sentence):
-    chat, _, _, _ = wealth([one_off(THREE)], [[ToolCall("what_if_one_off", {"period": "LastMonth"})]], explainer=FakeExplainer(sentence))
+def test_an_explanation_that_sounds_like_advice_is_replaced_by_the_facts(sentence):
+    # The income share is still explained by the model (the two "what if"s are written by code since CHAT-10 PR3b).
+    chat, _, _, _ = wealth([income(income_row())], [[INCOME_SHARE]], explainer=FakeExplainer(sentence))
 
-    reply = chat.answer("Geçen ay harcadığım parayla altın alsaydım ne olurdu?", TOKEN, DAY)
+    reply = chat.answer("Geçen ay maaşımın ne kadarını harcadım?", TOKEN, DAY)
 
-    assert sentence not in reply.answer and reply.answer.endswith(DISCLAIMER)
-    assert "Dolar alsaydınız: alışta 41,15 TL" in reply.answer and "Gram altın alsaydınız: alışta 4.120,1235 TL" in reply.answer
+    assert sentence not in reply.answer and "Gelire oranı:" in reply.answer
 
 
 # --- K19-B: the questions offered under the answers -----------------------------------------------------------------------------
@@ -294,7 +296,7 @@ def test_a_monthly_scenario_the_model_did_not_choose_asks_the_amount():
 
     reply = chat.answer("AYDA BİRİKTİRSEYDİM NE OLURDU?", TOKEN, DAY)
 
-    assert reply == ChatReply("clarification", "Ayda kaç TL biriktirirdiniz?", [], [], choices=MONTHLY_CHOICES) and gateway.calls == []
+    assert reply == ChatReply("clarification", "Ayda kaç TL biriktirirdiniz?", [], [], choices=MONTHLY_CHOICES, input_hint=AMOUNT_HINT) and gateway.calls == []
 
 
 def test_a_monthly_scenario_with_its_amount_runs_when_the_model_chose_nothing():
@@ -332,27 +334,30 @@ def test_the_category_waits_with_the_period_question():
     assert gateway.calls[0][:2] == ("what_if_one_off", {"categoryCode": "ENTERTAINMENT", "period": "LastMonth"})
 
 
-def test_the_explainer_answers_the_question_code_wrote_for_a_what_if():
-    # K7-A: the user's question went through two questions back ("(5000) (Tl)"); the explainer gets the scenario instead.
+def test_the_monthly_saving_is_answered_by_code_without_the_model():
+    # CHAT-10 PR3b D9-A: the short answer code wrote, then the backend's warning; the model is not asked to explain it.
     chat, _, _, explainer = wealth([monthly("User", Decimal("5000.00"), assets=[GOLD])], [[]])
     chat.answer("Ayda biriktirseydim ne olurdu?", TOKEN, DAY)
 
-    chat.answer("5000", TOKEN, DAY)
+    reply = chat.answer("5000", TOKEN, DAY)
 
-    assert explainer.calls[0][0] == "Son 12 ay boyunca her ay 5.000,00 TL ile gram altın alsaydım bugün ne olurdu?"
+    assert explainer.calls == []
+    assert reply.answer.startswith("Son 12 ay boyunca her ayın 1'inde 5.000,00 TL biriktirseydiniz")
+    assert reply.answer.endswith(f"\n\n{DISCLAIMER}") and "• Gram altın: 3.000,60 TL" in reply.answer
 
 
-def test_values_written_next_to_another_assets_name_are_replaced_by_the_facts():
-    # K16-A: the simulator's "dolar, euro veya gram altın ... sırasıyla A, B ve C".
+def test_no_model_sentence_can_put_a_value_next_to_another_assets_name():
+    # K16-A: the simulator's "dolar, euro veya gram altın ... sırasıyla A, B ve C". Since CHAT-10 PR3b D10-A code writes each
+    # asset's own line, so such a sentence never reaches the answer.
     sentence = ("Bu miktar dolar, euro veya gram altın olarak değerlendirilirse değerler sırasıyla 2.297,38 TL, 2.222,62 TL ve "
                 "2.194,89 TL olur.")
     call = ToolCall("what_if_one_off", {"period": "LastMonth", "categoryCode": "ENTERTAINMENT"})
-    chat, _, _, _ = wealth([one_off(THREE)], [[call]], explainer=FakeExplainer(sentence))
+    chat, _, _, explainer = wealth([one_off(THREE)], [[call]], explainer=FakeExplainer(sentence))
 
     reply = chat.answer("Geçen ay eğlence harcamamı dolar alsaydım ne olurdu?", TOKEN, DAY)
 
-    assert sentence not in reply.answer
-    assert "Dolar alsaydınız: alışta 41,15 TL" in reply.answer and reply.answer.endswith(DISCLAIMER)
+    assert sentence not in reply.answer and explainer.calls == []
+    assert "• Dolar: 2.297,38 TL" in reply.answer and reply.answer.endswith(DISCLAIMER)
 
 
 def test_a_category_the_user_named_and_the_model_left_out_is_put_in_by_code():

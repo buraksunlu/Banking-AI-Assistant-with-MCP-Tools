@@ -646,3 +646,39 @@ Doğrulama: iOS 313 → 338 test durumu, 0 kırmızı. 10 kasıtlı bozma (döne
 değiştirmesi, yeşil grup rengi, başlık yanlış alandan, yenilemede ay silinmesi, %100'de aşım, gevşek grup çözümleme) hepsi yakalandı.
 Sınırlar: yalnız geçen tam ay (backend kuralı); demoda yalnız Selin öneri alır; simülatörde elle deneme kullanıcıda (API demo anıyla,
 `BANKINGAI_DEMO_NOW`, açılmazsa "geçen ay" Ekim 2026 olur ve rakamlar tablodan farklıdır); AX5 ve VoiceOver elle denenmedi.
+
+## iOS-t: dokunulabilir seçenekler (CHAT-10 PR3b; 12 Kasım 2026)
+
+PR3a'dan beri asistan geri sorunun metninde seçenekleri saymıyor ("Hangi dönem için?"); seçenekler cevabın `choices` alanında
+(`[{label, detail}]`). Telefon bunları son cevabın altında alt alta, tam genişlik satırlar olarak gösterir; dokununca yalnız etiket
+gönderilir ve AI servisi onu bekleyen soruyla eşleştirir (yazarak cevap da çalışır).
+
+Kararlar: D1-A seçenekler `ChatViewModel.choices`'ta, önerilerin ikizi (yalnız son soru dokunulabilir, K8-A; eski sorularda satır
+yok); D2-A alan zorunlu, bozuk tek seçenek bütün cevabı "Tekrar dene"ye düşürür (seçenek sorunun kendisi, link gibi ek değil); D3
+simülatör denemesinden sonra değişti (kullanıcı: "düzensiz duruyor"): ayrı çerçeveli kutular yerine tek kart (`Chat/ChoiceList`),
+satırlar ince çizgiyle ayrılır, etiket Türkçe büyük harfle başlar (`ChoiceDisplay.title`; gönderilen etiket değişmez), `detail` altında
+küçük gri satır, sağda vurgu renginde ok, basılıyken satır aydınlanır, en az 44 pt; D4-A seçenekli cevapta öneri
+çipi gösterilmez; D5-A satır ekran okuyucuda tek öğe (etiket + açıklama). Önceki kararlar: P4-A yalnız etiket, P6-A hatadan sonra
+satırlar gizli, "Tekrar dene" kullanıcının balonundaki etiketi yeniden gönderir.
+
+```text
+Networking/APIModels.swift      AssistantChoice (yeni), AssistantReply.choices (zorunlu)
+Chat/ChatViewModel.swift        choices: cevaptan gelir, gönderimde boşalır; seçenek varsa suggestions boş
+Chat/ChoiceList.swift           (yeni) ChoiceList kartı + ChoiceDisplay.title (Türkçe baş harf)
+Chat/ChatView.swift             kart son cevabın altında, önerilerin üstünde; liste soru gelince kartın sonuna kayar
+BankingAITests/ChatChoiceTests  (yeni) 10 test, 18 test durumu
+```
+
+Simülatör denemesinde (Murat) iki hata bulundu ve düzeltildi: (1) liste soruya kayıyordu, kart girişin altında gizli kalıyordu →
+liste kartın sonuna kayar; (2) kart her soruda aynı sabit kimliği taşıyordu, SwiftUI ikinci sorunun altında ilk sorunun satırlarını
+tuttu ("Ayda kaç TL" altında senaryo satırları) → kimlik soruya bağlı (`choices-<mesaj id>`). İkincisi için ViewModel testi eklendi
+(ViewModel zaten doğruydu; hata yalnız görünümdeydi, birim testi görünümü göremez).
+
+İkinci tur (kullanıcının denemesi, D6-A): tutar sorularında kartın son satırı `inputHint` ("Başka bir tutar yazın"); ikincil renk ve
+kalem simgesiyle seçeneklerden ayrışır, dokununca mesaj göndermez, yazı alanına odaklanır (`@FocusState`). `inputHint` zorunlu alan
+(eksik/`null` → "Tekrar dene"), gönderimde seçeneklerle birlikte boşalır.
+
+Doğrulama: iOS 338 → 360 test durumu (xcodebuild sayımı), 0 kırmızı. 6 kasıtlı bozma (seçenek okunmaz, eksik alan boş sayılır, bozuk seçenek
+atlanır, gönderimde boşalmaz, hatada geri gelir, seçenekle öneri birlikte) hepsi yakalandı. Görünüme ait iki şey (dokununca etiket
+yerine başka metin, satırın yeri) birim testinde değil, simülatörde denendi.
+

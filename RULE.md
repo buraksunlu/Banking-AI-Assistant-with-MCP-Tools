@@ -1378,11 +1378,19 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Dokunulabilir seçenekler, iPhone (CHAT-10 PR3b, 12 Kasım 2026; docs/ios.md "iOS-t"): geri sorunun seçenekleri son cevabın altında
+  tek kart (ince çizgili satırlar, Türkçe baş harf, vurgu oku), dokununca etiket gider; satırlar gönderimde ve hatada kaybolur,
+  seçenekli cevapta öneri çipi yok; `choices` zorunlu, bozuk seçenek cevabı düşürür; her sorunun kartı kendi kimliğinde (sabit kimlik
+  eski satırları tutuyordu). Simülatör denemesinden sonra (D6–D9): tutar örnekleri 1.000/5.000/10.000 TL + "Başka bir tutar
+  yazın" satırı (`inputHint`, Python → .NET → iPhone; dokununca klavye); "tek seferlik mi, aylık mı?" sorusu kalktı, belirsiz "ne
+  olurdu" aylık birikim (tutar sorulur; "tek seferlik" cevabı tek seferliğe geçer); aylık birikim cevabını kod kısa yazar. "Kaç ay"
+  INV-03'e. Üçüncü tur: tek seferlik, bütçe ve tasarruf cevaplarını da kod yazar (model yok); bütçe tutarı/oran yalnız "peki/ya"
+  takibinde taşınır. Python 1262 modelsiz, Api 578, iOS 360 test durumu. CHAT-10 tamam.
 - Dokunulabilir seçenekler, arka uç (CHAT-10 PR3a, 12 Kasım 2026; docs/local-ai.md "Dokunulabilir seçenekler", docs/api.md):
   geri soru cevabı `choices: [{label, detail}]` taşır (Python → .NET `AssistantChoice`, OpenAPI), metin yalnız soru (K4-A, K5-B,
   P3-A); her soru dokunulabilir, tutar/yüzde/ay sayısı örnekleri dahil (P1-D, K7-B'nin yerine); dokununca etiket gider ve kodla
   eşleşir (K6-A); `clarify-v3` + sıkı denetim (eksik seçenek, liste, sunulmayan dönem, işyeri kelimesi). Soru yazımı 14/14,
-  Python 1234 → 1257 modelsiz, Api 569 → 575. iPhone satırları PR3b'de.
+  Python 1234 → 1257 modelsiz, Api 569 → 575.
 - Öneriler: tekrar yok, sonuca göre, dönemli (CHAT-10 PR2, 10 Kasım 2026; docs/local-ai.md "Öneriler"): sohbette sorulan hiçbir çağrı
   yeniden önerilmez (`AskedStore`, 30 dk; aday kalmazsa 2 genel soru, K1-C/P4-A), cevap yalnız sayılarla değerlendirilir (harcama yok →
   başka dönem, tek işlem → bölme yok, ödeme yok → yaklaşan yok; K2-B), metinler dönemli tam soru (K3-B; özel aralık kodla yazılır P2-A,

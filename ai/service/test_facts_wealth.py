@@ -178,6 +178,30 @@ def test_one_off_shows_the_prices_the_value_and_the_difference_of_each_asset():
     assert outcome.appendix == (DISCLAIMER,)
 
 
+def test_one_off_is_answered_in_a_few_lines_written_by_code():
+    # CHAT-10 PR3b D10-A (simulator trial, 12 Nov 2026): the facts list had reached the screen as it was. Same shape as the monthly
+    # saving; the unit prices stay in the facts.
+    outcome = outcome_for("what_if_one_off", {"period": "LastMonth", "categoryCode": "ENTERTAINMENT"}, one_off(THREE))
+
+    assert outcome.written == (
+        "1-30 Eylül 2026 döneminde eğlence için 2.253,50 TL harcadınız. Bu parayla 1 Eylül 2026 tarihinde alsaydınız, 10 Ekim 2026 "
+        "itibarıyla değeri:\n"
+        "• Dolar: 2.297,38 TL (43,88 TL artış, %1,95)\n"
+        "• Euro: 2.222,62 TL (30,88 TL azalış, %1,37)\n"
+        "• Gram altın: 2.194,89 TL (58,61 TL azalış, %2,60)\n"
+        "Bu seçenekler birbirinin alternatifidir; değerler toplanmaz.")
+    assert outcome.appendix == (DISCLAIMER,)
+
+
+def test_a_short_one_off_answer_without_a_category_and_with_a_missing_price():
+    stale = asset("Gram altın", "GRAM", None, None, None, None, None, status="Stale")
+
+    written = outcome_for("what_if_one_off", {"period": "LastMonth"}, one_off([THREE[0], stale], category=(None, None))).written
+
+    assert written.startswith("1-30 Eylül 2026 döneminde 2.253,50 TL harcadınız.")
+    assert "• Gram altın: hesaplanamadı (fiyat bulunamadı ya da çok eski)" in written and "alternatifidir" not in written
+
+
 def test_one_off_without_a_category_has_no_category_line():
     got = outcome_for("what_if_one_off", {"period": "LastMonth"}, one_off(THREE, category=(None, None))).facts
 
@@ -226,6 +250,51 @@ def test_monthly_from_advice_shows_both_views_of_the_volatility():
         ("Gram altın: birikimin en kötü anı", "1 Mayıs 2026; yatırılan 1.180,90 TL, değer 1.142,64 TL (-%3,24)"),
         ("Not", ALTERNATIVES))
     assert outcome.appendix == (DISCLAIMER,)
+
+
+DOLLAR = asset("Dolar", "USD", None, None, Decimal("2900.00"), Decimal("65.84"), Decimal("2.32"), invested=Decimal("2834.16"),
+               volatility={"maxDrawdown": {"percent": Decimal("-5.10"), "peakDate": "2026-02-01", "troughDate": "2026-03-01"},
+                           "worstMoment": {"date": "2026-03-01", "invested": Decimal("1417.08"), "value": Decimal("1400.00"),
+                                           "returnPercent": Decimal("-1.21")}})
+
+
+def test_monthly_is_answered_in_a_few_lines_written_by_code():
+    # CHAT-10 PR3b D9-A (simulator trial, 12 Nov 2026): the model's answer from fourteen facts was a wall of text. Code writes one
+    # line per asset and one line of risk, the asset with the sharpest fall; the facts stay for the "how was it computed" view.
+    outcome = outcome_for("what_if_monthly", {"fromAdvice": True}, monthly(assets=[DOLLAR, GOLD]))
+
+    assert outcome.written == (
+        "Son 12 ay boyunca her ayın 1'inde 236,18 TL biriktirseydiniz (Eylül 2026 tasarruf önerisi), toplam 2.834,16 TL "
+        "yatırmış olurdunuz. 10 Ekim 2026 itibarıyla değeri:\n"
+        "• Dolar: 2.900,00 TL (65,84 TL artış, %2,32)\n"
+        "• Gram altın: 3.000,60 TL (166,44 TL artış, %5,87)\n"
+        "Risk (Gram altın): fiyat 1 Ocak 2026 - 1 Mayıs 2026 arasında %17,97 düştü; birikiminiz en kötü anında (1 Mayıs 2026) "
+        "%3,24 gerideydi.\n"
+        "Bu seçenekler birbirinin alternatifidir; değerler toplanmaz.")
+    assert outcome.appendix == (DISCLAIMER,)
+
+
+def test_a_short_monthly_answer_for_the_users_amount_a_missing_price_and_a_saving_never_behind():
+    missing = asset("Euro", "EUR", None, None, None, None, None, status="Missing", invested=Decimal("12000.00"), volatility=None)
+    ahead = {**GOLD, "volatility": {**GOLD["volatility"], "worstMoment": {**GOLD["volatility"]["worstMoment"],
+                                                                           "returnPercent": Decimal("0.50")}}}
+
+    written = outcome_for("what_if_monthly", {"amount": 1000, "currencyCode": "TRY"},
+                          monthly("User", Decimal("1000.00"), assets=[missing, ahead])).written
+
+    assert written.startswith("Son 12 ay boyunca her ayın 1'inde 1.000,00 TL biriktirseydiniz, toplam 12.000,00 TL yatırmış")
+    assert "• Euro: hesaplanamadı (fiyat bulunamadı ya da çok eski)" in written
+    assert "%17,97 düştü; birikiminiz hiçbir ay zarara düşmedi." in written
+    # One priced asset: nothing to add up, so no "alternatives" line.
+    assert "alternatifidir" not in written
+
+
+def test_a_short_monthly_answer_when_no_price_ever_fell():
+    calm = {**GOLD, "volatility": {**GOLD["volatility"], "maxDrawdown": {"percent": Decimal("0"), "peakDate": None, "troughDate": None}}}
+
+    written = outcome_for("what_if_monthly", {"fromAdvice": True}, monthly(assets=[calm])).written
+
+    assert "Risk: fiyatlar dönem boyunca önceki bir noktanın altına düşmedi." in written
 
 
 def test_monthly_from_the_users_amount_says_whose_amount_it_is():

@@ -6,6 +6,8 @@ struct ChatView: View {
     @Bindable var model: ChatViewModel
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The text field's focus; the "Başka bir tutar yazın" row sets it (PR3b D6-A).
+    @FocusState private var isWriting: Bool
 
     /// The counter appears this close to the limit (K5-C): earlier it would only be noise.
     private static let counterFrom = 450
@@ -31,6 +33,14 @@ struct ChatView: View {
                             }
                             .id(message.id)
                             .transition(Self.arrival)
+                            // Only under the last answer: the server waits for an answer to its last question only (CHAT-10 K8-A).
+                            if message.role == .assistant && message.id == model.messages.last?.id && !model.choices.isEmpty {
+                                ChoiceList(options: model.choices, inputHint: model.inputHint, isEnabled: model.canSend,
+                                           choose: { option in Task { await model.send(option.label) } },
+                                           write: { isWriting = true })
+                                .id(Self.choicesID(after: message.id))
+                                .transition(Self.arrival)
+                            }
                             // Only under the last answer: the server knows only that offer (CHAT-06 K1-B, K2-A).
                             if message.role == .assistant && message.id == model.messages.last?.id && !model.suggestions.isEmpty {
                                 suggestions(model.suggestions)
@@ -48,12 +58,16 @@ struct ChatView: View {
                     .padding(Layout.regular)
                     .motion(value: model.messages.count)
                     .motion(value: model.suggestions)
+                    .motion(value: model.choices)
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .onChange(of: model.messages.count) {
                     withAnimation(Motion.animation(.default, reduceMotion: reduceMotion)) {
                         if model.isWaiting {
                             proxy.scrollTo("typing")
+                        } else if !model.choices.isEmpty, let last = model.messages.last {
+                            // The options arrive with the question; scrolling to the question alone left them under the input.
+                            proxy.scrollTo(Self.choicesID(after: last.id), anchor: .bottom)
                         } else if let last = model.messages.last {
                             proxy.scrollTo(last.id)
                         }
@@ -74,6 +88,12 @@ struct ChatView: View {
         .onChange(of: scenePhase) {
             if scenePhase == .background { model.stop() }
         }
+    }
+
+    /// The options' place under one question, also where the list scrolls when it arrives. One identity per question: a single
+    /// fixed one let SwiftUI keep the first question's rows under the next question (simulator trial, 12 Nov 2026).
+    private static func choicesID(after question: UUID) -> String {
+        "choices-\(question)"
     }
 
     /// A new message or row of suggestions rises a little into place while it fades in.
@@ -147,6 +167,7 @@ struct ChatView: View {
                     .foregroundStyle(Palette.primaryText.color)
                     .padding(.vertical, Layout.small)
                     .disabled(model.isAvailable == false)
+                    .focused($isWriting)
                     .onSubmit { Task { await model.sendDraft() } }
                 if model.isWaiting {
                     Button(action: model.stop) {

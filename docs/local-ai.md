@@ -804,6 +804,28 @@ ay" diye listeledi, işyeri sorusu "Hangi şehir için …?" diye sordu. Denetim
 Prompt'ta dönem ve işyeri seçenekleri artık modele verilmiyor (model kopyalıyordu), işyeri durumu "işyeri adlarını yazmadan hangi
 işyerini" diyor → **14/14**. Araç seçimi değişmedi (ölçüm gerekmedi); ifade ölçümü modelsiz yeşil.
 
+### PR3b'de değişenler (12 Kasım 2026, simülatör denemesinden sonra; kullanıcı kararları D6-A D7-A D8-B D9-A)
+
+- **D7-A:** bütün tutar sorularında örnekler `1.000 / 5.000 / 10.000 TL` (`AMOUNT_EXAMPLES`; bütçe ve aylık birikim aynı).
+- **D6-A:** tutar sorusunun cevabı `inputHint = "Başka bir tutar yazın"` taşır (`clarification.input_hint`); iPhone bunu kartın son
+  satırı olarak çizer, dokununca yazı alanını açar. Diğer sorularda `""`.
+- **D8-B (K17-C'nin yerine):** "tek seferlik mi, aylık mı?" sorusu kalktı. Senaryo kelimesi ve rakam ipucu yoksa (ya da iki yöne
+  işaret ediyorsa) soru aylık birikimdir; model hiç çağrılmaz, tutar sözlerden okunur ya da sorulur. Dönem/tarih/kategori yine tek
+  seferliğe, tutar aylığa götürür (K18-B). Tutar sorusuna kısa bir "tek seferlik / bir kerede / toplu" cevabı tek seferliğe geçer
+  ve dönem sorulur (`wants_one_off`). "Kaç ay" sorusu .NET değişikliği ister: INV-03.
+- **D9-A:** aylık birikim cevabını model değil kod yazar (`ToolOutcome.written`, `facts._monthly_written`): ilk cümle tutar ve
+  toplam yatırılan, varlık başına bir satır (`• Dolar: 2.900,00 TL (65,84 TL artış, %2,32)`), tek risk satırı (fiyatı en sert düşen
+  varlık; fiyat düşüşü + birikimin en kötü anı, INV-01 K14-B'nin iki açısı korunur), birden çok varlıkta "alternatifidir" notu,
+  altında backend'in uyarısı. Kalemler (`facts`) cevapta aynen durur. Plandaki "model en fazla bir cümle" kısmı uygulanmadı:
+  kodun satırları her şeyi söylüyor, model eklemek hem süre hem yanlış yorum riski getirirdi.
+- **Üçüncü tur (D10-A, D12-A, D13-A, D14-A):** tek seferlik (`1-30 Eylül 2026 döneminde … harcadınız. Bu parayla … tarihinde
+  alsaydınız …` + varlık satırları), bütçe (bugünkü durum: "aştınız" ya da "kaldı"; doğrusal ay sonu tahmini: "aşar" ya da "içinde
+  kalır") ve tasarruf (`Son 6 tam ayda (…) aylık ortalama … %10 azaltırsanız ayda yaklaşık …, yılda …`; birden çok para biriminde
+  satır satır) cevaplarını kod yazar; kodun yazdığı cevaba `period_line` eklenmez (tarih zaten ilk cümlede). Kullanıcının rakamları
+  (`amount`, `currencyCode`, `reductionPercent`) takip sorusunda yalnız "peki/ya/ayrıca…" ile başlayan mesajda taşınır
+  (`conversation.carried`); "Bütçemi aşacak mıyım?" gibi kısa yeni soru tutarı yeniden sorar. Model artık bu dört aracın cevabını
+  yazmıyor; tavsiye ve ad denetimi gelir payı ile öneri cevaplarında çalışmaya devam ediyor.
+
 ## Kararlar (hepsi kullanıcı kararı, 19 Ekim 2026)
 
 K1-A `POST /api/assistant/messages` · K2-A .NET'in kendi DTO'su (`type` tam adla, `answer`, `toolCalls`, `facts`; `model`

@@ -177,7 +177,7 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
         }
 
         model = reply?.Model;
-        if (reply is { Type: not null, Answer: not null, ToolCalls: not null, Facts: not null, Suggestions: not null, Choices: not null }
+        if (reply is { Type: not null, Answer: not null, ToolCalls: not null, Facts: not null, Suggestions: not null, Choices: not null, InputHint: not null }
             && ReplyTypes.TryGetValue(reply.Type, out var type)
             && reply.ToolCalls.All(c => c is { Tool: not null, Arguments: not null })
             && reply.Facts.All(f => f is { Label: not null, Text: not null })
@@ -191,6 +191,7 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
                 reply.Facts.Select(f => new AssistantFact(f!.Label!, f.Text!)).ToList(),
                 reply.Suggestions.Select(s => s!).ToList(),
                 reply.Choices.Select(c => new AssistantChoice(c!.Label!, c.Detail!)).ToList(),
+                reply.InputHint,
                 // Built by the controller from the checked tool calls (CHAT-07), never read from the AI service.
                 []);
         }
@@ -241,7 +242,7 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
 
     private sealed record ChatResponse(
         string? Type, string? Answer, List<ChatToolCall?>? ToolCalls, List<ChatFact?>? Facts, List<string?>? Suggestions, List<ChatChoice?>? Choices,
-        string? Model);
+        string? InputHint, string? Model);
 
     private sealed record SuggestionsResponse(List<string?>? Suggestions);
 

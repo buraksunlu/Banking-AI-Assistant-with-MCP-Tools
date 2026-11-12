@@ -3179,6 +3179,7 @@
           "facts",
           "suggestions",
           "choices",
+          "inputHint",
           "links"
         ],
         "type": "object",
@@ -3213,6 +3214,9 @@
               "$ref": "#/components/schemas/AssistantChoice"
             }
           },
+          "inputHint": {
+            "type": "string"
+          },
           "links": {
             "type": "array",
             "items": {
@@ -3220,7 +3224,7 @@
             }
           }
         },
-        "description": "Reply of `POST /api/assistant/messages`. The figures in `answer` come from `facts`, which the\nbackend computed; the model only chose the tool and wrote the sentence. `suggestions` are up to three questions\nto offer under the reply, from a fixed table (CHAT-06); sent back as written, one runs the call it stands for.\n`links` are the buttons under an answer that open the list of transactions behind its figure (CHAT-07); the\nbackend builds them from the checked tool calls and the AI service never sees them. `choices` are a question\nback's options as tappable rows (CHAT-10), empty in any other reply; the `answer` of a question then holds only\nthe question, not the options."
+        "description": "Reply of `POST /api/assistant/messages`. The figures in `answer` come from `facts`, which the\nbackend computed; the model only chose the tool and wrote the sentence. `suggestions` are up to three questions\nto offer under the reply, from a fixed table (CHAT-06); sent back as written, one runs the call it stands for.\n`links` are the buttons under an answer that open the list of transactions behind its figure (CHAT-07); the\nbackend builds them from the checked tool calls and the AI service never sees them. `choices` are a question\nback's options as tappable rows (CHAT-10), empty in any other reply; the `answer` of a question then holds only\nthe question, not the options. `inputHint` is a last row inviting an answer of the user's own (\"Başka bir tutar\nyazın\"), which opens the keyboard instead of sending anything; empty when the options are all there is (CHAT-10 PR3b)."
       },
       "AssistantReplyType": {
         "enum": [

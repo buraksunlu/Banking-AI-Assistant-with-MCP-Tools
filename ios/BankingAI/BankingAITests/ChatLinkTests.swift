@@ -17,7 +17,7 @@ private func linkJSON(period: String = "ThisMonth", from: String? = nil, to: Str
 
 private func replyJSON(links: String?, suggestions: String = "[]") -> String {
     let field = links.map { #","links":\#($0)"# } ?? ""
-    return #"{"type":"Answer","answer":"Bu ay **8.241,40 TL** harcadınız.","toolCalls":[],"facts":[],"suggestions":\#(suggestions)\#(field)}"#
+    return #"{"type":"Answer","answer":"Bu ay **8.241,40 TL** harcadınız.","toolCalls":[],"facts":[],"suggestions":\#(suggestions),"choices":[],"inputHint":""\#(field)}"#
 }
 
 @MainActor private func decode(_ json: String) throws -> AssistantReply {

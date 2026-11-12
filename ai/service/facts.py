@@ -49,6 +49,9 @@ class ToolOutcome:
     question: str | None = None
     # CHAT-09 K16-A: each priced asset's folded word with its value as the facts write it, for answer_check.misnamed.
     named_values: tuple[tuple[str, str], ...] = ()
+    # CHAT-10 PR3b D9-A: an answer code wrote from the facts, shown instead of the model's explanation (the backend's lines still
+    # go under it); None lets the model explain as before.
+    written: str | None = None
 
 
 def outcome_for(tool: str, arguments: dict, result: dict) -> ToolOutcome:
@@ -241,7 +244,26 @@ def _budget(arguments: dict, result: dict) -> ToolOutcome:
         facts.append(_fact("Tahmini aşım", money(figures["projectedOverAmount"], currency)))
     else:
         facts.append(_fact("Tahmin", WITHIN_BUDGET))
-    return ToolOutcome([*facts, _fact("Not", BUDGET_RULE)])
+    return ToolOutcome([*facts, _fact("Not", BUDGET_RULE)], written=_budget_written(result, match))
+
+
+def _budget_written(result: dict, match: dict | None) -> str:
+    """The budget in two lines (CHAT-10 PR3b D13-A): where it stands today, then the linear month-end estimate."""
+    figures, currency = result["figures"], result["currencyCode"]
+    budget = money(result["budgetAmount"], currency)
+    now = (f"{budget} bütçenizi {money(figures['overAmount'], currency)} aştınız." if figures["isOverBudget"] else
+           f"{budget} bütçenizden {money(figures['remainingAmount'], currency)} kaldı.")
+    end = (f"bütçeyi {money(figures['projectedOverAmount'], currency)} aşar." if figures["willExceed"] else "bütçenin içinde kalır.")
+    return (f"Bu ay ({_range(result['period'])}){_for(result, match)} {money(figures['spentAmount'], currency)} harcadınız "
+            f"({figures['transactionCount']} işlem); {now}\n"
+            f"Bugüne kadarki günlük ortalamayla ay sonunda {money(figures['projectedMonthEnd'], currency)} olur; {end}")
+
+
+def _for(result: dict, match: dict | None) -> str:
+    # " yeme & içme için", " Starbucks için", or nothing for all spending.
+    if result["categoryDisplayName"]:
+        return f" {_lower(result['categoryDisplayName'])} için"
+    return f" {match['merchant']} için" if match else ""
 
 
 def _savings(arguments: dict, result: dict) -> ToolOutcome:
@@ -263,7 +285,24 @@ def _savings(arguments: dict, result: dict) -> ToolOutcome:
         facts.append(_fact(f"Aylık ortalama{suffix}", money(row["monthlyAverage"], currency)))
         facts.append(_fact(f"Tahmini aylık tasarruf{suffix}", money(row["monthlySaving"], currency)))
         facts.append(_fact(f"Tahmini yıllık tasarruf{suffix}", money(row["annualSaving"], currency)))
-    return ToolOutcome([*_closing(facts, rows, NO_SAVINGS_SPENDING), _fact("Not", SAVINGS_RULE)])
+    return ToolOutcome([*_closing(facts, rows, NO_SAVINGS_SPENDING), _fact("Not", SAVINGS_RULE)],
+                       written=_savings_written(result, match, used))
+
+
+def _savings_written(result: dict, match: dict | None, used: str) -> str:
+    """The saving in one or a few lines (CHAT-10 PR3b D14-A): the period it averages, then the estimate per currency."""
+    head, cut, rows = f"Son {result['months']} tam ayda ({used}){_for(result, match)}", f"%{result['reductionPercent']}", result["currencies"]
+    if not rows:
+        return f"{head} harcama bulunamadı; tasarruf hesaplanamaz."
+    if len(rows) == 1:
+        r, c = rows[0], rows[0]["currencyCode"]
+        return (f"{head} aylık ortalama {money(r['monthlyAverage'], c)} harcadınız (toplam {money(r['totalSpent'], c)}). "
+                f"{cut} azaltırsanız ayda yaklaşık {money(r['monthlySaving'], c)}, yılda {money(r['annualSaving'], c)} biriktirirsiniz.")
+    lines = [f"{head}, {cut} azaltırsanız:"]
+    lines += [f"• {r['currencyCode']}: aylık ortalama {money(r['monthlyAverage'], r['currencyCode'])}; ayda yaklaşık "
+              f"{money(r['monthlySaving'], r['currencyCode'])}, yılda {money(r['annualSaving'], r['currencyCode'])} biriktirirsiniz."
+              for r in rows]
+    return "\n".join([*lines, CURRENCIES_APART])
 
 
 NO_INCOME = "Hesaplanamaz: son 3 ayda maaş kaydı yok."
@@ -343,8 +382,25 @@ def _one_off(arguments: dict, result: dict) -> ToolOutcome:
     facts.extend(_asset_fact(a, priced=True) for a in result["assets"])
     category = f"{_lower(result['categoryDisplayName'])} " if result["categoryDisplayName"] else ""
     question = f"{_period(result).text} dönemindeki {category}harcamamla {_choices(result['assets'])} alsaydım bugün ne olurdu?"
+    category = f" {_lower(result['categoryDisplayName'])} için" if result["categoryDisplayName"] else ""
+    opening = (f"{_period(result).text} döneminde{category} {money(result['spentAmount'], result['currencyCode'])} harcadınız. "
+               f"Bu parayla {_day(result['buyDate'])} tarihinde alsaydınız, {_day(result['valueDate'])} itibarıyla değeri:")
     return ToolOutcome([*facts, _fact("Not", ALTERNATIVES)], appendix=(result["disclaimer"],), question=question,
-                       named_values=_named_values(result["assets"]))
+                       named_values=_named_values(result["assets"]),
+                       written="\n".join([opening, *_asset_lines(result["assets"], result["currencyCode"]),
+                                          *_alternatives_line(result["assets"])]))
+
+
+def _asset_lines(assets: list[dict], currency: str) -> list[str]:
+    """One line per asset for an answer code writes (CHAT-10 PR3b D9-A, D10-A)."""
+    return [f"• {_asset_name(a)}: hesaplanamadı (fiyat bulunamadı ya da çok eski)" if a["value"] is None else
+            f"• {_asset_name(a)}: {money(a['value'], currency)} ({_change(a['difference'], currency)}, "
+            f"{percent(abs(a['differencePercent']))})" for a in assets]
+
+
+def _alternatives_line(assets: list[dict]) -> list[str]:
+    # Only when there is something one might add up.
+    return ["Bu seçenekler birbirinin alternatifidir; değerler toplanmaz."] if sum(a["value"] is not None for a in assets) > 1 else []
 
 
 def _monthly(arguments: dict, result: dict) -> ToolOutcome:
@@ -365,8 +421,30 @@ def _monthly(arguments: dict, result: dict) -> ToolOutcome:
             facts.extend(_volatility(a, currency))
     question = (f"Son {result['months']} ay boyunca her ay {money(result['amount'], currency)} ile {_choices(result['assets'])} "
                 "alsaydım bugün ne olurdu?")
+    source = f" ({whose})" if result["amountSource"] == "Advice" else ""
     return ToolOutcome([*facts, _fact("Not", ALTERNATIVES)], appendix=(result["disclaimer"],), question=question,
-                       named_values=_named_values(result["assets"]))
+                       named_values=_named_values(result["assets"]), written=_monthly_written(result, source))
+
+
+def _monthly_written(result: dict, source: str) -> str:
+    """The monthly saving in a few lines (CHAT-10 PR3b D9-A): one per asset and one of risk, the sharpest fall, with both of its
+    views (INV-01 K14-B: the price's fall alone frightens, the saving's worst moment alone hides the risk)."""
+    currency = result["currencyCode"]
+    lines = [f"Son {result['months']} ay boyunca her ayın 1'inde {money(result['amount'], currency)} biriktirseydiniz{source}, toplam "
+             f"{money(result['invested'], currency)} yatırmış olurdunuz. {_day(result['valueDate'])} itibarıyla değeri:"]
+    lines.extend(_asset_lines(result["assets"], currency))
+    fell = [a for a in result["assets"] if a["value"] is not None and a.get("volatility")
+            and a["volatility"]["maxDrawdown"]["percent"] < 0]
+    if fell:
+        sharpest = min(fell, key=lambda a: a["volatility"]["maxDrawdown"]["percent"])
+        fall, worst = sharpest["volatility"]["maxDrawdown"], sharpest["volatility"]["worstMoment"]
+        behind = (f"birikiminiz en kötü anında ({_day(worst['date'])}) {percent(abs(worst['returnPercent']))} gerideydi."
+                  if worst["returnPercent"] < 0 else "birikiminiz hiçbir ay zarara düşmedi.")
+        lines.append(f"Risk ({_asset_name(sharpest)}): fiyat {_day(fall['peakDate'])} - {_day(fall['troughDate'])} arasında "
+                     f"{percent(abs(fall['percent']))} düştü; {behind}")
+    elif any(a["value"] is not None for a in result["assets"]):
+        lines.append("Risk: fiyatlar dönem boyunca önceki bir noktanın altına düşmedi.")
+    return "\n".join([*lines, *_alternatives_line(result["assets"])])
 
 
 def _choices(assets: list[dict]) -> str:

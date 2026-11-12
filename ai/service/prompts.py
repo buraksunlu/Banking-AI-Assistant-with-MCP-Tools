@@ -176,10 +176,6 @@ _SITUATION = {"period": "Kullanıcı hangi dönemi sorduğunu söylemedi.",
               "count": "Kullanıcı kaç aylık bir dönem istediğini söylemedi.",
               "merchant": ("Kullanıcının yazdığı ‘{asked}’ adı birden fazla işyerine uyuyor; işyeri adlarını yazmadan hangi "
                            "işyerini kastettiğini sor."),
-              # CHAT-09 K20-B (clarify-v2): two calculations fit the question; the model says them the user's way.
-              "scenario": ("Kullanıcının sorusu iki şekilde hesaplanabilir. Tek seferlik: bir dönemdeki harcamasıyla o dönemin başında "
-                           "bir kerede dolar, euro ya da altın alsaydı. Aylık birikim: son 12 ay boyunca her ay aynı TL tutarını "
-                           "biriktirseydi. Hangisini istediğini sor; soruyu kullanıcının kendi sözlerine ve konuşma diline uydur."),
               "topic": ("Kullanıcının sorusu iki şekilde hesaplanabilir. Bütçe kontrolü: bu ayki harcaması söylediği bütçeyi aşar "
                         "mı. Tasarruf hesabı: bir harcamayı azaltırsa ne kadar biriktirir. Hangisini istediğini sor; soruyu "
                         "kullanıcının kendi sözlerine ve konuşma diline uydur.")}

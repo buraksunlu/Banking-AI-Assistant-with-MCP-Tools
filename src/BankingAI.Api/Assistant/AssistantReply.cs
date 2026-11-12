@@ -43,7 +43,8 @@ public sealed record AssistantChoice(string Label, string Detail);
 /// <c>links</c> are the buttons under an answer that open the list of transactions behind its figure (CHAT-07); the
 /// backend builds them from the checked tool calls and the AI service never sees them. <c>choices</c> are a question
 /// back's options as tappable rows (CHAT-10), empty in any other reply; the <c>answer</c> of a question then holds only
-/// the question, not the options.
+/// the question, not the options. <c>inputHint</c> is a last row inviting an answer of the user's own ("Başka bir tutar
+/// yazın"), which opens the keyboard instead of sending anything; empty when the options are all there is (CHAT-10 PR3b).
 /// </summary>
 public sealed record AssistantReply(
     AssistantReplyType Type,
@@ -52,6 +53,7 @@ public sealed record AssistantReply(
     IReadOnlyList<AssistantFact> Facts,
     IReadOnlyList<string> Suggestions,
     IReadOnlyList<AssistantChoice> Choices,
+    string InputHint,
     IReadOnlyList<AssistantLink> Links);
 
 /// <summary>

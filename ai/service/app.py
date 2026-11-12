@@ -157,7 +157,8 @@ def create_app(
             type=reply.type, answer=reply.answer,
             tool_calls=[ToolCallOut(tool=c.tool, arguments={k: _as_text(v) for k, v in c.arguments.items()}) for c in reply.tool_calls],
             facts=reply.facts, suggestions=reply.suggestions,
-            choices=[ChoiceOut(label=c.label, detail=c.detail) for c in reply.choices], model=request.app.state.settings.model)
+            choices=[ChoiceOut(label=c.label, detail=c.detail) for c in reply.choices],
+            input_hint=reply.input_hint, model=request.app.state.settings.model)
 
     @app.get("/v1/suggestions", response_model=SuggestionsResponse)
     def suggestions(

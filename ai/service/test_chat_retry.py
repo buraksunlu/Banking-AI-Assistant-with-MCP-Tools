@@ -11,7 +11,8 @@ from answer_check import AnswerRejected
 from chat import ChatReply, ToolCall
 from prompts import BARE_CHOICE_TEXT
 from routing import Router
-from test_chat import (AMOUNT_CHOICES, AMOUNT_QUESTION, CURRENCY_CHOICES, BUDGET_RESULT, CURRENCY_QUESTION, SUMMARY_YESTERDAY, TOKEN, YESTERDAY_TWO, YESTERDAY_CATEGORIES,
+from tools import BackendTimeout
+from test_chat import (AMOUNT_CHOICES, AMOUNT_HINT, AMOUNT_QUESTION, CURRENCY_CHOICES, BUDGET_RESULT, CURRENCY_QUESTION, SUMMARY_YESTERDAY, TOKEN, YESTERDAY_TWO, YESTERDAY_CATEGORIES,
                        FakeExplainer, FakeGateway, service)
 from test_chat_wealth import DAY
 from test_clarification import TOPIC_TEXT
@@ -40,8 +41,20 @@ class Planning:
         return "planning"
 
 
+class TimingOutOnce(FakeGateway):
+    """Times out on the first call, then answers. Since CHAT-10 PR3b D13-A the budget answer is written by code, so the turn of the
+    trial that failed (the 502 of the live run) now fails at the backend instead of at the explanation; the put-back is the same."""
+
+    def call(self, tool, arguments, token, deadline):
+        if not self.calls:
+            self.calls.append((tool, arguments, token, deadline))
+            raise BackendTimeout("first call times out")
+        return super().call(tool, arguments, token, deadline)
+
+
 def trial(explainer=None):
-    chat, selector, gateway, explainer = service([], gateway=FakeGateway(BUDGET_RESULT), explainer=explainer or FailingOnce())
+    gateway = FakeGateway(BUDGET_RESULT) if explainer is not None else TimingOutOnce(BUDGET_RESULT)
+    chat, selector, gateway, explainer = service([], gateway=gateway, explainer=explainer or FakeExplainer())
     chat.router = Router(Planning())
     return chat, selector, gateway, explainer
 
@@ -66,7 +79,7 @@ def test_retrying_a_failed_reply_completes_the_same_call_and_asks_nothing_again(
     assert chat.answer("Bütçemi kısıp tasarruf etsem?", TOKEN, DAY).answer == TOPIC_TEXT
     assert chat.answer("1", TOKEN, DAY).answer == AMOUNT_QUESTION
     chat.answer("5k", TOKEN, DAY)
-    with pytest.raises(AnswerRejected):
+    with pytest.raises(BackendTimeout):
         chat.answer("1", TOKEN, DAY)
 
     retried = chat.answer("1", TOKEN, DAY)
@@ -81,7 +94,7 @@ def test_the_waiting_question_given_back_is_still_used_once():
     chat.answer("Bütçemi kısıp tasarruf etsem?", TOKEN, DAY)
     chat.answer("1", TOKEN, DAY)
     chat.answer("5k", TOKEN, DAY)
-    with pytest.raises(AnswerRejected):
+    with pytest.raises(BackendTimeout):
         chat.answer("1", TOKEN, DAY)
     chat.answer("1", TOKEN, DAY)
 
@@ -132,7 +145,7 @@ def test_an_amount_reply_the_code_cannot_read_is_asked_again():
     again = chat.answer("5x", TOKEN, DAY)
     chat.answer("5000 TL", TOKEN, DAY)
 
-    assert again == ChatReply("clarification", "‘5x’ tutarını anlayamadım. " + AMOUNT_QUESTION, [], [], choices=AMOUNT_CHOICES)
+    assert again == ChatReply("clarification", "‘5x’ tutarını anlayamadım. " + AMOUNT_QUESTION, [], [], choices=AMOUNT_CHOICES, input_hint=AMOUNT_HINT)
     assert gateway.calls[0][:2] == ("check_budget", {"amount": 5000, "currencyCode": "TRY"})
 
 
@@ -143,4 +156,4 @@ def test_a_question_with_an_amount_the_code_cannot_read_asks_the_amount():
 
     reply = chat.answer("Bu ay 5x TL bütçemi aşar mıyım?", TOKEN)
 
-    assert reply == ChatReply("clarification", AMOUNT_QUESTION, [], [], choices=AMOUNT_CHOICES) and gateway.calls == []
+    assert reply == ChatReply("clarification", AMOUNT_QUESTION, [], [], choices=AMOUNT_CHOICES, input_hint=AMOUNT_HINT) and gateway.calls == []

@@ -46,22 +46,35 @@ enum AssistantReplyType: String, Decodable {
 /// (IOS-11, decision AI-08 K13-A), so they are not decoded. `suggestions` are the questions to offer under the answer
 /// (CHAT-06); required, so a reply without them is a contract mismatch rather than "none" (K6-A). `links` are the buttons
 /// under the answer (CHAT-07): required as a list too, but one link this app cannot read is dropped, not the whole answer
-/// (CHAT-07 K5-A), so an older app still shows what a newer API answers.
+/// (CHAT-07 K5-A), so an older app still shows what a newer API answers. `choices` are the options of a question asked back
+/// (CHAT-10 PR3): required, and one broken option fails the reply, because half a choice is worse than a visible failure (D2-A).
+/// `inputHint` is a last row inviting an answer of the user's own ("Başka bir tutar yazın"), "" when there is none (PR3b D6-A).
 struct AssistantReply: Decodable, Equatable {
     let type: AssistantReplyType
     let answer: String
     let suggestions: [String]
+    let choices: [AssistantChoice]
+    let inputHint: String
     let links: [AssistantLink]
 
-    private enum Keys: String, CodingKey { case type, answer, suggestions, links }
+    private enum Keys: String, CodingKey { case type, answer, suggestions, choices, inputHint, links }
 
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: Keys.self)
         type = try values.decode(AssistantReplyType.self, forKey: .type)
         answer = try values.decode(String.self, forKey: .answer)
         suggestions = try values.decode([String].self, forKey: .suggestions)
+        choices = try values.decode([AssistantChoice].self, forKey: .choices)
+        inputHint = try values.decode(String.self, forKey: .inputHint)
         links = try values.decode([Skippable<AssistantLink>].self, forKey: .links).compactMap(\.value)
     }
+}
+
+/// One option of a question asked back (CHAT-10 PR3): `label` is what a tap sends, exactly as written (P4-A); `detail` says what
+/// the option means, and is empty for all but the two-calculation choices (P5-A).
+struct AssistantChoice: Decodable, Equatable, Hashable {
+    let label: String
+    let detail: String
 }
 
 /// An element that may fail to decode without failing the list around it.

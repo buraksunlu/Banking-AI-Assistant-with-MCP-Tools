@@ -28,13 +28,14 @@ CURRENCY_OPTIONS = (("TL", "TRY"), ("Euro", "EUR"), ("Dolar", "USD"), ("Sterlin"
 MONTHLY_SAVING = "what_if_monthly"
 # Examples for a cut, not numbered: "20" then means 20 %, not an option.
 PERCENT_EXAMPLES = (10, 25, 50)
-# CHAT-10 P1-D: the amount examples are tappable too. A budget's carries "TL", so one tap also answers the currency asked next;
-# the monthly saving is lira only (CHAT-09 K6-B).
-BUDGET_EXAMPLES = (1000, 3000, 5000)
-MONTHLY_EXAMPLES = (500, 1000, 2000)
-# CHAT-09 K17-C, K19-C: the two "what if" scenarios and the two planning calculations, as the user is offered them. No spending
-# word among the one-off's: "Dün ne harcadım?" after the question is a new question, not the one-off.
-CHOICE_KINDS = ("scenario", "topic")
+# CHAT-10 P1-D: the amount examples are tappable too. They carry "TL", so one tap also answers a budget's currency asked next;
+# the monthly saving is lira only (CHAT-09 K6-B). One set for both questions (PR3b D7-A, simulator trial of 12 Nov 2026).
+AMOUNT_EXAMPLES = (1000, 5000, 10000)
+# PR3b D6-A: an amount question also invites one of the user's own; the app draws it as a row that opens the keyboard.
+AMOUNT_HINT = "Başka bir tutar yazın"
+# CHAT-09 K19-C: the two planning calculations, as the user is offered them. (K17-C's "one-off or monthly?" question was dropped
+# in CHAT-10 PR3b D8-B: an undecided "what if" is the monthly saving.)
+CHOICE_KINDS = ("topic",)
 # Folded like the reply they are matched against (K11-A).
 _ORDINALS = {fold_rule(word): number for word, number in {
     "birinci": 1, "ilk": 1, "ilki": 1, "ikinci": 2, "ikincisi": 2, "üçüncü": 3, "üçüncüsü": 3, "dördüncü": 4,
@@ -53,13 +54,6 @@ class Option:
     words: re.Pattern | None = None
 
 
-SCENARIOS = (
-    Option("tek seferlik", "what_if_one_off",
-           "bir dönemdeki harcamanızla o dönemin başında dolar, euro ya da altın alsaydınız",
-           re.compile(fold_rule(r"\btek\s+sefer|\bbir\s+(?:ker|defa|sefer)|\btoplu"))),
-    Option("aylık birikim", MONTHLY_SAVING, "son 12 ay boyunca her ay belirli bir TL tutarı biriktirseydiniz",
-           re.compile(fold_rule(r"\baylık|\bher\s+ay\b|\bayda\b|\bdüzenli|\bbirikim"))),
-)
 TOPICS = (
     Option("bütçe kontrolü", "check_budget", "bu ayki harcamanız söylediğiniz bütçeyi aşar mı",
            re.compile(fold_rule(r"bütçe|\blimit|\bsınır|\baş(?:ar|acak|ma)"))),
@@ -136,8 +130,7 @@ def ask_merchant(tool: str, arguments: dict, asked: str, candidates: list[str], 
 def ask_amount(tool: str, arguments: dict, question: str, later: tuple[str, ...] = ()) -> Pending:
     """The question for a budget amount the user did not write (MCP-17 K3-A), or a monthly saving's (INC-03)."""
     rest = {k: v for k, v in arguments.items() if k != "amount"}
-    examples = MONTHLY_EXAMPLES if tool == MONTHLY_SAVING else BUDGET_EXAMPLES
-    options = tuple(Option(f"{n:,} TL".replace(",", "."), n) for n in examples)
+    options = tuple(Option(f"{n:,} TL".replace(",", "."), n) for n in AMOUNT_EXAMPLES)
     return Pending(tool, rest, "amount", "amount", options, question, later=later)
 
 
@@ -161,14 +154,14 @@ def ask_percent(tool: str, arguments: dict, question: str, later: tuple[str, ...
     return Pending(tool, rest, "reductionPercent", "percent", examples, question, minimum=1, maximum=100, later=later)
 
 
-def ask_scenario(question: str) -> Pending:
-    """Which "what if" the user meant (CHAT-09 K17-C): no tool yet, the user's question kept for after the choice."""
-    return Pending("", {}, "tool", "scenario", SCENARIOS, question, original=question)
-
-
 def ask_topic(question: str) -> Pending:
     """Which planning calculation the user meant (CHAT-09 K19-C)."""
     return Pending("", {}, "tool", "topic", TOPICS, question, original=question)
+
+
+def input_hint(pending: Pending) -> str:
+    """The row that invites an answer of the user's own (PR3b D6-A); empty for a question whose options are all there is."""
+    return AMOUNT_HINT if pending.kind == "amount" else ""
 
 
 def choices(pending: Pending) -> list[Choice]:
@@ -187,6 +180,16 @@ def chosen_tool(pending: Pending, reply: str) -> str | None:
     folded = fold_turkish(reply)
     named = [o.value for o in pending.options if o.words.search(folded)]
     return named[0] if len(named) == 1 else None
+
+
+# PR3b D8-B: an undecided "what if" asks the monthly saving's amount; these words in a short reply say the user meant "at once".
+_ONE_OFF_WORDS = re.compile(fold_rule(r"\btek\s+sefer|\bbir\s+(?:ker|defa|sefer)|\btoplu"))
+
+
+def wants_one_off(pending: Pending, reply: str) -> bool:
+    """True when a short reply to the monthly saving's amount question asks for the one-off instead ("tek seferlik", "bir kerede")."""
+    return (pending.kind == "amount" and pending.tool == MONTHLY_SAVING and len(reply.split()) <= MAX_REPLY_WORDS
+            and _ONE_OFF_WORDS.search(fold_turkish(reply)) is not None)
 
 
 def is_bare_choice(reply: str) -> bool:

@@ -41,6 +41,18 @@ class ConversationStore:
         return self._memory.get(token)
 
 
+# CHAT-10 PR3b D12-A: the user's own figures (a budget, a cut) carry over only when the message says it follows up; a short new
+# question ("Bütçemi aşacak mıyım?") had silently reused the last budget.
+FIGURE_ARGUMENTS = ("amount", "currencyCode", "reductionPercent")
+
+
+def carried(message: str, arguments: dict) -> dict:
+    """The last call's arguments a follow-up may keep: all of them after "peki", "ya" …; without the user's figures otherwise."""
+    if _FOLLOW_UP_START.match(fold_turkish(message).strip()) is not None:
+        return arguments
+    return {k: v for k, v in arguments.items() if k not in FIGURE_ARGUMENTS}
+
+
 def is_follow_up(message: str) -> bool:
     """True for a short message or one that starts like a follow-up ("peki", "ya", "ayrıca", "bir de")."""
     folded = fold_turkish(message).strip()
