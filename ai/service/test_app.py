@@ -312,6 +312,7 @@ def test_chat_returns_the_reply_in_the_agreed_shape():
         "facts": [{"label": "Dönem", "text": "9 Ekim 2026"}, {"label": "Toplam harcama", "text": "145,00 TL"}],
         "suggestions": [],
         "choices": [],
+        "inputHint": "",
         "model": "qwen3.5:4b",
     }
     assert fake.calls == [("Dün ne harcadım?", "abc")]
@@ -343,6 +344,17 @@ def test_chat_returns_a_questions_options_as_choices():
 
     assert response.json()["choices"] == [{"label": "tek seferlik", "detail": "bir dönemdeki harcamanızla"},
                                           {"label": "aylık birikim", "detail": ""}]
+
+
+def test_chat_returns_an_amount_questions_input_hint():
+    # PR3b D6-A: the row that opens the keyboard; empty in every other reply.
+    reply = ChatReply("clarification", "Ayda kaç TL biriktirirdiniz?", [], [], choices=[Choice("1.000 TL", "")],
+                      input_hint="Başka bir tutar yazın")
+
+    response = chat_client(FakeChat(reply)).post("/v1/chat", json={"message": "Biriktirseydim?", **DAY},
+                                                 headers={"Authorization": "Bearer abc"})
+
+    assert response.json()["inputHint"] == "Başka bir tutar yazın"
 
 
 

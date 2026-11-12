@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import BankingAI
 
-private let answer = #"{"type":"Answer","answer":"Dün **145,00 TL** harcadınız.","toolCalls":[{"tool":"get_spending_summary","arguments":{"period":"Yesterday"}}],"facts":[{"label":"Toplam harcama","text":"145,00 TL"}],"suggestions":["Kategorilere göre?","Peki işyerlerine göre?"],"links":[]}"#
+private let answer = #"{"type":"Answer","answer":"Dün **145,00 TL** harcadınız.","toolCalls":[{"tool":"get_spending_summary","arguments":{"period":"Yesterday"}}],"facts":[{"label":"Toplam harcama","text":"145,00 TL"}],"suggestions":["Kategorilere göre?","Peki işyerlerine göre?"],"choices":[],"inputHint":"","links":[]}"#
 
 private let starters = #"{"suggestions":["Önümüzdeki 7 günde hangi ödemelerim çıkacak?","Bu ay ne kadar harcadım?","Aboneliklerim neler?"]}"#
 
@@ -60,7 +60,7 @@ struct ChatViewModelTests {
 
     @Test(arguments: [("Clarification", "Hangi dönemi soruyorsunuz?"), ("OutOfScope", "Bu konuda yardımcı olamıyorum.")])
     func clarificationsAndOutOfScopeRepliesAreAnswersToo(type: String, text: String) async throws {
-        let app = TestApp(assistant(message: { json(200, #"{"type":"\#(type)","answer":"\#(text)","toolCalls":[],"facts":[],"suggestions":[],"links":[]}"#) }))
+        let app = TestApp(assistant(message: { json(200, #"{"type":"\#(type)","answer":"\#(text)","toolCalls":[],"facts":[],"suggestions":[],"choices":[],"inputHint":"","links":[]}"#) }))
         let model = ChatViewModel(api: app.api)
 
         await model.send("Ne harcadım?")
@@ -282,7 +282,7 @@ struct ChatSuggestionTests {
 
     @Test func aQuestionAskedBackOffersNothing() async {
         let model = ChatViewModel(api: TestApp(assistant(message: {
-            json(200, #"{"type":"Clarification","answer":"Hangi dönem için?","toolCalls":[],"facts":[],"suggestions":[],"links":[]}"#)
+            json(200, #"{"type":"Clarification","answer":"Hangi dönem için?","toolCalls":[],"facts":[],"suggestions":[],"choices":[],"inputHint":"","links":[]}"#)
         })).api)
 
         await model.send("Ne kadar harcadım?")

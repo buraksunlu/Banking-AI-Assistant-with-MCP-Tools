@@ -92,9 +92,13 @@ gösterilen cevaptan sonra yazılır) ve sonuca göre anlamsızlar (`result_shap
 Metinler dönemli tam sorudur (`PATTERNS`); yeni kalıp → 2 model vakası + `phrasing_templates.json` "offered" niyetinde bütün dönemleri.
 **Seçenekler (CHAT-10 PR3):** geri sorunun seçenekleri `ChatReply.choices` (`clarification.choices(pending)`, `Choice(label, detail)`)
 ile ayrı gider; `template` ve model yazımı (`clarify-v3`) yalnız soru cümlesidir. Her `Pending` türü dokunulabilir (tutar örnekleri
-`BUDGET_EXAMPLES`/`MONTHLY_EXAMPLES`); yeni tür ya da seçenek eklenince her etiketin `resolve`/`chosen_tool` ile kendi değerine
+`AMOUNT_EXAMPLES` 1.000/5.000/10.000 TL; tutar sorusunda ayrıca `ChatReply.input_hint` "Başka bir tutar yazın", sözleşmede
+`inputHint`, PR3b D6-A); yeni tür ya da seçenek eklenince her etiketin `resolve`/`chosen_tool` ile kendi değerine
 eşleştiği test genişletilir. `check_question` seçenek saymaz, ama yarım anma, liste, sunulmayan dönem, sayı ve "işyeri" demeyen işyeri
-sorusunu reddeder. Prompt değişince `question_eval.py` (14 vaka, eşik %80) önce/sonra.
+sorusunu reddeder. Prompt değişince `question_eval.py` (8 vaka, eşik %80) önce/sonra. Senaryo sorusu yok (PR3b D8-B): belirsiz "ne
+olurdu" modelsiz aylık birikimdir, tutar sorusuna "tek seferlik" cevabı (`wants_one_off`) tek seferliğe geçer. İki "ne olurdu", bütçe ve
+tasarruf cevaplarını kod yazar (`ToolOutcome.written`); `written` dolu bir sonuçta model, tavsiye/ad denetimi ve "Dönem:" satırı
+çalışmaz. Kullanıcının rakamları takipte yalnız "peki/ya…" ile taşınır (`conversation.carried`).
 
 MCP istemcisi (MCP-b, `ai/service/mcp_gateway.py`, `mcp` 2.3.0): `BANKINGAI_MCP_URL` (yoksa `http://127.0.0.1:5249/mcp`; yanlış biçimde
 servis açılmaz). Protokol `2026-07-28`'e sabit (el sıkışma/keşif isteği yok); her çağrı kendi kısa olay döngüsünde (`anyio.run`, sohbet

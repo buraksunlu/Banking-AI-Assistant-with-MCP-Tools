@@ -404,7 +404,7 @@ def test_a_category_budget_that_will_be_exceeded():
                     remainingAmount=Decimal("410.00"), dailyAverage=Decimal("59.00"), projectedMonthEnd=Decimal("1829.00"),
                     projectedOverAmount=Decimal("829.00"), willExceed=True)
 
-    assert outcome_for("check_budget", {"amount": 1000, "currencyCode": "TRY", "categoryCode": "FOOD"}, result) == ToolOutcome(facts(
+    assert outcome_for("check_budget", {"amount": 1000, "currencyCode": "TRY", "categoryCode": "FOOD"}, result).facts == facts(
         ("Dönem", "1-10 Ekim 2026 (ayın 10. günü; ay 31 gün)"),
         ("Hedef", "Yeme & İçme"),
         ("Bütçe", "1.000,00 TL"),
@@ -414,7 +414,7 @@ def test_a_category_budget_that_will_be_exceeded():
         ("Bu hızla tahmini ay sonu", "1.829,00 TL"),
         ("Tahmini aşım", "829,00 TL"),
         BUDGET_NOTE,
-    ))
+    )
 
 
 def test_a_merchant_budget_already_exceeded():
@@ -482,7 +482,7 @@ def row(currency, total, average, monthly, annual, amounts):
 def test_halving_a_merchant_shows_every_month_and_the_assumption():
     result = savings(50, [row("TRY", "1110.00", "185.00", "92.50", "1110.00", months(*["185.00"] * 6))], match=matched("Starbucks"))
 
-    assert outcome_for("simulate_savings", {"reductionPercent": 50, "merchant": "Starbucks"}, result) == ToolOutcome(facts(
+    assert outcome_for("simulate_savings", {"reductionPercent": 50, "merchant": "Starbucks"}, result).facts == facts(
         ("Dönem", "1 Nisan - 30 Eylül 2026 (6 tam ay; devam eden ay dahil değil)"),
         ("Hedef", "Starbucks"),
         ("Azaltma oranı", "%50"),
@@ -493,7 +493,7 @@ def test_halving_a_merchant_shows_every_month_and_the_assumption():
         ("Tahmini aylık tasarruf", "92,50 TL"),
         ("Tahmini yıllık tasarruf", "1.110,00 TL"),
         SAVINGS_NOTE,
-    ))
+    )
 
 
 def test_a_month_without_spending_is_shown_as_zero():
@@ -534,3 +534,67 @@ def test_savings_for_an_ambiguous_merchant_ask_back():
 
     assert outcome_for("simulate_savings", {"reductionPercent": 50, "merchant": "şehir"}, savings(50, [], match=ambiguous)) == ToolOutcome(
         [], candidates=("Şehir Ulaşım", "Şehirlerarası Otobüs"))
+
+
+# --- CHAT-10 PR3b D13-A, D14-A: the budget and the saving answered in lines code wrote ---------------------------------------
+# The simulator trial of 12 Nov 2026: "aşacaksınız" for a budget already gone, "harcamayıp", and a saving with no period.
+
+def test_a_budget_already_exceeded_is_said_so():
+    result = budget(3000, spentAmount=Decimal("8241.40"), transactionCount=4, remainingAmount=0, overAmount=Decimal("5241.40"),
+                    isOverBudget=True, dailyAverage=Decimal("824.14"), projectedMonthEnd=Decimal("25548.34"),
+                    projectedOverAmount=Decimal("22548.34"), willExceed=True)
+
+    written = outcome_for("check_budget", {"amount": 3000, "currencyCode": "TRY"}, result).written
+
+    assert written == ("Bu ay (1-10 Ekim 2026) 8.241,40 TL harcadınız (4 işlem); 3.000,00 TL bütçenizi 5.241,40 TL aştınız.\n"
+                       "Bugüne kadarki günlük ortalamayla ay sonunda 25.548,34 TL olur; bütçeyi 22.548,34 TL aşar.")
+
+
+def test_a_category_budget_that_will_be_exceeded_says_what_is_left_and_by_how_much():
+    result = budget(1000, category="FOOD", name="Yeme & İçme", spentAmount=Decimal("590.00"), transactionCount=4,
+                    remainingAmount=Decimal("410.00"), dailyAverage=Decimal("59.00"), projectedMonthEnd=Decimal("1829.00"),
+                    projectedOverAmount=Decimal("829.00"), willExceed=True)
+
+    written = outcome_for("check_budget", {"amount": 1000, "currencyCode": "TRY", "categoryCode": "FOOD"}, result).written
+
+    assert written == ("Bu ay (1-10 Ekim 2026) yeme & içme için 590,00 TL harcadınız (4 işlem); 1.000,00 TL bütçenizden 410,00 TL "
+                       "kaldı.\nBugüne kadarki günlük ortalamayla ay sonunda 1.829,00 TL olur; bütçeyi 829,00 TL aşar.")
+
+
+def test_a_merchant_budget_within_reach():
+    result = budget(1000, match=matched("Starbucks"), spentAmount=Decimal("145.00"), transactionCount=1,
+                    remainingAmount=Decimal("855.00"), dailyAverage=Decimal("14.50"), projectedMonthEnd=Decimal("449.50"))
+
+    written = outcome_for("check_budget", {"amount": 1000, "currencyCode": "TRY", "merchant": "Starbucks"}, result).written
+
+    assert written.startswith("Bu ay (1-10 Ekim 2026) Starbucks için 145,00 TL harcadınız (1 işlem)")
+    assert written.endswith("ay sonunda 449,50 TL olur; bütçenin içinde kalır.")
+
+
+def test_a_saving_says_its_period_the_average_and_the_estimate():
+    result = savings(10, [row("TRY", "167224.84", "27870.81", "2787.08", "33444.97", months(*["27870.81"] * 6))])
+
+    written = outcome_for("simulate_savings", {"reductionPercent": 10}, result).written
+
+    assert written == ("Son 6 tam ayda (1 Nisan - 30 Eylül 2026) aylık ortalama 27.870,81 TL harcadınız (toplam 167.224,84 TL). "
+                       "%10 azaltırsanız ayda yaklaşık 2.787,08 TL, yılda 33.444,97 TL biriktirirsiniz.")
+
+
+def test_a_merchant_saving_in_two_currencies_keeps_them_apart():
+    result = savings(50, [row("TRY", "1110.00", "185.00", "92.50", "1110.00", months(*["185.00"] * 6)),
+                          row("EUR", "60.00", "10.00", "5.00", "60.00", months(*["10.00"] * 6))], match=matched("Starbucks"))
+
+    written = outcome_for("simulate_savings", {"reductionPercent": 50, "merchant": "Starbucks"}, result).written
+
+    assert written == ("Son 6 tam ayda (1 Nisan - 30 Eylül 2026) Starbucks için, %50 azaltırsanız:\n"
+                       "• TRY: aylık ortalama 185,00 TL; ayda yaklaşık 92,50 TL, yılda 1.110,00 TL biriktirirsiniz.\n"
+                       "• EUR: aylık ortalama 10,00 EUR; ayda yaklaşık 5,00 EUR, yılda 60,00 EUR biriktirirsiniz.\n"
+                       "Farklı para birimleri toplanmaz, ayrı gösterilir.")
+
+
+def test_a_saving_with_no_spending_says_so():
+    written = outcome_for("simulate_savings", {"reductionPercent": 10, "categoryCode": "FOOD"},
+                          savings(10, [], category="FOOD", name="Yeme & İçme")).written
+
+    assert written == "Son 6 tam ayda (1 Nisan - 30 Eylül 2026) yeme & içme için harcama bulunamadı; tasarruf hesaplanamaz."
+

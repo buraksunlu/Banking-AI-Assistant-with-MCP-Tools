@@ -59,7 +59,7 @@ public sealed class AssistantEndpointTests
                  "toolCalls":[{"tool":"get_spending_summary","arguments":{"period":"Yesterday"}}],
                  "facts":[{"label":"Toplam harcama","text":"145,00 TL"}],
                  "suggestions":["Kategorilere göre?","Peki işyerlerine göre?"],
-                 "choices":[],
+                 "choices":[],"inputHint":"",
                  "links":[{"title":"İşlemleri gör","query":{"period":"Yesterday","from":null,"to":null,"kind":"Purchase",
                            "accountType":"Personal","categoryCode":null,"merchant":null}}]}
                 """)!.ToJsonString(),
@@ -74,7 +74,7 @@ public sealed class AssistantEndpointTests
         var reply = """
             {"type":"answer","answer":"Dönem: 1-5 Eylül 2026. 5.116,50 TL harcadınız.",
              "toolCalls":[{"tool":"get_spending_summary","arguments":{"period":"Custom","from":"2026-09-01","to":"2026-09-05"}}],
-             "facts":[],"suggestions":[],"choices":[],"model":"m"}
+             "facts":[],"suggestions":[],"choices":[],"inputHint":"","model":"m"}
             """;
 
         var (status, body) = await AskAsync(FakeAssistantService.Answering(reply));
@@ -87,9 +87,9 @@ public sealed class AssistantEndpointTests
 
     [Theory]
     [Trait("Category", "PostgreSQL")]
-    [InlineData("""{"type":"answer","answer":"x","toolCalls":[{"tool":"get_spending_summary","arguments":{"period":"Yesterdayy"}}],"facts":[],"suggestions":[],"choices":[],"model":"m"}""")]
-    [InlineData("""{"type":"answer","answer":"x","toolCalls":[{"tool":"compare_spending","arguments":{"comparison":"PreviousFullMonth"}}],"facts":[],"suggestions":[],"choices":[],"model":"m"}""")]
-    [InlineData("""{"type":"clarification","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"choices":[],"model":"m"}""")]
+    [InlineData("""{"type":"answer","answer":"x","toolCalls":[{"tool":"get_spending_summary","arguments":{"period":"Yesterdayy"}}],"facts":[],"suggestions":[],"choices":[],"inputHint":"","model":"m"}""")]
+    [InlineData("""{"type":"answer","answer":"x","toolCalls":[{"tool":"compare_spending","arguments":{"comparison":"PreviousFullMonth"}}],"facts":[],"suggestions":[],"choices":[],"inputHint":"","model":"m"}""")]
+    [InlineData("""{"type":"clarification","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"choices":[],"inputHint":"","model":"m"}""")]
     public async Task A_reply_without_a_matching_list_still_succeeds_with_no_links(string reply)
     {
         var (status, body) = await AskAsync(FakeAssistantService.Answering(reply));
@@ -104,7 +104,7 @@ public sealed class AssistantEndpointTests
     [InlineData("outOfScope", "OutOfScope")]
     public async Task Each_reply_type_keeps_its_meaning(string aiType, string apiType)
     {
-        var reply = $$"""{"type":"{{aiType}}","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"choices":[],"model":"qwen3.5:4b"}""";
+        var reply = $$"""{"type":"{{aiType}}","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"choices":[],"inputHint":"","model":"qwen3.5:4b"}""";
 
         var (status, body) = await AskAsync(FakeAssistantService.Answering(reply));
 
@@ -243,7 +243,7 @@ public sealed class AssistantEndpointTests
         var reply = """
             {"type":"clarification","answer":"Bunu iki şekilde hesaplayabilirim. Hangisini istersiniz?","toolCalls":[],"facts":[],
              "suggestions":[],"choices":[{"label":"tek seferlik","detail":"bir kerede alsaydınız"},{"label":"aylık birikim","detail":""}],
-             "model":"m"}
+             "inputHint":"","model":"m"}
             """;
 
         var (status, body) = await AskAsync(FakeAssistantService.Answering(reply));
@@ -256,6 +256,21 @@ public sealed class AssistantEndpointTests
         Assert.Empty(body["links"]!.AsArray());
     }
 
+    [Fact]
+    public async Task An_amount_questions_input_hint_reaches_the_client_as_written()
+    {
+        // CHAT-10 PR3b D6-A: the row under the choices that opens the keyboard instead of sending a message.
+        var reply = """
+            {"type":"clarification","answer":"Ayda kaç TL biriktirirdiniz?","toolCalls":[],"facts":[],"suggestions":[],
+             "choices":[{"label":"1.000 TL","detail":""}],"inputHint":"Başka bir tutar yazın","model":"m"}
+            """;
+
+        var (status, body) = await AskAsync(FakeAssistantService.Answering(reply));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal("Başka bir tutar yazın", body["inputHint"]!.GetValue<string>());
+    }
+
     public static TheoryData<string> BrokenReplies => new(
         "not json",
         "{}",
@@ -263,7 +278,7 @@ public sealed class AssistantEndpointTests
         """{"type":"answer","answer":null,"toolCalls":[],"facts":[],"model":"m"}""",
         """{"type":"answer","answer":"Tamam","toolCalls":[],"model":"m"}""",
         """{"type":"answer","answer":"Tamam","toolCalls":[{"tool":"x"}],"facts":[],"model":"m"}""",
-        """{"type":"answer","answer":"Tamam","toolCalls":[],"facts":[{"label":"Toplam"}],"suggestions":[],"choices":[],"model":"m"}""",
+        """{"type":"answer","answer":"Tamam","toolCalls":[],"facts":[{"label":"Toplam"}],"suggestions":[],"choices":[],"inputHint":"","model":"m"}""",
         // CHAT-06: the suggestions are part of the contract; a missing list is not read as "none".
         """{"type":"answer","answer":"Tamam","toolCalls":[],"facts":[],"model":"m"}""",
         """{"type":"answer","answer":"Tamam","toolCalls":[],"facts":[],"suggestions":[null],"model":"m"}""",
@@ -273,7 +288,10 @@ public sealed class AssistantEndpointTests
         """{"type":"clarification","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"choices":[null],"model":"m"}""",
         """{"type":"clarification","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"choices":[{"label":"bu ay"}],"model":"m"}""",
         """{"type":"clarification","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"choices":[{"detail":""}],"model":"m"}""",
-        """{"type":"clarification","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"choices":"bu ay","model":"m"}""");
+        """{"type":"clarification","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"choices":"bu ay","model":"m"}""",
+        // PR3b D6-A: the input hint is required too ("" when there is none), like the choices.
+        """{"type":"clarification","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"choices":[],"model":"m"}""",
+        """{"type":"clarification","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"choices":[],"inputHint":null,"model":"m"}""");
 
     [Theory]
     [Trait("Category", "PostgreSQL")]

@@ -20,6 +20,11 @@ final class ChatViewModel {
     /// The questions offered under the last answer (CHAT-06 K1-B); emptied as soon as anything is sent, because the server
     /// recognises its offer in the next message only.
     private(set) var suggestions: [String] = []
+    /// The options of the question just asked back (CHAT-10 PR3), one tappable row each; emptied like the suggestions as soon
+    /// as anything is sent, because the server waits for an answer to its last question only (K8-A, D1-A).
+    private(set) var choices: [AssistantChoice] = []
+    /// The row under the options that invites an answer of the user's own (PR3b D6-A); it goes with them.
+    private(set) var inputHint = ""
     /// The questions of an empty chat; empty while they are still being asked for.
     private(set) var starters: [String] = []
     @ObservationIgnored private let api: APIClient
@@ -97,6 +102,8 @@ final class ChatViewModel {
         guard let text = messages.first(where: { $0.id == id })?.text else { return }
         isWaiting = true
         suggestions = []
+        choices = []
+        inputHint = ""
         // A task of its own, so stop() can cancel exactly this request.
         let task = Task { [api] in
             do {
@@ -117,7 +124,10 @@ final class ChatViewModel {
     private func received(_ reply: AssistantReply, for id: UUID) {
         setState(.sent, for: id)
         messages.append(ChatMessage(role: .assistant, text: reply.answer, links: reply.links))
-        suggestions = reply.suggestions
+        choices = reply.choices
+        inputHint = reply.inputHint
+        // A question waiting for its answer offers nothing else to ask (D4-A).
+        suggestions = reply.choices.isEmpty ? reply.suggestions : []
     }
 
     /// The list a link under an answer opens: the same paged search, narrowed the way the backend wrote it (CHAT-07).

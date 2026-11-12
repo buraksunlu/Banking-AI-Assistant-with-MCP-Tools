@@ -799,6 +799,9 @@ iPhone ──Bearer──► POST /api/assistant/messages ── token → müş
   bunları sorunun altında dokunulabilir satır olarak gösterir; dokununca `label` aynen yeni mesaj olarak gönderilir (kodla eşleşir,
   yazarak cevap da çalışır). `detail` iki hesap arasındaki seçimde ne olduğunu söyler, diğerlerinde boş. Bu durumda `answer` yalnız
   soru cümlesidir, seçenekleri saymaz. Eksik ya da `null` alanlı `choices` AI servisi sözleşme hatasıdır (502).
+  `inputHint` (CHAT-10 PR3b, her zaman var, çoğu zaman `""`): seçeneklerin altına konan "kendi cevabını yaz" satırının metni
+  (bugün yalnız tutar sorularında: "Başka bir tutar yazın"). İstemci dokununca mesaj göndermez, yazı alanını açar. Eksik ya da
+  `null` → 502.
   `links` (CHAT-07, her zaman var, çoğu zaman boş): cevabın altındaki "İşlemleri gör" düğmeleri. Bağlantıyı **model değil .NET**
   kurar (`Api/Assistant/AssistantLinks`, kontrol edilmiş `toolCalls`'tan): `{ title, query: { period, from, to, kind, accountType,
   categoryCode, merchant } }`, `GET /api/transactions`'ın aynı rakamı veren sorgusudur. Özet, kategori, işyeri dağılımı, en büyük

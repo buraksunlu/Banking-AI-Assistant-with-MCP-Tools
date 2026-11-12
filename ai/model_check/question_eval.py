@@ -20,16 +20,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "service"))
 
 import chat  # noqa: E402
 import prompts  # noqa: E402
-from clarification import ask_count, ask_merchant, ask_period, ask_scenario, ask_topic, check_question  # noqa: E402
+from clarification import ask_count, ask_merchant, ask_period, ask_topic, check_question  # noqa: E402
 from ollama_client import OllamaError, OllamaSettings  # noqa: E402
 
 CASES = [
-    ask_scenario("Biriktirseydim ne olurdu?"),
-    ask_scenario("Dolar alsaydım ne olurdu?"),
-    ask_scenario("Altın olarak tutsaydım ne olurdu?"),
-    ask_scenario("Her ay harcadığım kadar biriktirseydim ne olurdu?"),
-    ask_scenario("Geçen ay 5.000 TL biriktirseydim ne olurdu?"),
-    ask_scenario("paramı euro yapsaydım nolurdu"),
+    # The scenario question's six cases left with the question itself (CHAT-10 PR3b D8-B, 12 Nov 2026).
     ask_topic("Bütçemi kısıp tasarruf etsem?"),
     ask_topic("Plan yapalım mı?"),
     ask_topic("Harcamalarımı kontrol altına alsam?"),

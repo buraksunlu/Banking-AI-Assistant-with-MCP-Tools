@@ -13,7 +13,7 @@ public sealed class AssistantLinksTests
         Reply(AssistantReplyType.Answer, tool, arguments);
 
     private static AssistantReply Reply(AssistantReplyType type, string tool, params (string Key, string Value)[] arguments) =>
-        new(type, "cevap", [new AssistantToolCall(tool, arguments.ToDictionary(a => a.Key, a => a.Value))], [], [], [], []);
+        new(type, "cevap", [new AssistantToolCall(tool, arguments.ToDictionary(a => a.Key, a => a.Value))], [], [], [], "", []);
 
     private static TransactionLinkQuery Single(AssistantReply reply)
     {
@@ -122,7 +122,7 @@ public sealed class AssistantLinksTests
     public void Two_calls_with_the_same_list_give_one_link()
     {
         var call = new AssistantToolCall("get_spending_summary", new Dictionary<string, string> { ["period"] = "ThisMonth" });
-        var reply = new AssistantReply(AssistantReplyType.Answer, "cevap", [call, call], [], [], [], []);
+        var reply = new AssistantReply(AssistantReplyType.Answer, "cevap", [call, call], [], [], [], "", []);
 
         Assert.Single(AssistantLinks.For(reply));
     }

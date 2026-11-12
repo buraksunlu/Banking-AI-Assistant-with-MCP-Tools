@@ -1,7 +1,7 @@
 import pytest
 
-from clarification import (PendingStore, ask_amount, ask_amount_again, ask_count, ask_currency, ask_merchant, ask_percent, ask_period, ask_scenario,
-                           ask_complete_month, ask_topic, check_question, choices, chosen_tool, resolve, template)
+from clarification import (PendingStore, ask_amount, ask_amount_again, ask_count, ask_currency, ask_merchant, ask_percent, ask_period,
+                           ask_complete_month, ask_topic, check_question, choices, chosen_tool, input_hint, resolve, template)
 from prompts import build_clarify_messages
 
 # CHAT-03 K3-A/K4-B/K5-A: the question is remembered for one reply, the reply is matched against the stored options in code,
@@ -235,40 +235,20 @@ def test_the_figure_questions_are_fixed():
     assert [p.model_worded for p in (AMOUNT, CURRENCY, PERCENT, PERIOD, MONTHS, CITY)] == [False, False, False, True, True, True]
 
 
-# CHAT-09 PR3: which of two calculations the user meant (K17-C, K19-C), worded by the model in the user's words (K20-B)
+# CHAT-09 PR3: which of two planning calculations the user meant (K19-C), worded by the model in the user's words (K20-B). The
+# "what if" scenario question (K17-C) left in CHAT-10 PR3b D8-B: an undecided "what if" is the monthly saving.
 
-SCENARIO = ask_scenario("Biriktirseydim ne olurdu?")
 TOPIC = ask_topic("Bütçemi kısıp tasarruf etsem?")
-SCENARIO_TEXT = "Bunu iki şekilde hesaplayabilirim. Hangisini istersiniz?"
-TOPIC_TEXT = SCENARIO_TEXT
+TOPIC_TEXT = "Bunu iki şekilde hesaplayabilirim. Hangisini istersiniz?"
 
 
-def test_the_choice_questions_wait_for_a_tool_and_keep_the_users_question():
-    assert (SCENARIO.tool, SCENARIO.kind, SCENARIO.original) == ("", "scenario", "Biriktirseydim ne olurdu?")
-    assert (TOPIC.tool, TOPIC.kind) == ("", "topic")
-    assert SCENARIO.model_worded and TOPIC.model_worded
+def test_the_choice_question_waits_for_a_tool_and_keeps_the_users_question():
+    assert (TOPIC.tool, TOPIC.kind, TOPIC.original) == ("", "topic", "Bütçemi kısıp tasarruf etsem?")
+    assert TOPIC.model_worded
 
 
-def test_the_fixed_choice_questions():
-    assert template(SCENARIO) == SCENARIO_TEXT
+def test_the_fixed_choice_question():
     assert template(TOPIC) == TOPIC_TEXT
-
-
-@pytest.mark.parametrize(("reply", "tool"), [
-    ("1", "what_if_one_off"), ("ilki", "what_if_one_off"), ("tek seferlik", "what_if_one_off"), ("Bir kerede", "what_if_one_off"),
-    ("TEK SEFERDE", "what_if_one_off"), ("2", "what_if_monthly"), ("ikincisi", "what_if_monthly"), ("aylık", "what_if_monthly"),
-    ("her ay", "what_if_monthly"), ("her ay 2 bin", "what_if_monthly"), ("düzenli biriktirseydim", "what_if_monthly"),
-])
-def test_a_scenario_reply_in_the_users_own_words(reply, tool):
-    assert chosen_tool(SCENARIO, reply) == tool
-
-
-@pytest.mark.parametrize("reply", ["3", "bilmem", "ikisi de", "tek seferlik, aylık", "tek seferlik değil her ay",
-                                   "Her ay ne kadar harcadığımı söyler misin?"])
-def test_a_scenario_reply_that_is_not_one_choice_is_a_new_question(reply):
-    # "tek seferlik, aylık" names both: choosing one would be the guess the question was asked to avoid. A longer message that
-    # happens to say "her ay" is a question of its own.
-    assert chosen_tool(SCENARIO, reply) is None
 
 
 @pytest.mark.parametrize(("reply", "tool"), [
@@ -279,38 +259,40 @@ def test_a_topic_reply(reply, tool):
     assert chosen_tool(TOPIC, reply) == tool
 
 
+@pytest.mark.parametrize("reply", ["3", "bilmem", "ikisi de", "bütçe ve tasarruf", "Bu ay ne kadar harcadım, söyler misin?"])
+def test_a_topic_reply_that_is_not_one_choice_is_a_new_question(reply):
+    # Naming both would be the guess the question was asked to avoid; a longer message is a question of its own.
+    assert chosen_tool(TOPIC, reply) is None
+
+
 def test_a_choice_is_not_a_figure_reply():
-    assert chosen_tool(PERIOD, "1") is None and resolve(SCENARIO, "1") is None
+    assert chosen_tool(PERIOD, "1") is None and resolve(TOPIC, "1") is None
 
 
 @pytest.mark.parametrize("text", [
-    "Bunu tek seferlik mi, yoksa aylık birikim olarak mı hesaplayayım?",
-    "Geçen ayki harcamanızla bir kerede mi dolar alsaydınız, yoksa her ay düzenli olarak mı biriktirseydiniz?",
+    "Bütçe kontrolü mü, yoksa tasarruf hesabı mı yapayım?",
+    "Bütçenizi aşıp aşmayacağınıza mı bakayım, yoksa ne kadar biriktireceğinize mi?",
     "Bunu nasıl hesaplayayım?",                                            # CHAT-10 K5-B: the rows name the choices
 ])
 def test_a_written_choice_question_may_use_the_users_words(text):
     # K20-B: any of an option's words counts as naming it, so the model can follow the user's phrasing.
-    assert check_question(text, SCENARIO)
+    assert check_question(text, TOPIC)
 
 
 @pytest.mark.parametrize("text", [
-    "Hangisini istersiniz: 1) tek seferlik 2) aylık birikim?",                     # the rows again as a numbered list
-    "Tek seferlik mi, aylık mı, yoksa 3) yıllık mı?",                              # a choice added
-    "Her ay 1.000 TL mi biriktirirdiniz, yoksa tek seferlik mi?",                  # a figure the user did not say
-    "Tek seferlik ya da aylık birikim.",                                           # no question
+    "Hangisini istersiniz: 1) bütçe kontrolü 2) tasarruf hesabı?",                 # the rows again as a numbered list
+    "Bütçe mi, tasarruf mu, yoksa 3) yatırım mı?",                                 # a choice added
+    "Bütçeniz 1.000 TL mi, yoksa tasarruf mu?",                                    # a figure the user did not say
+    "Bütçe kontrolü ya da tasarruf hesabı.",                                       # no question
 ])
 def test_a_written_choice_question_that_changes_the_choices_is_not_shown(text):
-    assert not check_question(text, SCENARIO)
+    assert not check_question(text, TOPIC)
 
 
 def test_the_prompt_describes_both_calculations_and_asks_for_the_users_words():
-    system, user = build_clarify_messages(SCENARIO.question, SCENARIO.kind, [o.label for o in SCENARIO.options])
-    assert "tek seferlik; aylık birikim" in user["content"]
-    assert "son 12 ay" in user["content"] and "kendi sözleri" in user["content"]
-
-
-def test_a_short_spending_question_is_not_the_one_off_choice():
-    assert chosen_tool(SCENARIO, "Dün ne harcadım?") is None
+    system, user = build_clarify_messages(TOPIC.question, TOPIC.kind, [o.label for o in TOPIC.options])
+    assert "bütçe kontrolü; tasarruf hesabı" in user["content"]
+    assert "kendi sözleri" in user["content"]
 
 
 # CHAT-10 K9-C: an amount the code cannot read is asked again, saying which words were not understood.
@@ -350,14 +332,15 @@ def test_every_question_offers_its_options_as_choices():
     assert [c.label for c in choices(CURRENCY)] == ["TL", "Euro", "Dolar", "Sterlin"]
     assert [c.label for c in choices(PERCENT)] == ["%10", "%25", "%50"]
     # P1-D: the amount examples are choices too; a budget's says its currency, so one tap answers both questions.
-    assert [c.label for c in choices(AMOUNT)] == ["1.000 TL", "3.000 TL", "5.000 TL"]
-    assert [c.label for c in choices(MONTHLY)] == ["500 TL", "1.000 TL", "2.000 TL"]
+    # PR3b D7-A (simulator trial, 12 Nov 2026): one set of examples for every amount question.
+    assert [c.label for c in choices(AMOUNT)] == ["1.000 TL", "5.000 TL", "10.000 TL"]
+    assert [c.label for c in choices(MONTHLY)] == ["1.000 TL", "5.000 TL", "10.000 TL"]
     assert [c.label for c in choices(LAST_MONTH)] == ["geçen ay (Ekim)"]
 
 
 def test_only_the_two_calculations_carry_a_detail():
     # P5-A: "tek seferlik" alone does not say what it is.
-    assert [c.detail for c in choices(SCENARIO)] == [o.detail for o in SCENARIO.options] and all(c.detail for c in choices(SCENARIO))
+    assert [c.detail for c in choices(TOPIC)] == [o.detail for o in TOPIC.options]
     assert all(c.detail for c in choices(TOPIC))
     assert all(c.detail == "" for p in (PERIOD, MONTHS, CITY, CURRENCY, PERCENT, AMOUNT) for c in choices(p))
 
@@ -371,11 +354,17 @@ def test_tapping_a_choice_sends_its_label_and_the_code_reads_it_as_that_option(p
 
 
 def test_a_budget_example_answers_its_currency_too():
-    assert resolve(AMOUNT, "3.000 TL") == {"categoryCode": "FOOD", "amount": 3000, "currencyCode": "TRY"}
-    assert resolve(MONTHLY, "1.000 TL") == {"amount": 1000, "currencyCode": "TRY"}
+    assert resolve(AMOUNT, "5.000 TL") == {"categoryCode": "FOOD", "amount": 5000, "currencyCode": "TRY"}
+    assert resolve(MONTHLY, "10.000 TL") == {"amount": 10000, "currencyCode": "TRY"}
 
 
-@pytest.mark.parametrize("pending", [SCENARIO, TOPIC], ids=["scenario", "topic"])
+def test_only_an_amount_question_invites_an_amount_of_ones_own():
+    # PR3b D6-A: the app draws this as the card's last row, which opens the keyboard instead of sending anything.
+    assert input_hint(AMOUNT) == input_hint(MONTHLY) == "Başka bir tutar yazın"
+    assert all(input_hint(p) == "" for p in (PERIOD, MONTHS, CITY, CURRENCY, PERCENT, LAST_MONTH, TOPIC))
+
+
+@pytest.mark.parametrize("pending", [TOPIC], ids=["topic"])
 def test_tapping_a_calculation_chooses_its_tool(pending):
     for option, choice in zip(pending.options, choices(pending), strict=True):
         assert chosen_tool(pending, choice.label) == option.value

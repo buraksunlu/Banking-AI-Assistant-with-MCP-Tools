@@ -117,6 +117,8 @@ class ChatResponse(BaseModel):
     facts: list[Fact]
     suggestions: list[str]
     choices: list[ChoiceOut]
+    # PR3b D6-A: a row inviting an answer of the user's own, which opens the keyboard; "" when the options are all there is.
+    input_hint: str = Field(serialization_alias="inputHint")
     model: str
 
 

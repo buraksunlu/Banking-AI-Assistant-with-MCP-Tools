@@ -24,10 +24,11 @@ from langchain_ollama import ChatOllama
 
 from answer_check import has_advice, misnamed
 from clarification import (CHOICE_KINDS, MAX_REPLY_WORDS, Choice, Pending, PendingStore, ask_amount, ask_amount_again, ask_complete_month, ask_count, ask_currency,
-                           ask_merchant, ask_percent, ask_period, ask_scenario, ask_topic, check_question, choices, chosen_tool,
-                           is_bare_choice, resolve, template)
+                           ask_merchant, ask_percent, ask_period, ask_topic, check_question, choices, chosen_tool, input_hint,
+                           is_bare_choice, resolve, template, wants_one_off)
 from contracts import Fact
 from conversation import ConversationStore, LastCall, is_follow_up
+from conversation import carried as carryable
 from explainer import stream_message
 from facts import outcome_for
 from ollama_client import OllamaError, OllamaSettings
@@ -38,7 +39,7 @@ from grounding import category_in, check_arguments, mentions_period, unclear_amo
 from routing import DATE_FIELDS, ONE_OFF, PLANNING, Route, Router, group_of, hide_dates, is_spending_question, narrow, planning_of
 from suggestions import OUT_OF_SCOPE_SUGGESTIONS, AskedStore, OfferedStore, follow_ups, match, result_shape
 from tools import ToolArgumentsRejected, ToolGateway
-from wealth import (LIRA, MONTH_TOOLS, MONTHLY_TOOL, WEALTH_TOOLS, advised_saving_call, chosen_scenario_arguments, has_complete_month,
+from wealth import (LIRA, MONTH_TOOLS, MONTHLY_TOOL, ONE_OFF_TOOL, WEALTH_TOOLS, advised_saving_call, chosen_scenario_arguments, has_complete_month,
                     needs_month_question, plan_monthly, scenario_by_figures)
 
 logger = logging.getLogger("bankingai.ai")
@@ -63,6 +64,8 @@ class ChatReply:
     facts: list[Fact]
     suggestions: list[str] = field(default_factory=list)
     choices: list[Choice] = field(default_factory=list)
+    # PR3b D6-A: the row under the choices that opens the keyboard ("Başka bir tutar yazın"); empty when there is none.
+    input_hint: str = ""
 
 
 class ToolSelector(Protocol):
@@ -227,7 +230,10 @@ class ChatService:
         # CHAT-09 K17-C/K19-C: the tool the user chose between two calculations; their question then goes the normal way with
         # that tool alone, and its own words and figures (plus the reply's, "her ay 2 bin") are checked as always.
         forced = None
-        if waiting is not None and waiting.kind in CHOICE_KINDS:
+        if waiting is not None and wants_one_off(waiting, message):
+            # PR3b D8-B: the monthly saving was only the default; "tek seferlik" under its amount question takes the one-off.
+            forced, message, completed = ONE_OFF_TOOL, waiting.question, True
+        elif waiting is not None and waiting.kind in CHOICE_KINDS:
             forced = chosen_tool(waiting, message)
             if forced is not None:
                 message = waiting.original if is_bare_choice(message) else f"{waiting.original} ({message})"
@@ -292,17 +298,21 @@ class ChatService:
             return self._ask(ask_period("", {}, message, note=_note(reading), original=_without(message, reading.span)), [], token, deadline)
         shown = with_span_replaced(message, reading.span, "bu ay") if reading.kind == "found" else message
         context, carried = _mask_range(context)
+        direct = None
         if route.undecided is not None:
-            # CHAT-09 K17-C/K18-B: the model is not let guess between the two "what if"s; with no scenario word the user's figures
-            # may still tell (a period: the one-off, an amount: the monthly saving), else the user is asked.
+            # CHAT-09 K18-B: with no scenario word the user's figures may still tell (a period: the one-off, an amount: the monthly
+            # saving). Anything else is the monthly saving, whose amount is then asked (CHAT-10 PR3b D8-B, replacing K17-C's "one-off
+            # or monthly?" question, which the user found an odd first step).
             figured = scenario_by_figures(shown) if route.undecided == "neither" else None
+            route = replace(route, only=figured or MONTHLY_TOOL, undecided=None)
+            # The monthly saving by default takes nothing the model could add: its amount is read from the words or asked
+            # (INC-03 K8-A), so the model is not asked at all.
             if figured is None:
-                return self._ask(ask_scenario(message), [], token, deadline)
-            route = replace(route, only=figured, undecided=None)
+                direct = ToolCall(MONTHLY_TOOL, chosen_scenario_arguments(MONTHLY_TOOL, shown))
 
         # Listed first: when the tools cannot answer, the single local model is not kept busy for nothing.
         listed = narrow(self.gateway.list_tools(token, deadline), route)
-        calls = self.selector.select(shown, hide_dates(listed), deadline, context)
+        calls = [direct] if direct is not None else self.selector.select(shown, hide_dates(listed), deadline, context)
         if not calls and route.groups == (PLANNING,):
             # CHAT-09 K19-C: the model chose nothing from the planning list; the words (or the user's choice) name the tool, its
             # figures are then asked as always. Words that name both or neither are asked as a choice.
@@ -348,7 +358,7 @@ class ChatService:
         # A period or count the user did not say is the model's guess: asked back, the tool does not run (K1-C, K2-A). With a date
         # read by code the period is code's own (below): the "bu ay" put in the date's place is no period the user named (CHAT-09 K12-A).
         checked = {k: v for k, v in call.arguments.items() if not (reading.kind == "found" and k == "period")}
-        grounding = check_arguments(checked, schemas[call.tool], shown, context.arguments if context else None)
+        grounding = check_arguments(checked, schemas[call.tool], shown, carryable(message, context.arguments) if context else None)
         if grounding.missing is not None:
             return self._ask(self._question_for(call, grounding.unsaid, schemas[call.tool], message), [], token, deadline)
         arguments = grounding.arguments
@@ -410,14 +420,18 @@ class ChatService:
             return ChatReply(kind, text, used, outcome.facts)
 
         # CHAT-09 K7-A: a what-if is explained from the question code wrote, not from the user's words and replies.
-        answer = self.explainer.explain(outcome.question or question, outcome.facts, deadline=deadline)
-        if call.tool in WEALTH_TOOLS and (has_advice(answer) or misnamed(answer, outcome.named_values)):
+        if outcome.written is not None:
+            # CHAT-10 PR3b D9-A: an answer code wrote needs neither the model nor its checks.
+            answer = outcome.written
+        else:
+            answer = self.explainer.explain(outcome.question or question, outcome.facts, deadline=deadline)
+        if outcome.written is None and call.tool in WEALTH_TOOLS and (has_advice(answer) or misnamed(answer, outcome.named_values)):
             # INC-03 K7-A: the model must not say what to buy or what a price will do; CHAT-09 K16-A: nor leave the reader to guess
             # which value is whose. The figures alone stand.
             logger.info("Explanation of %s sounded like advice or mixed up the assets; the facts are shown instead", call.tool)
             answer = "\n".join(f"{fact.label}: {fact.text}" for fact in outcome.facts)
         # After the answer check, by code: the user sees which days were meant, whatever the model wrote (CHAT-08 K16-A).
-        if (line := period_line(call.arguments)) is not None:
+        if outcome.written is None and (line := period_line(call.arguments)) is not None:
             answer = f"{line}\n\n{answer}"
         # K6-A, K18-C: the backend's own sentences (the investment warning, the advice) go under the answer, written by code.
         if outcome.appendix:
@@ -460,7 +474,7 @@ class ChatService:
             except OllamaError as error:
                 logger.info("No model question (%s); the fixed question is used", type(error).__name__)
         self.waiting.put(token, pending)
-        return ChatReply("clarification", text, used, [], choices=choices(pending))
+        return ChatReply("clarification", text, used, [], choices=choices(pending), input_hint=input_hint(pending))
 
 
 # The period a follow-up is shown instead of the last call's date range (CHAT-08 K7-A): a name the model was measured with.

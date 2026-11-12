@@ -4,7 +4,7 @@ from decimal import Decimal
 import pytest
 
 from chat import ChatReply, ChatService, ToolCall
-from clarification import SCENARIOS, TOPICS, Choice
+from clarification import TOPICS, Choice
 from contracts import Fact
 from ollama_client import OllamaSettings, OllamaTimeout, OllamaUnavailable, Readiness, check_ready
 from prompts import CLARIFY_TEXT, OUT_OF_SCOPE_TEXT
@@ -238,11 +238,12 @@ def rows(*labels):
 
 
 PERIOD_CHOICES = rows("bu ay", "geçen ay", "son 3 ay")
-AMOUNT_CHOICES = rows("1.000 TL", "3.000 TL", "5.000 TL")
-MONTHLY_CHOICES = rows("500 TL", "1.000 TL", "2.000 TL")
+AMOUNT_CHOICES = rows("1.000 TL", "5.000 TL", "10.000 TL")
+MONTHLY_CHOICES = AMOUNT_CHOICES
+# PR3b D6-A: an amount question's reply invites an amount of the user's own.
+AMOUNT_HINT = "Başka bir tutar yazın"
 CURRENCY_CHOICES = rows("TL", "Euro", "Dolar", "Sterlin")
 PERCENT_CHOICES = rows("%10", "%25", "%50")
-SCENARIO_CHOICES = [Choice(o.label, o.detail) for o in SCENARIOS]
 TOPIC_CHOICES = [Choice(o.label, o.detail) for o in TOPICS]
 
 
@@ -565,7 +566,9 @@ def test_a_budget_in_the_users_words_runs():
     reply = chat.answer("Bu ay 3.000 TL bütçem var, ne durumdayım?", TOKEN)
 
     assert (reply.type, gateway.calls[0][:2]) == ("answer", ("check_budget", {"amount": 3000, "currencyCode": "TRY"}))
-    assert ("Kalan", "2.265,00 TL") in [(f.label, f.text) for f in explainer.calls[0][1]]
+    # CHAT-10 PR3b D13-A: code writes the answer; the facts still go with it.
+    assert ("Kalan", "2.265,00 TL") in [(f.label, f.text) for f in reply.facts] and explainer.calls == []
+    assert reply.answer.startswith("Bu ay (1-10 Ekim 2026) 735,00 TL harcadınız (5 işlem); 3.000,00 TL bütçenizden 2.265,00 TL kaldı.")
 
 
 def test_a_misread_amount_is_asked_with_the_fixed_question_and_nothing_runs():
@@ -574,7 +577,7 @@ def test_a_misread_amount_is_asked_with_the_fixed_question_and_nothing_runs():
 
     reply = chat.answer("Bu ay 1.000 TL bütçem var, ne durumdayım?", TOKEN)
 
-    assert reply == ChatReply("clarification", AMOUNT_QUESTION, [], [], choices=AMOUNT_CHOICES)
+    assert reply == ChatReply("clarification", AMOUNT_QUESTION, [], [], choices=AMOUNT_CHOICES, input_hint=AMOUNT_HINT)
     # A figure question is never worded by the model: it could suggest an amount (K3-A).
     assert writer.calls == [] and gateway.calls == []
 
@@ -657,6 +660,29 @@ def test_a_follow_up_without_words_of_its_own_keeps_the_last_calls_group():
 
     assert shown(selector, 1) == ["check_budget", "simulate_savings"]
     assert gateway.calls[1][:2] == ("check_budget", {"amount": 4000, "currencyCode": "TRY"})
+
+
+@pytest.mark.parametrize("message", ["Bütçemi aşacak mıyım?", "Bu ay bütçemi aşacakmıyım"])
+def test_a_new_short_question_does_not_reuse_the_last_budget(message):
+    # CHAT-10 PR3b D12-A (simulator trial, 12 Nov 2026): the earlier 3.000 TL was used silently for a question that named none.
+    call = ToolCall("check_budget", {"amount": 3000, "currencyCode": "TRY"})
+    chat, _, gateway, _ = service([], gateway=FakeGateway(BUDGET_RESULT), turns=[[call], [call]])
+    chat.answer("Bu ay 3.000 TL bütçem var, ne durumdayım?", TOKEN)
+
+    reply = chat.answer(message, TOKEN)
+
+    assert (reply.type, reply.answer) == ("clarification", AMOUNT_QUESTION) and len(gateway.calls) == 1
+
+
+def test_a_follow_up_that_says_so_keeps_the_last_budget():
+    call = ToolCall("check_budget", {"amount": 3000, "currencyCode": "TRY"})
+    gold = ToolCall("check_budget", {"amount": 3000, "currencyCode": "TRY", "categoryCode": "GROCERY"})
+    chat, _, gateway, _ = service([], gateway=FakeGateway(BUDGET_RESULT), turns=[[call], [gold]])
+    chat.answer("Bu ay 3.000 TL bütçem var, ne durumdayım?", TOKEN)
+
+    chat.answer("Peki markette?", TOKEN)
+
+    assert gateway.calls[1][:2] == ("check_budget", {"amount": 3000, "currencyCode": "TRY", "categoryCode": "GROCERY"})
 
 
 def test_a_tool_the_model_was_not_shown_is_not_run():
