@@ -16,7 +16,7 @@ from dates import CustomerDay
 from facts import NO_ADVICE_AMOUNT
 from prompts import ADVICE_DECLINED_TEXT, LIRA_ONLY_TEXT
 from suggestions import OUT_OF_SCOPE_SUGGESTIONS
-from test_chat import ANSWER, DEFINITIONS, TOKEN, FakeExplainer, FakeGateway, service
+from test_chat import MONTHLY_CHOICES, rows, ANSWER, DEFINITIONS, TOKEN, FakeExplainer, FakeGateway, service
 from test_facts_wealth import ADVICE_SENTENCE, DISCLAIMER, GOLD, THREE, advice, advice_row, income, income_row, monthly, one_off
 
 DAY = CustomerDay(date(2026, 10, 10), "Europe/Istanbul")
@@ -87,7 +87,7 @@ def test_a_period_that_is_not_a_complete_month_is_asked_and_the_tool_does_not_ru
     reply = chat.answer(message, TOKEN, DAY)
 
     assert reply.type == "clarification" and gateway.calls == []
-    assert "tamamlanmış bir ay" in reply.answer and "1) geçen ay (Eylül)" in reply.answer and "Ağustos" in reply.answer
+    assert "tamamlanmış bir ay" in reply.answer and "Ağustos" in reply.answer and reply.choices == rows("geçen ay (Eylül)")
 
 
 def test_the_reply_last_month_completes_the_question():
@@ -158,7 +158,7 @@ def test_the_amount_is_asked_when_the_user_did_not_write_it_and_the_model_wrote_
     asked = chat.answer("Ayda biriktirseydim ne olurdu?", TOKEN, DAY)
     done = chat.answer("1.000 TL", TOKEN, DAY)
 
-    assert asked == ChatReply("clarification", "Ayda kaç TL biriktirirdiniz? Örneğin 1.000.", [], [])
+    assert asked == ChatReply("clarification", "Ayda kaç TL biriktirirdiniz?", [], [], choices=MONTHLY_CHOICES)
     assert done.type == "answer" and gateway.calls[0][:2] == ("what_if_monthly", {"amount": 1000, "currencyCode": "TRY"})
 
 
@@ -294,7 +294,7 @@ def test_a_monthly_scenario_the_model_did_not_choose_asks_the_amount():
 
     reply = chat.answer("AYDA BİRİKTİRSEYDİM NE OLURDU?", TOKEN, DAY)
 
-    assert reply == ChatReply("clarification", "Ayda kaç TL biriktirirdiniz? Örneğin 1.000.", [], []) and gateway.calls == []
+    assert reply == ChatReply("clarification", "Ayda kaç TL biriktirirdiniz?", [], [], choices=MONTHLY_CHOICES) and gateway.calls == []
 
 
 def test_a_monthly_scenario_with_its_amount_runs_when_the_model_chose_nothing():

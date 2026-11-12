@@ -3107,6 +3107,24 @@
         },
         "description": "One asset's \"what if\": the buy and valuation days, the prices used, the units bought and their value today. Figures are null\nunless both prices are usable; `Status` is then the worse of the two. `Source` is the valuation price's source."
       },
+      "AssistantChoice": {
+        "required": [
+          "label",
+          "detail"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "What the row says and what a tap sends, for example `geçen ay` or `1.000 TL`."
+          },
+          "detail": {
+            "type": "string",
+            "description": "What the option is, for a choice between two calculations; empty when the label says it alone."
+          }
+        },
+        "description": "One option of a question back, shown as a tappable row under it (CHAT-10 K4-A). Tapping it sends `label` as the\nnext message, exactly as written; the AI service matches it in code, so typing the same words works too (K6-A)."
+      },
       "AssistantFact": {
         "required": [
           "label",
@@ -3160,6 +3178,7 @@
           "toolCalls",
           "facts",
           "suggestions",
+          "choices",
           "links"
         ],
         "type": "object",
@@ -3188,6 +3207,12 @@
               "type": "string"
             }
           },
+          "choices": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistantChoice"
+            }
+          },
           "links": {
             "type": "array",
             "items": {
@@ -3195,7 +3220,7 @@
             }
           }
         },
-        "description": "Reply of `POST /api/assistant/messages`. The figures in `answer` come from `facts`, which the\nbackend computed; the model only chose the tool and wrote the sentence. `suggestions` are up to three questions\nto offer under the reply, from a fixed table (CHAT-06); sent back as written, one runs the call it stands for.\n`links` are the buttons under an answer that open the list of transactions behind its figure (CHAT-07); the\nbackend builds them from the checked tool calls and the AI service never sees them."
+        "description": "Reply of `POST /api/assistant/messages`. The figures in `answer` come from `facts`, which the\nbackend computed; the model only chose the tool and wrote the sentence. `suggestions` are up to three questions\nto offer under the reply, from a fixed table (CHAT-06); sent back as written, one runs the call it stands for.\n`links` are the buttons under an answer that open the list of transactions behind its figure (CHAT-07); the\nbackend builds them from the checked tool calls and the AI service never sees them. `choices` are a question\nback's options as tappable rows (CHAT-10), empty in any other reply; the `answer` of a question then holds only\nthe question, not the options."
       },
       "AssistantReplyType": {
         "enum": [

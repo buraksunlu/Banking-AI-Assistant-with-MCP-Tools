@@ -1374,10 +1374,15 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   kullanıcıyla netleşir; açıkça istenen varlık korunur. Eksik veride kazanan uydurulmaz.
 
 ==================================================
-29. MEVCUT PROJE DURUMU — 10 KASIM 2026
+29. MEVCUT PROJE DURUMU — 12 KASIM 2026
 ==================================================
 
 COMPLETED
+- Dokunulabilir seçenekler, arka uç (CHAT-10 PR3a, 12 Kasım 2026; docs/local-ai.md "Dokunulabilir seçenekler", docs/api.md):
+  geri soru cevabı `choices: [{label, detail}]` taşır (Python → .NET `AssistantChoice`, OpenAPI), metin yalnız soru (K4-A, K5-B,
+  P3-A); her soru dokunulabilir, tutar/yüzde/ay sayısı örnekleri dahil (P1-D, K7-B'nin yerine); dokununca etiket gider ve kodla
+  eşleşir (K6-A); `clarify-v3` + sıkı denetim (eksik seçenek, liste, sunulmayan dönem, işyeri kelimesi). Soru yazımı 14/14,
+  Python 1234 → 1257 modelsiz, Api 569 → 575. iPhone satırları PR3b'de.
 - Öneriler: tekrar yok, sonuca göre, dönemli (CHAT-10 PR2, 10 Kasım 2026; docs/local-ai.md "Öneriler"): sohbette sorulan hiçbir çağrı
   yeniden önerilmez (`AskedStore`, 30 dk; aday kalmazsa 2 genel soru, K1-C/P4-A), cevap yalnız sayılarla değerlendirilir (harcama yok →
   başka dönem, tek işlem → bölme yok, ödeme yok → yaklaşan yok; K2-B), metinler dönemli tam soru (K3-B; özel aralık kodla yazılır P2-A,

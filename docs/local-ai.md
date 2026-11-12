@@ -775,6 +775,35 @@ bozmanın hepsi yakalandı (biri, "aynı çağrı iki kez tutulur", düzeltilen 
 metinlere; tek işlemli "dün" verisiyle yazılmış dokunma testleri iki işlemli `YESTERDAY_TWO`'ya (K2-B o günü bölmüyor);
 `test_a_tool_call_is_run_and_explained` artık "Bugün toplam ne kadar harcadım?" bekliyor; INC-03 öneri zinciri gelir payını ikinci kez önermiyor.
 
+## Dokunulabilir seçenekler (CHAT-10 PR3, 12 Kasım 2026)
+
+Geri sorudaki seçenekler cevap metnine gömülü düz yazıydı ("Hangi dönem için? 1) bu ay 2) geçen ay 3) son 3 ay"); iPhone'da
+dokunulamıyordu. Seçenekler zaten `Pending.options`'ta yapısal duruyordu; artık cevapla birlikte ayrı bir liste olarak gidiyor.
+
+```text
+_ask(pending) → ChatReply("clarification", soru cümlesi, choices = clarification.choices(pending))
+   /v1/chat  {"choices": [{"label": "geçen ay", "detail": ""}, …]}  → .NET AssistantReply.Choices → iPhone satırları
+   dokununca: label aynen yeni mesaj → resolve / chosen_tool kodla eşleştirir (yazarak cevap da aynı yol)
+```
+
+- **K4-A:** `Choice(label, detail)`; cevap ve kapsam dışı cevapta liste boş. Sözleşme alanı zorunlu (.NET'te eksik/`null` → 502).
+- **K5-B, P3-A:** metin yalnız soru cümlesi (`template`: "Hangi dönem için?", "Bütçeniz ne kadar?" …); `note` ve `hint` metinde kalır.
+- **P1-D (K7-B'nin yerine, kullanıcı kararı):** her soru dokunulabilir. Ay sayısı `son 3/6/12 ay`, yüzde `%10/%25/%50`, bütçe tutarı
+  `1.000/3.000/5.000 TL` (etiketteki "TL" para birimi sorusunu da cevaplar), aylık birikim `500/1.000/2.000 TL`. Kullanıcı yine kendi
+  tutarını yazabilir.
+- **K6-A, P4-A:** dokununca yalnız etiket gider; her türde her etiketin seçeneğin kendi değerine eşleştiği test edilir.
+- **P5-A:** `detail` yalnız iki hesap arasındaki seçimde (tek seferlik / aylık birikim, bütçe kontrolü / tasarruf hesabı).
+- **P2-A, `clarify-v3`:** model yalnız soru cümlesini yazar. `check_question` artık seçenek saymaz; ama soru (1) seçeneklerin bir
+  kısmını anıp diğerlerini atlayamaz ("Bir kerede mi hesaplayayım?"), (2) alt alta, `;` ya da `-` ile liste yazamaz (satırlar iki kez
+  görünürdü), (3) satırlarda olmayan dönemi anamaz, (4) seçeneklerde ya da kullanıcının sözünde olmayan sayı yazamaz ("1) 2)" de dahil),
+  (5) işyeri sorusunda "işyeri" demelidir.
+
+Ölçüm (`question_eval.py`, gerçek `qwen3.5:4b`, `--pause 1`; vakalar 10 → 14, dönem ×2, ay sayısı, işyeri eklendi, eşik %80):
+ilk `clarify-v3` 13/14 (tek hata soğuk açılış süresi) ama iki zayıf soru denetimden geçti: dönem sorusu seçenekleri "- Bu ay - Geçen
+ay" diye listeledi, işyeri sorusu "Hangi şehir için …?" diye sordu. Denetime (2) ve (5) eklendi → 11/14 (zayıflar sabit soruya düştü).
+Prompt'ta dönem ve işyeri seçenekleri artık modele verilmiyor (model kopyalıyordu), işyeri durumu "işyeri adlarını yazmadan hangi
+işyerini" diyor → **14/14**. Araç seçimi değişmedi (ölçüm gerekmedi); ifade ölçümü modelsiz yeşil.
+
 ## Kararlar (hepsi kullanıcı kararı, 19 Ekim 2026)
 
 K1-A `POST /api/assistant/messages` · K2-A .NET'in kendi DTO'su (`type` tam adla, `answer`, `toolCalls`, `facts`; `model`

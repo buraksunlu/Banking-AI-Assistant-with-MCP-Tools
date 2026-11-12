@@ -795,6 +795,10 @@ iPhone ──Bearer──► POST /api/assistant/messages ── token → müş
   olabilir), `toolCalls` (çalışan sorgu + kontrol edilmiş argümanlar; AI-11/CHAT-07 için) ve `facts` (cevabın dayandığı,
   backend'in hesaplayıp biçimlendirdiği kalemler) ve `suggestions` (CHAT-06: cevabın altında önerilecek 0–3 soru, sabit tablodan;
   aynen geri gönderilen öneri model araç seçmeden çalışır, docs/local-ai.md "Önerilen sorular"). Modelin adı dışarı verilmez, logda kalır (K2-A).
+  `choices` (CHAT-10, her zaman var; yalnız `Clarification`'da dolu): geri sorunun seçenekleri `{ label, detail }`. İstemci
+  bunları sorunun altında dokunulabilir satır olarak gösterir; dokununca `label` aynen yeni mesaj olarak gönderilir (kodla eşleşir,
+  yazarak cevap da çalışır). `detail` iki hesap arasındaki seçimde ne olduğunu söyler, diğerlerinde boş. Bu durumda `answer` yalnız
+  soru cümlesidir, seçenekleri saymaz. Eksik ya da `null` alanlı `choices` AI servisi sözleşme hatasıdır (502).
   `links` (CHAT-07, her zaman var, çoğu zaman boş): cevabın altındaki "İşlemleri gör" düğmeleri. Bağlantıyı **model değil .NET**
   kurar (`Api/Assistant/AssistantLinks`, kontrol edilmiş `toolCalls`'tan): `{ title, query: { period, from, to, kind, accountType,
   categoryCode, merchant } }`, `GET /api/transactions`'ın aynı rakamı veren sorgusudur. Özet, kategori, işyeri dağılımı, en büyük

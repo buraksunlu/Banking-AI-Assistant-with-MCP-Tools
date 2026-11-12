@@ -59,6 +59,7 @@ public sealed class AssistantEndpointTests
                  "toolCalls":[{"tool":"get_spending_summary","arguments":{"period":"Yesterday"}}],
                  "facts":[{"label":"Toplam harcama","text":"145,00 TL"}],
                  "suggestions":["Kategorilere göre?","Peki işyerlerine göre?"],
+                 "choices":[],
                  "links":[{"title":"İşlemleri gör","query":{"period":"Yesterday","from":null,"to":null,"kind":"Purchase",
                            "accountType":"Personal","categoryCode":null,"merchant":null}}]}
                 """)!.ToJsonString(),
@@ -73,7 +74,7 @@ public sealed class AssistantEndpointTests
         var reply = """
             {"type":"answer","answer":"Dönem: 1-5 Eylül 2026. 5.116,50 TL harcadınız.",
              "toolCalls":[{"tool":"get_spending_summary","arguments":{"period":"Custom","from":"2026-09-01","to":"2026-09-05"}}],
-             "facts":[],"suggestions":[],"model":"m"}
+             "facts":[],"suggestions":[],"choices":[],"model":"m"}
             """;
 
         var (status, body) = await AskAsync(FakeAssistantService.Answering(reply));
@@ -86,9 +87,9 @@ public sealed class AssistantEndpointTests
 
     [Theory]
     [Trait("Category", "PostgreSQL")]
-    [InlineData("""{"type":"answer","answer":"x","toolCalls":[{"tool":"get_spending_summary","arguments":{"period":"Yesterdayy"}}],"facts":[],"suggestions":[],"model":"m"}""")]
-    [InlineData("""{"type":"answer","answer":"x","toolCalls":[{"tool":"compare_spending","arguments":{"comparison":"PreviousFullMonth"}}],"facts":[],"suggestions":[],"model":"m"}""")]
-    [InlineData("""{"type":"clarification","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"model":"m"}""")]
+    [InlineData("""{"type":"answer","answer":"x","toolCalls":[{"tool":"get_spending_summary","arguments":{"period":"Yesterdayy"}}],"facts":[],"suggestions":[],"choices":[],"model":"m"}""")]
+    [InlineData("""{"type":"answer","answer":"x","toolCalls":[{"tool":"compare_spending","arguments":{"comparison":"PreviousFullMonth"}}],"facts":[],"suggestions":[],"choices":[],"model":"m"}""")]
+    [InlineData("""{"type":"clarification","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"choices":[],"model":"m"}""")]
     public async Task A_reply_without_a_matching_list_still_succeeds_with_no_links(string reply)
     {
         var (status, body) = await AskAsync(FakeAssistantService.Answering(reply));
@@ -103,7 +104,7 @@ public sealed class AssistantEndpointTests
     [InlineData("outOfScope", "OutOfScope")]
     public async Task Each_reply_type_keeps_its_meaning(string aiType, string apiType)
     {
-        var reply = $$"""{"type":"{{aiType}}","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"model":"qwen3.5:4b"}""";
+        var reply = $$"""{"type":"{{aiType}}","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"choices":[],"model":"qwen3.5:4b"}""";
 
         var (status, body) = await AskAsync(FakeAssistantService.Answering(reply));
 
@@ -234,6 +235,27 @@ public sealed class AssistantEndpointTests
             "assistant_failed", "Kılavuz bu soruya cevap üretemedi; farklı sormayı deneyin.");
     }
 
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task A_questions_choices_reach_the_client_as_written()
+    {
+        // CHAT-10 K4-A: the rows under a question back; the client sends a label back as the next message (K6-A).
+        var reply = """
+            {"type":"clarification","answer":"Bunu iki şekilde hesaplayabilirim. Hangisini istersiniz?","toolCalls":[],"facts":[],
+             "suggestions":[],"choices":[{"label":"tek seferlik","detail":"bir kerede alsaydınız"},{"label":"aylık birikim","detail":""}],
+             "model":"m"}
+            """;
+
+        var (status, body) = await AskAsync(FakeAssistantService.Answering(reply));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal("Clarification", body["type"]!.GetValue<string>());
+        Assert.Equal(
+            JsonNode.Parse("""[{"label":"tek seferlik","detail":"bir kerede alsaydınız"},{"label":"aylık birikim","detail":""}]""")!.ToJsonString(),
+            body["choices"]!.ToJsonString());
+        Assert.Empty(body["links"]!.AsArray());
+    }
+
     public static TheoryData<string> BrokenReplies => new(
         "not json",
         "{}",
@@ -241,11 +263,17 @@ public sealed class AssistantEndpointTests
         """{"type":"answer","answer":null,"toolCalls":[],"facts":[],"model":"m"}""",
         """{"type":"answer","answer":"Tamam","toolCalls":[],"model":"m"}""",
         """{"type":"answer","answer":"Tamam","toolCalls":[{"tool":"x"}],"facts":[],"model":"m"}""",
-        """{"type":"answer","answer":"Tamam","toolCalls":[],"facts":[{"label":"Toplam"}],"suggestions":[],"model":"m"}""",
+        """{"type":"answer","answer":"Tamam","toolCalls":[],"facts":[{"label":"Toplam"}],"suggestions":[],"choices":[],"model":"m"}""",
         // CHAT-06: the suggestions are part of the contract; a missing list is not read as "none".
         """{"type":"answer","answer":"Tamam","toolCalls":[],"facts":[],"model":"m"}""",
         """{"type":"answer","answer":"Tamam","toolCalls":[],"facts":[],"suggestions":[null],"model":"m"}""",
-        """{"type":"answer","answer":"Tamam","toolCalls":[],"facts":[],"suggestions":"Kategorilere göre?","model":"m"}""");
+        """{"type":"answer","answer":"Tamam","toolCalls":[],"facts":[],"suggestions":"Kategorilere göre?","model":"m"}""",
+        // CHAT-10 K4-A: the choices too; every one has a label and a detail (empty when the label says it alone).
+        """{"type":"clarification","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"model":"m"}""",
+        """{"type":"clarification","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"choices":[null],"model":"m"}""",
+        """{"type":"clarification","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"choices":[{"label":"bu ay"}],"model":"m"}""",
+        """{"type":"clarification","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"choices":[{"detail":""}],"model":"m"}""",
+        """{"type":"clarification","answer":"Hangi dönem?","toolCalls":[],"facts":[],"suggestions":[],"choices":"bu ay","model":"m"}""");
 
     [Theory]
     [Trait("Category", "PostgreSQL")]

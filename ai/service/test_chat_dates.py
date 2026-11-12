@@ -131,7 +131,7 @@ def test_an_impossible_date_is_asked_back_with_the_reason_and_runs_nothing():
 
     assert (reply.type, selector.calls, gateway.calls) == ("clarification", [], [])
     assert reply.answer.startswith("31 Şubat diye bir gün yok.")
-    assert all(label in reply.answer for label, _ in PERIOD_OPTIONS)
+    assert [c.label for c in reply.choices] == [label for label, _ in PERIOD_OPTIONS]
 
 
 def test_a_date_in_the_future_is_asked_back():

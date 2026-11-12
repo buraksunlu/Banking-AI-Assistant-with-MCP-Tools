@@ -8,12 +8,12 @@ else which calculation is asked), K20-B (the model words the question in the use
 from decimal import Decimal
 
 from chat import ChatReply, ToolCall
-from test_chat import (AMOUNT_QUESTION, BUDGET_RESULT, SAVINGS_RESULT, TOKEN, YESTERDAY, FakeGateway, FakeWriter, service)
+from test_chat import (AMOUNT_CHOICES, AMOUNT_QUESTION, MONTHLY_CHOICES, PERCENT_CHOICES, SCENARIO_CHOICES, TOPIC_CHOICES, BUDGET_RESULT, SAVINGS_RESULT, TOKEN, YESTERDAY, FakeGateway, FakeWriter, service)
 from test_chat_wealth import DAY, GOLD, THREE, monthly, one_off, wealth
 from test_clarification import SCENARIO_TEXT, TOPIC_TEXT
 
-MONTHLY_AMOUNT_QUESTION = "Ayda kaç TL biriktirirdiniz? Örneğin 1.000."
-PERCENT_QUESTION = "Ne kadar azaltmayı düşünüyorsunuz? Örneğin %10, %25 ya da %50."
+MONTHLY_AMOUNT_QUESTION = "Ayda kaç TL biriktirirdiniz?"
+PERCENT_QUESTION = "Ne kadar azaltmayı düşünüyorsunuz?"
 
 
 def names(tools):
@@ -27,7 +27,7 @@ def test_an_undecided_what_if_is_asked_before_the_model_or_the_server():
 
     reply = chat.answer("Biriktirseydim ne olurdu?", TOKEN, DAY)
 
-    assert reply == ChatReply("clarification", SCENARIO_TEXT, [], [])
+    assert reply == ChatReply("clarification", SCENARIO_TEXT, [], [], choices=SCENARIO_CHOICES)
     assert selector.calls == [] and gateway.calls == [] and gateway.list_calls == []
 
 
@@ -47,7 +47,7 @@ def test_the_monthly_choice_asks_the_amount_then_runs():
     asked = chat.answer("2", TOKEN, DAY)
     chat.answer("1.000", TOKEN, DAY)
 
-    assert asked == ChatReply("clarification", MONTHLY_AMOUNT_QUESTION, [], [])
+    assert asked == ChatReply("clarification", MONTHLY_AMOUNT_QUESTION, [], [], choices=MONTHLY_CHOICES)
     # The user's question, without the bare "2" that would read as an amount; the model saw only the chosen tool.
     assert selector.calls[0][0] == "Biriktirseydim ne olurdu?" and names(selector.calls[0][1]) == ["what_if_monthly"]
     assert gateway.calls[0][:2] == ("what_if_monthly", {"amount": 1000, "currencyCode": "TRY"})
@@ -154,7 +154,7 @@ def test_the_model_words_the_scenario_question_in_the_users_words():
     reply = chat.answer("Dolar alsaydım ne olurdu?", TOKEN, DAY)
 
     assert reply.answer == text
-    assert writer.calls[0][:4] == ("Dolar alsaydım ne olurdu?", "scenario", ["tek seferlik", "aylık birikim"], True)
+    assert writer.calls[0][:3] == ("Dolar alsaydım ne olurdu?", "scenario", ["tek seferlik", "aylık birikim"])
 
 
 def test_a_worded_question_that_leaves_a_choice_out_is_replaced_by_the_fixed_one():
@@ -172,7 +172,7 @@ def test_a_budget_question_the_model_left_asks_the_budget():
     reply = chat.answer("Bu ay bütçemi aşacak mıyım?", TOKEN)
     chat.answer("1.500 TL", TOKEN)
 
-    assert reply == ChatReply("clarification", AMOUNT_QUESTION, [], [])
+    assert reply == ChatReply("clarification", AMOUNT_QUESTION, [], [], choices=AMOUNT_CHOICES)
     # The model was shown both planning tools, as before (K19-C: its list does not change).
     assert names(selector.calls[0][1]) == ["check_budget", "simulate_savings"]
     assert gateway.calls[0][:2] == ("check_budget", {"amount": 1500, "currencyCode": "TRY"})
@@ -192,7 +192,7 @@ def test_a_saving_question_the_model_left_asks_the_cut():
 
     reply = chat.answer("Tasarruf etsem ne olur?", TOKEN)
 
-    assert reply == ChatReply("clarification", PERCENT_QUESTION, [], []) and gateway.calls == []
+    assert reply == ChatReply("clarification", PERCENT_QUESTION, [], [], choices=PERCENT_CHOICES) and gateway.calls == []
 
 
 def test_words_of_both_ask_which_calculation():
@@ -202,7 +202,7 @@ def test_words_of_both_ask_which_calculation():
     asked = chat.answer("2", TOKEN)
     chat.answer("%20", TOKEN)
 
-    assert reply == ChatReply("clarification", TOPIC_TEXT, [], [])
+    assert reply == ChatReply("clarification", TOPIC_TEXT, [], [], choices=TOPIC_CHOICES)
     assert asked.answer == PERCENT_QUESTION
     # After the choice the model is shown the chosen tool alone, like a scenario the words chose.
     assert names(selector.calls[1][1]) == ["simulate_savings"]
@@ -224,3 +224,33 @@ def test_a_wealth_question_that_is_no_what_if_is_not_asked():
     reply = chat.answer("Geçen ay nerede tasarruf edebilirim?", TOKEN, DAY)
 
     assert reply.type == "outOfScope" and "get_spending_advice" in names(selector.calls[0][1])
+
+
+# --- CHAT-10 PR3: tapping a row sends its label (K6-A) -------------------------------------------------------------------------
+
+def test_tapping_a_budget_example_runs_the_budget_without_asking_the_currency():
+    chat, _, gateway, _ = service([], gateway=FakeGateway(BUDGET_RESULT))
+    asked = chat.answer("Market bütçemi aşar mıyım?", TOKEN)
+
+    reply = chat.answer(asked.choices[0].label, TOKEN)
+
+    assert reply.type == "answer" and reply.choices == []
+    assert gateway.calls[0][:2] == ("check_budget", {"amount": 1000, "currencyCode": "TRY", "categoryCode": "GROCERY"})
+
+
+def test_tapping_a_cut_runs_the_saving():
+    chat, _, gateway, _ = service([], gateway=FakeGateway(SAVINGS_RESULT))
+    asked = chat.answer("Starbucks harcamamı azaltırsam ne kadar biriktiririm?", TOKEN)
+
+    chat.answer(asked.choices[2].label, TOKEN)
+
+    assert gateway.calls[0][1]["reductionPercent"] == 50
+
+
+def test_tapping_a_scenario_asks_its_next_question():
+    chat, _, _, _ = wealth([], [[], []])
+    asked = chat.answer("Dolar alsaydım ne olurdu?", TOKEN, DAY)
+
+    reply = chat.answer(asked.choices[1].label, TOKEN, DAY)
+
+    assert (reply.answer, reply.choices) == (MONTHLY_AMOUNT_QUESTION, MONTHLY_CHOICES)

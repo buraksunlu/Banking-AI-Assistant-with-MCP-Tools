@@ -99,15 +99,24 @@ class ToolCallOut(BaseModel):
     arguments: dict[str, str]
 
 
+class ChoiceOut(BaseModel):
+    """One option of a question back, shown as a tappable row; tapping it sends ``label`` as the next message (CHAT-10 K6-A).
+    ``detail`` says what the option is, empty when the label says it alone (P5-A)."""
+
+    label: str
+    detail: str
+
+
 class ChatResponse(BaseModel):
     """The reply of one chat turn; ``toolCalls`` and ``facts`` say what the answer is based on (AI-11, CHAT-07),
-    ``suggestions`` are the questions to offer under it (CHAT-06)."""
+    ``suggestions`` are the questions to offer under it (CHAT-06), ``choices`` a question's options (CHAT-10 K4-A)."""
 
     type: str
     answer: str
     tool_calls: list[ToolCallOut] = Field(serialization_alias="toolCalls")
     facts: list[Fact]
     suggestions: list[str]
+    choices: list[ChoiceOut]
     model: str
 
 
