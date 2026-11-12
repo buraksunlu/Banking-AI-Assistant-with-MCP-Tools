@@ -1,11 +1,12 @@
 import SwiftUI
 
-/// The top line of the home screen: the greeting, today's date as the backend counts it, and the profile circle whose menu
-/// signs out (UI-03 K1-A; UI-07 turns the menu into a profile screen).
+/// The top line of the home screen: the greeting, today's date as the backend counts it, and the profile circle, which
+/// switches to the profile tab (UI-03 K1-A; UI-07 K8-B: signing out moved there).
 struct HomeHeader: View {
     let model: HomeViewModel
     /// "26 Ekim 2026"; nil until the backend's day has arrived, then the line simply appears.
     let dayLine: String?
+    let showProfile: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Layout.small) {
@@ -28,7 +29,7 @@ struct HomeHeader: View {
                         .accessibilityHidden(dayLine == nil)
                 }
                 Spacer(minLength: Layout.small)
-                profileMenu
+                profileButton
             }
             if let message = model.errorMessage {
                 StatusBand(text: message, symbol: "exclamationmark.triangle", actionTitle: "Tekrar dene") {
@@ -38,10 +39,8 @@ struct HomeHeader: View {
         }
     }
 
-    private var profileMenu: some View {
-        Menu {
-            Button("Çıkış", role: .destructive, action: model.signOut)
-        } label: {
+    private var profileButton: some View {
+        Button(action: showProfile) {
             Text(model.initials ?? "")
                 .font(Typography.caption.weight(.semibold))
                 // Two letters in a fixed ring: grown with the text they became "…" at the largest sizes. Held to the
@@ -51,7 +50,8 @@ struct HomeHeader: View {
                 .frame(width: 44, height: 44)
                 .overlay(Circle().stroke(Palette.accent.color, lineWidth: 1))
         }
-        .accessibilityLabel("Profil menüsü")
+        .buttonStyle(.plain)
+        .accessibilityLabel("Profil")
         .accessibilityShowsLargeContentViewer {
             Text(model.initials ?? "")
         }

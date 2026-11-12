@@ -1,9 +1,6 @@
 import Charts
 import SwiftUI
 
-/// Pushes the analysis screen; ``HomeView`` builds it only when it is opened.
-struct AnalyticsRoute: Hashable {}
-
 /// The "Kategorilere göre" part of the analysis screen: the period choice and one ring per currency. It shows
 /// ``CategoryBreakdownViewModel``'s state; there is no logic here beyond mapping a tap to a slice.
 struct CategoryBreakdownSection: View {
