@@ -108,7 +108,16 @@ AUG = "1-31 Ağustos 2026 döneminde"
         # The advised saving is always last month's: offered under another month's advice it would answer a different month.
         ("get_spending_advice", AUGUST, []),
         ("what_if_one_off", LM, []),
-        ("what_if_monthly", {"fromAdvice": True}, []),
+        # INV-03 K8-A, D4-A: the monthly saving offers two other durations of the 3/6/12 examples, its amount kept.
+        ("what_if_monthly", {"fromAdvice": True, "months": 12},
+         [s("Peki 6 ay biriktirseydim?", "what_if_monthly", fromAdvice=True, months=6),
+          s("Peki 3 ay biriktirseydim?", "what_if_monthly", fromAdvice=True, months=3)]),
+        ("what_if_monthly", {"amount": 1000, "currencyCode": "TRY", "months": 6},
+         [s("Peki 12 ay biriktirseydim?", "what_if_monthly", amount=1000, currencyCode="TRY", months=12),
+          s("Peki 3 ay biriktirseydim?", "what_if_monthly", amount=1000, currencyCode="TRY", months=3)]),
+        ("what_if_monthly", {"amount": 1000, "currencyCode": "TRY", "months": 22},
+         [s("Peki 12 ay biriktirseydim?", "what_if_monthly", amount=1000, currencyCode="TRY", months=12),
+          s("Peki 6 ay biriktirseydim?", "what_if_monthly", amount=1000, currencyCode="TRY", months=6)]),
     ],
 )
 def test_each_tool_has_its_follow_ups(tool, arguments, expected):
@@ -256,11 +265,20 @@ def test_every_pattern_is_a_phrasing_template_for_each_of_its_periods(pattern):
     assert {slot["args"]["period"] for slot in slots["period"]} == set(PATTERNS[pattern]), pattern
 
 
+def test_every_other_duration_offered_is_a_measured_follow_up():
+    # They are follow-ups, read by code (D1-B) and not by the model: the modelless phrasing test runs each of them with its context.
+    follow = next(intent for intent in PHRASING["intents"] if intent["id"] == "saving_follow_up")
+    template = next(t for t in follow["templates"] if t["text"] == "Peki {months} ay biriktirseydim?")
+    assert {slot["args"]["months"] for slot in template["slots"]["months"]} == {3, 6, 12}
+
+
 @pytest.mark.parametrize("text", [INCOME_LAST_MONTH, TOTAL_TM, TOTAL_LM, RECURRING, UPCOMING_7, ROSE, TREND_6, SAME_DAYS,
                                   SAVE_ADVISED, SAVE_WHERE_LM])
 def test_every_full_question_offered_is_a_measured_case(text):
     # A full question is not read with the last call: it goes to the model like any other, so only measured ones are offered.
-    assert any(case["message"] == text and "context" not in case and isinstance(case["expected"], (dict, list)) for case in CASES)
+    # INV-03 PR2: the advised saving now ends in its duration question, which the case measures as "clarify:duration".
+    assert any(case["message"] == text and "context" not in case
+               and (isinstance(case["expected"], (dict, list)) or case["expected"] == "clarify:duration") for case in CASES)
 
 
 # Matching a reply against the offered suggestions (K3-C).

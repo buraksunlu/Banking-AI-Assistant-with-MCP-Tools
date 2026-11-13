@@ -20,7 +20,7 @@ from pathlib import Path
 import jwt  # PyJWT comes with the mcp package
 
 CASES_FILE = Path(__file__).with_name("answer_cases.json")
-CUSTOMERS = {"selin": 4, "murat": 5, "zeynep": 6, "hasan": 7, "elif": 8, "can": 9}
+CUSTOMERS = {"ada": 1, "selin": 4, "murat": 5, "zeynep": 6, "hasan": 7, "elif": 8, "can": 9}
 
 
 def token(customer: str) -> str:
@@ -51,7 +51,9 @@ def problems(case: dict, reply: dict) -> list[str]:
         found.append(f"tool {tools or 'yok'}")
     facts = " | ".join(f"{f['label']}: {f['text']}" for f in reply["facts"])
     found += [f"fact yok: {text}" for text in case.get("facts", []) if text not in facts]
-    found += [f"cevapta yok: {text}" for text in case.get("answer", []) if text not in reply["answer"]]
+    # CHAT-10 PR3 K5-B: a question's options are the rows under it (``choices``), no longer written into its text.
+    shown = " | ".join([reply["answer"], *(c["label"] for c in reply.get("choices", []))])
+    found += [f"cevapta yok: {text}" for text in case.get("answer", []) if text not in shown]
     found += [f"olmamalı: {text}" for text in case.get("absent", []) if text in facts]
     return found
 

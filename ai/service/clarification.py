@@ -14,7 +14,7 @@ from dataclasses import dataclass, replace
 from answer_check import FORBIDDEN_MENTIONS, fold_rule, fold_turkish
 
 from formatting import MONTH_NAMES
-from grounding import amounts_in, json_number, unclear_amounts, count_in, currency_in, percent_in, period_in, periods_in
+from grounding import amounts_in, json_number, months_in, unclear_amounts, count_in, currency_in, percent_in, period_in, periods_in
 from memory import TokenMemory
 
 # The periods offered when the user named none; any other tool period in the reply counts too (grounding.period_in).
@@ -26,6 +26,12 @@ MONTH_EXAMPLES = (3, 6, 12)
 CURRENCY_OPTIONS = (("TL", "TRY"), ("Euro", "EUR"), ("Dolar", "USD"), ("Sterlin", "GBP"))
 # The monthly "what if" saving (INC-03): lira only, so its amount question names the currency.
 MONTHLY_SAVING = "what_if_monthly"
+# INV-03 PR2: the saving's duration, within the server's own limits (WhatIfMath.MinimumMonths/MaximumMonths, MCP [Range(2, 22)]);
+# checked here too so the user is told why in words (K6-A). Examples as people say them (K4-A), not numbered: "6" is six months.
+MINIMUM_MONTHS, MAXIMUM_MONTHS = 2, 22
+DURATION_EXAMPLES = (3, 6, 12)
+DURATION_HINT = f"Başka bir süre yazın ({MINIMUM_MONTHS}–{MAXIMUM_MONTHS} ay)"
+DURATION_LIMITS = f"En az {MINIMUM_MONTHS}, en fazla {MAXIMUM_MONTHS} ay için hesaplayabilirim."
 # Examples for a cut, not numbered: "20" then means 20 %, not an option.
 PERCENT_EXAMPLES = (10, 25, 50)
 # CHAT-10 P1-D: the amount examples are tappable too. They carry "TL", so one tap also answers a budget's currency asked next;
@@ -73,7 +79,7 @@ class Choice:
 @dataclass(frozen=True)
 class Pending:
     """A tool call waiting for one argument: ``arguments`` holds the rest, ``kind`` is "period", "count", "merchant",
-    "amount", "currency" or "percent"; ``later`` names the figures to ask once this one is answered (MCP-17)."""
+    "amount", "currency", "percent" or "duration" (INV-03); ``later`` names the figures to ask once this one is answered (MCP-17)."""
 
     tool: str
     arguments: dict
@@ -147,6 +153,35 @@ def ask_amount_again(pending: Pending, reply: str) -> Pending:
     return replace(pending, note=f"‘{unclear}’ tutarını anlayamadım.")
 
 
+def ask_months(tool: str, arguments: dict, question: str, later: tuple[str, ...] = (), note: str = "") -> Pending:
+    """The question for a saving's duration the user did not say (INV-03 K2-A); ``note`` says why a said one was refused (K6-A)."""
+    rest = {k: v for k, v in arguments.items() if k != "months"}
+    examples = tuple(Option(f"{n} ay", n) for n in DURATION_EXAMPLES)
+    return Pending(tool, rest, "months", "duration", examples, question, minimum=MINIMUM_MONTHS, maximum=MAXIMUM_MONTHS,
+                   later=later, note=note)
+
+
+def ask_months_again(pending: Pending) -> Pending:
+    """The same duration question once more, with the limits a reply was outside of (K6-A)."""
+    return replace(pending, note=DURATION_LIMITS)
+
+
+def months_out_of_range(pending: Pending, reply: str) -> bool:
+    """True for a short reply to a duration question that says exactly one duration outside the limits ("1 ay", "2 yıl", "30")."""
+    if pending.kind != "duration" or len(reply.split()) > MAX_REPLY_WORDS:
+        return False
+    months = duration_of(reply)
+    return months is not None and not MINIMUM_MONTHS <= months <= MAXIMUM_MONTHS
+
+
+def duration_of(reply: str) -> int | None:
+    """The one duration a short reply says, in months: words ("6 ay", "1 yıl") or a bare count ("8"); None for none or several."""
+    said = months_in(reply)
+    if said:
+        return said[0] if len(said) == 1 else None
+    return count_in(reply) if fold_turkish(reply).strip().rstrip("?.!").isdigit() else None
+
+
 def ask_percent(tool: str, arguments: dict, question: str, later: tuple[str, ...] = ()) -> Pending:
     """The question for a cut the user did not name (MCP-18 K4-A)."""
     rest = {k: v for k, v in arguments.items() if k != "reductionPercent"}
@@ -161,7 +196,7 @@ def ask_topic(question: str) -> Pending:
 
 def input_hint(pending: Pending) -> str:
     """The row that invites an answer of the user's own (PR3b D6-A); empty for a question whose options are all there is."""
-    return AMOUNT_HINT if pending.kind == "amount" else ""
+    return {"amount": AMOUNT_HINT, "duration": DURATION_HINT}.get(pending.kind, "")
 
 
 def choices(pending: Pending) -> list[Choice]:
@@ -214,6 +249,10 @@ def resolve(pending: Pending, reply: str) -> dict | None:
         # CHAT-09 K6-B: a monthly saving is lira only and its currency is never asked; "100 dolar" keeps its dollar, so the chat
         # refuses it instead of running 100 lira.
         completed["currencyCode"] = currency_in(reply) or "TRY"
+        # "5 bin 6 ay" answers the duration asked next as well; one outside the limits is asked, with its note.
+        months = months_in(reply)
+        if "months" in pending.later and len(months) == 1 and MINIMUM_MONTHS <= months[0] <= MAXIMUM_MONTHS:
+            completed["months"] = months[0]
     return completed
 
 
@@ -230,6 +269,8 @@ def template(pending: Pending) -> str:
         return f"{note}Bütçeniz ne kadar?"
     if pending.kind == "percent":
         return "Ne kadar azaltmayı düşünüyorsunuz?"
+    if pending.kind == "duration":
+        return f"{note}Kaç ay boyunca biriktirirdiniz?"
     if pending.kind in CHOICE_KINDS:
         return "Bunu iki şekilde hesaplayabilirim. Hangisini istersiniz?"
     if pending.kind == "merchant":
@@ -300,6 +341,9 @@ def _value(pending: Pending, reply: str) -> str | int | float | None:
     if pending.kind == "amount":
         amount = next((a for a in amounts_in(reply) if a > 0), None)
         return None if amount is None else json_number(amount)
+    if pending.kind == "duration":
+        months = duration_of(reply)
+        return months if months is not None and pending.minimum <= months <= pending.maximum else None
     if pending.kind == "percent":
         # A bare "20" is the cut itself: the examples are not numbered.
         cut = percent_in(reply) or count_in(reply)

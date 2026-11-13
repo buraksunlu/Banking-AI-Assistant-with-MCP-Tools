@@ -99,6 +99,11 @@ sorusunu reddeder. Prompt değişince `question_eval.py` (8 vaka, eşik %80) ön
 olurdu" modelsiz aylık birikimdir, tutar sorusuna "tek seferlik" cevabı (`wants_one_off`) tek seferliğe geçer. İki "ne olurdu", bütçe ve
 tasarruf cevaplarını kod yazar (`ToolOutcome.written`); `written` dolu bir sonuçta model, tavsiye/ad denetimi ve "Dönem:" satırı
 çalışmaz. Kullanıcının rakamları takipte yalnız "peki/ya…" ile taşınır (`conversation.carried`).
+**Süre (INV-03 PR2):** aylık birikimin `months`'u (2–22) yalnız koddan: `grounding.months_in` ("6 ay", "1,5 yıl", "yarım yıl"; tutar
+okuması süreleri önce çıkarır, `without_durations` "son N ay"ı dönem bırakır), `plan_monthly` (söylenmezse `ask_months`, tür `duration`,
+sabit metin, `inputHint`; sınır dışı/iki süre notla ya da yeniden sorulur), `routing.hide_dates` alanı modelden gizler. "Peki 6 ay?"
+(`wealth.monthly_follow_up`) ve sunulan öneri metinleri modelsiz çalışır; öneri tutarında da süre sorulur. Sınırlar sunucu şemasıyla
+testte karşılaştırılır (`mcp_tools.json`). Araç şeması değişince `phrasing_eval.py --refresh-tools`.
 
 MCP istemcisi (MCP-b, `ai/service/mcp_gateway.py`, `mcp` 2.3.0): `BANKINGAI_MCP_URL` (yoksa `http://127.0.0.1:5249/mcp`; yanlış biçimde
 servis açılmaz). Protokol `2026-07-28`'e sabit (el sıkışma/keşif isteği yok); her çağrı kendi kısa olay döngüsünde (`anyio.run`, sohbet

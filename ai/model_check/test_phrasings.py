@@ -207,7 +207,8 @@ def test_a_follow_up_is_read_with_its_context():
     previous = {"tool": "get_spending_advice", "arguments": {"period": "LastMonth"}, "question": "Geçen ay nerede tasarruf edebilirim?"}
     outcome = run_variant(variant("Peki bu tutarı biriktirseydim?", {"tool": "what_if_monthly", "arguments": {"fromAdvice": True}},
                                   context=previous))
-    assert outcome == Outcome("call", "what_if_monthly", {"fromAdvice": True})
+    # INV-03 K9-A: the advised amount is understood from the context, and its duration is asked.
+    assert outcome == Outcome("clarify:duration")
 
 
 def test_a_dialog_answers_the_question_asked_back():

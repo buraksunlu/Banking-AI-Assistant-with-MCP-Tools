@@ -157,18 +157,15 @@ def test_the_token_travels_in_the_header_only():
 # Calling
 
 
-@pytest.mark.parametrize(("arguments", "sent"), [
-    ({"amount": 5000, "currencyCode": "TRY"}, {"amount": 5000, "currencyCode": "TRY", "months": 12}),
-    ({"fromAdvice": True}, {"fromAdvice": True, "months": 12}),
-    ({"fromAdvice": True, "months": 6}, {"fromAdvice": True, "months": 6}),
-])
-def test_the_monthly_saving_keeps_its_twelve_months_until_the_chat_asks(arguments, sent):
-    # INV-03 PR1: the server requires the months now; the chat still saves for twelve until PR2 asks the user.
+@pytest.mark.parametrize("arguments", [{"amount": 5000, "currencyCode": "TRY"}, {"fromAdvice": True, "months": 6}])
+def test_the_arguments_go_to_the_server_as_the_chat_built_them(arguments):
+    # INV-03 PR2: the PR1 bridge that put twelve months into a monthly saving is gone; the chat asks the duration itself, and a
+    # call without one is the server's to refuse, never filled in here.
     with FakeMcp() as mcp:
         gateway(mcp.url).call("what_if_monthly", arguments, TOKEN, soon())
 
     call = next(r for r in mcp.requests if r["method"] == "tools/call")
-    assert call["params"]["arguments"] == sent
+    assert call["params"]["arguments"] == arguments
 
 
 def test_money_comes_back_as_decimal_with_its_two_decimals():

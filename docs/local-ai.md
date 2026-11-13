@@ -826,6 +826,45 @@ işyerini" diyor → **14/14**. Araç seçimi değişmedi (ölçüm gerekmedi); 
   (`conversation.carried`); "Bütçemi aşacak mıyım?" gibi kısa yeni soru tutarı yeniden sorar. Model artık bu dört aracın cevabını
   yazmıyor; tavsiye ve ad denetimi gelir payı ile öneri cevaplarında çalışmaya devam ediyor.
 
+## Kaç ay biriktirseydin (INV-03 PR2, 13 Kasım 2026)
+
+PR1 (#78) aylık birikime zorunlu `months` (2–22) ekledi; sohbet o güne kadar geçici bir köprüyle hep 12 gönderiyordu
+(`mcp_gateway`). Köprü kalktı: süreyi kod kullanıcının sözünden okur, söylenmezse sorar.
+
+```text
+"Biriktirseydim ne olurdu?" → Ayda kaç TL biriktirirdiniz?  [1.000 TL] [5.000 TL] [10.000 TL] [Başka bir tutar yazın]
+"1.000 TL"                  → Kaç ay boyunca biriktirirdiniz? [3 ay] [6 ay] [12 ay] [Başka bir süre yazın (2–22 ay)]
+"3 ay"                      → what_if_monthly {amount: 1000, currencyCode: TRY, months: 3} → kodun yazdığı cevap
+                              öneriler: "Peki 12 ay biriktirseydim?" · "Peki 6 ay biriktirseydim?"
+```
+
+- **Okuma (K5-A, `grounding.months_in`):** "6 ay", "altı ay", "on iki ay", "6 aylık", "1 yıl", "bir yıl", "1,5 yıl", "bir buçuk yıl",
+  "yarım yıl". Sayı birimden önce gelmeli ("her ay", "ayda 1.000", "bu yıl" süre değil); ekler listeli ("3 ayakkabı" süre değil); ayın
+  parçası ("2,5 ay") okunmaz, sorulur. **Bulgu:** `amounts_in("Ayda 1.000 TL 6 ay")` `[1000, 6]` veriyordu ve tutar geri soruluyordu;
+  tutar okumadan önce süreler çıkarılıyor. Senaryo seçiminde (`scenario_by_figures`) "6 ay" dönem sayılmıyor, ama "son 3 ayda" hâlâ
+  dönem (`without_durations`).
+- **Soru (K2-A, K4-A, D3-A):** `ask_months`, tür `duration`; sabit metin "Kaç ay boyunca biriktirirdiniz?" (kullanıcının rakamı,
+  model yazmaz); seçenekler `3 ay / 6 ay / 12 ay`, `inputHint` "Başka bir süre yazın (2–22 ay)". Cevap kelimeyle ya da çıplak sayıyla
+  ("8") okunur. Sıra tutar → süre (`Pending.later`); "5 bin 6 ay" ikisini birden cevaplar. Öneri tutarında da süre sorulur (K9-A),
+  sunulan "Önerdiğin tutarı her ay biriktirseydim" önerisine dokununca da.
+- **Sınırlar (K6-A, K10):** 2–22 (`clarification.MINIMUM_MONTHS/MAXIMUM_MONTHS`; bir test bunları `mcp_tools.json`'daki sunucu
+  şemasıyla karşılaştırır). Dışındaki süre ("1 ay", "2 yıl", "30") aynı soruyla ve "En az 2, en fazla 22 ay için hesaplayabilirim."
+  notuyla yeniden sorulur; iki süre ("6 ay ya da 1 yıl") tahmin edilmez, sorulur (D5-A).
+- **Takip (K7-A, D1-B):** son çağrı aylık birikimse "peki/ya" ile başlayan ve yalnız süre/tutar söyleyen mesajı (`wealth.monthly_follow_up`)
+  kod çalıştırır, model sorulmaz ("6 ay" aylık serinin sayısı da olduğu için model yanlış araca gidebilirdi). Söylenen değişir, gerisi
+  kalır ("Peki 6 ay?" süreyi, "Ya 2.000 TL olsaydı?" tutarı). Dönem ya da kategori söyleyen takip normal yoldan gider.
+- **Model süreyi görmez (D2-A):** `routing.hide_dates` aylık birikimin `months` alanını ve zorunluluğunu modelin listesinden çıkarır;
+  aylık serinin `months`'u görünür kalır. Model yine de yazarsa `plan_monthly` yok sayar.
+- **Öneriler (K8-A, D4-A):** cevabın altında 3/6/12'nin kullanılmayan ikisi (uzundan kısaya, 22 ayda 12 ve 6), tutar ya da öneri korunur
+  (`suggestions._saving`). Metinler takip cümlesi; dokununca kod çalıştırır. Tek seferlik senaryo yine öneri almaz.
+
+Ölçüm (gerçek `qwen3.5:4b`, `--pause 1`): araç seçimi 107/107 → **113/113** (W10–W13, W17, Q06 artık `clarify:duration`
+bekler, tutar okunmazsa `clarify:amount` ile kırılır; yeni V01–V06: süreli tutar, 1,5 yıl, öneri tutarı, "Peki 6 ay?", sınır dışı); ifade
+örneklemi **119/121** (iki hata süreye dokunmayan yollarda, büyük harfli tasarruf ve tek seferlik ifadesi; modelsiz geniş testte
+1278 ifade, açık yok); cevap doğruluğu **25/25** (A22–A23 sona "12 ay" aldı; yeni A24 Ada 1.000 TL × 3 ay → USD 3.111,65, EUR 3.035,90,
+altın 3.142,18 — PR1'in bağımsız SQL hesabıyla aynı; A25 "Peki 3 ay?" takibiyle aynı rakam). Ölçüm aracı düzeltmesi: `answer_eval`
+geri sorunun seçeneklerini artık `choices`'ta da arıyor (A02, CHAT-10 PR3'ten beri işyeri adları metinde değil satırlarda).
+
 ## Kararlar (hepsi kullanıcı kararı, 19 Ekim 2026)
 
 K1-A `POST /api/assistant/messages` · K2-A .NET'in kendi DTO'su (`type` tam adla, `answer`, `toolCalls`, `facts`; `model`

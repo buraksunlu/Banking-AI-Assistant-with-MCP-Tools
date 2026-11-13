@@ -143,6 +143,9 @@ def test_every_eval_case_finds_its_tool_by_the_rules_alone():
         expected = case["expected"]
         if expected in (None, "clarify"):
             continue
+        if expected == "clarify:duration":
+            # INV-03 PR2: only the monthly saving asks a duration; the case must still be routed to it.
+            expected = {"tool": "what_if_monthly"}
         tools = {e["tool"] for e in (expected if isinstance(expected, list) else [expected])}
         if result.out_of_scope or not tools <= result.tools():
             misses.append((case["id"], case["message"], result))
@@ -167,6 +170,21 @@ def test_hide_dates_removes_the_range_and_the_custom_period_and_nothing_else():
     assert shown[0]["function"]["parameters"]["required"] == ["period"]
     assert shown[0]["function"]["description"] == "Açıklama."
     assert shown[1] == plain
+
+
+def test_the_monthly_savings_duration_is_hidden_from_the_model_and_the_trends_count_is_not():
+    # INV-03 D2-A: code reads the duration from the words; the model's list stays the measured one.
+    saving = {"type": "function", "function": {"name": "what_if_monthly", "description": "Açıklama.", "parameters": {
+        "type": "object", "properties": {"months": {"type": "integer", "minimum": 2, "maximum": 22}, "amount": {"type": ["number", "null"]}},
+        "required": ["months"]}}}
+    trend = _tool("get_monthly_trend", {"months": {"type": "integer", "minimum": 1, "maximum": 12}})
+
+    shown = hide_dates([saving, trend])
+
+    assert shown[0]["function"]["parameters"]["properties"] == {"amount": {"type": ["number", "null"]}}
+    assert shown[0]["function"]["parameters"]["required"] == []
+    assert shown[1] == trend
+    assert "months" in saving["function"]["parameters"]["properties"]
 
 
 def test_hide_dates_leaves_the_listed_tools_untouched():

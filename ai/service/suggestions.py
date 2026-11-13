@@ -39,6 +39,7 @@ SAME_DAYS = "Bu ay, geçen ayın aynı günlerine göre daha mı çok harcıyoru
 ROSE = "Geçen aya göre harcamam arttı mı?"
 TREND_6 = "Son 6 ayda harcamam aylara göre nasıl değişti?"
 SAVE_ADVISED = "Önerdiğin tutarı her ay biriktirseydim ne olurdu?"
+OTHER_DURATION = "Peki {months} ay biriktirseydim?"
 
 # CHAT-10 K3-B: the texts that say their period, as patterns. Each is measured for two periods and is a phrasing template for every
 # period it is offered with (P1-B); the value is the periods it may be offered with.
@@ -181,6 +182,13 @@ def _advice(a: dict) -> list[Suggestion]:
             _in(CATEGORIES_IN, "get_category_breakdown", last)]
 
 
+def _saving(a: dict) -> list[Suggestion]:
+    # INV-03 K8-A, D4-A: two other durations of the question's examples, longest first; the amount (or the advice) is kept. A
+    # follow-up text, so code runs it when tapped or typed (D1-B), never the model.
+    others = [n for n in (12, 6, 3) if n != a["months"]][:2]
+    return [_s(OTHER_DURATION.format(months=n), "what_if_monthly", **{**a, "months": n}) for n in others]
+
+
 # The candidates of each tool, best first (K1-C); the first three not asked and fitting the answer are offered.
 _TABLE = {
     "get_spending_summary": _summary,
@@ -199,9 +207,11 @@ _TABLE = {
     "check_budget": lambda a: [_in(MERCHANTS_IN, "get_merchant_breakdown", _named("ThisMonth")),
                                _in(CATEGORIES_IN, "get_category_breakdown", _named("ThisMonth")),
                                _in(HIGHEST_IN, "get_highest_transactions", _named("ThisMonth"))],
-    # INC-03 K19-B: income share → advice → advised saving; the what-if answers offer nothing (no "buy more" chain).
+    # INC-03 K19-B: income share → advice → advised saving; the one-off offers nothing (no "buy more" chain), the monthly saving
+    # only other durations of the same amount (INV-03 K8-A).
     "get_income_share": _income,
     "get_spending_advice": _advice,
+    "what_if_monthly": _saving,
     # No other cut is offered: a figure the user did not say would be the backend's suggestion (MCP-17/18).
     "simulate_savings": lambda a: [_s(TREND_6, "get_monthly_trend", months=6),
                                    _in(CATEGORIES_IN, "get_category_breakdown", _named("LastMonth"))],

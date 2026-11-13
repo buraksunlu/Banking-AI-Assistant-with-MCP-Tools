@@ -1374,10 +1374,14 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   kullanıcıyla netleşir; açıkça istenen varlık korunur. Eksik veride kazanan uydurulmaz.
 
 ==================================================
-29. MEVCUT PROJE DURUMU — 12 KASIM 2026
+29. MEVCUT PROJE DURUMU — 13 KASIM 2026
 ==================================================
 
 COMPLETED
+- Kaç ay biriktirseydin, sohbet (INV-03 PR2, 13 Kasım 2026; docs/local-ai.md "Kaç ay biriktirseydin"): süre yalnız koddan
+  (`grounding.months_in`; ay/yıl/buçuk/yarım), söylenmezse sabit metinli dokunulabilir soru (3/6/12 ay + kendi süren), 2–22 dışı notla
+  yeniden sorulur, "Peki 6 ay?" modelsiz, alan modelden gizli, cevap altında iki başka süre; PR1 köprüsü silindi. Araç seçimi 113/113,
+  cevap doğruluğu 25/25, Python 1360 modelsiz. INV-03 tamam.
 - Kaç ay biriktirseydin, backend (INV-03 PR1, 12 Kasım 2026; docs/api.md what-if/monthly): aylık birikimin süresi 12'ye
   sabit değil, zorunlu `months` 2–22 (API sorgu parametresi, MCP `[Range(2, 22)]`, OpenAPI); 22 = fiyatların başladığı Kasım 2024'ten
   sonraki ilk 1'i. Sessiz varsayılan yok; sohbet PR2'ye kadar geçici köprüyle 12 gönderir (`mcp_gateway`). Application 476, Api 583,

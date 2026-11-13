@@ -24,6 +24,7 @@ from langchain_ollama import ChatOllama
 
 from answer_check import has_advice, misnamed
 from clarification import (CHOICE_KINDS, MAX_REPLY_WORDS, Choice, Pending, PendingStore, ask_amount, ask_amount_again, ask_complete_month, ask_count, ask_currency,
+                           ask_months, ask_months_again, months_out_of_range,
                            ask_merchant, ask_percent, ask_period, ask_topic, check_question, choices, chosen_tool, input_hint,
                            is_bare_choice, resolve, template, wants_one_off)
 from contracts import Fact
@@ -39,8 +40,8 @@ from grounding import category_in, check_arguments, mentions_period, unclear_amo
 from routing import DATE_FIELDS, ONE_OFF, PLANNING, Route, Router, group_of, hide_dates, is_spending_question, narrow, planning_of
 from suggestions import OUT_OF_SCOPE_SUGGESTIONS, AskedStore, OfferedStore, follow_ups, match, result_shape
 from tools import ToolArgumentsRejected, ToolGateway
-from wealth import (LIRA, MONTH_TOOLS, MONTHLY_TOOL, ONE_OFF_TOOL, WEALTH_TOOLS, advised_saving_call, chosen_scenario_arguments, has_complete_month,
-                    needs_month_question, plan_monthly, scenario_by_figures)
+from wealth import (LIRA, MONTH_TOOLS, MONTHLY_TOOL, ONE_OFF_TOOL, WEALTH_TOOLS, advised_saving_call, carried_monthly, chosen_scenario_arguments,
+                    has_complete_month, monthly_follow_up, needs_month_question, plan_monthly, scenario_by_figures)
 
 logger = logging.getLogger("bankingai.ai")
 
@@ -257,6 +258,9 @@ class ChatService:
             if arguments is None and waiting.kind == "amount" and len(message.split()) <= MAX_REPLY_WORDS and unclear_amounts(message):
                 # CHAT-10 K9-C: "5x" is no amount the code can read; asked again instead of taken as a new question or as 5.
                 return self._ask(ask_amount_again(waiting, message), [], token, deadline)
+            if arguments is None and months_out_of_range(waiting, message):
+                # INV-03 K6-A: "1 ay", "2 yıl" are durations the backend cannot run; asked again with the limits, not a new question.
+                return self._ask(ask_months_again(waiting), [], token, deadline)
             if arguments is not None:
                 question = f"{waiting.question} ({message})"
                 # "3000" answered the amount; the currency the model guessed as well is asked next, not run.
@@ -268,6 +272,9 @@ class ChatService:
         # The text of an offered follow-up stands for the call it was built from (CHAT-06 K3-C): code chose the tool, so the
         # model is not asked again; the MCP server still checks the arguments.
         chosen = match(offered, message)
+        if chosen is not None and chosen.tool == MONTHLY_TOOL and "months" not in chosen.arguments:
+            # INV-03 K9-A: "Önerdiğin tutarı her ay biriktirseydim" says no duration; it is asked like a typed one's.
+            return self._monthly(ToolCall(chosen.tool, dict(chosen.arguments)), message, None, token, deadline, day)
         if chosen is not None:
             return self._run(ToolCall(chosen.tool, dict(chosen.arguments)), message, token, deadline, day)
         if not completed and is_bare_choice(message):
@@ -288,8 +295,12 @@ class ChatService:
             return _advice_declined() if route.advice else _out_of_scope()
 
         # "Had I saved the amount you advised": code chooses the call from the words, the model never picked it (INC-03 PR2, W12/W13).
+        # INV-03 K9-A: the advised amount needs its duration too, so it goes the monthly saving's way (read or asked).
         if (advised := advised_saving_call(message, context)) is not None:
-            return self._run(ToolCall(*advised), message, token, deadline, day)
+            return self._monthly(ToolCall(*advised), message, context, token, deadline, day)
+        # INV-03 D1-B: "Peki 6 ay?" after a monthly saving changes its figures; code builds the call, the model is not asked.
+        if monthly_follow_up(message, context) is not None:
+            return self._monthly(ToolCall(MONTHLY_TOOL, {}), message, context, token, deadline, day)
 
         # The dates the user wrote are read by code (CHAT-08): the model is shown a period name in their place and never
         # chooses a date (ANA-20); the range is put into the call below.
@@ -376,11 +387,12 @@ class ChatService:
     def _monthly(self, call: ToolCall, message: str, context: LastCall | None, token: str, deadline: float,
                  day: CustomerDay | None) -> ChatReply:
         """The monthly saving: what the user's words allow (K8-A, K9-A, K17-B), asked back or refused otherwise."""
-        plan = plan_monthly(call.arguments, message, after_advice=context is not None and context.tool == "get_spending_advice")
+        plan = plan_monthly(call.arguments, message, after_advice=context is not None and context.tool == "get_spending_advice",
+                            carried=carried_monthly(message, context))
         if plan.lira_only:
             return _lira_only()
         if plan.ask is not None:
-            return self._ask(_ask_figure(call.tool, plan.known, plan.ask, plan.later, message), [], token, deadline)
+            return self._ask(_ask_figure(call.tool, plan.known, plan.ask, plan.later, message, plan.note), [], token, deadline)
         return self._run(ToolCall(call.tool, plan.run), message, token, deadline, day)
 
     def _read(self, message: str, day: CustomerDay, deadline: float) -> DateReading:
@@ -552,7 +564,9 @@ def _out_of_scope() -> ChatReply:
     return ChatReply("outOfScope", OUT_OF_SCOPE_TEXT, [], [], list(OUT_OF_SCOPE_SUGGESTIONS))
 
 
-def _ask_figure(tool: str, arguments: dict, argument: str, later: tuple[str, ...], question: str) -> Pending:
-    """The question for one of the user's own figures (MCP-17/18), with the ones still to ask after it."""
+def _ask_figure(tool: str, arguments: dict, argument: str, later: tuple[str, ...], question: str, note: str = "") -> Pending:
+    """The question for one of the user's own figures (MCP-17/18, INV-03's duration), with the ones still to ask after it."""
+    if argument == "months":
+        return ask_months(tool, arguments, question, later=later, note=note)
     asker = {"amount": ask_amount, "currencyCode": ask_currency, "reductionPercent": ask_percent}[argument]
     return asker(tool, arguments, question, later=later)
