@@ -28,22 +28,29 @@ struct DesignSystemTests {
         ("secondary on raised", Palette.secondaryText, Palette.raised),
         ("accent on background", Palette.accent, Palette.background),
         ("accent on surface", Palette.accent, Palette.surface),
+        ("accent on raised", Palette.accent, Palette.raised),
         ("incoming on surface", Palette.incoming, Palette.surface),
         ("failure on surface", Palette.failure, Palette.surface),
-        ("button label on accent", Palette.onAccent, Palette.accent),
+        ("button label on the button fill", Palette.onAccent, Palette.accentFill),
     ])
     func everyTextColourIsReadableOnItsSurface(pair: (String, Swatch, Swatch)) {
         #expect(pair.1.contrast(with: pair.2) >= 4.5, "\(pair.0)")
     }
 
-    @Test func theBackgroundIsNearBlackNotPureBlack() {
-        // K7-B: a step between the screen and the cards, which pure black would lose.
-        #expect(Palette.background == Swatch(0x0A0A0B))
+    @Test func theBackgroundIsTheWarmCreamNotPureWhite() {
+        // UX-01 Z3: a warm step between the screen and the white cards, which a white screen would lose.
+        #expect(Palette.background == Swatch(0xF6F1E7))
+        #expect(Palette.surface == Swatch(0xFFFFFF))
         #expect(Palette.surface != Palette.background)
         #expect(Palette.raised != Palette.surface)
     }
 
     // The trap: plain uppercased() writes "SON IŞLEMLER" (no dot); Turkish keeps the dotted İ.
+    // The yellow is a button fill only: as text on a card it would not be read, so its low contrast is pinned on purpose.
+    @Test func theButtonFillIsNeverReadAsText() {
+        #expect(Palette.accentFill.contrast(with: Palette.surface) < 3)
+    }
+
     @Test func sectionLabelsUseTurkishCapitals() {
         #expect(Typography.label("son işlemler") == "SON İŞLEMLER")
         #expect(Typography.label("hesaplarım") == "HESAPLARIM")

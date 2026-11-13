@@ -56,6 +56,8 @@ hesaplanmış değerler, karar soruları) alır; aşağıdaki özetler o planlar
 
 ### Burak'ın vereceği kararlar (PR1)
 
+**Verildi (13 Kasım 2026): R1-A, R2-A.**
+
 **R1 — Kategori renklerinin eşiği.** Kategori renkleri yalnız dolgu/çizgi olarak kullanılıyor (halka dilimi, çubuk, nokta:
 `CategoryBreakdownSection`, `IncomeShareCard`, `IncomeShareDisplay`); adlar her zaman ana yazı renginde yanında yazılı. Bugünkü
 test ise koyu temadan kalma bir kuralla gri dışındaki her kategoriden 4,5:1 (yazı eşiği) istiyor. Ölçtüm:
@@ -105,7 +107,7 @@ bugünkü "soluk ay hâlâ 3:1 görünür" testi kalır mı?
 Tasarım belgesindeki bağlantı rengi `#c46a00` ölçümde krem zeminde 4,5'in altında kaldı → `#9A5100` (belge PR1'de düzeltilir).
 
 Kategori seti (R1-A): orange #E0701A · lime #6E9A1F · brown #7A4E2E · pink #D6568C · purple #9B4FD0 · indigo #3E57C9 · teal #0B6F86 ·
-cyan #2E9BD6 · magenta #B8389E · mint #2F9E7E · slate #8A6F86 · yellow #A88C00 · gray (sınıflandırılmamış) #8A7F70.
+cyan #2E9BD6 · magenta #B8389E · mint #2F9E86 · slate #8E6A8A (uygulamada kaydırıldı: #2F9E7E gelen paraya 20,0'da sınırdaydı, #8A6F86 gelir kartında griye 22,9 ile oradaki ≥ 25 testini geçmedi) · yellow #A88C00 · gray (sınıflandırılmamış) #8A7F70.
 Beyazda en düşük: cyan 3,10, yellow 3,27, orange 3,23; gri 3,92.
 
 İskelet dolgusu: `Skeleton.fillOpacity` 0,16 → **0,18** (0,16'da krem zeminde ΔE 11,7 < 12; 0,18'de ≥ 12, kontrast ~1,4 < 3).

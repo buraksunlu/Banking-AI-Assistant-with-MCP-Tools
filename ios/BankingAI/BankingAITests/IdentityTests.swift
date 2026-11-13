@@ -38,10 +38,10 @@ struct IdentityTests {
         #expect(Brand.askAssistant == "\(Brand.assistantName)'a sor")
     }
 
-    // UI-04 K11-B: the accent is the icon's blue, not gold any more; green stays the colour of money coming in, so the two
-    // must never become the same.
-    @Test func theAccentIsTheIconsBlueAndNotTheIncomingGreen() {
-        #expect(Palette.accent == Swatch(0x3D8BFF))
+    // UX-01 Z3: the accent is the dark amber, not the icon's blue any more; green stays the colour of money coming in, so the
+    // two must never become the same.
+    @Test func theAccentIsTheDarkAmberAndNotTheIncomingGreen() {
+        #expect(Palette.accent == Swatch(0x9A5100))
         #expect(Palette.accent != Palette.incoming)
     }
 

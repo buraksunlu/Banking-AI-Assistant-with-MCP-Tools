@@ -147,7 +147,7 @@ eski istemci, ölçümler). Kartı AI servisi araç sonucundan **kodla** kurar; 
 
 - `Palette`'te Z3 değerleri; `.preferredColorScheme(.light)` her yerde (K6).
 - Kontrast ve kategori renkleri **ölçülerek** (UI-05 kuralı): yazı/zemin ≥ 4,5:1, büyük yazı ≥ 3:1, kategori renkleri arası Lab ΔE ≥ 25,
-  sarı yazı açık zeminde kullanılmaz (bağlantı `#c46a00`). Bugünkü palet testleri yeni değerlerle güncellenir.
+  sarı yazı açık zeminde kullanılmaz (bağlantı `#9A5100`; taslaktaki `#c46a00` ölçümde krem zeminde 4,5'in altında kaldı, PR1). Bugünkü palet testleri yeni değerlerle güncellenir.
 - Aralıklar `Layout` ölçüleriyle sabit: kenar ve kart içi 16, kartlar arası 12, bölümler arası 24, köşe 20.
 
 ## 7. Kararlar — kullanıcının seçmesi gerekenler

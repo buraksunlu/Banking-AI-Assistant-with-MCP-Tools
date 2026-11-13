@@ -16,8 +16,8 @@ struct BankingAIApp: App {
     var body: some Scene {
         WindowGroup {
             RootView(session: session, api: api)
-                // Always black with one blue accent (UI-01 K1-A; UI-04 K11-B replaced the gold).
-                .preferredColorScheme(.dark)
+                // Always light with one dark amber accent (UX-01 K6-A, Z3; replaced the black theme and its blue).
+                .preferredColorScheme(.light)
                 .tint(Palette.accent.color)
         }
     }

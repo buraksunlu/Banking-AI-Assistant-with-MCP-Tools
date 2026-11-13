@@ -189,7 +189,7 @@ struct ChatView: View {
                             .font(.body.weight(.semibold))
                             .foregroundStyle(model.canSendDraft ? Palette.onAccent.color : Palette.secondaryText.color)
                             .frame(width: 34, height: 34)
-                            .background(model.canSendDraft ? Palette.accent.color : Palette.hairline.color, in: Circle())
+                            .background(model.canSendDraft ? Palette.accentFill.color : Palette.hairline.color, in: Circle())
                             // 44 to tap (UI-06 K9-A); the capsule lost its own 4-point padding, so it is barely taller.
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())

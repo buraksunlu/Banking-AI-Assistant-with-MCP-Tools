@@ -6,7 +6,7 @@ import SwiftUI
 enum Skeleton {
     /// The block grey: the text colour at this opacity, seen on the screen and on a card but far from looking like content
     /// (`LoadingStateTests`).
-    static let fillOpacity = 0.16
+    static let fillOpacity = 0.18
 
     static var fill: Color { Palette.primaryText.color.opacity(fillOpacity) }
 
