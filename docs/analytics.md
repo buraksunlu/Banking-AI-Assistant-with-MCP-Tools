@@ -627,7 +627,7 @@ Soru: "Ayda şu kadarı dolar/euro/altın olarak biriktirseydim bugün ne olurdu
 son tam ay için verdiği TL önerilerinin `monthlySaving` toplamı, öneri yoksa `adviceStatus` `NoAdvice`, tutar ve satır yok.
 
 ```text
-alım günleri   = son 12 tam ayın her 1'i (bugün 10 Eki 2026 → 1 Eki 2025 … 1 Eyl 2026); fiyat o gün ya da en yakın önceki gün
+alım günleri   = son `months` tam ayın her 1'i (INV-03; 12 ay, bugün 10 Eki 2026 → 1 Eki 2025 … 1 Eyl 2026); fiyat o gün ya da en yakın önceki gün
 birim          = Σ tutar / alım fiyatı (tam)      değer = birim × bugünkü fiyat      yatırılan = 12 × tutar
 ay değişimi    = ayın 1'i → sonraki ayın 1'i (son ayı devam eden ayın 1'i kapatır); en kötü ve en iyi ay (eşitlikte erken ay)
 en büyük düşüş = aylık noktalar + bugün üzerinde fiyatta tepe → sonraki dip (gün = fiyat günü); hiç düşmediyse 0, günler null

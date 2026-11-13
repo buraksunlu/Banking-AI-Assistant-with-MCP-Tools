@@ -248,7 +248,9 @@ K15-B (birikimde `currencyCode` yalnız `TRY`, `ToolLiraCurrency`).
 - **`InvestmentTools`:** `what_if_one_off` (beş dönem aracının `period`/`from`/`to`'su + isteğe bağlı `categoryCode`; tarih aralığı
   testleri artık altı aracı tarar), `what_if_monthly` (isteğe bağlı `amount` `["number","null"]`, `currencyCode`, `fromAdvice`
   `boolean`; kaynak kuralları servisin: tutar ya da öneri, ikisi birden/hiçbiri, TRY dışı, 1.000.000 üstü `invalid_arguments`). Her
-  sonuçta backend'in sabit `disclaimer`'ı.
+  sonuçta backend'in sabit `disclaimer`'ı. INV-03: `what_if_monthly`'ye zorunlu `months` (`[Range(2, 22)]`, şemada `minimum`/
+  `maximum`) eklendi; açıklama "son birkaç ay … months: kaç ay biriktirildiği, 2-22". Sohbet PR1'de bunu henüz sormaz:
+  `mcp_gateway.call` eksik `months`'u 12 ile doldurur (geçici köprü, INV-03 PR2'de kalkar).
 - **Bulgu (filtre):** `boolean` tipi denetlenmiyordu; SDK `"fromAdvice":"true"` metnini sessizce `true` yapardı. Filtre artık yalnız
   JSON `true`/`false` kabul eder.
 - **Testler:** McpServer 156 → 195 (+39: keşif allowlist'i ve şemalar, 20 argüman reddi, 3 sınır kabulü, 6 rakam testi — Selin pay

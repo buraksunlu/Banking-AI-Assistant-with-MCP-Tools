@@ -42,7 +42,7 @@ public sealed class EndpointSweepTests
         ["GET api/analytics/income-share"] = ("/api/analytics/income-share?period=LastMonth", null),
         ["GET api/analytics/spending-advice"] = ("/api/analytics/spending-advice?period=LastMonth", null),
         ["GET api/analytics/what-if/one-off"] = ("/api/analytics/what-if/one-off?period=LastMonth", null),
-        ["GET api/analytics/what-if/monthly"] = ("/api/analytics/what-if/monthly?fromAdvice=true", null),
+        ["GET api/analytics/what-if/monthly"] = ("/api/analytics/what-if/monthly?fromAdvice=true&months=12", null),
         // The AI service is never reached here: the token and customer checks answer first.
         ["POST api/assistant/messages"] = ("/api/assistant/messages", """{"message":"Dün ne harcadım?"}"""),
         ["GET api/assistant/status"] = ("/api/assistant/status", null),

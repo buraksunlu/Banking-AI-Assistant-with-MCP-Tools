@@ -157,6 +157,20 @@ def test_the_token_travels_in_the_header_only():
 # Calling
 
 
+@pytest.mark.parametrize(("arguments", "sent"), [
+    ({"amount": 5000, "currencyCode": "TRY"}, {"amount": 5000, "currencyCode": "TRY", "months": 12}),
+    ({"fromAdvice": True}, {"fromAdvice": True, "months": 12}),
+    ({"fromAdvice": True, "months": 6}, {"fromAdvice": True, "months": 6}),
+])
+def test_the_monthly_saving_keeps_its_twelve_months_until_the_chat_asks(arguments, sent):
+    # INV-03 PR1: the server requires the months now; the chat still saves for twelve until PR2 asks the user.
+    with FakeMcp() as mcp:
+        gateway(mcp.url).call("what_if_monthly", arguments, TOKEN, soon())
+
+    call = next(r for r in mcp.requests if r["method"] == "tools/call")
+    assert call["params"]["arguments"] == sent
+
+
 def test_money_comes_back_as_decimal_with_its_two_decimals():
     with FakeMcp() as mcp:
         answer = gateway(mcp.url).call("get_spending_summary", {"period": "Yesterday"}, TOKEN, soon())

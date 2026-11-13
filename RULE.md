@@ -1378,6 +1378,10 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Kaç ay biriktirseydin, backend (INV-03 PR1, 12 Kasım 2026; docs/api.md what-if/monthly): aylık birikimin süresi 12'ye
+  sabit değil, zorunlu `months` 2–22 (API sorgu parametresi, MCP `[Range(2, 22)]`, OpenAPI); 22 = fiyatların başladığı Kasım 2024'ten
+  sonraki ilk 1'i. Sessiz varsayılan yok; sohbet PR2'ye kadar geçici köprüyle 12 gönderir (`mcp_gateway`). Application 476, Api 583,
+  McpServer 206, Python 1265.
 - Alt sekme çubuğu ve Profil (UI-07, 12 Kasım 2026; docs/ios.md "iOS-u"): giriş sonrası dört sekme (Ana sayfa · Analiz ·
   Asistan · Profil), sistem TabView'i, her sekmenin kendi yığını; ViewModel'ler MainTabView'da (sekme değişince sohbet ve grafik
   korunur, çıkışta silinir). "Bu ay harcama" kartı ve baş harf dairesi sekmeye geçirir, "Asistana sor" kapsülü kalktı; sekme

@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using BankingAI.Application.Analytics;
 using BankingAI.Application.Investment;
 using BankingAI.Hosting.Security;
@@ -34,18 +35,19 @@ public sealed class InvestmentTools(IHttpContextAccessor httpContext, WhatIfServ
             cancellationToken), logger);
 
     /// <summary>
-    /// <c>what_if_monthly</c>: one lira amount bought on the first day of each of the last twelve complete months, valued today,
-    /// with each asset's volatility. The amount is the user's (with its currency) or INC-02's advice, never both.
+    /// <c>what_if_monthly</c>: one lira amount bought on the first day of each of the last <paramref name="months"/> complete months,
+    /// valued today, with each asset's volatility. The amount is the user's (with its currency) or INC-02's advice, never both. The
+    /// months are required (INV-03 K3-A): the chat asks the user rather than letting a twelve be guessed.
     /// </summary>
     [McpServerTool(Name = "what_if_monthly", ReadOnly = true, Destructive = false, UseStructuredContent = true)]
-    [Description("Aynı TL tutarı son 12 ayın her ayı dolar, euro ve gram altın olarak biriktirseydi bugün ne ederdi ve fiyat ne kadar "
-        + "dalgalandı; yatırım tavsiyesi değildir. amount: kullanıcının söylediği aylık tutar, currencyCode: TRY. fromAdvice: tutar "
-        + "yerine önerilen aylık tasarruf isteniyorsa true.")]
+    [Description("Aynı TL tutarı son birkaç ayın her ayı dolar, euro ve gram altın olarak biriktirseydi bugün ne ederdi ve fiyat ne kadar "
+        + "dalgalandı; yatırım tavsiyesi değildir. months: kaç ay biriktirildiği, 2-22. amount: kullanıcının söylediği aylık tutar, "
+        + "currencyCode: TRY. fromAdvice: tutar yerine önerilen aylık tasarruf isteniyorsa true.")]
     public Task<MonthlyWhatIf> WhatIfMonthlyAsync(
-        decimal? amount = null, ToolLiraCurrency? currencyCode = null, bool fromAdvice = false,
-        CancellationToken cancellationToken = default) =>
+        [Range(WhatIfMath.MinimumMonths, WhatIfMath.MaximumMonths)] int months, decimal? amount = null,
+        ToolLiraCurrency? currencyCode = null, bool fromAdvice = false, CancellationToken cancellationToken = default) =>
         ToolErrors.RunAsync(() => whatIf.MonthlyAsync(
-            new MonthlyWhatIfQuery(CustomerId, amount, currencyCode?.ToString(), fromAdvice), cancellationToken), logger);
+            new MonthlyWhatIfQuery(CustomerId, amount, currencyCode?.ToString(), fromAdvice, months), cancellationToken), logger);
 
     // The customer comes from the token only (K2-A).
     private Guid CustomerId => httpContext.HttpContext!.User.GetCustomerId();

@@ -250,11 +250,27 @@ public sealed class WhatIfMathTests
     }
 
     [Fact]
-    public void The_monthly_engine_needs_twelve_buys_and_a_positive_amount()
+    public void The_monthly_engine_needs_two_to_twenty_two_buys_and_a_positive_amount()
     {
         var point = new PricePoint(Today, Today, 49m, PriceStatus.Ok, "TCMB");
         Assert.Throws<ArgumentException>(() => WhatIfMath.Monthly(Usd, 1000m, [point], point, point));
+        Assert.Throws<ArgumentException>(() => WhatIfMath.Monthly(Usd, 1000m, Enumerable.Repeat(point, 23).ToList(), point, point));
         Assert.Throws<ArgumentOutOfRangeException>(() => WhatIfMath.Monthly(Usd, 0m, Enumerable.Repeat(point, 12).ToList(), point, point));
+    }
+
+    // INV-03: the number of months is the number of buys. By hand: 100/10 + 100/20 + 100/40 = 17.5 units, × 40 = 700 against
+    // 3 × 100 = 300 put in: 400 more, 133.33 %.
+    [Fact]
+    public void Three_months_are_three_buys_and_three_times_the_amount()
+    {
+        static PricePoint At(int month, decimal price) =>
+            new(new DateOnly(2026, month, 1), new DateOnly(2026, month, 1), price, PriceStatus.Ok, "TCMB");
+
+        var result = WhatIfMath.Monthly(Usd, 100m, [At(7, 10m), At(8, 20m), At(9, 40m)], At(10, 40m), At(10, 40m));
+
+        Assert.Equal((300m, (decimal?)17.5m, (decimal?)700m, (decimal?)400m, (decimal?)133.33m),
+            (result.Invested, result.Units, result.Value, result.Difference, result.DifferencePercent));
+        Assert.Equal(3, result.Buys.Count);
     }
 
     // ---- OC-09: the fixed warning

@@ -771,7 +771,7 @@ public sealed class AnalyticsEndpointTests
     [Trait("Category", "PostgreSQL")]
     public async Task What_if_monthly_from_advice_returns_the_saving_the_volatility_and_the_warning()
     {
-        var body = Ok(await GetAsync("/api/analytics/what-if/monthly?fromAdvice=true", Selin));
+        var body = Ok(await GetAsync("/api/analytics/what-if/monthly?fromAdvice=true&months=12", Selin));
 
         Assert.Equal(
             ["amountSource", "adviceStatus", "advicePeriod", "currencyCode", "amount", "months", "firstBuyDate", "lastBuyDate",
@@ -801,7 +801,7 @@ public sealed class AnalyticsEndpointTests
     [Trait("Category", "PostgreSQL")]
     public async Task What_if_monthly_with_a_users_amount_has_no_advice_fields()
     {
-        var body = Ok(await GetAsync("/api/analytics/what-if/monthly?amount=1000&currencyCode=TRY", Ada));
+        var body = Ok(await GetAsync("/api/analytics/what-if/monthly?amount=1000&currencyCode=TRY&months=12", Ada));
 
         Assert.Equal(("User", 12000m, 13298.92m), (body["amountSource"]!.GetValue<string>(), Amount(body["invested"]),
             Amount(body["assets"]![0]!["value"])));
@@ -811,11 +811,24 @@ public sealed class AnalyticsEndpointTests
         Assert.Null(body["assets"]![0]!["volatility"]!["maxDrawdown"]!["peakDate"]);
     }
 
+    // INV-03: the months reach the service; the 3-month figures are WhatIfServiceTests' hand-computed ones.
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task What_if_monthly_saves_for_the_months_asked()
+    {
+        var body = Ok(await GetAsync("/api/analytics/what-if/monthly?amount=1000&currencyCode=TRY&months=3", Ada));
+
+        Assert.Equal((3, "2026-07-01", "2026-09-01", 3000m, 3111.65m),
+            (body["months"]!.GetValue<int>(), body["firstBuyDate"]!.GetValue<string>(), body["lastBuyDate"]!.GetValue<string>(),
+             Amount(body["invested"]), Amount(body["assets"]![0]!["value"])));
+        Assert.Equal(3, body["assets"]![0]!["buys"]!.AsArray().Count);
+    }
+
     [Fact]
     [Trait("Category", "PostgreSQL")]
     public async Task What_if_monthly_without_advice_has_no_amount_and_no_rows()
     {
-        var body = Ok(await GetAsync("/api/analytics/what-if/monthly?fromAdvice=true", Ada));
+        var body = Ok(await GetAsync("/api/analytics/what-if/monthly?fromAdvice=true&months=12", Ada));
 
         Assert.Equal(("Advice", "NoAdvice"), (body["amountSource"]!.GetValue<string>(), body["adviceStatus"]!.GetValue<string>()));
         Assert.Null(body["amount"]);
@@ -833,13 +846,18 @@ public sealed class AnalyticsEndpointTests
     [InlineData("amount=100&currencyCode=EUR", "currencyCode", "Birikim senaryosu yalnız TL (TRY) tutarla hesaplanır; varlık fiyatları TL'dir.")]
     [InlineData("amount=1000,50&currencyCode=TRY", "amount", "'1000,50' geçerli bir değer değil.")]
     [InlineData("amount=2000000&currencyCode=TRY", "amount", "Aylık tutar en fazla 1.000.000 olmalı.")]
+    // INV-03 K3-A, K1-A: the months are always given, 2 to 22.
+    [InlineData("amount=1000&currencyCode=TRY", "months", "Ay sayısı zorunlu: months 2 ile 22 arasında verilmeli.")]
+    [InlineData("fromAdvice=true", "months", "Ay sayısı zorunlu: months 2 ile 22 arasında verilmeli.")]
+    [InlineData("amount=1000&currencyCode=TRY&months=1", "months", "Ay sayısı 2 ile 22 arasında olmalı.")]
+    [InlineData("amount=1000&currencyCode=TRY&months=23", "months", "Ay sayısı 2 ile 22 arasında olmalı.")]
     public async Task What_if_monthly_parameters_are_checked(string query, string field, string message) =>
         await AssertInvalidAsync($"/api/analytics/what-if/monthly?{query}", Selin, field, message);
 
     [Fact]
     [Trait("Category", "PostgreSQL")]
     public async Task What_if_monthly_needs_a_token() =>
-        Assert.Equal(HttpStatusCode.Unauthorized, (await GetAsync("/api/analytics/what-if/monthly?fromAdvice=true", null)).Status);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await GetAsync("/api/analytics/what-if/monthly?fromAdvice=true&months=12", null)).Status);
 
     // ---- savings-simulation (ANA-14)
 

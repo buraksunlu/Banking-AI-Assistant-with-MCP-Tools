@@ -30,6 +30,10 @@ PROTOCOL_VERSION = "2026-07-28"
 # The server's own readiness answer is a single database check; more than this means it cannot serve a chat either.
 READY_TIMEOUT_SECONDS = 3.0
 
+# INV-03 PR1 bridge (removed in PR2): the monthly saving's months until the chat asks the user for them.
+_MONTHLY_SAVING = "what_if_monthly"
+_BRIDGE_MONTHS = 12
+
 T = TypeVar("T")
 
 
@@ -82,6 +86,10 @@ class McpToolGateway:
 
     def call(self, tool: str, arguments: dict, token: str, deadline: float) -> dict:
         """The tool's result, the API's own JSON; failures surface as the bridge errors of tools.py."""
+        if tool == _MONTHLY_SAVING and "months" not in arguments:
+            # INV-03 PR1 bridge: the server requires the months now, and the chat asks for them only from PR2 on; until then it
+            # saves for twelve, as before. PR2 removes this.
+            arguments = {**arguments, "months": _BRIDGE_MONTHS}
         result = self._run(token, deadline, lambda client: client.call_tool(tool, arguments), protocol_error=ToolCallRejected)
         text = next((block.text for block in result.content if getattr(block, "type", None) == "text"), None)
         if result.is_error:

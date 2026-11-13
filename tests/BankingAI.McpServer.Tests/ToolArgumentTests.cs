@@ -84,16 +84,24 @@ public sealed class ToolArgumentTests
         { "what_if_one_off", """{"period":"LastMonth","merchant":"Starbucks"}""" },
         { "what_if_one_off", """{"categoryCode":"FOOD"}""" },
         // The monthly saving: one source (K13-B), lira only (K15-B), the money rule and the 1.000.000 limit (K14-A).
-        { "what_if_monthly", """{}""" },
-        { "what_if_monthly", """{"fromAdvice":false}""" },
-        { "what_if_monthly", """{"amount":1000,"currencyCode":"TRY","fromAdvice":true}""" },
-        { "what_if_monthly", """{"amount":1000}""" },
-        { "what_if_monthly", """{"amount":1000,"currencyCode":"USD"}""" },
-        { "what_if_monthly", """{"amount":"1000","currencyCode":"TRY"}""" },
-        { "what_if_monthly", """{"amount":0,"currencyCode":"TRY"}""" },
-        { "what_if_monthly", """{"amount":1000000.01,"currencyCode":"TRY"}""" },
-        { "what_if_monthly", """{"fromAdvice":"true"}""" },
-        { "what_if_monthly", """{"fromAdvice":true,"currencyCode":"TRY"}""" },
+        { "what_if_monthly", """{"months":12}""" },
+        { "what_if_monthly", """{"fromAdvice":false,"months":12}""" },
+        { "what_if_monthly", """{"amount":1000,"currencyCode":"TRY","fromAdvice":true,"months":12}""" },
+        { "what_if_monthly", """{"amount":1000,"months":12}""" },
+        { "what_if_monthly", """{"amount":1000,"currencyCode":"USD","months":12}""" },
+        { "what_if_monthly", """{"amount":"1000","currencyCode":"TRY","months":12}""" },
+        { "what_if_monthly", """{"amount":0,"currencyCode":"TRY","months":12}""" },
+        { "what_if_monthly", """{"amount":1000000.01,"currencyCode":"TRY","months":12}""" },
+        { "what_if_monthly", """{"fromAdvice":"true","months":12}""" },
+        { "what_if_monthly", """{"fromAdvice":true,"currencyCode":"TRY","months":12}""" },
+        // INV-03: the months are required, a whole number of 2-22 (K1-A, K3-A).
+        { "what_if_monthly", """{"fromAdvice":true}""" },
+        { "what_if_monthly", """{"amount":1000,"currencyCode":"TRY"}""" },
+        { "what_if_monthly", """{"fromAdvice":true,"months":1}""" },
+        { "what_if_monthly", """{"fromAdvice":true,"months":23}""" },
+        { "what_if_monthly", """{"fromAdvice":true,"months":"6"}""" },
+        { "what_if_monthly", """{"fromAdvice":true,"months":6.5}""" },
+        { "what_if_monthly", """{"fromAdvice":true,"months":null}""" },
     };
 
     [Theory]
@@ -125,6 +133,8 @@ public sealed class ToolArgumentTests
 
     [Theory]
     [Trait("Category", "PostgreSQL")]
+    [InlineData("what_if_monthly", """{"amount":1000,"currencyCode":"TRY","months":2}""")]
+    [InlineData("what_if_monthly", """{"fromAdvice":true,"months":22}""")]
     [InlineData("get_monthly_trend", """{"months":1}""")]
     [InlineData("get_monthly_trend", """{"months":12}""")]
     [InlineData("get_upcoming_payments", """{"days":1}""")]
@@ -136,8 +146,8 @@ public sealed class ToolArgumentTests
     [InlineData("simulate_savings", """{"reductionPercent":1,"months":1}""")]
     [InlineData("simulate_savings", """{"reductionPercent":100,"months":12}""")]
     [InlineData("simulate_savings", """{"reductionPercent":50,"categoryCode":null}""")]
-    [InlineData("what_if_monthly", """{"amount":1000000,"currencyCode":"TRY"}""")]
-    [InlineData("what_if_monthly", """{"amount":null,"currencyCode":null,"fromAdvice":true}""")]
+    [InlineData("what_if_monthly", """{"amount":1000000,"currencyCode":"TRY","months":12}""")]
+    [InlineData("what_if_monthly", """{"amount":null,"currencyCode":null,"fromAdvice":true,"months":12}""")]
     [InlineData("what_if_one_off", """{"period":"LastMonth","categoryCode":null}""")]
     public async Task Counts_on_their_limits_and_left_out_optional_ones_are_accepted(string tool, string arguments)
     {
