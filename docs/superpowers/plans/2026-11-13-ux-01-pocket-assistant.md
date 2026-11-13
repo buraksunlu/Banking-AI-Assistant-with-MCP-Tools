@@ -56,6 +56,8 @@ hesaplanmış değerler, karar soruları) alır; aşağıdaki özetler o planlar
 
 ### Burak'ın vereceği kararlar (PR1)
 
+**Verildi (13 Kasım 2026): R1-A, R2-A.**
+
 **R1 — Kategori renklerinin eşiği.** Kategori renkleri yalnız dolgu/çizgi olarak kullanılıyor (halka dilimi, çubuk, nokta:
 `CategoryBreakdownSection`, `IncomeShareCard`, `IncomeShareDisplay`); adlar her zaman ana yazı renginde yanında yazılı. Bugünkü
 test ise koyu temadan kalma bir kuralla gri dışındaki her kategoriden 4,5:1 (yazı eşiği) istiyor. Ölçtüm:
