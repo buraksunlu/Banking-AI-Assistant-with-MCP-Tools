@@ -1,0 +1,106 @@
+<style>
+  .phones { display:flex; gap:28px; flex-wrap:wrap; justify-content:center; margin-top:18px; }
+  .pick { cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:10px; border-radius:24px; padding:10px; border:2px solid transparent; }
+  .pick.selected { border-color:#ffb020; }
+  .phone { width:320px; height:660px; border-radius:38px; border:8px solid #1c1c1e; overflow:hidden;
+           font-family:-apple-system, "SF Pro Text", system-ui, sans-serif; font-size:14px; display:flex; flex-direction:column; position:relative;
+           background:var(--bg); color:var(--text); }
+  .status { height:28px; }
+  .scroll { flex:1; overflow:hidden; padding:8px 16px 0; display:flex; flex-direction:column; gap:24px; }
+  .muted { color:var(--muted); }
+  .card { background:var(--card); border-radius:20px; padding:16px; display:flex; flex-direction:column; gap:12px; }
+  .tag { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; }
+  .big { font-size:34px; font-weight:700; letter-spacing:-0.6px; line-height:1; }
+  .line { display:flex; justify-content:space-between; align-items:center; }
+  .track { height:8px; background:var(--track); border-radius:4px; overflow:hidden; margin-top:6px; }
+  .bar { height:8px; background:var(--accent); border-radius:4px; }
+  .act { color:var(--accent); font-size:13px; font-weight:600; }
+  .down { color:var(--down); font-weight:600; }
+  .upc { color:var(--up); font-weight:600; }
+  .ask { background:var(--card2); border-radius:16px; padding:14px 16px; color:var(--muted); display:flex; justify-content:space-between; }
+  .send { width:26px; height:26px; border-radius:13px; background:var(--accent); color:var(--onaccent); display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .tabs { height:62px; border-top:1px solid var(--card); display:flex; justify-content:space-around; align-items:center; font-size:11px; color:var(--muted); }
+  .tabs .on { color:var(--accent); font-weight:600; }
+  .sheet { position:absolute; left:0; right:0; bottom:0; height:250px; background:var(--sheet); border-radius:24px 24px 0 0; padding:12px 16px 16px;
+           display:flex; flex-direction:column; gap:12px; box-shadow:0 -10px 30px rgba(0,0,0,.55); }
+  .grab { width:40px; height:5px; border-radius:3px; background:var(--track); align-self:center; }
+  .q { align-self:flex-end; background:var(--accent); color:var(--onaccent); padding:9px 14px; border-radius:18px; font-weight:600; }
+  .chip { background:var(--card2); border-radius:14px; padding:7px 12px; font-size:13px; color:var(--text); }
+  .legend { font-size:12px; color:#c7c7cc; max-width:320px; text-align:center; line-height:1.45; }
+  .sw { display:flex; gap:6px; justify-content:center; }
+  .sw span { width:22px; height:22px; border-radius:6px; border:1px solid #333; }
+</style>
+
+<h2>Renk paleti: koyu sarı / turuncu</h2>
+<p class="subtitle">Aynı H2 paneli ve F1'in kayan sayfası, üç farklı sıcak palette. Not: vurgu turuncu olunca "harcama arttı" artık turuncu olamaz — üçünde de artış kırmızımsı, azalış yeşil.</p>
+
+<div class="phones">
+
+  <!-- P1 black + amber -->
+  <div class="pick" data-choice="p1" onclick="toggleSelect(this)">
+    <div class="phone" style="--bg:#000; --card:#1c1c1e; --card2:#2c2c2e; --sheet:#141416; --text:#f2f2f7; --muted:#8e8e93; --track:#2c2c2e; --accent:#ffb020; --onaccent:#1a1200; --up:#ff6b5e; --down:#34c759;">
+      <div class="status"></div>
+      <div class="scroll">
+        <div class="line"><span style="font-size:22px; font-weight:700">Ekim</span><span class="muted">MA</span></div>
+        <div class="card"><div class="tag">Bu ay harcama · 10 gün</div><div class="big">8.241,40 TL</div><div class="muted">Aynı günler 8.876,40 · <span class="down">%7 az</span></div></div>
+        <div class="card"><div class="line"><span class="tag">Nereye gitti</span><span class="act">Tümü ›</span></div>
+          <div><div class="line"><span>Market</span><span>5.133,00</span></div><div class="track"><div class="bar" style="width:62%"></div></div></div>
+          <div><div class="line"><span>Akaryakıt</span><span>2.658,50</span></div><div class="track"><div class="bar" style="width:32%"></div></div></div></div>
+      </div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div class="q">Geçen ay markete ne kadar gitti?</div>
+        <div class="card" style="background:var(--card)"><div class="tag">Market · Eylül</div><div class="line"><span class="big" style="font-size:28px">18.016,50 TL</span><span class="upc">▲ %51</span></div></div>
+        <div class="line" style="justify-content:flex-start; gap:8px"><span class="chip">Bu ay?</span><span class="chip">%10 kıssam?</span></div>
+      </div>
+    </div>
+    <div class="sw"><span style="background:#000"></span><span style="background:#1c1c1e"></span><span style="background:#ffb020"></span><span style="background:#ff6b5e"></span><span style="background:#34c759"></span></div>
+    <div class="legend"><b>P1 · Siyah + amber</b><br>Bugünkü siyah zemin kalır, yalnız vurgu maviden amber sarısına döner. En az değişiklik, en sade.</div>
+  </div>
+
+  <!-- P2 warm dark -->
+  <div class="pick" data-choice="p2" onclick="toggleSelect(this)">
+    <div class="phone" style="--bg:#120f0a; --card:#1f1a12; --card2:#2a2318; --sheet:#18140e; --text:#f5efe6; --muted:#a39882; --track:#2f281c; --accent:#ffc233; --onaccent:#1f1500; --up:#ff6a55; --down:#6fcf97;">
+      <div class="status"></div>
+      <div class="scroll">
+        <div class="line"><span style="font-size:22px; font-weight:700">Ekim</span><span class="muted">MA</span></div>
+        <div class="card"><div class="tag">Bu ay harcama · 10 gün</div><div class="big">8.241,40 TL</div><div class="muted">Aynı günler 8.876,40 · <span class="down">%7 az</span></div></div>
+        <div class="card"><div class="line"><span class="tag">Nereye gitti</span><span class="act">Tümü ›</span></div>
+          <div><div class="line"><span>Market</span><span>5.133,00</span></div><div class="track"><div class="bar" style="width:62%; background:linear-gradient(90deg,#ff8a1f,#ffc233)"></div></div></div>
+          <div><div class="line"><span>Akaryakıt</span><span>2.658,50</span></div><div class="track"><div class="bar" style="width:32%; background:linear-gradient(90deg,#ff8a1f,#ffc233)"></div></div></div></div>
+      </div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div class="q">Geçen ay markete ne kadar gitti?</div>
+        <div class="card"><div class="tag">Market · Eylül</div><div class="line"><span class="big" style="font-size:28px">18.016,50 TL</span><span class="upc">▲ %51</span></div></div>
+        <div class="line" style="justify-content:flex-start; gap:8px"><span class="chip">Bu ay?</span><span class="chip">%10 kıssam?</span></div>
+      </div>
+    </div>
+    <div class="sw"><span style="background:#120f0a"></span><span style="background:#1f1a12"></span><span style="background:#ffc233"></span><span style="background:#ff8a1f"></span><span style="background:#ff6a55"></span><span style="background:#6fcf97"></span></div>
+    <div class="legend"><b>P2 · Sıcak koyu</b><br>Zemin saf siyah değil, kahveye çalan koyu; vurgu koyu sarı, çubuklar turuncudan sarıya. Bütün uygulama "sıcak" hisseder.</div>
+  </div>
+
+  <!-- P3 orange hero -->
+  <div class="pick" data-choice="p3" onclick="toggleSelect(this)">
+    <div class="phone" style="--bg:#0b0b0c; --card:#1a1a1c; --card2:#26262a; --sheet:#141416; --text:#f2f2f7; --muted:#8e8e93; --track:#2c2c2e; --accent:#ff9500; --onaccent:#1a0e00; --up:#ff5a4e; --down:#30d158;">
+      <div class="status"></div>
+      <div class="scroll">
+        <div class="line"><span style="font-size:22px; font-weight:700">Ekim</span><span class="muted">MA</span></div>
+        <div class="card" style="background:linear-gradient(135deg,#ff8a00,#ffb800); color:#1a1206">
+          <div class="tag" style="color:#5a3a00">Bu ay harcama · 10 gün</div><div class="big">8.241,40 TL</div><div style="color:#4a3000">Aynı günler 8.876,40 · <b>%7 az</b></div></div>
+        <div class="card"><div class="line"><span class="tag">Nereye gitti</span><span class="act">Tümü ›</span></div>
+          <div><div class="line"><span>Market</span><span>5.133,00</span></div><div class="track"><div class="bar" style="width:62%"></div></div></div>
+          <div><div class="line"><span>Akaryakıt</span><span>2.658,50</span></div><div class="track"><div class="bar" style="width:32%"></div></div></div></div>
+      </div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div class="q">Geçen ay markete ne kadar gitti?</div>
+        <div class="card"><div class="tag">Market · Eylül</div><div class="line"><span class="big" style="font-size:28px">18.016,50 TL</span><span class="upc">▲ %51</span></div></div>
+        <div class="line" style="justify-content:flex-start; gap:8px"><span class="chip">Bu ay?</span><span class="chip">%10 kıssam?</span></div>
+      </div>
+    </div>
+    <div class="sw"><span style="background:#0b0b0c"></span><span style="background:linear-gradient(135deg,#ff8a00,#ffb800)"></span><span style="background:#ff9500"></span><span style="background:#ff5a4e"></span><span style="background:#30d158"></span></div>
+    <div class="legend"><b>P3 · Turuncu ana kart</b><br>Zemin siyah; en önemli kart (bu ay harcama) dolu turuncu-sarı, üstünde koyu yazı. Göz önce o rakama gider; diğer her şey sakin.</div>
+  </div>
+
+</div>

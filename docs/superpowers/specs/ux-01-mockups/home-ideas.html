@@ -1,0 +1,117 @@
+<style>
+  .phones { display:flex; gap:28px; flex-wrap:wrap; justify-content:center; margin-top:18px; }
+  .pick { cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:10px; border-radius:24px; padding:10px; border:2px solid transparent; }
+  .pick.selected { border-color:#3b82f6; }
+  .phone { width:320px; height:660px; background:#000; border-radius:38px; border:8px solid #1c1c1e; overflow:hidden; color:#f2f2f7;
+           font-family:-apple-system, "SF Pro Text", system-ui, sans-serif; font-size:14px; display:flex; flex-direction:column; position:relative; }
+  .status { height:28px; }
+  .scroll { flex:1; overflow:hidden; padding:8px 16px 0; display:flex; flex-direction:column; gap:24px; }
+  .hello { display:flex; justify-content:space-between; align-items:center; }
+  .hello h4 { margin:0; font-size:22px; font-weight:700; }
+  .avatar { width:34px; height:34px; border-radius:17px; background:#2c2c2e; display:flex; align-items:center; justify-content:center; font-size:13px; }
+  .muted { color:#8e8e93; }
+  .down { color:#30d158; font-weight:600; }
+  .up { color:#ff9f0a; font-weight:600; }
+  .card { background:#1c1c1e; border-radius:20px; padding:16px; display:flex; flex-direction:column; gap:12px; }
+  .tag { font-size:12px; color:#8e8e93; text-transform:uppercase; letter-spacing:.6px; }
+  .big { font-size:34px; font-weight:700; letter-spacing:-0.6px; line-height:1; }
+  .ask { background:#1c1c1e; border-radius:16px; padding:14px 16px; color:#8e8e93; display:flex; justify-content:space-between; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; }
+  .chip { background:#1c1c1e; border-radius:14px; padding:8px 12px; font-size:13px; color:#d1d1d6; }
+  .hbar { height:8px; background:#3b82f6; border-radius:4px; }
+  .track { height:8px; background:#2c2c2e; border-radius:4px; overflow:hidden; }
+  .line { display:flex; justify-content:space-between; align-items:center; }
+  .act { color:#3b82f6; font-size:13px; font-weight:600; }
+  .tabs { height:62px; border-top:1px solid #1c1c1e; display:flex; justify-content:space-around; align-items:center; font-size:11px; color:#8e8e93; }
+  .tabs .on { color:#3b82f6; }
+  .dock { position:absolute; left:16px; right:16px; bottom:72px; }
+  .legend { font-size:12px; color:#c7c7cc; max-width:320px; text-align:center; line-height:1.4; }
+  .ins { display:flex; gap:12px; align-items:flex-start; }
+  .dot { width:32px; height:32px; border-radius:10px; background:#2c2c2e; flex:none; display:flex; align-items:center; justify-content:center; }
+</style>
+
+<h2>Ana ekran: üç fikir</h2>
+<p class="subtitle">Hepsinde hesap kartları ve son işlemler yok (banka uygulamasında zaten var). Rakamlar Murat'ın demo verisi, bugün 10 Ekim 2026. Tıkla ya da parça parça söyle.</p>
+
+<div class="phones">
+
+  <!-- H1: assistant first -->
+  <div class="pick" data-choice="h1" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="status"></div>
+      <div class="scroll">
+        <div class="hello"><div><div class="muted" style="font-size:13px">10 Ekim Cuma</div><h4>Merhaba Murat</h4></div><div class="avatar">MA</div></div>
+        <div style="font-size:17px; line-height:1.45">Bu ay <b>8.241,40 TL</b> harcadın; geçen ayın aynı günlerinden <span class="down">%7 az</span>.</div>
+        <div class="ask"><span>Kılavuz'a sor…</span><span>↑</span></div>
+        <div class="chips"><span class="chip">Markete ne gitti?</span><span class="chip">Yaklaşan ödemeler</span><span class="chip">Biriktirseydim?</span></div>
+        <div style="display:flex; flex-direction:column; gap:12px">
+          <div class="tag">Senin için</div>
+          <div class="card"><div class="ins"><div class="dot">🛒</div><div>Eylül'de market <span class="up">%51</span> arttı. <div class="act" style="margin-top:6px">Neden? ›</div></div></div></div>
+          <div class="card"><div class="ins"><div class="dot">📅</div><div>Netflix ve su faturası bu ay yine çıkacak. <div class="act" style="margin-top:6px">Gör ›</div></div></div></div>
+        </div>
+      </div>
+      <div class="tabs"><span class="on">Ana sayfa</span><span>Analiz</span><span>Asistan</span><span>Profil</span></div>
+    </div>
+    <div class="legend"><b>H1 · Önce asistan</b><br>Tek cümlelik durum, büyük soru alanı, hazır sorular; altında asistanın 2–3 içgörüsü. Dokununca cevap B biçiminde açılır.</div>
+  </div>
+
+  <!-- H2: this month panel -->
+  <div class="pick" data-choice="h2" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="status"></div>
+      <div class="scroll">
+        <div class="hello"><h4>Ekim</h4><div class="avatar">MA</div></div>
+        <div class="card">
+          <div class="tag">Bu ay harcama · 10 gün</div>
+          <div class="big">8.241,40 TL</div>
+          <div class="muted">Geçen ayın aynı günleri 8.876,40 · <span class="down">%7 az</span></div>
+        </div>
+        <div class="card">
+          <div class="line"><span class="tag">Nereye gitti</span><span class="act">Tümü ›</span></div>
+          <div><div class="line"><span>Market</span><span>5.133,00</span></div><div class="track" style="margin-top:6px"><div class="hbar" style="width:62%"></div></div></div>
+          <div><div class="line"><span>Akaryakıt</span><span>2.658,50</span></div><div class="track" style="margin-top:6px"><div class="hbar" style="width:32%"></div></div></div>
+          <div><div class="line"><span>Fatura</span><span>449,90</span></div><div class="track" style="margin-top:6px"><div class="hbar" style="width:6%"></div></div></div>
+        </div>
+        <div class="card" style="flex-direction:row; justify-content:space-between; align-items:center">
+          <div><div class="tag">Gelir payı · Eylül</div><div style="font-size:20px; font-weight:700; margin-top:6px">%63</div></div>
+          <div class="muted" style="font-size:13px; text-align:right">53.388 / 85.000 TL<br><span class="act">Nerede kısarım? ›</span></div>
+        </div>
+      </div>
+      <div class="dock"><div class="ask" style="background:#2c2c2e"><span>Kılavuz'a sor…</span><span>↑</span></div></div>
+      <div class="tabs"><span class="on">Ana sayfa</span><span>Analiz</span><span>Asistan</span><span>Profil</span></div>
+    </div>
+    <div class="legend"><b>H2 · Bu ay paneli</b><br>Banka uygulamasında tek tek toplayacağın üç şey hazır: bu ay ne kadar, nereye, gelirin ne kadarı. Soru alanı altta hep açık.</div>
+  </div>
+
+  <!-- H3: feed -->
+  <div class="pick" data-choice="h3" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="status"></div>
+      <div class="scroll" style="gap:16px">
+        <div class="hello"><h4>Bugün</h4><div class="avatar">MA</div></div>
+        <div class="card">
+          <div class="tag">Ekim durumu</div>
+          <div class="line"><span style="font-size:22px; font-weight:700">8.241,40 TL</span><span class="down">▼ %7</span></div>
+        </div>
+        <div class="card">
+          <div class="tag">🛒 Market</div>
+          <div>Eylül'de markete 18.016,50 TL gitti, Ağustos'tan %51 fazla.</div>
+          <div class="line"><span class="act">Mağazalara göre ›</span><span class="act">%10 kıssam? ›</span></div>
+        </div>
+        <div class="card">
+          <div class="tag">📅 Yakında</div>
+          <div>Netflix 229,99 TL ve su faturası 380,00 TL çıkacak.</div>
+        </div>
+        <div class="card">
+          <div class="tag">📈 Ne olurdu</div>
+          <div>Son 12 ay her ay 1.000 TL altın alsaydın: <b>…</b></div>
+          <div class="act">Hesapla ›</div>
+        </div>
+      </div>
+      <div class="dock"><div class="ask" style="background:#2c2c2e"><span>Kılavuz'a sor…</span><span>↑</span></div></div>
+      <div class="tabs"><span class="on">Ana sayfa</span><span>Analiz</span><span>Asistan</span><span>Profil</span></div>
+    </div>
+    <div class="legend"><b>H3 · Akış</b><br>Asistanın hazırladığı kartlar alt alta; her kartın kendi düğmeleri soruyu yazmadan sorar. Harcama, ödeme, tasarruf ve yatırım aynı akışta.</div>
+  </div>
+
+</div>

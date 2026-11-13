@@ -1378,6 +1378,10 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Cep asistanı tasarımı ve planı (UX-01 plan, 13 Kasım 2026; docs/superpowers/specs/2026-11-13-ux-01-pocket-assistant-design.md,
+  plan docs/superpowers/plans/2026-11-13-ux-01-pocket-assistant.md): yön "cep asistanı" — açık krem tema (Z3; UI-01 "her zaman koyu" ve
+  UI-04 mavi vurgu kararlarının yerine PR1'de geçer), ana ekranda "bu ay" paneli, alttan kayan soru sayfası, kodla kurulan kart cevaplar
+  (`cards`, model yalnız araç seçer), Basit/Detaylı mod; Asistan sekmesi kalır (K2-B). Kararlar K1-A K2-B K3-A … K9-A; altı PR. Kod yok.
 - Kaç ay biriktirseydin, sohbet (INV-03 PR2, 13 Kasım 2026; docs/local-ai.md "Kaç ay biriktirseydin"): süre yalnız koddan
   (`grounding.months_in`; ay/yıl/buçuk/yarım), söylenmezse sabit metinli dokunulabilir soru (3/6/12 ay + kendi süren), 2–22 dışı notla
   yeniden sorulur, "Peki 6 ay?" modelsiz, alan modelden gizli, cevap altında iki başka süre; PR1 köprüsü silindi. Araç seçimi 113/113,

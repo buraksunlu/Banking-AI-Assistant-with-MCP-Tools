@@ -1,0 +1,105 @@
+<style>
+  .phones { display:flex; gap:28px; flex-wrap:wrap; justify-content:center; margin-top:18px; }
+  .pick { cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:10px; border-radius:22px; padding:10px; border:2px solid transparent; }
+  .pick.selected { border-color:#3b82f6; }
+  .phone { width:300px; height:600px; background:#000; border-radius:34px; border:8px solid #1c1c1e; overflow:hidden; color:#f2f2f7;
+           font-family:-apple-system, "SF Pro Text", system-ui, sans-serif; font-size:13px; display:flex; flex-direction:column; }
+  .bar { padding:12px 16px 6px; font-size:11px; color:#8e8e93; display:flex; justify-content:space-between; }
+  .q { align-self:flex-end; background:#1f6feb; color:#fff; padding:8px 12px; border-radius:16px; margin:6px 12px; max-width:75%; }
+  .body { flex:1; overflow:hidden; padding:4px 12px; display:flex; flex-direction:column; gap:10px; }
+  .big { font-size:30px; font-weight:700; letter-spacing:-0.5px; }
+  .muted { color:#8e8e93; }
+  .up { color:#ff9f0a; font-weight:600; }
+  .card { background:#1c1c1e; border-radius:16px; padding:12px; }
+  .row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid #2c2c2e; }
+  .row:last-child { border-bottom:none; }
+  .chips { display:flex; gap:6px; flex-wrap:wrap; }
+  .chip { border:1px solid #3a3a3c; border-radius:14px; padding:5px 10px; font-size:12px; color:#d1d1d6; }
+  .chip.on { background:#1f6feb; border-color:#1f6feb; color:#fff; }
+  .hbar { height:8px; background:#3b82f6; border-radius:4px; margin-top:4px; }
+  .input { margin:8px 12px 14px; background:#1c1c1e; border-radius:18px; padding:9px 14px; color:#636366; }
+  .tag { font-size:11px; color:#8e8e93; text-transform:uppercase; letter-spacing:.5px; }
+  .legend { font-size:12px; color:#c7c7cc; max-width:300px; text-align:center; line-height:1.4; }
+</style>
+
+<h2>Aynı soru, üç cevap biçimi</h2>
+<p class="subtitle">Murat soruyor: "Geçen ay markete ne kadar gitti?" — rakamlar gerçek demo verisi (Eylül 2026). Beğendiğine tıkla; ikisinin karışımını da söyleyebilirsin.</p>
+
+<div class="phones">
+
+  <!-- A: short sentence + table -->
+  <div class="pick" data-choice="a" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="bar"><span>Kılavuz</span><span>Basit ▾</span></div>
+      <div class="q">Geçen ay markete ne kadar gitti?</div>
+      <div class="body">
+        <div>Eylül'de markete <b>18.016,50 TL</b> gitti, Ağustos'tan <span class="up">%51 fazla</span>. Haftada yaklaşık 4.200 TL.</div>
+        <div class="card">
+          <div class="tag">Nereye gitti · 8 işlem</div>
+          <div class="row"><span>BİM <span class="muted">· 2</span></span><b>6.216,00</b></div>
+          <div class="row"><span>Migros Jet <span class="muted">· 3</span></span><b>5.317,50</b></div>
+          <div class="row"><span>Migros Sanal Market <span class="muted">· 2</span></span><b>3.577,50</b></div>
+          <div class="row"><span>A101 <span class="muted">· 1</span></span><b>2.905,50</b></div>
+          <div class="row" style="color:#3b82f6">İşlemleri gör ›</div>
+        </div>
+        <div class="chips"><span class="chip">Ağustosla karşılaştır</span><span class="chip">Bu ay?</span><span class="chip">Sadece BİM</span></div>
+      </div>
+      <div class="input">Bir şey sor…</div>
+    </div>
+    <div class="legend"><b>A · Kısa cümle + tablo</b><br>Bugünkü sohbet kalır ama cevap 1–2 cümle; altında dokunulabilir tablo ve hazır takip düğmeleri.</div>
+  </div>
+
+  <!-- B: card + chart -->
+  <div class="pick" data-choice="b" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="bar"><span>Kılavuz</span><span>Basit ▾</span></div>
+      <div class="q">Geçen ay markete ne kadar gitti?</div>
+      <div class="body">
+        <div class="card">
+          <div class="tag">Market · Eylül</div>
+          <div class="big">18.016,50 TL</div>
+          <div><span class="up">▲ %51</span> <span class="muted">Ağustos: 11.944,50</span></div>
+          <div style="display:flex; gap:10px; align-items:flex-end; height:70px; margin-top:10px">
+            <div style="flex:1; text-align:center"><div style="height:44px; background:#3a3a3c; border-radius:6px"></div><div class="muted" style="font-size:11px">Ağu</div></div>
+            <div style="flex:1; text-align:center"><div style="height:66px; background:#3b82f6; border-radius:6px"></div><div class="muted" style="font-size:11px">Eyl</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="tag">Mağazalar</div>
+          <div style="margin-top:6px">BİM <span class="muted" style="float:right">6.216</span><div class="hbar" style="width:100%"></div></div>
+          <div style="margin-top:6px">Migros Jet <span class="muted" style="float:right">5.318</span><div class="hbar" style="width:86%"></div></div>
+          <div style="margin-top:6px">Migros Sanal <span class="muted" style="float:right">3.578</span><div class="hbar" style="width:58%"></div></div>
+          <div style="margin-top:6px">A101 <span class="muted" style="float:right">2.906</span><div class="hbar" style="width:47%"></div></div>
+        </div>
+        <div class="muted" style="font-size:12px">Toplam harcamanın üçte biri markete gitmiş.</div>
+      </div>
+      <div class="input">Bir şey sor…</div>
+    </div>
+    <div class="legend"><b>B · Kart + grafik</b><br>Metin yok denecek kadar az; büyük rakam, geçen ayla çubuk, mağaza çubukları. Tek cümle günlük dille altta.</div>
+  </div>
+
+  <!-- C: explorer, no chat -->
+  <div class="pick" data-choice="c" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="bar"><span>Harcamalarım</span><span>Detaylı ▾</span></div>
+      <div class="body" style="padding-top:8px">
+        <div class="chips"><span class="chip">Bu ay</span><span class="chip on">Eylül</span><span class="chip">Son 3 ay</span></div>
+        <div class="chips"><span class="chip">Hepsi</span><span class="chip on">Market</span><span class="chip">Yeme-içme</span><span class="chip">Akaryakıt</span><span class="chip">Fatura</span></div>
+        <div class="card">
+          <div class="big">18.016,50 TL</div>
+          <div class="muted">8 işlem · ortalama 2.252 TL · <span class="up">Ağustos'a göre +6.072 TL</span></div>
+        </div>
+        <div class="card">
+          <div class="row"><span>BİM</span><span><b>6.216,00</b> <span class="muted">%35</span></span></div>
+          <div class="row"><span>Migros Jet</span><span><b>5.317,50</b> <span class="muted">%30</span></span></div>
+          <div class="row"><span>Migros Sanal Market</span><span><b>3.577,50</b> <span class="muted">%20</span></span></div>
+          <div class="row"><span>A101</span><span><b>2.905,50</b> <span class="muted">%16</span></span></div>
+        </div>
+        <div class="card" style="border:1px solid #1f6feb">💡 Market, Ağustos'tan %51 fazla. Ayda %10 kıssan yılda ~21.600 TL birikir. <span style="color:#3b82f6">Hesapla ›</span></div>
+      </div>
+      <div class="input">Sor ya da yaz: "akaryakıt geçen ay"…</div>
+    </div>
+    <div class="legend"><b>C · Keşif ekranı</b><br>Sohbet yok: dönem ve kategori çiplerine dokunarak daraltılan tek ekran. Asistan bir öneri kartı olarak konuşur; yazı alanı yalnız kısayol.</div>
+  </div>
+
+</div>

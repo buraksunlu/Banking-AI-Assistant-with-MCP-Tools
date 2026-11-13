@@ -1,0 +1,101 @@
+<style>
+  .phones { display:flex; gap:28px; flex-wrap:wrap; justify-content:center; margin-top:18px; }
+  .pick { cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:10px; border-radius:24px; padding:10px; border:2px solid transparent; }
+  .pick.selected { border-color:#ffb020; }
+  .phone { width:320px; height:660px; border-radius:38px; border:8px solid #1c1c1e; overflow:hidden;
+           font-family:-apple-system, "SF Pro Text", system-ui, sans-serif; font-size:14px; display:flex; flex-direction:column; position:relative;
+           background:var(--bg); color:var(--text); }
+  .status { height:28px; }
+  .scroll { flex:1; overflow:hidden; padding:8px 16px 0; display:flex; flex-direction:column; gap:24px; }
+  .muted { color:var(--muted); }
+  .card { background:var(--card); border-radius:20px; padding:16px; display:flex; flex-direction:column; gap:12px; box-shadow:var(--shadow, none); }
+  .tag { font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.6px; }
+  .big { font-size:34px; font-weight:700; letter-spacing:-0.6px; line-height:1; }
+  .line { display:flex; justify-content:space-between; align-items:center; }
+  .track { height:8px; background:var(--track); border-radius:4px; overflow:hidden; margin-top:6px; }
+  .bar { height:8px; background:var(--bar); border-radius:4px; }
+  .act { color:var(--link); font-size:13px; font-weight:600; }
+  .down { color:var(--down); font-weight:600; }
+  .upc { color:var(--up); font-weight:600; }
+  .sheet { position:absolute; left:0; right:0; bottom:0; height:250px; background:var(--sheet); border-radius:24px 24px 0 0; padding:12px 16px 16px;
+           display:flex; flex-direction:column; gap:12px; box-shadow:0 -10px 30px rgba(0,0,0,.35); }
+  .grab { width:40px; height:5px; border-radius:3px; background:var(--track); align-self:center; }
+  .q { align-self:flex-end; background:var(--accent); color:var(--onaccent); padding:9px 14px; border-radius:18px; font-weight:600; }
+  .chip { background:var(--card2); border-radius:14px; padding:7px 12px; font-size:13px; color:var(--text); }
+  .legend { font-size:12px; color:#c7c7cc; max-width:320px; text-align:center; line-height:1.45; }
+  .sw { display:flex; gap:6px; justify-content:center; }
+  .sw span { width:22px; height:22px; border-radius:6px; border:1px solid #444; }
+</style>
+
+<h2>Siyah olmayan zemin</h2>
+<p class="subtitle">Vurgu yine koyu sarı / turuncu. Değişen yalnız zemin ve kartlar. Biri açık tema: o seçilirse "her zaman koyu tema" kararı (UI-01) değişir.</p>
+
+<div class="phones">
+
+  <!-- Z1 espresso -->
+  <div class="pick" data-choice="z1" onclick="toggleSelect(this)">
+    <div class="phone" style="--bg:#1d1813; --card:#2a231b; --card2:#352c22; --sheet:#241e17; --text:#f6efe4; --muted:#ad9f88; --track:#3a3126; --bar:linear-gradient(90deg,#ff8a1f,#ffc233); --accent:#ffc233; --onaccent:#241800; --link:#ffc233; --up:#ff6a55; --down:#7ed69f;">
+      <div class="status"></div>
+      <div class="scroll">
+        <div class="line"><span style="font-size:22px; font-weight:700">Ekim</span><span class="muted">MA</span></div>
+        <div class="card"><div class="tag">Bu ay harcama · 10 gün</div><div class="big">8.241,40 TL</div><div class="muted">Aynı günler 8.876,40 · <span class="down">%7 az</span></div></div>
+        <div class="card"><div class="line"><span class="tag">Nereye gitti</span><span class="act">Tümü ›</span></div>
+          <div><div class="line"><span>Market</span><span>5.133,00</span></div><div class="track"><div class="bar" style="width:62%"></div></div></div>
+          <div><div class="line"><span>Akaryakıt</span><span>2.658,50</span></div><div class="track"><div class="bar" style="width:32%"></div></div></div></div>
+      </div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div class="q">Geçen ay markete ne kadar gitti?</div>
+        <div class="card"><div class="tag">Market · Eylül</div><div class="line"><span class="big" style="font-size:28px">18.016,50 TL</span><span class="upc">▲ %51</span></div></div>
+        <div class="line" style="justify-content:flex-start; gap:8px"><span class="chip">Bu ay?</span><span class="chip">%10 kıssam?</span></div>
+      </div>
+    </div>
+    <div class="sw"><span style="background:#1d1813"></span><span style="background:#2a231b"></span><span style="background:#ffc233"></span><span style="background:#ff8a1f"></span></div>
+    <div class="legend"><b>Z1 · Espresso</b><br>Koyu kahve zemin, bir ton açık kahve kartlar. Hâlâ koyu ve gözü yormaz, ama siyahın sertliği yok; sarı-turuncuyla aynı ailede.</div>
+  </div>
+
+  <!-- Z2 navy night -->
+  <div class="pick" data-choice="z2" onclick="toggleSelect(this)">
+    <div class="phone" style="--bg:#101a2b; --card:#1a263b; --card2:#24324a; --sheet:#152034; --text:#eef2f8; --muted:#93a1b8; --track:#2a3850; --bar:linear-gradient(90deg,#ff9a1f,#ffc94a); --accent:#ffbe2e; --onaccent:#1a1300; --link:#ffbe2e; --up:#ff6b6b; --down:#5fd39a;">
+      <div class="status"></div>
+      <div class="scroll">
+        <div class="line"><span style="font-size:22px; font-weight:700">Ekim</span><span class="muted">MA</span></div>
+        <div class="card"><div class="tag">Bu ay harcama · 10 gün</div><div class="big">8.241,40 TL</div><div class="muted">Aynı günler 8.876,40 · <span class="down">%7 az</span></div></div>
+        <div class="card"><div class="line"><span class="tag">Nereye gitti</span><span class="act">Tümü ›</span></div>
+          <div><div class="line"><span>Market</span><span>5.133,00</span></div><div class="track"><div class="bar" style="width:62%"></div></div></div>
+          <div><div class="line"><span>Akaryakıt</span><span>2.658,50</span></div><div class="track"><div class="bar" style="width:32%"></div></div></div></div>
+      </div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div class="q">Geçen ay markete ne kadar gitti?</div>
+        <div class="card"><div class="tag">Market · Eylül</div><div class="line"><span class="big" style="font-size:28px">18.016,50 TL</span><span class="upc">▲ %51</span></div></div>
+        <div class="line" style="justify-content:flex-start; gap:8px"><span class="chip">Bu ay?</span><span class="chip">%10 kıssam?</span></div>
+      </div>
+    </div>
+    <div class="sw"><span style="background:#101a2b"></span><span style="background:#1a263b"></span><span style="background:#ffbe2e"></span><span style="background:#ff9a1f"></span></div>
+    <div class="legend"><b>Z2 · Gece laciverti</b><br>Koyu lacivert zemin, sarı-turuncu vurgu. Lacivert ile sarı birbirinin karşıtı, sarı en çok bunun üstünde parlar; "banka" hissi güçlü.</div>
+  </div>
+
+  <!-- Z3 light cream -->
+  <div class="pick" data-choice="z3" onclick="toggleSelect(this)">
+    <div class="phone" style="--bg:#f6f1e7; --card:#ffffff; --card2:#efe7d8; --sheet:#fffdf8; --text:#2a2117; --muted:#7d6f5c; --track:#ece3d2; --bar:linear-gradient(90deg,#f07b0c,#f5a700); --accent:#f5a700; --onaccent:#2a1a00; --link:#c46a00; --up:#d93b2b; --down:#1f8a4c; --shadow:0 1px 3px rgba(80,60,20,.12);">
+      <div class="status"></div>
+      <div class="scroll">
+        <div class="line"><span style="font-size:22px; font-weight:700">Ekim</span><span class="muted">MA</span></div>
+        <div class="card"><div class="tag">Bu ay harcama · 10 gün</div><div class="big">8.241,40 TL</div><div class="muted">Aynı günler 8.876,40 · <span class="down">%7 az</span></div></div>
+        <div class="card"><div class="line"><span class="tag">Nereye gitti</span><span class="act">Tümü ›</span></div>
+          <div><div class="line"><span>Market</span><span>5.133,00</span></div><div class="track"><div class="bar" style="width:62%"></div></div></div>
+          <div><div class="line"><span>Akaryakıt</span><span>2.658,50</span></div><div class="track"><div class="bar" style="width:32%"></div></div></div></div>
+      </div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div class="q">Geçen ay markete ne kadar gitti?</div>
+        <div class="card"><div class="tag">Market · Eylül</div><div class="line"><span class="big" style="font-size:28px">18.016,50 TL</span><span class="upc">▲ %51</span></div></div>
+        <div class="line" style="justify-content:flex-start; gap:8px"><span class="chip">Bu ay?</span><span class="chip">%10 kıssam?</span></div>
+      </div>
+    </div>
+    <div class="sw"><span style="background:#f6f1e7"></span><span style="background:#ffffff"></span><span style="background:#f5a700"></span><span style="background:#f07b0c"></span></div>
+    <div class="legend"><b>Z3 · Açık krem</b><br>Açık tema: krem zemin, beyaz kartlar, turuncu-sarı vurgu. En ferah ve "günlük" görünen; koyu kahve yazı. Sarı yazı açık zeminde okunmadığı için bağlantılar koyu turuncu.</div>
+  </div>
+
+</div>
