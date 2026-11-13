@@ -46,9 +46,14 @@ class ConversationStore:
 FIGURE_ARGUMENTS = ("amount", "currencyCode", "reductionPercent")
 
 
+def opens_follow_up(message: str) -> bool:
+    """True for a message that starts like a follow-up ("peki", "ya", "o zaman" …), whatever its length."""
+    return _FOLLOW_UP_START.match(fold_turkish(message).strip()) is not None
+
+
 def carried(message: str, arguments: dict) -> dict:
     """The last call's arguments a follow-up may keep: all of them after "peki", "ya" …; without the user's figures otherwise."""
-    if _FOLLOW_UP_START.match(fold_turkish(message).strip()) is not None:
+    if opens_follow_up(message):
         return arguments
     return {k: v for k, v in arguments.items() if k not in FIGURE_ARGUMENTS}
 

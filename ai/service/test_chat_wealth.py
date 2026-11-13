@@ -33,8 +33,9 @@ WEALTH_DEFINITIONS = [
         "type": "object", "properties": {"period": PERIOD, "categoryCode": {"type": ["string", "null"]}, "from": DATE, "to": DATE},
         "required": ["period"]}}},
     {"type": "function", "function": {"name": "what_if_monthly", "description": "Açıklama.", "parameters": {
-        "type": "object", "properties": {"amount": {"type": ["number", "null"]}, "currencyCode": {"type": ["string", "null"], "enum": ["TRY", None]},
-                                         "fromAdvice": {"type": "boolean"}}}}},
+        "type": "object", "properties": {"months": {"type": "integer", "minimum": 2, "maximum": 22},
+                                         "amount": {"type": ["number", "null"]}, "currencyCode": {"type": ["string", "null"], "enum": ["TRY", None]},
+                                         "fromAdvice": {"type": "boolean"}}, "required": ["months"]}}},
 ]
 
 
@@ -148,9 +149,9 @@ def test_the_one_off_scenario_gets_the_warning_under_the_answer():
 def test_a_monthly_amount_the_user_wrote_runs_with_its_lira_currency():
     chat, _, gateway, _ = wealth([monthly("User", Decimal("1000.00"), assets=[GOLD])], [[MONTHLY_1000]])
 
-    reply = chat.answer("Ayda 1.000 TL altın olarak biriktirseydim ne olurdu?", TOKEN, DAY)
+    reply = chat.answer("Ayda 1.000 TL 12 ay altın olarak biriktirseydim ne olurdu?", TOKEN, DAY)
 
-    assert gateway.calls[0][:2] == ("what_if_monthly", {"amount": 1000, "currencyCode": "TRY"})
+    assert gateway.calls[0][:2] == ("what_if_monthly", {"amount": 1000, "currencyCode": "TRY", "months": 12})
     assert reply.answer.endswith(DISCLAIMER)
 
 
@@ -158,10 +159,11 @@ def test_the_amount_is_asked_when_the_user_did_not_write_it_and_the_model_wrote_
     chat, _, gateway, _ = wealth([monthly("User", Decimal("1000.00"), assets=[GOLD])], [[MONTHLY_1000]])
 
     asked = chat.answer("Ayda biriktirseydim ne olurdu?", TOKEN, DAY)
-    done = chat.answer("1.000 TL", TOKEN, DAY)
+    chat.answer("1.000 TL", TOKEN, DAY)
+    done = chat.answer("12 ay", TOKEN, DAY)
 
     assert asked == ChatReply("clarification", "Ayda kaç TL biriktirirdiniz?", [], [], choices=MONTHLY_CHOICES, input_hint=AMOUNT_HINT)
-    assert done.type == "answer" and gateway.calls[0][:2] == ("what_if_monthly", {"amount": 1000, "currencyCode": "TRY"})
+    assert done.type == "answer" and gateway.calls[0][:2] == ("what_if_monthly", {"amount": 1000, "currencyCode": "TRY", "months": 12})
 
 
 @pytest.mark.parametrize("reply", ["1000", "1.000", "bin", "1000 TL", "1 bin lira"])
@@ -170,9 +172,10 @@ def test_a_bare_amount_in_the_reply_runs_as_lira_without_a_currency_question(rep
     chat, _, gateway, _ = wealth([monthly("User", Decimal("1000.00"), assets=[GOLD])], [[MONTHLY_1000]])
     chat.answer("Ayda biriktirseydim ne olurdu?", TOKEN, DAY)
 
-    done = chat.answer(reply, TOKEN, DAY)
+    chat.answer(reply, TOKEN, DAY)
+    done = chat.answer("12 ay", TOKEN, DAY)
 
-    assert done.type == "answer" and gateway.calls[0][1] == {"amount": 1000, "currencyCode": "TRY"}
+    assert done.type == "answer" and gateway.calls[0][1] == {"amount": 1000, "currencyCode": "TRY", "months": 12}
 
 
 @pytest.mark.parametrize("message", ["Ayda 100 dolar biriktirseydim ne olurdu?"])
@@ -188,7 +191,8 @@ def test_the_currency_chosen_in_the_reply_is_checked_too():
     chat, _, gateway, _ = wealth([], [[MONTHLY_1000]])
     chat.answer("Ayda biriktirseydim ne olurdu?", TOKEN, DAY)
 
-    reply = chat.answer("100 dolar", TOKEN, DAY)
+    chat.answer("100 dolar", TOKEN, DAY)
+    reply = chat.answer("12 ay", TOKEN, DAY)
 
     assert reply.answer == LIRA_ONLY_TEXT and gateway.calls == []
 
@@ -197,17 +201,17 @@ def test_the_advised_amount_follows_an_advice_answer():
     chat, _, gateway, _ = wealth([advice(advice_row()), monthly(assets=[GOLD])], [[ADVICE], [FROM_ADVICE]])
     chat.answer("Geçen ay nerede tasarruf edebilirim?", TOKEN, DAY)
 
-    reply = chat.answer("Peki önerdiğin tutarı biriktirseydim?", TOKEN, DAY)
+    reply = chat.answer("Peki önerdiğin tutarı 12 ay biriktirseydim?", TOKEN, DAY)
 
-    assert reply.type == "answer" and gateway.calls[1][:2] == ("what_if_monthly", {"fromAdvice": True})
+    assert reply.type == "answer" and gateway.calls[1][:2] == ("what_if_monthly", {"fromAdvice": True, "months": 12})
 
 
 def test_the_advised_amount_runs_when_the_user_asks_for_it_in_words():
     chat, _, gateway, _ = wealth([monthly(assets=[GOLD])], [[FROM_ADVICE]])
 
-    chat.answer("Önerdiğin tutarı her ay biriktirseydim ne olurdu?", TOKEN, DAY)
+    chat.answer("Önerdiğin tutarı 12 ay boyunca her ay biriktirseydim ne olurdu?", TOKEN, DAY)
 
-    assert gateway.calls[0][:2] == ("what_if_monthly", {"fromAdvice": True})
+    assert gateway.calls[0][:2] == ("what_if_monthly", {"fromAdvice": True, "months": 12})
 
 
 def test_the_advised_amount_the_user_did_not_ask_for_is_not_run():
@@ -221,7 +225,7 @@ def test_the_advised_amount_the_user_did_not_ask_for_is_not_run():
 def test_no_advice_amount_is_a_fixed_answer_without_the_model():
     chat, _, _, explainer = wealth([monthly(amount=None, status="NoAdvice")], [[FROM_ADVICE]])
 
-    reply = chat.answer("Önerdiğin tutarı biriktirseydim ne olurdu?", TOKEN, DAY)
+    reply = chat.answer("Önerdiğin tutarı 12 ay biriktirseydim ne olurdu?", TOKEN, DAY)
 
     assert (reply.type, reply.answer) == ("answer", NO_ADVICE_AMOUNT) and explainer.calls == []
 
@@ -258,23 +262,25 @@ def test_the_income_answer_offers_the_advice_and_the_advice_offers_the_saving():
     first = chat.answer("Geçen ay maaşımın ne kadarını harcadım?", TOKEN, DAY)
     second = chat.answer("Geçen ay nerede tasarruf edebilirim?", TOKEN, DAY)
     third = chat.answer("Önerdiğin tutarı her ay biriktirseydim ne olurdu?", TOKEN, DAY)
+    # INV-03 K9-A: the offered advised saving asks its duration first.
+    chat.answer("12 ay", TOKEN, DAY)
 
     assert first.suggestions == ["Geçen ay nerede tasarruf edebilirim?", "Geçen ay kategorilere göre harcamam nasıl?"]
     # CHAT-10 K1-C: the income share was just asked, so it is not offered again.
     assert second.suggestions == ["Önerdiğin tutarı her ay biriktirseydim ne olurdu?", "Geçen ay kategorilere göre harcamam nasıl?"]
     # The offered texts ran their calls without a second tool selection.
     assert len(selector.calls) == 1 and [c[0] for c in gateway.calls] == ["get_income_share", "get_spending_advice", "what_if_monthly"]
-    assert third.suggestions == [] and gateway.calls[2][1] == {"fromAdvice": True}
+    assert third.type == "clarification" and third.suggestions == [] and gateway.calls[2][1] == {"fromAdvice": True, "months": 12}
 
 
-@pytest.mark.parametrize("message", ["Önerdiğin tutarı her ay biriktirseydim ne olurdu?"])
+@pytest.mark.parametrize("message", ["Önerdiğin tutarı 12 ay boyunca her ay biriktirseydim ne olurdu?"])
 def test_the_advised_saving_runs_even_when_the_model_chooses_no_tool(message):
     # Measured W12/W13: the small model answers in text. The words name the call, so code runs it and the model is not asked.
     chat, selector, gateway, _ = wealth([monthly(assets=[GOLD])], [[]])
 
     reply = chat.answer(message, TOKEN, DAY)
 
-    assert reply.type == "answer" and gateway.calls[0][:2] == ("what_if_monthly", {"fromAdvice": True})
+    assert reply.type == "answer" and gateway.calls[0][:2] == ("what_if_monthly", {"fromAdvice": True, "months": 12})
     assert selector.calls == []
 
 
@@ -302,9 +308,9 @@ def test_a_monthly_scenario_the_model_did_not_choose_asks_the_amount():
 def test_a_monthly_scenario_with_its_amount_runs_when_the_model_chose_nothing():
     chat, _, gateway, _ = wealth([monthly("User", Decimal("1000.00"), assets=[GOLD])], [[]])
 
-    chat.answer("Her ay 1.000 TL biriktirseydim ne olurdu?", TOKEN, DAY)
+    chat.answer("1 yıl boyunca her ay 1.000 TL biriktirseydim ne olurdu?", TOKEN, DAY)
 
-    assert gateway.calls[0][:2] == ("what_if_monthly", {"amount": 1000, "currencyCode": "TRY"})
+    assert gateway.calls[0][:2] == ("what_if_monthly", {"amount": 1000, "currencyCode": "TRY", "months": 12})
 
 
 def test_a_one_off_scenario_the_model_did_not_choose_runs_the_period_the_user_named():
@@ -339,7 +345,8 @@ def test_the_monthly_saving_is_answered_by_code_without_the_model():
     chat, _, _, explainer = wealth([monthly("User", Decimal("5000.00"), assets=[GOLD])], [[]])
     chat.answer("Ayda biriktirseydim ne olurdu?", TOKEN, DAY)
 
-    reply = chat.answer("5000", TOKEN, DAY)
+    chat.answer("5000", TOKEN, DAY)
+    reply = chat.answer("12 ay", TOKEN, DAY)
 
     assert explainer.calls == []
     assert reply.answer.startswith("Son 12 ay boyunca her ayın 1'inde 5.000,00 TL biriktirseydiniz")
@@ -367,3 +374,61 @@ def test_a_category_the_user_named_and_the_model_left_out_is_put_in_by_code():
     chat.answer("Geçen ay eğlence harcamamı dolar alsaydım ne olurdu?", TOKEN, DAY)
 
     assert gateway.calls[0][:2] == ("what_if_one_off", {"period": "LastMonth", "categoryCode": "ENTERTAINMENT"})
+
+
+
+# --- INV-03 PR2: the saving's duration in the chat (K2-A, K4-A, K6-A, K7-A, K8-A; D1-B, D2-A) ---------------------------------
+
+DURATION_CHOICES = ["3 ay", "6 ay", "12 ay"]
+DURATION_HINT = "Başka bir süre yazın (2–22 ay)"
+
+
+def test_the_duration_is_asked_with_its_examples_and_an_own_one():
+    chat, _, gateway, _ = wealth([], [[MONTHLY_1000]])
+
+    reply = chat.answer("Ayda 1.000 TL biriktirseydim ne olurdu?", TOKEN, DAY)
+
+    assert (reply.type, reply.answer) == ("clarification", "Kaç ay boyunca biriktirirdiniz?")
+    assert [c.label for c in reply.choices] == DURATION_CHOICES and reply.input_hint == DURATION_HINT
+    assert gateway.calls == []
+
+
+def test_the_model_is_not_shown_the_duration():
+    chat, selector, _, _ = wealth([], [[MONTHLY_1000]])
+
+    chat.answer("Ayda 1.000 TL biriktirseydim ne olurdu?", TOKEN, DAY)
+
+    shown = next(t for t in selector.calls[0][1] if t["function"]["name"] == "what_if_monthly")["function"]["parameters"]
+    assert "months" not in shown["properties"] and "months" not in shown.get("required", [])
+
+
+def test_a_duration_outside_the_limits_is_asked_again_with_them():
+    chat, _, gateway, _ = wealth([monthly("User", Decimal("1000.00"), assets=[GOLD])], [[MONTHLY_1000]])
+    chat.answer("Ayda 1.000 TL biriktirseydim ne olurdu?", TOKEN, DAY)
+
+    again = chat.answer("2 yıl", TOKEN, DAY)
+    done = chat.answer("22", TOKEN, DAY)
+
+    assert again.answer == "En az 2, en fazla 22 ay için hesaplayabilirim. Kaç ay boyunca biriktirirdiniz?"
+    assert done.type == "answer" and gateway.calls[0][1] == {"amount": 1000, "currencyCode": "TRY", "months": 22}
+
+
+def test_a_peki_follow_up_changes_the_duration_without_the_model():
+    chat, selector, gateway, _ = wealth([monthly("User", Decimal("1000.00"), assets=[GOLD])] * 2, [[MONTHLY_1000]])
+    chat.answer("Ayda 1.000 TL 12 ay biriktirseydim ne olurdu?", TOKEN, DAY)
+
+    chat.answer("Peki 6 ay?", TOKEN, DAY)
+
+    assert len(selector.calls) == 1
+    assert [c[1] for c in gateway.calls] == [{"amount": 1000, "currencyCode": "TRY", "months": 12},
+                                             {"amount": 1000, "currencyCode": "TRY", "months": 6}]
+
+
+def test_the_monthly_answer_offers_two_other_durations_that_run_when_tapped():
+    chat, selector, gateway, _ = wealth([monthly("User", Decimal("1000.00"), assets=[GOLD])] * 2, [[MONTHLY_1000]])
+
+    first = chat.answer("Ayda 1.000 TL 12 ay biriktirseydim ne olurdu?", TOKEN, DAY)
+    chat.answer(first.suggestions[0], TOKEN, DAY)
+
+    assert first.suggestions == ["Peki 6 ay biriktirseydim?", "Peki 3 ay biriktirseydim?"]
+    assert len(selector.calls) == 1 and gateway.calls[1][1] == {"amount": 1000, "currencyCode": "TRY", "months": 6}

@@ -44,10 +44,12 @@ def test_tapping_an_amount_example_runs_the_monthly_saving():
     chat, _, gateway, _ = wealth([monthly("User", Decimal("5000.00"), assets=[GOLD])], [[]])
     asked = chat.answer("Dolar alsaydım ne olurdu?", TOKEN, DAY)
 
-    reply = chat.answer(asked.choices[1].label, TOKEN, DAY)
+    duration = chat.answer(asked.choices[1].label, TOKEN, DAY)
+    reply = chat.answer(duration.choices[2].label, TOKEN, DAY)
 
+    assert [c.label for c in duration.choices] == ["3 ay", "6 ay", "12 ay"]
     assert reply.type == "answer"
-    assert gateway.calls[0][:2] == ("what_if_monthly", {"amount": 5000, "currencyCode": "TRY"})
+    assert gateway.calls[0][:2] == ("what_if_monthly", {"amount": 5000, "currencyCode": "TRY", "months": 12})
 
 
 def test_a_typed_amount_of_ones_own_runs_too():
@@ -55,8 +57,9 @@ def test_a_typed_amount_of_ones_own_runs_too():
     chat.answer("Altın olarak tutsaydım ne olurdu?", TOKEN, DAY)
 
     chat.answer("her ay 2 bin", TOKEN, DAY)
+    chat.answer("8", TOKEN, DAY)
 
-    assert gateway.calls[0][:2] == ("what_if_monthly", {"amount": 2000, "currencyCode": "TRY"})
+    assert gateway.calls[0][:2] == ("what_if_monthly", {"amount": 2000, "currencyCode": "TRY", "months": 8})
 
 
 @pytest.mark.parametrize("reply", ["tek seferlik", "bir kerede", "toplu"])
@@ -121,10 +124,10 @@ def test_the_count_of_a_period_is_not_an_amount():
 def test_an_amount_means_the_monthly_saving():
     chat, selector, gateway, _ = wealth([monthly("User", Decimal("5000.00"), assets=[GOLD])], [[]])
 
-    chat.answer("5.000 TL biriktirseydim ne olurdu?", TOKEN, DAY)
+    chat.answer("5.000 TL 6 ay biriktirseydim ne olurdu?", TOKEN, DAY)
 
     assert names(selector.calls[0][1]) == ["what_if_monthly"]
-    assert gateway.calls[0][:2] == ("what_if_monthly", {"amount": 5000, "currencyCode": "TRY"})
+    assert gateway.calls[0][:2] == ("what_if_monthly", {"amount": 5000, "currencyCode": "TRY", "months": 6})
 
 
 def test_a_period_and_an_amount_are_the_monthly_saving_of_that_amount():
@@ -132,9 +135,10 @@ def test_a_period_and_an_amount_are_the_monthly_saving_of_that_amount():
     chat, selector, gateway, _ = wealth([monthly("User", Decimal("5000.00"), assets=[GOLD])], [[]])
 
     chat.answer("Geçen ay 5.000 TL biriktirseydim ne olurdu?", TOKEN, DAY)
+    chat.answer("6 ay", TOKEN, DAY)
 
     assert selector.calls == []
-    assert gateway.calls[0][:2] == ("what_if_monthly", {"amount": 5000, "currencyCode": "TRY"})
+    assert gateway.calls[0][:2] == ("what_if_monthly", {"amount": 5000, "currencyCode": "TRY", "months": 6})
 
 
 def test_a_date_means_the_one_off():

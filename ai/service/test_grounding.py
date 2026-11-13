@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from grounding import (Grounding, unclear_amounts, mentions_category, amounts_in, check_arguments, count_in, currency_in, mentions_amount, mentions_count, mentions_currency,
+from grounding import (Grounding, months_in, unclear_amounts, mentions_category, amounts_in, check_arguments, count_in, currency_in, mentions_amount, mentions_count, mentions_currency,
                        mentions_percent, mentions_period, percent_in, period_in)
 
 # CHAT-03 K2-A: an argument the model filled in must come from the user's own words. Expected values are written by hand.
@@ -364,3 +364,31 @@ def test_a_follow_up_that_names_a_period_takes_it_although_the_last_call_had_ano
 def test_a_period_said_only_by_a_month_name_is_left_to_the_date_reader():
     # "Eylül'de" names no tool period; the chat's date code puts the range in (CHAT-08), the model's period stays until then.
     assert check_arguments({"period": "ThisMonth"}, SUMMARY, "Eylül'de ne harcadım?") == Grounding(None, {"period": "ThisMonth"})
+
+
+# INV-03 PR2 K5-A: a saving's duration, in months, as people say it. Hand-written values: a year is 12, "buçuk" half of the unit.
+@pytest.mark.parametrize("text, months", [
+    ("6 ay", [6]), ("altı ay", [6]), ("Altı Ay boyunca", [6]), ("6 aylık birikim", [6]), ("6ay", [6]), ("on iki ay", [12]),
+    ("12 ayda", [12]), ("yirmi iki ay", [22]), ("1 yıl", [12]), ("bir yıl", [12]), ("bir yıllık", [12]), ("2 sene", [24]),
+    ("1,5 yıl", [18]), ("bir buçuk yıl", [18]), ("yarım yıl", [6]), ("1 ay", [1]), ("6 ay ya da 1 yıl", [6, 12]),
+    ("Ayda 1.000 TL 3 ay biriktirseydim", [3]),
+])
+def test_a_duration_is_read_in_months(text, months):
+    assert months_in(text) == months
+
+
+@pytest.mark.parametrize("text", [
+    "Ayda 1.000 TL biriktirseydim", "her ay 500 TL", "aylık 2 bin", "bu yıl", "yıllık 12.000 TL", "3 ayakkabı aldım",
+    "2,5 ay", "iki buçuk ay", "yarım ay", "her yıl",
+])
+def test_no_duration_or_a_part_of_a_month_is_none(text):
+    assert months_in(text) == []
+
+
+@pytest.mark.parametrize("text, amounts", [
+    ("Ayda 1000 TL 6 ay biriktirseydim", [Decimal(1000)]), ("Ayda 5 bin 1 yıl", [Decimal(5000)]),
+    ("6 aylık 2.000 TL", [Decimal(2000)]), ("1,5 yıl her ay 750 TL", [Decimal(750)]), ("6ay 300 TL", [Decimal(300)]),
+])
+def test_a_duration_is_no_amount(text, amounts):
+    assert amounts_in(text) == amounts
+    assert unclear_amounts(text) == []

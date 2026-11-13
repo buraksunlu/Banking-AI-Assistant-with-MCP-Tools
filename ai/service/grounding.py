@@ -37,6 +37,15 @@ _SCALES = {"bin": 1000, "milyon": 1_000_000, "k": 1000}
 _GLUED = re.compile(rf"({_NUMBER})([a-z]+)")
 _KNOWN_GLUED = re.compile(r"(?:tl|try|eur|usd|gbp|lik|luk)")
 
+# INV-03 PR2 K5-A: a saving's duration ("6 ay", "altı ay", "on iki ay", "1 yıl", "1,5 yıl", "bir buçuk yıl", "yarım yıl", "6 aylık").
+# A number must stand before the unit: "her ay", "ayda 1.000" and "bu yıl" are no duration. The endings are listed, so "3 ayakkabı"
+# is none. Folded text, like everything here (K11-A).
+_DURATION_NUMBER = (r"\d+(?:,\d+)?|yarim|(?:on|yirmi)(?:\s+(?:bir|iki|üç|dört|beş|alti|yedi|sekiz|dokuz))?"
+                    r"|bir|iki|üç|dört|beş|alti|yedi|sekiz|dokuz")
+_DURATION = re.compile(fold_rule(
+    rf"(?<![\d.,])\b({_DURATION_NUMBER})(\s+buçuk)?\s*(ay|yil|sene)(?:lik|da|dir|i|in|a|lar|larca|ki)?(?![a-zçğöşü])"))
+_UNIT_MONTHS = {"ay": 1, "yil": 12, "sene": 12}
+
 # Folded text, so plain letters only (K11-A); a letter must not touch the code ("atletizm" is no "tl"), a digit may ("3000TL").
 _LETTER = "a-z"
 _CURRENCIES = {
@@ -131,7 +140,8 @@ def amounts_in(text: str) -> list[Decimal]:
     A number with letters glued to it that are no currency or unit ("5x") is no amount at all (CHAT-10 K9-C): it is asked back by
     the caller rather than read as the digits alone.
     """
-    folded = fold_turkish(text)
+    # INV-03 PR2: "6 ay" is a duration, not 6 lira ("Ayda 1.000 TL 6 ay" used to read two amounts and ask the amount back).
+    folded = _DURATION.sub(" ", fold_turkish(text))
     found = [_decimal(m.group(1) or m.group(3) or "1") * _SCALES[m.group(2) or m.group(4)] for m in _SCALED.finditer(folded)]
     rest = _SCALED.sub(" ", folded)
     rest = _GLUED.sub(lambda m: m.group(0) if _KNOWN_GLUED.match(m.group(2)) else " ", rest)
@@ -139,9 +149,37 @@ def amounts_in(text: str) -> list[Decimal]:
     return found + parse_turkish_numbers(rest)
 
 
+def months_in(text: str) -> list[int]:
+    """Every duration a text writes, in whole months ("1,5 yıl" is 18), in order (INV-03 PR2 K5-A); a part of a month ("2,5 ay",
+    "yarım ay") is none, so it is asked rather than rounded. Limits are the caller's: "2 yıl" is 24 here."""
+    found = []
+    for match in _DURATION.finditer(fold_turkish(text)):
+        number, half, unit = match.groups()
+        months = (_duration_number(number) + (Decimal("0.5") if half else 0)) * _UNIT_MONTHS[unit]
+        if months == months.to_integral_value() and months > 0:
+            found.append(int(months))
+    return found
+
+
+def without_durations(text: str) -> str:
+    """The text, folded, with its durations blanked: "6 ay" is a saving's length, not a period the user asks about. "Son 3 ayda"
+    is a period (CHAT-09 PR3) and stays."""
+    folded = fold_turkish(text)
+    return _DURATION.sub(lambda m: m.group(0) if re.search(r"\bson\s+$", folded[:m.start()]) else " ", folded)
+
+
+def _duration_number(word: str) -> Decimal:
+    if word[0].isdigit():
+        return _decimal(word)
+    if word == "yarim":
+        return Decimal("0.5")
+    parts = word.split()
+    return Decimal(sum(_NUMBER_WORDS[part] for part in parts))
+
+
 def unclear_amounts(text: str) -> list[str]:
     """The numbers with letters glued to them that the code cannot read as an amount ("5x"), as the user wrote them."""
-    rest = _SCALED.sub(" ", fold_turkish(text))
+    rest = _SCALED.sub(" ", _DURATION.sub(" ", fold_turkish(text)))
     return [m.group(0) for m in _GLUED.finditer(rest) if not _KNOWN_GLUED.match(m.group(2))]
 
 

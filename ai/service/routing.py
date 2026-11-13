@@ -132,8 +132,21 @@ CUSTOM_PERIOD = "Custom"
 
 
 def hide_dates(tools: list[dict]) -> list[dict]:
-    """The tools as the model is shown them: without the date range and without the ``Custom`` period; the input is not changed."""
-    return [_without_dates(tool) for tool in tools]
+    """The tools as the model is shown them: without the date range and without the ``Custom`` period, and without the monthly
+    saving's duration (INV-03 D2-A); code reads both from the words. The input is not changed."""
+    return [_without_duration(_without_dates(tool)) for tool in tools]
+
+
+def _without_duration(tool: dict) -> dict:
+    # INV-03 D2-A: "6 ay" is also the monthly trend's count; a field the model does not see is one it cannot fill with a guess, and
+    # the list stays the one the selection was measured with.
+    function = tool["function"]
+    parameters = function.get("parameters", {})
+    if function["name"] != MONTHLY or "months" not in parameters.get("properties", {}):
+        return tool
+    shown = {name: rule for name, rule in parameters["properties"].items() if name != "months"}
+    required = [name for name in parameters.get("required", []) if name != "months"]
+    return {**tool, "function": {**function, "parameters": {**parameters, "properties": shown, "required": required}}}
 
 
 def _without_dates(tool: dict) -> dict:

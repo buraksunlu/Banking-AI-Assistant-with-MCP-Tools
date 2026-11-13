@@ -1,6 +1,6 @@
 import pytest
 
-from clarification import (PendingStore, ask_amount, ask_amount_again, ask_count, ask_currency, ask_merchant, ask_percent, ask_period,
+from clarification import (PendingStore, ask_amount, ask_amount_again, ask_months, ask_months_again, months_out_of_range, ask_count, ask_currency, ask_merchant, ask_percent, ask_period,
                            ask_complete_month, ask_topic, check_question, choices, chosen_tool, input_hint, resolve, template)
 from prompts import build_clarify_messages
 
@@ -321,7 +321,8 @@ def test_a_question_is_given_back_only_when_nothing_newer_waits():
 
 # CHAT-10 PR3: the options as tappable rows (K4-A), every one of them (P1-D), each sending its label (K6-A)
 
-MONTHLY = ask_amount("what_if_monthly", {}, "Her ay biriktirseydim ne olurdu?")
+MONTHLY = ask_amount("what_if_monthly", {}, "Her ay biriktirseydim ne olurdu?", later=("months",))
+DURATION = ask_months("what_if_monthly", {"amount": 1000, "currencyCode": "TRY"}, "Ayda 1.000 TL biriktirseydim ne olurdu?")
 LAST_MONTH = ask_complete_month("get_income_share", {}, "Maaşımın ne kadarını harcadım?", today=__import__("datetime").date(2026, 11, 10))
 
 
@@ -336,6 +337,8 @@ def test_every_question_offers_its_options_as_choices():
     assert [c.label for c in choices(AMOUNT)] == ["1.000 TL", "5.000 TL", "10.000 TL"]
     assert [c.label for c in choices(MONTHLY)] == ["1.000 TL", "5.000 TL", "10.000 TL"]
     assert [c.label for c in choices(LAST_MONTH)] == ["geçen ay (Ekim)"]
+    # INV-03 K4-A: a saving's duration, said the way people say it (not "son 3 ay", which is a period).
+    assert [c.label for c in choices(DURATION)] == ["3 ay", "6 ay", "12 ay"]
 
 
 def test_only_the_two_calculations_carry_a_detail():
@@ -345,8 +348,8 @@ def test_only_the_two_calculations_carry_a_detail():
     assert all(c.detail == "" for p in (PERIOD, MONTHS, CITY, CURRENCY, PERCENT, AMOUNT) for c in choices(p))
 
 
-@pytest.mark.parametrize("pending", [PERIOD, MONTHS, CITY, CURRENCY, PERCENT, AMOUNT, MONTHLY, LAST_MONTH],
-                         ids=["period", "count", "merchant", "currency", "percent", "amount", "monthly", "complete-month"])
+@pytest.mark.parametrize("pending", [PERIOD, MONTHS, CITY, CURRENCY, PERCENT, AMOUNT, MONTHLY, LAST_MONTH, DURATION],
+                         ids=["period", "count", "merchant", "currency", "percent", "amount", "monthly", "complete-month", "duration"])
 def test_tapping_a_choice_sends_its_label_and_the_code_reads_it_as_that_option(pending):
     # K6-A: the app sends the label as written; each one must complete the call with the option's own value.
     for option, choice in zip(pending.options, choices(pending), strict=True):
@@ -358,9 +361,16 @@ def test_a_budget_example_answers_its_currency_too():
     assert resolve(MONTHLY, "10.000 TL") == {"amount": 10000, "currencyCode": "TRY"}
 
 
+def test_a_monthly_amount_reply_that_also_says_the_duration_answers_both():
+    # Like "3000 TL" answering a budget's currency: "5 bin 6 ay" leaves nothing to ask next.
+    assert resolve(MONTHLY, "5 bin 6 ay") == {"amount": 5000, "currencyCode": "TRY", "months": 6}
+    assert resolve(MONTHLY, "5 bin 30 ay") == {"amount": 5000, "currencyCode": "TRY"}   # out of range: asked next, with its note
+
+
 def test_only_an_amount_question_invites_an_amount_of_ones_own():
     # PR3b D6-A: the app draws this as the card's last row, which opens the keyboard instead of sending anything.
     assert input_hint(AMOUNT) == input_hint(MONTHLY) == "Başka bir tutar yazın"
+    assert input_hint(DURATION) == "Başka bir süre yazın (2–22 ay)"
     assert all(input_hint(p) == "" for p in (PERIOD, MONTHS, CITY, CURRENCY, PERCENT, LAST_MONTH, TOPIC))
 
 
@@ -368,3 +378,43 @@ def test_only_an_amount_question_invites_an_amount_of_ones_own():
 def test_tapping_a_calculation_chooses_its_tool(pending):
     for option, choice in zip(pending.options, choices(pending), strict=True):
         assert chosen_tool(pending, choice.label) == option.value
+
+
+# --- INV-03 PR2: the saving's duration (K2-A asked when unsaid, K4-A examples + one's own, K5-A ay/yıl/buçuk, K6-A limits) -----
+
+@pytest.mark.parametrize(("reply", "months"), [
+    ("3 ay", 3), ("6 ay", 6), ("12 ay", 12), ("8", 8), ("8 ay olsun", 8), ("bir yıl", 12), ("1,5 yıl", 18), ("yarım yıl", 6),
+    ("22 ay", 22), ("2 ay", 2),
+])
+def test_a_duration_reply(reply, months):
+    assert resolve(DURATION, reply) == {"amount": 1000, "currencyCode": "TRY", "months": months}
+
+
+@pytest.mark.parametrize("reply", ["1 ay", "23 ay", "2 yıl", "6 ay ya da 1 yıl", "2,5 ay", "Geçen ay ne harcadım?"])
+def test_a_reply_without_one_duration_in_range_completes_nothing(reply):
+    assert resolve(DURATION, reply) is None
+
+
+@pytest.mark.parametrize(("reply", "out"), [("1 ay", True), ("2 yıl", True), ("30", True), ("6 ay", False), ("merhaba", False),
+                                            ("6 ay ya da 1 yıl", False), ("Son 30 günde ne harcadım?", False)])
+def test_a_short_duration_out_of_range_is_told(reply, out):
+    assert months_out_of_range(DURATION, reply) is out
+
+
+def test_the_duration_question_is_the_fixed_text_with_the_limits_when_one_was_out():
+    assert template(DURATION) == "Kaç ay boyunca biriktirirdiniz?"
+    assert not DURATION.model_worded
+    again = ask_months_again(DURATION)
+    assert template(again) == "En az 2, en fazla 22 ay için hesaplayabilirim. Kaç ay boyunca biriktirirdiniz?"
+    assert again.arguments == DURATION.arguments and again.options == DURATION.options
+
+
+def test_the_duration_limits_are_the_servers_own():
+    # INV-03 K6-A: the note names the limits, so they must be the ones the MCP server publishes (WhatIfMath, [Range(2, 22)]).
+    import json
+    from pathlib import Path
+
+    from clarification import MAXIMUM_MONTHS, MINIMUM_MONTHS
+    tools = json.loads((Path(__file__).parent.parent / "model_check" / "mcp_tools.json").read_text("utf-8"))["tools"]
+    months = next(t for t in tools if t["function"]["name"] == "what_if_monthly")["function"]["parameters"]["properties"]["months"]
+    assert (months["minimum"], months["maximum"]) == (MINIMUM_MONTHS, MAXIMUM_MONTHS)

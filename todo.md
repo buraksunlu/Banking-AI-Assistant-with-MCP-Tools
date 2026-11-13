@@ -344,7 +344,7 @@ sohbet ikisini birlikte alır (tek MCP turu, tek araç seçimi ölçümü).
 - [x] INV-01 — (Plan onaylandı 9 Kasım 2026: kararlar §13 başında; uygulama iki PR, dal `inv-01-what-if`.) İlk seviyenin planı: OC-01–10'u K10-B'ye göre yeniden yaz (birikim senaryosu, dalgalanma ölçüleri, uyarı metni), INC-02
   tasarruf tutarının girdi olması. **Sonuç (9 Kasım 2026):** iki PR — PR1 tek alım (#65), PR2 aylık birikim + dalgalanma
   (dal `inv-01b-monthly-what-if`); ayrıntı §13 OC-04/05.
-- [ ] INV-03 — "Kaç ay biriktirseydin?" (12 Kasım 2026, kullanıcının simülatör denemesi; CHAT-10 PR3b D8-A'nın ertelenen kısmı):
+- [x] INV-03 — "Kaç ay biriktirseydin?" (12 Kasım 2026, kullanıcının simülatör denemesi; CHAT-10 PR3b D8-A'nın ertelenen kısmı):
   aylık birikimde ay sayısı 12'ye sabit (`WhatIfMath.Months`, `what-if/monthly`, MCP `what_if_monthly`). Akış: tutar → "Kaç ay
   boyunca?" (3/6/12 ay + kendi sayın) → cevap. Backend'e 1–22 arası `months` (fiyat verisi Kasım 2024'ten), Application + API +
   MCP şeması + OpenAPI + Python (geri soru türü, kod yazımı cevap) + iPhone gerekmez (satırlar genel). Plan ve kararlar ayrı.
@@ -358,7 +358,15 @@ sohbet ikisini birlikte alır (tek MCP turu, tek araç seçimi ölçümü).
   hesap (bağımsız SQL): Ada 1.000 TL × 3 ay → USD 3.111,65, EUR 3.035,90, altın 3.142,18; 22 ay ilk alım 1 Aralık 2024 (fiyat 29 Kasım).
   Testler: Application 476, Data 185, McpServer 206, Api 583 (+5), Python 1265 (+3) modelsiz; 0 uyarı. 5 kasıtlı bozmanın hepsi yakalandı.
   Bilinçli değişen eski testler: aylık çağrıların hepsine `months=12` eklendi, "12 alım ister" testi "2–22 alım ister" oldu, MCP
-  açıklama metni ve zorunlu argüman listesi. Sırada PR2 (sohbet).
+  açıklama metni ve zorunlu argüman listesi. PR1 #78 ile main'de.
+  **PR2 sonucu (13 Kasım 2026, dal `inv-03b-saving-months-chat`; kararlar D1-B D2-A D3-A D4-A D5-A D6-A):** sohbet süreyi kullanıcının
+  sözünden kodla okur (`grounding.months_in`: ay/yıl/buçuk/yarım; tutar okuması "6 ay"ı artık 6 TL saymıyor), söylenmezse sabit metinle
+  sorar (`ask_months`, 3/6/12 ay + "Başka bir süre yazın (2–22 ay)"), sınır dışını notla yeniden sorar; "Peki 6 ay?" kodla çalışır
+  (`wealth.monthly_follow_up`), model alanı görmez (`hide_dates`), cevabın altında iki başka süre önerilir; geçici köprü silindi.
+  Ölçüm: araç seçimi 107/107 → 113/113, ifade örneklemi 119/121 (iki hata süreye dokunmayan yollarda), cevap doğruluğu 25/25 (A24/A25 Ada
+  3 ay = PR1 SQL rakamları). Python 1265 → 1360 modelsiz, 1278 ifade açıksız; 12 kasıtlı bozmanın hepsi yakalandı. Bilinçli değişen eski
+  testler: süresiz aylık birikim çalıştıran 20 sohbet testi süreyi de veriyor/cevaplıyor, 6 ölçüm vakası `clarify:duration` bekliyor,
+  A22/A23 sona "12 ay" aldı, ifade şablonlarına süre yuvası eklendi. INV-03 tamam.
 - [ ] INV-02 — Gelecek özellikler havuzu (kullanıcı seçer): K10-C risk profili (kullanıcı uygulamada seçer; temkinli/dengeli/atak;
   profile göre genel, eğitim amaçlı bilgi; yeni tablo + migration; LLM profil yazamaz), birikim hedefiyle bağ (12d BUD), enflasyona
   göre reel değer, mevduat faizi karşılaştırması, ek varlıklar (endeks/fon verisi kaynağı seçimi), iPhone yatırım ekranı.
@@ -456,6 +464,20 @@ adı "Asistan" + küçük monogram, marka/isim kararı UI-04'e; **K5-B** alt sek
 - [x] UI-07 — Gezinme ve profil (eksik parça). **Sonuç (12 Kasım 2026, dal `ui-07-tab-bar-profile`, docs/ios.md "iOS-u"; kararlar K1-A K2-A K3-A K4-A K5-B K6-B K7-B K8-B K9-C K10-A):** sistem `TabView`'i, dört sekme (Ana sayfa · Analiz · Asistan · Profil), her biri kendi yığınında; ViewModel'ler `App/MainTabView`'da; "Bu ay harcama" kartı ve baş harf dairesi sekmeye geçirir, "Asistana sor" kapsülü ve `AnalyticsRoute` kalktı; sekme değişince bekleyen soru durmaz (AI-08 K5-C daraldı); Profil `/api/me`'den (ad soyad, kullanıcı adı, müşteri no, para birimi, saat dilimi `Europe/Istanbul · GMT+03:00`, sürüm), Çıkış onaylı; saat dilimi ortamı bütün sekmelere. Backend değişmedi. iOS 360 → 371 test durumu, 5 kasıtlı bozmanın hepsi yakalandı. Sınırlar: sekmeye yeniden dokununca başa dönme ve cevap rozeti yok. Plan: Alt sekme çubuğu (Ana sayfa / Analiz / Asistan / Profil) ya da mevcut tek ekran düzeni
   (karar); "Çıkış" sağ üstten Profil ekranına taşınır (ad, kullanıcı adı, saat dilimi, uygulama sürümü, çıkış). Sohbet geçmişi yine
   yalnız bellekte (AI-08 K4-D), sekmeler arasında korunur.
+
+## 14c. Cep asistanı: görsel, kısa, cevap modlu — kullanıcı isteği 13 Kasım 2026 (⭐ yön değişikliği)
+
+Kullanıcı gidişattan memnun değil: model uzun metin yazıyor, uygulama bir sohbet uygulaması gibi hissettiriyor. Hedef "cebindeki
+asistan": daha görsel (grafik), kısa ve öz, hız ve pratiklik kazandıran; uzun finansal ifadeler yerine günlük hayattan dil. Finansal
+ayrıntı için **cevap modu**: kullanıcı basit cevap mı, detaylı/istatistiksel cevap mı istediğini seçer.
+
+- Sıra (kullanıcı kararı): önce mevcut özellikler ve öneri sistemi uyarlanır (INV-03 PR2 ve süren işler), sonra bu yön değişikliği
+  ayrı bir tasarım/plan adımıyla ele alınır. Kod yok; plan çok seçenekli kararlarla yazılır.
+- Plan için açık sorular (taslak): cevap kartı mı balon mu; hangi sorular grafikle cevaplanır (halka, çubuk, tek rakam kartı);
+  modun yeri (Profil ayarı, sohbet içi düğme ya da ikisi); "basit" cevabı kod mu yazar model mi (bugün iki "ne olurdu", bütçe ve
+  tasarruf cevaplarını zaten kod yazıyor, `ToolOutcome.written`); günlük dil örnekleri ("bu ay kahveye 3 sinema bileti kadar"); mevcut
+  ölçümlerin (cevap doğruluğu, sayı denetimi) yeni biçimde nasıl korunacağı.
+- [ ] UX-01 — Cep asistanı planı (brainstorming + kararlar; uygulama PR'ları plandan çıkar).
 
 ## 15. Local AI — önce hazır sonucu açıklama
 
@@ -742,6 +764,8 @@ Sıradaki (kullanıcı seçer; müşteri her zaman token'dan gelir):
   dalgalanma `what-if/monthly`); sırada INC-03
   (MCP/sohbet, ikisi birlikte), INC-04 (iPhone). Ürün yönü artık "harcama ve yatırım asistanı" (12f); diğer kaynaklar
   (enflasyon, faiz, endeks) INV-02 havuzunda.
+- **13 Kasım 2026 — yön değişikliği (14c, UX-01):** mevcut özellikler ve öneri sistemi uyarlandıktan sonra görsel, kısa ve cevap
+  modlu "cep asistanı" planı.
 - **Teknik borç:** DB-01 (ayrı test veritabanı), API-16 (OpenAPI parametre şemaları), ACC-LIMIT.
 
 Bu dosyanın oluşturulması listedeki işleri otomatik başlatmaz; kullanıcının seçtiği madde üzerinden ilerlenir.
