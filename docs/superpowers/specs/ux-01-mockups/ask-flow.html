@@ -1,0 +1,98 @@
+<style>
+  .phones { display:flex; gap:28px; flex-wrap:wrap; justify-content:center; margin-top:18px; }
+  .pick { cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:10px; border-radius:24px; padding:10px; border:2px solid transparent; }
+  .pick.selected { border-color:#3b82f6; }
+  .phone { width:320px; height:660px; background:#000; border-radius:38px; border:8px solid #1c1c1e; overflow:hidden; color:#f2f2f7;
+           font-family:-apple-system, "SF Pro Text", system-ui, sans-serif; font-size:14px; display:flex; flex-direction:column; position:relative; }
+  .status { height:28px; }
+  .scroll { flex:1; overflow:hidden; padding:8px 16px 0; display:flex; flex-direction:column; gap:12px; }
+  .muted { color:#8e8e93; }
+  .up { color:#ff9f0a; font-weight:600; }
+  .card { background:#1c1c1e; border-radius:20px; padding:16px; display:flex; flex-direction:column; gap:12px; }
+  .tag { font-size:12px; color:#8e8e93; text-transform:uppercase; letter-spacing:.6px; }
+  .big { font-size:30px; font-weight:700; letter-spacing:-0.6px; line-height:1; }
+  .ask { background:#2c2c2e; border-radius:16px; padding:14px 16px; color:#8e8e93; display:flex; justify-content:space-between; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; }
+  .chip { background:#2c2c2e; border-radius:14px; padding:8px 12px; font-size:13px; color:#d1d1d6; }
+  .line { display:flex; justify-content:space-between; align-items:center; }
+  .hbar { height:8px; background:#3b82f6; border-radius:4px; }
+  .q { align-self:flex-end; background:#1f6feb; color:#fff; padding:10px 14px; border-radius:18px; max-width:78%; }
+  .tabs { height:62px; border-top:1px solid #1c1c1e; display:flex; justify-content:space-around; align-items:center; font-size:11px; color:#8e8e93; }
+  .tabs .on { color:#3b82f6; }
+  .legend { font-size:12px; color:#c7c7cc; max-width:320px; text-align:center; line-height:1.4; }
+  .dim { opacity:.35; }
+  .sheet { position:absolute; left:0; right:0; bottom:0; top:120px; background:#121214; border-radius:24px 24px 0 0; padding:12px 16px 16px;
+           display:flex; flex-direction:column; gap:12px; box-shadow:0 -10px 30px rgba(0,0,0,.6); }
+  .grab { width:40px; height:5px; border-radius:3px; background:#3a3a3c; align-self:center; }
+  .answer { display:flex; flex-direction:column; gap:12px; }
+</style>
+
+<h2>Soru sorulunca cevap nerede açılır?</h2>
+<p class="subtitle">H2 panelinde altta "Kılavuz'a sor…" var. Murat "Geçen ay markete ne kadar gitti?" yazdı. Cevap (B kartı) hangi yolla gelsin?</p>
+
+<div class="phones">
+
+  <!-- F1: sheet over the panel -->
+  <div class="pick" data-choice="f1" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="status"></div>
+      <div class="scroll dim">
+        <div style="font-size:22px; font-weight:700">Ekim</div>
+        <div class="card"><div class="tag">Bu ay harcama</div><div class="big">8.241,40 TL</div></div>
+        <div class="card"><div class="tag">Nereye gitti</div><div>Market · Akaryakıt · Fatura</div></div>
+      </div>
+      <div class="sheet">
+        <div class="grab"></div>
+        <div class="q">Geçen ay markete ne kadar gitti?</div>
+        <div class="card"><div class="tag">Market · Eylül</div><div class="big">18.016,50 TL</div><div><span class="up">▲ %51</span> <span class="muted">Ağustos 11.944,50</span></div>
+          <div><div class="line"><span>BİM</span><span class="muted">6.216</span></div><div class="hbar" style="width:100%; margin-top:6px"></div></div>
+          <div><div class="line"><span>Migros Jet</span><span class="muted">5.318</span></div><div class="hbar" style="width:86%; margin-top:6px"></div></div></div>
+        <div class="muted">Toplam harcamanın üçte biri markete gitmiş.</div>
+        <div class="chips"><span class="chip">Bu ay?</span><span class="chip">%10 kıssam?</span><span class="chip">İşlemler</span></div>
+        <div class="ask" style="margin-top:auto"><span>Devam et…</span><span>↑</span></div>
+      </div>
+    </div>
+    <div class="legend"><b>F1 · Panelin üstünde açılan sayfa</b><br>Panel arkada kalır; cevap alttan kayan bir sayfada. Aşağı çekince kapanır, panele dönülür. Takip soruları aynı sayfada devam eder.</div>
+  </div>
+
+  <!-- F2: assistant tab thread -->
+  <div class="pick" data-choice="f2" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="status"></div>
+      <div class="scroll">
+        <div style="font-size:22px; font-weight:700">Asistan</div>
+        <div class="q">Bu ay ne kadar harcadım?</div>
+        <div class="card" style="padding:12px"><div class="line"><span class="tag">Bu ay</span><b>8.241,40 TL</b></div></div>
+        <div class="q">Geçen ay markete ne kadar gitti?</div>
+        <div class="card"><div class="tag">Market · Eylül</div><div class="big">18.016,50 TL</div><div><span class="up">▲ %51</span> <span class="muted">Ağustos 11.944,50</span></div>
+          <div><div class="line"><span>BİM</span><span class="muted">6.216</span></div><div class="hbar" style="width:100%; margin-top:6px"></div></div></div>
+        <div class="muted">Toplam harcamanın üçte biri markete gitmiş.</div>
+        <div class="chips"><span class="chip">Bu ay?</span><span class="chip">%10 kıssam?</span></div>
+      </div>
+      <div style="padding:8px 16px"><div class="ask"><span>Kılavuz'a sor…</span><span>↑</span></div></div>
+      <div class="tabs"><span>Ana sayfa</span><span>Analiz</span><span class="on">Asistan</span><span>Profil</span></div>
+    </div>
+    <div class="legend"><b>F2 · Asistan sekmesinde akış</b><br>Bugünkü gibi ayrı sekme; ama balon yerine B kartları alt alta birikir. Önceki cevaplar yukarıda durur.</div>
+  </div>
+
+  <!-- F3: panel turns into the answer -->
+  <div class="pick" data-choice="f3" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="status"></div>
+      <div class="scroll" style="gap:16px">
+        <div class="line"><span style="color:#3b82f6">‹ Ekim</span><span class="muted" style="font-size:13px">Market · Eylül</span></div>
+        <div class="chips"><span class="chip">Bu ay</span><span class="chip" style="background:#1f6feb; color:#fff">Eylül</span><span class="chip">Son 3 ay</span></div>
+        <div class="card"><div class="big">18.016,50 TL</div><div><span class="up">▲ %51</span> <span class="muted">Ağustos 11.944,50</span></div>
+          <div><div class="line"><span>BİM</span><span class="muted">6.216</span></div><div class="hbar" style="width:100%; margin-top:6px"></div></div>
+          <div><div class="line"><span>Migros Jet</span><span class="muted">5.318</span></div><div class="hbar" style="width:86%; margin-top:6px"></div></div>
+          <div><div class="line"><span>Migros Sanal</span><span class="muted">3.578</span></div><div class="hbar" style="width:58%; margin-top:6px"></div></div></div>
+        <div class="muted">Toplam harcamanın üçte biri markete gitmiş.</div>
+        <div class="chips"><span class="chip">%10 kıssam?</span><span class="chip">İşlemler</span></div>
+      </div>
+      <div style="padding:8px 16px"><div class="ask"><span>Kılavuz'a sor…</span><span>↑</span></div></div>
+      <div class="tabs"><span class="on">Ana sayfa</span><span>Analiz</span><span>Profil</span></div>
+    </div>
+    <div class="legend"><b>F3 · Panel cevaba dönüşür</b><br>Cevap ayrı bir ekran: dönem çipleriyle yazmadan değiştirilebilir (Eylül → Bu ay). Geri ile panele dönülür; Asistan sekmesi kalkar.</div>
+  </div>
+
+</div>

@@ -477,7 +477,13 @@ ayrıntı için **cevap modu**: kullanıcı basit cevap mı, detaylı/istatistik
   modun yeri (Profil ayarı, sohbet içi düğme ya da ikisi); "basit" cevabı kod mu yazar model mi (bugün iki "ne olurdu", bütçe ve
   tasarruf cevaplarını zaten kod yazıyor, `ToolOutcome.written`); günlük dil örnekleri ("bu ay kahveye 3 sinema bileti kadar"); mevcut
   ölçümlerin (cevap doğruluğu, sayı denetimi) yeni biçimde nasıl korunacağı.
-- [ ] UX-01 — Cep asistanı planı (brainstorming + kararlar; uygulama PR'ları plandan çıkar).
+- [x] UX-01 plan — Cep asistanı tasarımı ve uygulama planı (13 Kasım 2026). Tasarım `docs/superpowers/specs/2026-11-13-ux-01-pocket-assistant-design.md`, plan `docs/superpowers/plans/2026-11-13-ux-01-pocket-assistant.md`, taslak ekranlar `docs/superpowers/specs/ux-01-mockups/`. Kullanıcı seçimleri: kart B (büyük rakam, fark, çubuklar, tek günlük cümle), ana ekran H2 "bu ay" paneli, alttan kayan soru sayfası F1, açık krem tema Z3, Basit/Detaylı (Profil'de varsayılan + kart başına anahtar), kartı kod kurar (Y2). Kararlar: K1-A (cümle kod kalıbıyla) K2-B (Asistan sekmesi kalır, kayan sayfayla aynı oturum) K3-A (ilk altı araç) K4-A (yeni kategori detayı aracı) K5-A (panel satırı kayan sayfayı açar) K6-A (her zaman açık tema) K7-A (model yalnız araç seçer) K8-A (simge/ad kapsam dışı) K9-A (PR sırası).
+- [ ] UX-01 PR1 — Z3 açık tema, bütün ekranlar (planda ayrıntılı; R1 kategori renk eşiği, R2 çubuk rengi kararları açık).
+- [ ] UX-01 PR2 — Ana ekran "bu ay" paneli; hesaplar ve tüm işlemler Profil'e.
+- [ ] UX-01 PR3 — `get_category_spending` analitiği + API + MCP aracı (K4-A).
+- [ ] UX-01 PR4 — `cards` sözleşmesi (`ai/service/cards.py`, .NET, OpenAPI) ve ilk altı araç.
+- [ ] UX-01 PR5 — iPhone kayan sayfa, kart şablonları, Basit/Detaylı; Asistan sekmesi aynı oturum.
+- [ ] UX-01 PR6 — Kalan dokuz aracın kartları ve ölçümler.
 
 ## 15. Local AI — önce hazır sonucu açıklama
 

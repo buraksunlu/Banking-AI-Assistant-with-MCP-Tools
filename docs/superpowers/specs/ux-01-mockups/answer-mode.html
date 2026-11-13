@@ -1,0 +1,114 @@
+<style>
+  .phones { display:flex; gap:28px; flex-wrap:wrap; justify-content:center; margin-top:18px; }
+  .pick { cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:10px; border-radius:24px; padding:10px; border:2px solid transparent; }
+  .pick.selected { border-color:#f5a700; }
+  .phone { width:320px; height:680px; border-radius:38px; border:8px solid #1c1c1e; overflow:hidden;
+           font-family:-apple-system, "SF Pro Text", system-ui, sans-serif; font-size:14px; display:flex; flex-direction:column; position:relative;
+           background:#f6f1e7; color:#2a2117; }
+  .muted { color:#7d6f5c; }
+  .card { background:#fff; border-radius:20px; padding:16px; display:flex; flex-direction:column; gap:12px; box-shadow:0 1px 3px rgba(80,60,20,.12); }
+  .tag { font-size:12px; color:#7d6f5c; text-transform:uppercase; letter-spacing:.6px; }
+  .big { font-size:30px; font-weight:700; letter-spacing:-0.6px; line-height:1; }
+  .line { display:flex; justify-content:space-between; align-items:center; }
+  .track { height:8px; background:#ece3d2; border-radius:4px; overflow:hidden; margin-top:6px; }
+  .bar { height:8px; background:linear-gradient(90deg,#f07b0c,#f5a700); border-radius:4px; }
+  .act { color:#c46a00; font-size:13px; font-weight:600; }
+  .upc { color:#d93b2b; font-weight:600; }
+  .sheet { position:absolute; left:0; right:0; bottom:0; top:40px; background:#fffdf8; border-radius:24px 24px 0 0; padding:12px 16px 16px;
+           display:flex; flex-direction:column; gap:12px; box-shadow:0 -10px 30px rgba(0,0,0,.18); }
+  .grab { width:40px; height:5px; border-radius:3px; background:#e2d8c4; align-self:center; }
+  .q { align-self:flex-end; background:#f5a700; color:#2a1a00; padding:9px 14px; border-radius:18px; font-weight:600; }
+  .chip { background:#efe7d8; border-radius:14px; padding:7px 12px; font-size:13px; }
+  .seg { display:flex; background:#efe7d8; border-radius:12px; padding:3px; font-size:12px; font-weight:600; align-self:flex-start; }
+  .seg span { padding:5px 12px; border-radius:9px; color:#7d6f5c; }
+  .seg .on { background:#fff; color:#2a2117; box-shadow:0 1px 2px rgba(0,0,0,.1); }
+  .cols { display:flex; gap:6px; align-items:flex-end; height:64px; }
+  .col { flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10px; color:#7d6f5c; }
+  .col div { width:100%; border-radius:5px; background:#ece3d2; }
+  .stat { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .stat div { background:#f6f1e7; border-radius:12px; padding:8px 10px; font-size:12px; }
+  .stat b { display:block; font-size:15px; margin-top:2px; }
+  .legend { font-size:12px; color:#c7c7cc; max-width:320px; text-align:center; line-height:1.45; }
+  .setrow { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid #efe7d8; }
+</style>
+
+<h2>Cevap modu: Basit / Detaylı</h2>
+<p class="subtitle">Aynı soru, Z3 paletinde. Rakamlar Murat'ın gerçek market verisi (Nisan–Eylül 2026). Sorulan şey: detaylı mod ne gösterir, mod nerede seçilir?</p>
+
+<div class="phones">
+
+  <!-- simple -->
+  <div class="pick" data-choice="basit" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="sheet">
+        <div class="grab"></div>
+        <div class="q">Geçen ay markete ne kadar gitti?</div>
+        <div class="card">
+          <div class="line"><span class="tag">Market · Eylül</span><span class="seg"><span class="on">Basit</span><span>Detaylı</span></span></div>
+          <div class="line"><span class="big">18.016,50 TL</span><span class="upc">▲ %51</span></div>
+          <div class="muted">Ağustos'ta 11.944,50 TL'ydi.</div>
+          <div><div class="line"><span>BİM</span><span>6.216,00</span></div><div class="track"><div class="bar" style="width:100%"></div></div></div>
+          <div><div class="line"><span>Migros Jet</span><span>5.317,50</span></div><div class="track"><div class="bar" style="width:86%"></div></div></div>
+          <div><div class="line"><span>Migros Sanal Market</span><span>3.577,50</span></div><div class="track"><div class="bar" style="width:58%"></div></div></div>
+          <div><div class="line"><span>A101</span><span>2.905,50</span></div><div class="track"><div class="bar" style="width:47%"></div></div></div>
+        </div>
+        <div style="font-size:15px">Harcamanın üçte biri markete gitmiş; haftada yaklaşık 4.200 TL.</div>
+        <div class="line" style="justify-content:flex-start; gap:8px; flex-wrap:wrap"><span class="chip">Bu ay?</span><span class="chip">%10 kıssam?</span><span class="chip">İşlemler</span></div>
+      </div>
+    </div>
+    <div class="legend"><b>Basit</b><br>Büyük rakam, geçen ayla fark, mağazalar, tek günlük cümle. Kartın köşesindeki anahtarla o cevap Detaylı'ya döner.</div>
+  </div>
+
+  <!-- detailed -->
+  <div class="pick" data-choice="detayli" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="sheet">
+        <div class="grab"></div>
+        <div class="card">
+          <div class="line"><span class="tag">Market · Eylül</span><span class="seg"><span>Basit</span><span class="on">Detaylı</span></span></div>
+          <div class="line"><span class="big">18.016,50 TL</span><span class="upc">▲ %51</span></div>
+          <div class="tag" style="margin-top:2px">Son 6 ay</div>
+          <div class="cols">
+            <div class="col"><div style="height:29px"></div>Nis</div>
+            <div class="col"><div style="height:34px"></div>May</div>
+            <div class="col"><div style="height:43px"></div>Haz</div>
+            <div class="col"><div style="height:54px"></div>Tem</div>
+            <div class="col"><div style="height:40px"></div>Ağu</div>
+            <div class="col"><div style="height:60px; background:linear-gradient(180deg,#f5a700,#f07b0c)"></div>Eyl</div>
+          </div>
+          <div class="stat">
+            <div>6 ay ortalaması<b>12.988,08 TL</b></div>
+            <div>Ortalamaya göre<b class="upc">+%38,7</b></div>
+            <div>İşlem sayısı<b>8</b></div>
+            <div>İşlem başı ortalama<b>2.252,06 TL</b></div>
+            <div>En büyük işlem<b>3.476,00 TL</b><span class="muted">BİM · 3 Eylül</span></div>
+            <div>Toplam harcamadaki payı<b>%33,7</b></div>
+          </div>
+          <div class="line"><span>Mağazalara göre</span><span class="act">%35 · %30 · %20 · %16 ›</span></div>
+        </div>
+        <div class="line" style="justify-content:flex-start; gap:8px; flex-wrap:wrap"><span class="chip">Bu ay?</span><span class="chip">%10 kıssam?</span><span class="chip">İşlemler</span></div>
+      </div>
+    </div>
+    <div class="legend"><b>Detaylı</b><br>Aynı kart, istatistik eklenmiş: 6 aylık çubuklar, 6 ay ortalaması ve sapma, işlem sayısı, işlem başı ortalama, en büyük işlem, toplamdaki pay.</div>
+  </div>
+
+  <!-- where the mode is chosen -->
+  <div class="pick" data-choice="profil" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div style="padding:44px 16px 0; display:flex; flex-direction:column; gap:24px">
+        <div style="font-size:22px; font-weight:700">Profil</div>
+        <div class="card" style="gap:0; padding:4px 16px">
+          <div class="setrow"><span>Cevap biçimi</span><span class="seg"><span class="on">Basit</span><span>Detaylı</span></span></div>
+          <div class="setrow" style="border:none"><span class="muted" style="font-size:12px">Varsayılan. Her cevabın köşesinden o cevap için değiştirebilirsin.</span></div>
+        </div>
+        <div class="card" style="gap:0; padding:4px 16px">
+          <div class="setrow"><span>Hesaplarım</span><span class="act">›</span></div>
+          <div class="setrow"><span>Tüm işlemler</span><span class="act">›</span></div>
+          <div class="setrow" style="border:none"><span style="color:#d93b2b">Çıkış yap</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="legend"><b>Mod nerede seçilir</b><br>Önerim ikisi birden: Profil'de varsayılan, her cevabın köşesinde o cevaba özel anahtar. Hesaplar ve tüm işlemler de buraya taşınır.</div>
+  </div>
+
+</div>
