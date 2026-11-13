@@ -12,6 +12,8 @@ mkdir -p "$LOGS"
 export DOTNET_ROOT=/usr/local/share/dotnet
 export PATH="$DOTNET_ROOT:/opt/homebrew/bin:/usr/local/bin:$PATH"
 PG_CONTAINER=bankingai-week1-postgres-1
+# The database lives in Colima; Docker Desktop switches the active context back to itself when it starts.
+export DOCKER_CONTEXT=colima
 DEMO_NOW="2026-10-10T12:00:00Z"
 
 stop_services() {

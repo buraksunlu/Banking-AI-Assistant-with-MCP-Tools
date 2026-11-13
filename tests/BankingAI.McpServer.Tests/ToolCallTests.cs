@@ -366,8 +366,8 @@ public sealed class ToolCallTests
 
     [Theory]
     [Trait("Category", "PostgreSQL")]
-    [InlineData("""{"fromAdvice":true}""", "Advice", "236.18", "3000.60")]
-    [InlineData("""{"amount":1000,"currencyCode":"TRY"}""", "User", "1000", "12704.72")]
+    [InlineData("""{"fromAdvice":true,"months":12}""", "Advice", "236.18", "3000.60")]
+    [InlineData("""{"amount":1000,"currencyCode":"TRY","months":12}""", "User", "1000", "12704.72")]
     public async Task What_if_monthly_takes_the_advice_or_the_users_amount(string arguments, string source, string amount, string gold)
     {
         var result = await CallAsync(Selin, "what_if_monthly", arguments);
@@ -384,10 +384,22 @@ public sealed class ToolCallTests
     [Trait("Category", "PostgreSQL")]
     public async Task What_if_monthly_without_advice_has_no_rows()
     {
-        var result = await CallAsync(Ada, "what_if_monthly", """{"fromAdvice":true}""");
+        var result = await CallAsync(Ada, "what_if_monthly", """{"fromAdvice":true,"months":12}""");
 
         Assert.Equal("NoAdvice", result.GetProperty("adviceStatus").GetString());
         Assert.Equal(JsonValueKind.Null, result.GetProperty("amount").ValueKind);
         Assert.Empty(result.GetProperty("assets").EnumerateArray());
+    }
+
+    // INV-03: the months reach the service; the 3-month gold figure is WhatIfServiceTests' hand-computed one.
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task What_if_monthly_saves_for_the_months_asked()
+    {
+        var result = await CallAsync(Ada, "what_if_monthly", """{"amount":1000,"currencyCode":"TRY","months":3}""");
+
+        Assert.Equal((3, "2026-07-01", 3000m, 3142.18m),
+            (result.GetProperty("months").GetInt32(), result.GetProperty("firstBuyDate").GetString(),
+             result.GetProperty("invested").GetDecimal(), result.GetProperty("assets")[2].GetProperty("value").GetDecimal()));
     }
 }

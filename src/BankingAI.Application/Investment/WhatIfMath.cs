@@ -79,12 +79,19 @@ public static class WhatIfMath
             value.RequestedDate, value.PriceDate, value.Price, units, worth, difference, percent, status, value.Source ?? buy.Source);
     }
 
-    /// <summary>The number of monthly buys (K8-A).</summary>
-    public const int Months = 12;
+    /// <summary>The fewest monthly buys (INV-03 K10): one buy is the one-off scenario, and one month has no volatility to show.</summary>
+    public const int MinimumMonths = 2;
 
     /// <summary>
-    /// <paramref name="amount"/> bought on each of the twelve <paramref name="buys"/>, valued at <paramref name="value"/>.
-    /// <paramref name="monthAfter"/> is the first day after the last buy's month; it closes the last month's change.
+    /// The most monthly buys (INV-03 K1-A): prices start on 11 November 2024, so 1 December 2024 is the earliest first with a
+    /// price; at the demo moment that is 22 months back, and later days only reach back less far.
+    /// </summary>
+    public const int MaximumMonths = 22;
+
+    /// <summary>
+    /// <paramref name="amount"/> bought on each of the <paramref name="buys"/> (one per month, <see cref="MinimumMonths"/> to
+    /// <see cref="MaximumMonths"/>), valued at <paramref name="value"/>. <paramref name="monthAfter"/> is the first day after the
+    /// last buy's month; it closes the last month's change.
     /// </summary>
     public static MonthlyAssetWhatIf Monthly(
         MarketAssetInfo asset, decimal amount, IReadOnlyList<PricePoint> buys, PricePoint monthAfter, PricePoint value)
@@ -93,11 +100,12 @@ public static class WhatIfMath
         ArgumentNullException.ThrowIfNull(buys);
         ArgumentNullException.ThrowIfNull(monthAfter);
         ArgumentNullException.ThrowIfNull(value);
-        if (buys.Count != Months)
-            throw new ArgumentException($"Birikim {Months} aylık alım ister.", nameof(buys));
+        if (buys.Count is < MinimumMonths or > MaximumMonths)
+            throw new ArgumentException($"Birikim {MinimumMonths} ile {MaximumMonths} arası aylık alım ister.", nameof(buys));
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(amount);
 
-        var invested = amount * Months;
+        var months = buys.Count;
+        var invested = amount * months;
         var status = buys.Append(monthAfter).Append(value).Max(p => p.Status);
         if (status != PriceStatus.Ok)
             // K18-A: a saving with a missing month is not "twelve months of saving"; days and prices are still shown.
@@ -121,7 +129,8 @@ public static class WhatIfMath
         decimal amount, IReadOnlyList<PricePoint> buys, IReadOnlyList<decimal> units, PricePoint monthAfter, PricePoint value)
     {
         var firsts = buys.Append(monthAfter).ToList();
-        var changes = Enumerable.Range(0, Months)
+        var months = buys.Count;
+        var changes = Enumerable.Range(0, months)
             .Select(i => (Month: firsts[i].RequestedDate, Change: (firsts[i + 1].Price!.Value - firsts[i].Price!.Value) * 100m / firsts[i].Price!.Value))
             .ToList();
         // The earliest month wins a tie, so the answer does not depend on sort stability.
@@ -141,11 +150,11 @@ public static class WhatIfMath
                 fall = (percent, peak, point);
         }
 
-        // The saving on each first before that month's buy (from the second month on) and today, after all twelve.
-        var moments = Enumerable.Range(1, Months - 1)
+        // The saving on each first before that month's buy (from the second month on) and today, after every buy.
+        var moments = Enumerable.Range(1, months - 1)
             .Select(i => (Day: firsts[i].RequestedDate, Invested: amount * i, Value: units.Take(i).Sum() * firsts[i].Price!.Value))
-            .Append((Day: monthAfter.RequestedDate, Invested: amount * Months, Value: units.Sum() * monthAfter.Price!.Value))
-            .Append((Day: value.RequestedDate, Invested: amount * Months, Value: units.Sum() * value.Price!.Value))
+            .Append((Day: monthAfter.RequestedDate, Invested: amount * months, Value: units.Sum() * monthAfter.Price!.Value))
+            .Append((Day: value.RequestedDate, Invested: amount * months, Value: units.Sum() * value.Price!.Value))
             .ToList();
         var low = moments.Aggregate((a, b) => (b.Value - b.Invested) / b.Invested < (a.Value - a.Invested) / a.Invested ? b : a);
 

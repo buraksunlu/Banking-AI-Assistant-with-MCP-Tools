@@ -41,12 +41,14 @@ public enum AdviceAmountStatus
 }
 
 /// <summary>
-/// Input of <see cref="WhatIfService.MonthlyAsync"/>: either a lira amount with its currency, or <c>FromAdvice</c> (never both).
+/// Input of <see cref="WhatIfService.MonthlyAsync"/>: either a lira amount with its currency, or <c>FromAdvice</c> (never both),
+/// and the number of months to save, always given (INV-03 K3-A).
 /// </summary>
-public sealed record MonthlyWhatIfQuery(Guid CustomerId, decimal? Amount = null, string? CurrencyCode = null, bool FromAdvice = false);
+public sealed record MonthlyWhatIfQuery(
+    Guid CustomerId, decimal? Amount = null, string? CurrencyCode = null, bool FromAdvice = false, int? Months = null);
 
 /// <summary>
-/// "Had I saved it every month" (OC-04): the amount bought on the first day of each of the last twelve complete months and valued
+/// "Had I saved it every month" (OC-04): the amount bought on the first day of each of the last <c>Months</c> complete months and valued
 /// today, with each asset's volatility. <c>AdvicePeriod</c> is the advice month when the amount comes from INC-02.
 /// <c>Amount</c> and <c>Invested</c> are null, and there are no asset rows, when there is no advice.
 /// </summary>
@@ -83,19 +85,26 @@ public sealed class WhatIfService(
         if (query.FromAdvice)
         {
             InputRules.Require(query.CurrencyCode is null, nameof(query.CurrencyCode), "fromAdvice ile para birimi verilmez; öneri tutarı TL'dir.");
-            return;
+        }
+        else
+        {
+            // K15-B: a user's amount always names its currency, so "100 euro" is never read as lira.
+            InputRules.Require(query.CurrencyCode is not null, nameof(query.CurrencyCode), "Tutarın para birimi (currencyCode) verilmeli.");
+            InputRules.Currency(query.CurrencyCode, nameof(query.CurrencyCode));
+            InputRules.Require(query.CurrencyCode == Currency, nameof(query.CurrencyCode),
+                "Birikim senaryosu yalnız TL (TRY) tutarla hesaplanır; varlık fiyatları TL'dir.");
+            InputRules.Money(query.Amount!.Value, nameof(query.Amount), positive: true);
+            InputRules.Require(query.Amount <= MaximumMonthlyAmount, nameof(query.Amount), "Aylık tutar en fazla 1.000.000 olmalı.");
         }
 
-        // K15-B: a user's amount always names its currency, so "100 euro" is never read as lira.
-        InputRules.Require(query.CurrencyCode is not null, nameof(query.CurrencyCode), "Tutarın para birimi (currencyCode) verilmeli.");
-        InputRules.Currency(query.CurrencyCode, nameof(query.CurrencyCode));
-        InputRules.Require(query.CurrencyCode == Currency, nameof(query.CurrencyCode),
-            "Birikim senaryosu yalnız TL (TRY) tutarla hesaplanır; varlık fiyatları TL'dir.");
-        InputRules.Money(query.Amount!.Value, nameof(query.Amount), positive: true);
-        InputRules.Require(query.Amount <= MaximumMonthlyAmount, nameof(query.Amount), "Aylık tutar en fazla 1.000.000 olmalı.");
+        // INV-03 K3-A: never a silent twelve; the caller (the chat) asks the user.
+        InputRules.Require(query.Months is not null, nameof(query.Months),
+            $"Ay sayısı zorunlu: months {WhatIfMath.MinimumMonths} ile {WhatIfMath.MaximumMonths} arasında verilmeli.");
+        InputRules.Require(query.Months is >= WhatIfMath.MinimumMonths and <= WhatIfMath.MaximumMonths, nameof(query.Months),
+            $"Ay sayısı {WhatIfMath.MinimumMonths} ile {WhatIfMath.MaximumMonths} arasında olmalı.");
     }
 
-    /// <summary>The monthly saving of the last twelve complete months, valued on the customer's today (OC-04/05).</summary>
+    /// <summary>The monthly saving of the last <c>Months</c> complete months, valued on the customer's today (OC-04/05, INV-03).</summary>
     /// <exception cref="ArgumentException">See <see cref="ValidateMonthly"/>.</exception>
     /// <exception cref="CustomerNotFoundException">The customer does not exist.</exception>
     public async Task<MonthlyWhatIf> MonthlyAsync(MonthlyWhatIfQuery query, CancellationToken cancellationToken = default)
@@ -104,9 +113,10 @@ public sealed class WhatIfService(
         var (timeZone, _) = await new CustomerScope(db, periodResolver)
             .ResolveAccountsAsync(query.CustomerId, accountId: null, personalOnly: true, cancellationToken);
         var today = periodResolver.TodayIn(timeZone);
-        // K8-A: the twelve complete months before the running one; the running month's first day closes the last month.
+        // K8-A: the complete months before the running one; the running month's first day closes the last month.
+        var months = query.Months!.Value;
         var monthAfter = new DateOnly(today.Year, today.Month, 1);
-        var buyDays = Enumerable.Range(0, WhatIfMath.Months).Select(i => monthAfter.AddMonths(i - WhatIfMath.Months)).ToList();
+        var buyDays = Enumerable.Range(0, months).Select(i => monthAfter.AddMonths(i - months)).ToList();
 
         var (source, status, advicePeriod, amount) = (WhatIfAmountSource.User, (AdviceAmountStatus?)null, (ResolvedPeriod?)null, query.Amount);
         if (query.FromAdvice)
@@ -128,8 +138,8 @@ public sealed class WhatIfService(
                 points[(a.Id, monthAfter)], points[(a.Id, today)])).ToList();
         }
 
-        return new MonthlyWhatIf(source, status, advicePeriod, Currency, amount, WhatIfMath.Months, buyDays[0], buyDays[^1], today,
-            amount * WhatIfMath.Months, MonthlyMethod, WhatIfMath.Disclaimer, assets);
+        return new MonthlyWhatIf(source, status, advicePeriod, Currency, amount, months, buyDays[0], buyDays[^1], today,
+            amount * months, MonthlyMethod, WhatIfMath.Disclaimer, assets);
     }
 
     /// <summary>The assumption of <see cref="OneOffAsync"/>.</summary>

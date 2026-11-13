@@ -1612,7 +1612,7 @@
           "Analytics"
         ],
         "summary": "\"had I saved it every month\" (INV-01)",
-        "description": "`GET /api/analytics/what-if/monthly`: \"had I saved it every month\" (INV-01): the same lira amount bought on the first\nday of each of the last twelve complete months as USD, EUR and gram gold, valued on the customer's today with past prices\nonly, with each asset's volatility (worst and best month, largest fall, worst moment of the saving). The amount is either\n`amount` + `currencyCode=TRY` or `fromAdvice=true` (INC-02's advice for the last complete month), never\nboth. Every result carries the fixed warning: not a forecast, not investment advice.",
+        "description": "`GET /api/analytics/what-if/monthly`: \"had I saved it every month\" (INV-01): the same lira amount bought on the first\nday of each of the last `months` complete months (2-22, required; INV-03) as USD, EUR and gram gold, valued on the\ncustomer's today with past prices only, with each asset's volatility (worst and best month, largest fall, worst moment of\nthe saving). The amount is either `amount` + `currencyCode=TRY` or `fromAdvice=true` (INC-02's advice for\nthe last complete month), never both. Every result carries the fixed warning: not a forecast, not investment advice.",
         "parameters": [
           {
             "name": "amount",
@@ -1633,6 +1633,18 @@
             "in": "query",
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "months",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
             }
           }
         ],
@@ -4711,7 +4723,7 @@
             }
           }
         },
-        "description": "\"Had I saved it every month\" (OC-04): the amount bought on the first day of each of the last twelve complete months and valued\ntoday, with each asset's volatility. `AdvicePeriod` is the advice month when the amount comes from INC-02.\n`Amount` and `Invested` are null, and there are no asset rows, when there is no advice."
+        "description": "\"Had I saved it every month\" (OC-04): the amount bought on the first day of each of the last `Months` complete months and valued\ntoday, with each asset's volatility. `AdvicePeriod` is the advice month when the amount comes from INC-02.\n`Amount` and `Invested` are null, and there are no asset rows, when there is no advice."
       },
       "MonthWindow": {
         "required": [

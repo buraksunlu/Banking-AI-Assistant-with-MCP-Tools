@@ -348,6 +348,17 @@ sohbet ikisini birlikte alır (tek MCP turu, tek araç seçimi ölçümü).
   aylık birikimde ay sayısı 12'ye sabit (`WhatIfMath.Months`, `what-if/monthly`, MCP `what_if_monthly`). Akış: tutar → "Kaç ay
   boyunca?" (3/6/12 ay + kendi sayın) → cevap. Backend'e 1–22 arası `months` (fiyat verisi Kasım 2024'ten), Application + API +
   MCP şeması + OpenAPI + Python (geri soru türü, kod yazımı cevap) + iPhone gerekmez (satırlar genel). Plan ve kararlar ayrı.
+  **Kararlar (12 Kasım 2026):** K1-A 2–22 ay sabit, K2-A süre söylenmediyse hep sorulur (mesajdaysa sorulmaz), K3-A `months` API ve
+  MCP'de zorunlu, K4-A seçenekler 3/6/12 ay + "Başka bir süre yazın (2–22 ay)", K5-A ay/yıl/buçuk okunur, K6-A sınır dışı notla
+  yeniden sorulur, K7-A "peki 6 ay?" süreyi, "peki 2.000 TL?" tutarı değiştirir, K8-A cevabın altında başka süre önerisi, K9-A öneriden
+  gelen tutarda da süre sorulur, K10 en az 2 ay, K11-B iki PR.
+  **PR1 sonucu (12 Kasım 2026, dal `inv-03a-saving-months-backend`):** `WhatIfMath.MinimumMonths`/`MaximumMonths` (sabit 12 kalktı,
+  süre alım sayısından), `MonthlyWhatIfQuery.Months` zorunlu, `GET /api/analytics/what-if/monthly?months=`, MCP `[Range(2, 22)] int
+  months` (zorunlu), OpenAPI. Sohbet değişmedi: `mcp_gateway.call` eksik `months`'u 12 yapar (geçici köprü, PR2'de kalkar). Elle
+  hesap (bağımsız SQL): Ada 1.000 TL × 3 ay → USD 3.111,65, EUR 3.035,90, altın 3.142,18; 22 ay ilk alım 1 Aralık 2024 (fiyat 29 Kasım).
+  Testler: Application 476, Data 185, McpServer 206, Api 583 (+5), Python 1265 (+3) modelsiz; 0 uyarı. 5 kasıtlı bozmanın hepsi yakalandı.
+  Bilinçli değişen eski testler: aylık çağrıların hepsine `months=12` eklendi, "12 alım ister" testi "2–22 alım ister" oldu, MCP
+  açıklama metni ve zorunlu argüman listesi. Sırada PR2 (sohbet).
 - [ ] INV-02 — Gelecek özellikler havuzu (kullanıcı seçer): K10-C risk profili (kullanıcı uygulamada seçer; temkinli/dengeli/atak;
   profile göre genel, eğitim amaçlı bilgi; yeni tablo + migration; LLM profil yazamaz), birikim hedefiyle bağ (12d BUD), enflasyona
   göre reel değer, mevduat faizi karşılaştırması, ek varlıklar (endeks/fon verisi kaynağı seçimi), iPhone yatırım ekranı.

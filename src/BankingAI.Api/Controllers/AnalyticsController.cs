@@ -193,17 +193,18 @@ public sealed class AnalyticsController(
 
     /// <summary>
     /// <c>GET /api/analytics/what-if/monthly</c>: "had I saved it every month" (INV-01): the same lira amount bought on the first
-    /// day of each of the last twelve complete months as USD, EUR and gram gold, valued on the customer's today with past prices
-    /// only, with each asset's volatility (worst and best month, largest fall, worst moment of the saving). The amount is either
-    /// <c>amount</c> + <c>currencyCode=TRY</c> or <c>fromAdvice=true</c> (INC-02's advice for the last complete month), never
-    /// both. Every result carries the fixed warning: not a forecast, not investment advice.
+    /// day of each of the last <c>months</c> complete months (2-22, required; INV-03) as USD, EUR and gram gold, valued on the
+    /// customer's today with past prices only, with each asset's volatility (worst and best month, largest fall, worst moment of
+    /// the saving). The amount is either <c>amount</c> + <c>currencyCode=TRY</c> or <c>fromAdvice=true</c> (INC-02's advice for
+    /// the last complete month), never both. Every result carries the fixed warning: not a forecast, not investment advice.
     /// </summary>
     [HttpGet("what-if/monthly")]
     public async Task<ActionResult<MonthlyWhatIf>> WhatIfMonthlyAsync(
-        [FromQuery] string? amount, [FromQuery] string? currencyCode, [FromQuery] bool? fromAdvice,
+        [FromQuery] string? amount, [FromQuery] string? currencyCode, [FromQuery] bool? fromAdvice, [FromQuery] int? months,
         CancellationToken cancellationToken) =>
         Ok(await whatIf.MonthlyAsync(
-            new MonthlyWhatIfQuery(User.GetCustomerId(), AmountParameter.Parse(amount, nameof(amount)), currencyCode, fromAdvice == true),
+            new MonthlyWhatIfQuery(User.GetCustomerId(), AmountParameter.Parse(amount, nameof(amount)), currencyCode, fromAdvice == true,
+                months),
             cancellationToken));
 
     /// <summary>

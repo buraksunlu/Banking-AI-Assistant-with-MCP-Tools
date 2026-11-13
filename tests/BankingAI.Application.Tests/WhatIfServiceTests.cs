@@ -132,7 +132,7 @@ public sealed class WhatIfServiceTests
     [Trait("Category", "PostgreSQL")]
     public async Task Selins_advice_saving_is_bought_on_every_first_of_the_last_twelve_months()
     {
-        var result = await MonthlyAsync(new(Selin, FromAdvice: true));
+        var result = await MonthlyAsync(new(Selin, FromAdvice: true, Months: 12));
 
         // INC-02's only advice for September: Eğlence, ayda 236,18.
         Assert.Equal((WhatIfAmountSource.Advice, (AdviceAmountStatus?)AdviceAmountStatus.Used, (decimal?)236.18m, "TRY"),
@@ -155,7 +155,7 @@ public sealed class WhatIfServiceTests
     [Trait("Category", "PostgreSQL")]
     public async Task A_users_amount_gives_the_hand_computed_figures_and_volatility()
     {
-        var result = await MonthlyAsync(new(Ada, 1000m, "TRY"));
+        var result = await MonthlyAsync(new(Ada, 1000m, "TRY", Months: 12));
 
         Assert.Equal((WhatIfAmountSource.User, (AdviceAmountStatus?)null, (decimal?)1000m, (decimal?)12000m),
             (result.AmountSource, result.AdviceStatus, result.Amount, result.Invested));
@@ -173,7 +173,7 @@ public sealed class WhatIfServiceTests
     [InlineData("Elif")]   // only euro: no lira advice
     public async Task Without_lira_advice_there_is_no_amount_and_no_asset_row(string name)
     {
-        var result = await MonthlyAsync(new(name == "Ada" ? Ada : Elif, FromAdvice: true));
+        var result = await MonthlyAsync(new(name == "Ada" ? Ada : Elif, FromAdvice: true, Months: 12));
 
         Assert.Equal((WhatIfAmountSource.Advice, (AdviceAmountStatus?)AdviceAmountStatus.NoAdvice, (decimal?)null, (decimal?)null),
             (result.AmountSource, result.AdviceStatus, result.Amount, result.Invested));
@@ -190,20 +190,57 @@ public sealed class WhatIfServiceTests
     [InlineData("1000", "XYZ", false, "CurrencyCode", "TRY/USD/EUR/GBP olmalı.")]
     [InlineData("0", "TRY", false, "Amount", "Tutar 0.01 ile parasal üst sınır arasında olmalı.")]
     [InlineData("1000000.01", "TRY", false, "Amount", "Aylık tutar en fazla 1.000.000 olmalı.")]
+    // INV-03 K3-A: the number of months is never a silent default; K1-A, K10: 2 to 22 (prices start in November 2024).
+    [InlineData("1000", "TRY", false, "Months", "Ay sayısı zorunlu: months 2 ile 22 arasında verilmeli.", null)]
+    [InlineData(null, null, true, "Months", "Ay sayısı zorunlu: months 2 ile 22 arasında verilmeli.", null)]
+    [InlineData("1000", "TRY", false, "Months", "Ay sayısı 2 ile 22 arasında olmalı.", 1)]
+    [InlineData("1000", "TRY", false, "Months", "Ay sayısı 2 ile 22 arasında olmalı.", 23)]
+    [InlineData(null, null, true, "Months", "Ay sayısı 2 ile 22 arasında olmalı.", 0)]
     public async Task Amount_and_source_are_checked_before_the_database(
-        string? amount, string? currency, bool fromAdvice, string field, string message)
+        string? amount, string? currency, bool fromAdvice, string field, string message, int? months = 12)
     {
         // No connection is opened: the query is refused first, so this test needs no PostgreSQL.
         await using var db = new BankingDbContext();
         var error = await Assert.ThrowsAsync<ArgumentException>(() => Service(db).MonthlyAsync(
-            new(Selin, amount is null ? null : decimal.Parse(amount, System.Globalization.CultureInfo.InvariantCulture), currency, fromAdvice)));
+            new(Selin, amount is null ? null : decimal.Parse(amount, System.Globalization.CultureInfo.InvariantCulture), currency, fromAdvice,
+                months)));
 
         Assert.Equal((field, message), (error.ParamName, error.Message.Split(" (Parameter")[0]));
     }
 
+    // INV-03: three months at the demo moment are July, August and September 2026; figures by hand from the price rows (independent
+    // SQL, nearest earlier day: 1 August is Friday 31 July's price) with exact units: USD 1000/46.5867 + 1000/47.3452 + 1000/48.1891.
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Three_months_buy_on_the_last_three_firsts()
+    {
+        var result = await MonthlyAsync(new(Ada, 1000m, "TRY", Months: 3));
+
+        Assert.Equal((3, new DateOnly(2026, 7, 1), new DateOnly(2026, 9, 1), (decimal?)3000m),
+            (result.Months, result.FirstBuyDate, result.LastBuyDate, result.Invested));
+        Assert.Equal(
+            [("USDTRY", 63.338400m, 3111.65m, 111.65m, 3.72m), ("EURTRY", 55.086755m, 3035.90m, 35.90m, 1.20m),
+             ("GRAM_GOLD_TRY", 0.475138m, 3142.18m, 142.18m, 4.74m)],
+            result.Assets.Select(a => (a.Symbol, a.Units, a.Value, a.Difference, a.DifferencePercent)));
+        Assert.All(result.Assets, a => Assert.Equal(3, a.Buys.Count));
+    }
+
+    // K1-A: 22 months reach back to 1 December 2024, the first first with a price (rows start on 11 November 2024).
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Twenty_two_months_still_have_every_price()
+    {
+        var result = await MonthlyAsync(new(Ada, 1000m, "TRY", Months: 22));
+
+        Assert.Equal((22, new DateOnly(2024, 12, 1), new DateOnly(2026, 9, 1), (decimal?)22000m),
+            (result.Months, result.FirstBuyDate, result.LastBuyDate, result.Invested));
+        Assert.All(result.Assets, a => Assert.Equal((PriceStatus.Ok, 22, (DateOnly?)new DateOnly(2024, 11, 29)),
+            (a.Status, a.Buys.Count, a.Buys[0].PriceDate)));
+    }
+
     [Fact]
     public void One_million_is_still_allowed() =>
-        Assert.Null(Record.Exception(() => WhatIfService.ValidateMonthly(new(Selin, 1_000_000m, "TRY"))));
+        Assert.Null(Record.Exception(() => WhatIfService.ValidateMonthly(new(Selin, 1_000_000m, "TRY", Months: 12))));
 
     [Theory]
     [Trait("Category", "PostgreSQL")]
@@ -211,5 +248,5 @@ public sealed class WhatIfServiceTests
     [InlineData(false)]
     public async Task An_unknown_customer_is_refused_for_the_saving(bool fromAdvice) =>
         await Assert.ThrowsAsync<CustomerNotFoundException>(() => MonthlyAsync(
-            fromAdvice ? new(Guid.NewGuid(), FromAdvice: true) : new(Guid.NewGuid(), 1000m, "TRY")));
+            fromAdvice ? new(Guid.NewGuid(), FromAdvice: true, Months: 12) : new(Guid.NewGuid(), 1000m, "TRY", Months: 12)));
 }

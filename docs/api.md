@@ -747,14 +747,19 @@ TRY harcama yoksa `spentAmount` 0 ve `assets` boş. Fiyat 10 günden eskiyse `st
 
 Hatalar (400): dönem yok, dönem adı + tarih birlikte, tanımsız `categoryCode`; token yoksa 401.
 
-### `GET /api/analytics/what-if/monthly?amount=…&currencyCode=TRY` ya da `?fromAdvice=true` (INV-01 PR2)
+### `GET /api/analytics/what-if/monthly?amount=…&currencyCode=TRY&months=…` ya da `?fromAdvice=true&months=…` (INV-01 PR2, INV-03)
 
-"Biriktirseydim ne olurdu?": aynı TL tutarı son 12 tam ayın her 1'inde USD, EUR ve gram altın olarak alınmış sayılır, müşterinin
-bugününde geçmiş fiyatla değerlenir; her varlıkta 12 alım satırı (`buys`) ve dalgalanma (`volatility`: `worstMonth`, `bestMonth`,
+"Biriktirseydim ne olurdu?": aynı TL tutarı son `months` tam ayın her 1'inde USD, EUR ve gram altın olarak alınmış sayılır, müşterinin
+bugününde geçmiş fiyatla değerlenir; her varlıkta `months` alım satırı (`buys`) ve dalgalanma (`volatility`: `worstMonth`, `bestMonth`,
 `maxDrawdown`, `worstMoment`). Tutar ya `amount` (katı sayı, en fazla 1.000.000, iki ondalık) + `currencyCode=TRY` ya da
 `fromAdvice=true` (backend INC-02'nin son tam ay TL önerilerinin aylık tasarrufunu okur; `advicePeriod` o aydır). Öneri yoksa
 `adviceStatus` `NoAdvice`, `amount`/`invested` `null`, `assets` boş. Bir fiyat noktası `Stale`/`Missing` ise o varlıkta rakamlar
 ve `volatility` `null`. Hiç düşmeyen fiyatta `maxDrawdown.percent` 0, günler `null`. `disclaimer` sabittir.
+
+`months` (INV-03) zorunlu, 2–22 tam sayı: varsayılan yok (K3-A; sessiz 12 olmasın), eksikse "Ay sayısı zorunlu: months 2 ile 22
+arasında verilmeli.", sınır dışıysa "Ay sayısı 2 ile 22 arasında olmalı." (400). 22 = fiyat verisi 11 Kasım 2024'te başladığı için
+demo gününde ulaşılabilen ilk 1'i (1 Aralık 2024; K1-A); tek alım tek seferlik senaryodur, bu yüzden en az 2 (K10). Örnek: Ada,
+`amount=1000&currencyCode=TRY&months=3` → alımlar 1 Temmuz–1 Eylül 2026, `invested` 3.000, USD 3.111,65 / EUR 3.035,90 / altın 3.142,18.
 
 ```json
 { "amountSource": "Advice", "adviceStatus": "Used", "advicePeriod": { "kind": "LastMonth", "startDate": "2026-09-01", "…": "…" },

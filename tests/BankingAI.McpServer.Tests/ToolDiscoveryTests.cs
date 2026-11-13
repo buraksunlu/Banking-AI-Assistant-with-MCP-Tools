@@ -65,9 +65,10 @@ public sealed class ToolDiscoveryTests
             + "\"harcamasaydım / dolar alsaydım\" soruları için, yatırım tavsiyesi değildir. categoryCode: yalnız bir kategori içinse. "
             + PeriodHelp, ["categoryCode", "from", "period", "to"], ["period"]),
         ["what_if_monthly"] = (
-            "Aynı TL tutarı son 12 ayın her ayı dolar, euro ve gram altın olarak biriktirseydi bugün ne ederdi ve fiyat ne kadar "
-            + "dalgalandı; yatırım tavsiyesi değildir. amount: kullanıcının söylediği aylık tutar, currencyCode: TRY. fromAdvice: tutar "
-            + "yerine önerilen aylık tasarruf isteniyorsa true.", ["amount", "currencyCode", "fromAdvice"], []),
+            "Aynı TL tutarı son birkaç ayın her ayı dolar, euro ve gram altın olarak biriktirseydi bugün ne ederdi ve fiyat ne kadar "
+            + "dalgalandı; yatırım tavsiyesi değildir. months: kaç ay biriktirildiği, 2-22. amount: kullanıcının söylediği aylık tutar, "
+            + "currencyCode: TRY. fromAdvice: tutar yerine önerilen aylık tasarruf isteniyorsa true.",
+            ["amount", "currencyCode", "fromAdvice", "months"], ["months"]),
     };
 
     private static async Task<IList<ModelContextProtocol.Client.McpClientTool>> ToolsAsync()
@@ -169,6 +170,7 @@ public sealed class ToolDiscoveryTests
     [InlineData("get_upcoming_payments", "days", 1, 31)]
     [InlineData("simulate_savings", "reductionPercent", 1, 100)]
     [InlineData("simulate_savings", "months", 1, 12)]
+    [InlineData("what_if_monthly", "months", 2, 22)]
     public async Task Counts_are_whole_numbers_within_their_limits(string tool, string argument, int minimum, int maximum)
     {
         var rule = (await ToolsAsync()).Single(t => t.Name == tool).JsonSchema.GetProperty("properties").GetProperty(argument);
