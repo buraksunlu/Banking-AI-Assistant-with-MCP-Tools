@@ -734,3 +734,45 @@ dışarı dokunmaktır); (3) en büyük yazıda sürüm kartı daralıyor, Çık
 K5-B'nin "cevap beklerken sekme değiş" davranışı modelle denenmedi (AI servisi kapalıydı).
 Sınırlar: açık sekmeye yeniden dokununca yığının başına dönme yok; cevap gelince sekme rozeti yok (K5-C seçilmedi); Profil yalnız
 gösterir.
+
+## iOS-v: açık krem tema (UX-01 PR1; 13 Kasım 2026)
+
+Uygulama artık her zaman açık temada: krem zemin, beyaz kart, koyu kehribar vurgu. UI-01'in "her zaman siyah" ve UI-04'ün mavi vurgu
+kararlarının yerine geçer (UX-01 K6-A, Z3). Yalnız görünüm değişti: ekranlar, ViewModel, ağ ve rakam mantığı aynı; ekranlar renkleri
+yine yalnız `Palette`'ten aldığı için hiçbir ekran dosyasında renk yazılmadı (yalnız iki düğme dolgusu yeni tokena geçti).
+
+| Token | Değer | Ölçüm (WCAG) |
+|---|---|---|
+| `background` | `#F6F1E7` krem | — |
+| `surface` / `raised` / `hairline` | `#FFFFFF` / `#EFE7D8` / `#E2D8C4` | — |
+| `primaryText` | `#2A2117` | 14,04 zemin · 15,81 kart · 12,87 raised |
+| `secondaryText` | `#6E604D` | 5,42 · 6,10 · 4,96 |
+| `accent` (yazı, bağlantı, seçili, grafik çubuğu) | `#9A5100` | 5,25 · 5,91 · 4,81; soluk ay çubuğu (0,7) 3,23 |
+| `accentFill` (yeni; yalnız düğme dolgusu) | `#F5A700` | kartta 2,02 → yazı olarak kullanılmaz (testle sabit) |
+| `onAccent` | `#2A1A00` | 8,35 `accentFill` üstünde |
+| `incoming` / `failure` | `#1E7F45` / `#C8321F` | 5,03 kart / 5,34 kart · 4,74 zemin |
+
+Kararlar: **R1-A** kategori renkleri grafiktir (adları yanında ana yazı renginde), bu yüzden kartta ≥ 3:1 (WCAG 1.4.11); kendi aralarında
+ΔE ≥ 25, vurgu/düğme sarısı/gelen para/hata ve sınıflandırılmamış griye ΔE ≥ 20 (4,5 yazı eşiği açık temada yalnız cırtlak renk
+bırakıyordu). **R2-A** grafik çubukları koyu kehribar (`#9A5100`); mockup'taki sarı çubuk kartta 2,0:1 kalıyordu.
+Kategori seti: orange `#E0701A` · lime `#6E9A1F` · brown `#7A4E2E` · pink `#D6568C` · purple `#9B4FD0` · indigo `#3E57C9` · teal `#0B6F86` ·
+cyan `#2E9BD6` · magenta `#B8389E` · mint `#2F9E86` · slate `#8E6A8A` · yellow `#A88C00` · gray `#8A7F70`. Planın ilk mint/slate değerleri
+kaydırıldı (gelen paraya 20,0 sınırdaydı; gelir kartında griye 22,9 ile oradaki ≥ 25 testini geçmiyordu). İskelet dolgusu 0,16 → 0,18
+(0,16'da krem zeminde ΔE 11,7 < 12). `AccentColor` ve `LaunchBackground` asset'leri iki görünümde yeni değerde; `.preferredColorScheme(.light)`.
+
+Doğrulama: 374 test durumu geçti (371 + 3 yeni: vurgu/raised kontrastı, düğme sarısı yazı değil, kategoriler griden uzak; diğerleri yeni
+değerlere çevrildi ya da yeniden adlandırıldı). Dokuz kasıtlı bozmanın hepsi yakalandı: ikincil yazı `#9A8C78`, vurgu `#C46A00`,
+düğme yazısı beyaz, zemin beyaz, açılış rengi beyaz, teal = cyan, eski gri, iskelet 0,10, düğme sarısı = vurgu. Simülatörde (Murat, gerçek
+API ve model): giriş, Ana sayfa, Analiz (halka + aylık çubuk), Asistan (boş durum, cevap, bağlantı, öneri çipleri, dolu gönder düğmesi),
+Profil; Ana sayfa en büyük yazı boyutunda. Düzeltme gereken ekran çıkmadı.
+Sınır: Elif (iki para birimi) ve hata bandı/seçenek kartı simülatörde görülmedi (renkleri aynı tokenlardan geliyor ve testle korunuyor).
+
+```text
+DesignSystem/Palette.swift      açık değerler, accentFill, kategori tonları
+DesignSystem/Skeleton.swift     fillOpacity 0,18
+DesignSystem/Components.swift   birincil düğme dolgusu accentFill
+Chat/ChatView.swift             gönder düğmesi dolgusu accentFill
+App/BankingAIApp.swift          .preferredColorScheme(.light)
+Assets.xcassets                 AccentColor #9A5100, LaunchBackground #F6F1E7
+BankingAITests/                 DesignSystem, CategoryPalette, Identity testleri
+```

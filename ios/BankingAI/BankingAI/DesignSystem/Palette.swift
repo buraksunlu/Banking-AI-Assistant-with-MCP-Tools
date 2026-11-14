@@ -66,49 +66,53 @@ extension Swatch {
 }
 
 /// Every colour of the app, in one place (UI-01). Screens take colours from here and never write their own; the app is
-/// always black (decisions K1-A, K7-B) and has one accent, used sparingly (K2-A).
+/// always light, a warm cream with a dark amber accent (UX-01 Z3, K6-A, replacing UI-01's always-black theme).
 nonisolated enum Palette {
-    /// The screen: near black, so cards still step out of it (pure black would lose that step).
-    static let background = Swatch(0x0A0A0B)
+    /// The screen: a warm cream, so the white cards still step out of it (a white screen would lose that step).
+    static let background = Swatch(0xF6F1E7)
     /// Cards and rows.
-    static let surface = Swatch(0x141416)
+    static let surface = Swatch(0xFFFFFF)
     /// A card on a card: user messages, chips, the input capsule.
-    static let raised = Swatch(0x1C1C1F)
+    static let raised = Swatch(0xEFE7D8)
     /// The thin line between rows and around cards.
-    static let hairline = Swatch(0x26262A)
+    static let hairline = Swatch(0xE2D8C4)
 
-    static let primaryText = Swatch(0xEDEDEF)
-    static let secondaryText = Swatch(0x8E8E93)
+    static let primaryText = Swatch(0x2A2117)
+    static let secondaryText = Swatch(0x6E604D)
 
-    /// The icon's blue (UI-04 K11-B, replacing UI-01's gold): send, links, the selected state. Never a fill for large
-    /// areas, and never green, which is the colour of money coming in.
-    static let accent = Swatch(0x3D8BFF)
+    /// The dark amber (UX-01 Z3, replacing UI-04's blue): links, the selected state, chart bars. The theme's yellow is too
+    /// light to be read as text on cream or white, so text and lines take this darker tone. Never green, which is money in.
+    static let accent = Swatch(0x9A5100)
+    /// Button fill only; never text. The theme's yellow, which only a dark label on top of it can be read against.
+    static let accentFill = Swatch(0xF5A700)
     /// The label on an accent-filled button.
-    static let onAccent = Swatch(0x0A0A0B)
+    static let onAccent = Swatch(0x2A1A00)
     /// Money coming in; spending stays in the normal text colour so a normal purchase does not look like a warning.
-    static let incoming = Swatch(0x5FCB8A)
-    static let failure = Swatch(0xFF6B6B)
+    static let incoming = Swatch(0x1E7F45)
+    static let failure = Swatch(0xC8321F)
 }
 
 extension CategoryTone {
-    /// The colour of each category tone (UI-05 K6-A, K11-A), chosen so that no two look alike and none looks like the accent,
-    /// money coming in or an error (`CategoryPaletteTests`). The names are the hue each one is nearest to (K12-B): lime is
-    /// the old green, which is only for money coming in; magenta is the old red, slate the old blue, which was the accent's twin.
+    /// The colour of each category tone (UI-05 K6-A, K11-A; re-measured for the light theme in UX-01 R1-A). They are graphics
+    /// beside a written name, so 3:1 on the card; no two look alike (ΔE 25) and none looks like the accent, money coming in,
+    /// an error or the unclassified grey (ΔE 20, `CategoryPaletteTests`). The names are the hue each one was first nearest to
+    /// (K12-B); mint and slate kept their names but moved: the first mint sat too close to the green of money coming in,
+    /// the first slate to the unclassified grey.
     var swatch: Swatch {
         switch self {
-        case .orange: Swatch(0xB47226)
-        case .lime: Swatch(0xCAD37E)
-        case .brown: Swatch(0xB79174)
+        case .orange: Swatch(0xE0701A)
+        case .lime: Swatch(0x6E9A1F)
+        case .brown: Swatch(0x7A4E2E)
         case .pink: Swatch(0xD6568C)
-        case .purple: Swatch(0xA56DDA)
-        case .indigo: Swatch(0x9C96D9)
-        case .teal: Swatch(0x2FA3A7)
-        case .cyan: Swatch(0x248ABD)
-        case .magenta: Swatch(0xE734D4)
-        case .mint: Swatch(0xA1DCC3)
-        case .slate: Swatch(0xB0BBCB)
-        case .yellow: Swatch(0xDDBC27)
-        case .gray: Swatch(0x6E6E73)
+        case .purple: Swatch(0x9B4FD0)
+        case .indigo: Swatch(0x3E57C9)
+        case .teal: Swatch(0x0B6F86)
+        case .cyan: Swatch(0x2E9BD6)
+        case .magenta: Swatch(0xB8389E)
+        case .mint: Swatch(0x2F9E86)
+        case .slate: Swatch(0x8E6A8A)
+        case .yellow: Swatch(0xA88C00)
+        case .gray: Swatch(0x8A7F70)
         }
     }
 }

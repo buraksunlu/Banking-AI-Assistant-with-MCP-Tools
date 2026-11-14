@@ -22,7 +22,7 @@ struct SectionTitle: View {
     }
 }
 
-/// The one filled button of a screen: the accent with a black label.
+/// The one filled button of a screen: the yellow button fill with a dark label.
 struct PrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -30,7 +30,7 @@ struct PrimaryButtonStyle: ButtonStyle {
             .foregroundStyle(Palette.onAccent.color)
             .frame(maxWidth: .infinity)
             .padding(.vertical, Layout.regular)
-            .background(Palette.accent.color.opacity(configuration.isPressed ? 0.8 : 1),
+            .background(Palette.accentFill.color.opacity(configuration.isPressed ? 0.8 : 1),
                         in: RoundedRectangle(cornerRadius: Layout.controlRadius))
     }
 }
@@ -108,7 +108,7 @@ struct AssistantMark: View {
 }
 
 extension View {
-    /// A text field on the black screen (UI-04 K4-B): a raised fill with a hairline that takes the accent while the field has the
+    /// A text field on the screen (UI-04 K4-B): a raised fill with a hairline that takes the accent while the field has the
     /// focus. The label is not inside the field, so it stays visible once the user has typed.
     func inputField(focused: Bool) -> some View {
         self.padding(Layout.regular)
@@ -179,7 +179,7 @@ struct DetailRow: View {
 }
 
 extension View {
-    /// A pushed screen on the black ground: the same colour behind the content and behind the navigation bar, so the bar
+    /// A pushed screen on the screen colour: the same colour behind the content and behind the navigation bar, so the bar
     /// does not turn system grey while the content scrolls under it (UI-05).
     func blackScreen() -> some View {
         self.background(Palette.background.color)
