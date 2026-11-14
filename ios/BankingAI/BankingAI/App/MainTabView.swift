@@ -9,7 +9,9 @@ struct MainTabView: View {
     @State private var accounts: AccountsViewModel
     @State private var recent: RecentTransactionsViewModel
     @State private var history: TransactionHistoryViewModel
-    @State private var summary: SpendingSummaryViewModel
+    @State private var pace: MonthPaceViewModel
+    /// The home panel's own categories, always this month; the analysis tab's ring has its own period choice.
+    @State private var homeCategories: CategoryBreakdownViewModel
     @State private var income: IncomeShareViewModel
     @State private var category: CategoryBreakdownViewModel
     @State private var monthly: MonthlyTrendViewModel
@@ -20,7 +22,8 @@ struct MainTabView: View {
         _accounts = State(initialValue: AccountsViewModel(api: api))
         _recent = State(initialValue: RecentTransactionsViewModel(api: api))
         _history = State(initialValue: TransactionHistoryViewModel(api: api))
-        _summary = State(initialValue: SpendingSummaryViewModel(api: api))
+        _pace = State(initialValue: MonthPaceViewModel(api: api))
+        _homeCategories = State(initialValue: CategoryBreakdownViewModel(api: api))
         _income = State(initialValue: IncomeShareViewModel(api: api))
         _category = State(initialValue: CategoryBreakdownViewModel(api: api))
         _monthly = State(initialValue: MonthlyTrendViewModel(api: api))
@@ -29,12 +32,11 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            HomeView(model: home, accounts: accounts, recent: recent, history: history, summary: summary, income: income,
-                     show: show)
+            HomeView(model: home, pace: pace, categories: homeCategories, income: income, show: show)
                 .tabItem { label(.home) }
                 .tag(AppTab.home)
             NavigationStack {
-                AnalyticsView(category: category, monthly: monthly)
+                AnalyticsView(category: category, monthly: monthly, income: income)
             }
             .tabItem { label(.analysis) }
             .tag(AppTab.analysis)
@@ -45,6 +47,15 @@ struct MainTabView: View {
             .tag(AppTab.assistant)
             NavigationStack {
                 ProfileView(model: home)
+                    .navigationDestination(for: MyAccountsRoute.self) { _ in
+                        MyAccountsView(accounts: accounts, recent: recent)
+                    }
+                    .navigationDestination(for: TransactionHistoryRoute.self) { _ in
+                        TransactionHistoryView(model: history)
+                    }
+                    .navigationDestination(for: TransactionItem.self) { item in
+                        TransactionDetailView(item: item)
+                    }
             }
             .tabItem { label(.profile) }
             .tag(AppTab.profile)
@@ -58,7 +69,7 @@ struct MainTabView: View {
         Label(tab.title, systemImage: tab.symbol)
     }
 
-    /// The home screen's ways to the other tabs: its spending card and the profile circle (K4-A, K8-B).
+    /// The home screen's ways to the other tabs: its panel's links and the profile circle (K4-A, K8-B, UX-01 PR2).
     private func show(_ tab: AppTab) {
         selection = tab
     }

@@ -199,6 +199,9 @@ Beyazda en düşük: cyan 3,10, yellow 3,27, orange 3,23; gri 3,92.
 - **Testler:** panel görünüm modeli (üç istek bağımsız; biri hata verirse diğerleri dolu; AI kapalıyken dolu), yükleniyor/boş/hata
   UI-06 bileşenleriyle; kasıtlı bozma.
 - **Karar soruları planında:** kart sırası, "Nereye gitti"de kaç kategori, gelir payı kartı yokken (maaşsız persona) ne görünür.
+- **Uygulandı (14 Kasım 2026, docs/ios.md "iOS-w"):** K1-A sıra · K2-A ilk 3 · K3-D büyük gelir kartı Analiz'e · K4-B maaşsızda INC-04
+  cümlesi · K5-C fark tutar + yüzde · K6-A Profil'de iki satır · K7-A eski özet kartı silindi. Gelir payı %62,81 (yuvarlanmaz). İki para
+  birimi vakası Elif değil Zeynep (TRY + USD); Elif'in TRY hesabında bu ay harcama yok.
 
 ## PR3 — Kategori detayı backend'i (K4-A, özet)
 

@@ -96,7 +96,7 @@ private struct IncomeShareBlock: View {
 
 /// The bar: each group's share of income from the left, the rest an empty track. The legend says the same in words, so the
 /// bar itself is not read by VoiceOver.
-private struct IncomeShareBar: View {
+struct IncomeShareBar: View {
     let segments: [IncomeShareDisplay.Segment]
 
     var body: some View {

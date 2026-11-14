@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The profile tab (UI-07 K6-B): who is signed in, read from the home header's `GET /api/me` answer, the app's version, and
-/// signing out behind a confirmation (K7-B).
+/// The profile tab (UI-07 K6-B): who is signed in, read from the home header's `GET /api/me` answer, the way to the accounts and
+/// the whole history (UX-01 PR2, K6-A), the app's version, and signing out behind a confirmation (K7-B).
 struct ProfileView: View {
     let model: HomeViewModel
     @State private var confirmingSignOut = false
@@ -21,6 +21,13 @@ struct ProfileView: View {
                 } else {
                     details(Skeleton.profile).skeleton()
                 }
+                VStack(alignment: .leading, spacing: 0) {
+                    ProfileLink(title: "Hesaplarım", symbol: "creditcard", route: MyAccountsRoute())
+                    HairlineDivider()
+                    ProfileLink(title: "Tüm işlemler", symbol: "list.bullet.rectangle", route: TransactionHistoryRoute())
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .cardSurface(padding: Layout.regular)
                 if let version = ProfileDisplay.version(Bundle.main.infoDictionary ?? [:]) {
                     VStack(alignment: .leading, spacing: 0) {
                         DetailRow(label: "Uygulama sürümü", value: version)
@@ -76,5 +83,35 @@ struct ProfileView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .cardSurface(padding: Layout.regular)
         }
+    }
+}
+
+/// A row of the profile that opens another screen of the profile stack.
+private struct ProfileLink<Route: Hashable>: View {
+    let title: String
+    let symbol: String
+    let route: Route
+
+    var body: some View {
+        NavigationLink(value: route) {
+            HStack(spacing: Layout.medium) {
+                Image(systemName: symbol)
+                    .foregroundStyle(Palette.accent.color)
+                    .frame(width: 24)
+                    .accessibilityHidden(true)
+                Text(title)
+                    .font(Typography.body)
+                    .foregroundStyle(Palette.primaryText.color)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Palette.secondaryText.color)
+                    .accessibilityHidden(true)
+            }
+            .frame(minHeight: 44)
+            .padding(.vertical, Layout.tight)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }

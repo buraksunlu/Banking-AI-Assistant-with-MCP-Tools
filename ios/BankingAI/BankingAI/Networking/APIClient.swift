@@ -42,11 +42,12 @@ extension APIRequest where Response == CategoryBreakdown {
     }
 }
 
-extension APIRequest where Response == SpendingSummary {
-    /// `GET /api/analytics/spending-summary`: what one named period cost, per currency.
-    static func spendingSummary(period: AnalyticsPeriod) -> APIRequest<SpendingSummary> {
-        APIRequest(method: "GET", path: "api/analytics/spending-summary",
-                   query: [URLQueryItem(name: "period", value: period.rawValue)], body: nil, requiresToken: true)
+extension APIRequest where Response == PeriodComparison {
+    /// `GET /api/analytics/period-comparison?comparison=MonthToDate`: this month so far against the same days of the month
+    /// before. The backend picks the days; the phone never reads a calendar.
+    static var monthToDateComparison: APIRequest<PeriodComparison> {
+        APIRequest(method: "GET", path: "api/analytics/period-comparison",
+                   query: [URLQueryItem(name: "comparison", value: "MonthToDate")], body: nil, requiresToken: true)
     }
 }
 
