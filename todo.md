@@ -479,7 +479,11 @@ ayrıntı için **cevap modu**: kullanıcı basit cevap mı, detaylı/istatistik
   ölçümlerin (cevap doğruluğu, sayı denetimi) yeni biçimde nasıl korunacağı.
 - [x] UX-01 plan — Cep asistanı tasarımı ve uygulama planı (13 Kasım 2026). Tasarım `docs/superpowers/specs/2026-11-13-ux-01-pocket-assistant-design.md`, plan `docs/superpowers/plans/2026-11-13-ux-01-pocket-assistant.md`, taslak ekranlar `docs/superpowers/specs/ux-01-mockups/`. Kullanıcı seçimleri: kart B (büyük rakam, fark, çubuklar, tek günlük cümle), ana ekran H2 "bu ay" paneli, alttan kayan soru sayfası F1, açık krem tema Z3, Basit/Detaylı (Profil'de varsayılan + kart başına anahtar), kartı kod kurar (Y2). Kararlar: K1-A (cümle kod kalıbıyla) K2-B (Asistan sekmesi kalır, kayan sayfayla aynı oturum) K3-A (ilk altı araç) K4-A (yeni kategori detayı aracı) K5-A (panel satırı kayan sayfayı açar) K6-A (her zaman açık tema) K7-A (model yalnız araç seçer) K8-A (simge/ad kapsam dışı) K9-A (PR sırası).
 - [x] UX-01 PR1 — Z3 açık tema, bütün ekranlar (13 Kasım 2026, docs/ios.md "iOS-v"): krem zemin, beyaz kart, vurgu `#9A5100`, sarı `accentFill` yalnız düğme dolgusu; R1-A kategori renkleri grafik eşiği 3:1 (aralarında ΔE ≥ 25, anlamlı renklere ve griye ≥ 20), R2-A çubuklar koyu kehribar; iskelet 0,18; `.preferredColorScheme(.light)`. iOS 371 → 374 test durumu, 9 kasıtlı bozmanın hepsi yakalandı; simülatörde Murat ile bütün sekmeler ve en büyük yazı. Sınır: Elif ve hata bandı simülatörde görülmedi.
-- [ ] UX-01 PR2 — Ana ekran "bu ay" paneli; hesaplar ve tüm işlemler Profil'e.
+- [x] UX-01 PR2 — Ana ekran "bu ay" paneli; hesaplar ve tüm işlemler Profil'e (14 Kasım 2026, docs/ios.md "iOS-w"). Üç kart üç REST
+  cevabından (`period-comparison` MonthToDate, bu ayın `category-breakdown`'u, `spending-advice`), model yok. Kararlar K1-A (sıra) K2-A (ilk 3
+  kategori) K3-D (büyük gelir kartı Analiz'e, "Nerede kısarım?" oraya) K4-B (maaşsızda INC-04 cümlesi) K5-C (fark tutar + yüzde, backend'in)
+  K6-A (Profil'de "Hesaplarım", "Tüm işlemler") K7-A (eski özet kartı ve `spending-summary` isteği silindi). iOS 389 test durumu (21 yeni),
+  8 kasıtlı bozmanın hepsi yakalandı. Bulgu: iki para birimi örneği Elif değil Zeynep (TRY + USD).
 - [ ] UX-01 PR3 — `get_category_spending` analitiği + API + MCP aracı (K4-A).
 - [ ] UX-01 PR4 — `cards` sözleşmesi (`ai/service/cards.py`, .NET, OpenAPI) ve ilk altı araç.
 - [ ] UX-01 PR5 — iPhone kayan sayfa, kart şablonları, Basit/Detaylı; Asistan sekmesi aynı oturum.

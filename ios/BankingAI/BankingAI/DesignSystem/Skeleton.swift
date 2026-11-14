@@ -22,6 +22,10 @@ enum Skeleton {
                          percentage: 25)
     }
 
+    /// The pace card while it loads (UX-01 PR2): round made-up figures, never a persona's.
+    static let pace = CurrencyComparison(currencyCode: "TRY", currentAmount: 1_000, currentCount: 1, previousAmount: 1_000,
+                                         change: 100, percentageChange: 10)
+
     /// The income card while it loads: half the bar in three parts and no advice, a shape and not a figure.
     static let incomeShare = CurrencyAdvice(
         currencyCode: "TRY", totalSpent: 100, incomeBase: 200, spentShare: 50,

@@ -1,14 +1,12 @@
 import SwiftUI
 
-/// The home tab (UI-03, UI-07): the header, this month's spending, last month against income (INC-04), the customer's
-/// accounts (IOS-04, decision K1-D) and the newest transactions with the way to all of them (IOS-07). The analysis, the
-/// assistant and the profile are tabs of their own; the spending card and the profile circle switch to them (K4-A, K8-B).
+/// The home tab (UX-01 PR2, H2): the header and the "bu ay" panel — this month's pace, where the money went and last month
+/// against income. Each card has its own REST answer and none needs the assistant, so the panel stays full when the model is
+/// down. The accounts and transactions moved to the profile tab (K6-A); the cards' links switch to the analysis tab.
 struct HomeView: View {
     let model: HomeViewModel
-    let accounts: AccountsViewModel
-    let recent: RecentTransactionsViewModel
-    let history: TransactionHistoryViewModel
-    let summary: SpendingSummaryViewModel
+    let pace: MonthPaceViewModel
+    let categories: CategoryBreakdownViewModel
     let income: IncomeShareViewModel
     /// Switches the tab bar to another tab.
     let show: (AppTab) -> Void
@@ -17,39 +15,33 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: Layout.large) {
-                    HomeHeader(model: model, dayLine: HomeDisplay.dayLine(summary.endDate)) { show(.profile) }
-                    // A failed card is not a button: its own "Tekrar dene" must not also switch to the analysis tab.
-                    if case .failed = summary.state {
-                        SpendingSummaryCard(model: summary)
-                    } else {
-                        Button { show(.analysis) } label: {
-                            SpendingSummaryCard(model: summary)
+                    HomeHeader(model: model, dayLine: HomeDisplay.dayLine(pace.endDate)) { show(.profile) }
+                    VStack(alignment: .leading, spacing: Layout.medium) {
+                        // A failed card is not a button: its own "Tekrar dene" must not also switch to the analysis tab.
+                        if case .failed = pace.state {
+                            MonthPaceCard(model: pace)
+                        } else {
+                            Button { show(.analysis) } label: {
+                                MonthPaceCard(model: pace)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityHint("Harcama analizini açar")
                         }
-                        .buttonStyle(.plain)
+                        WhereItWentCard(model: categories) { show(.analysis) }
+                        IncomeGlanceCard(model: income) { show(.analysis) }
                     }
-                    IncomeShareCard(model: income)
-                    AccountsSection(model: accounts)
-                    RecentTransactionsSection(model: recent)
                 }
                 .padding(.horizontal, Layout.regular)
                 .padding(.top, Layout.small)
+                .padding(.bottom, Layout.large)
             }
             .background(Palette.background.color)
             .refreshable {
-                async let accountsLoaded: Void = accounts.load()
-                async let recentLoaded: Void = recent.load()
-                async let summaryLoaded: Void = summary.load()
+                async let paceLoaded: Void = pace.load()
+                async let categoriesLoaded: Void = categories.load()
                 async let incomeLoaded: Void = income.load()
-                _ = await (accountsLoaded, recentLoaded, summaryLoaded, incomeLoaded)
+                _ = await (paceLoaded, categoriesLoaded, incomeLoaded)
             }
-            .navigationDestination(for: TransactionHistoryRoute.self) { _ in
-                TransactionHistoryView(model: history)
-            }
-            .navigationDestination(for: TransactionItem.self) { item in
-                TransactionDetailView(item: item)
-            }
-            // The header replaces the navigation bar; screens pushed from here bring their own. The title is still needed:
-            // it is their back button's label, which would otherwise be the system's English "Back".
             .navigationTitle(AppTab.home.title)
             .toolbar(.hidden, for: .navigationBar)
             .task { await model.load() }

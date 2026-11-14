@@ -776,3 +776,48 @@ App/BankingAIApp.swift          .preferredColorScheme(.light)
 Assets.xcassets                 AccentColor #9A5100, LaunchBackground #F6F1E7
 BankingAITests/                 DesignSystem, CategoryPalette, Identity testleri
 ```
+
+## iOS-w: ana ekranda "bu ay" paneli (UX-01 PR2; 14 Kasım 2026)
+
+Ana ekranın gövdesi üç kısa kart oldu (H2). Her kart kendi REST cevabından gelir, hiçbiri modele ya da AI servisine gitmez; asistan
+kapalıyken panel dolu kalır. Hesaplar ve son işlemler Profil'e taşındı (yeniden yazılmadı).
+
+| Kart | İstek | Ne gösterir |
+|---|---|---|
+| Bu ay harcama · N gün (`Home/MonthPaceCard`) | `period-comparison?comparison=MonthToDate` | rakam, "N alışveriş", "Aynı günlerden 635,00 TL az (%7,15)" |
+| Nereye gitti (`Home/WhereItWentCard`) | `category-breakdown?period=ThisMonth` (kendi modeli) | ilk 3 kategori, backend payıyla çubuk, "Tümü ›" |
+| Gelir payı · <ay> (`Home/IncomeGlanceCard`) | `spending-advice?period=LastMonth` (INC-04 modeli, ikinci istek yok) | pay, grup çubuğu, "Nerede kısarım? ›" |
+
+Kararlar: **K1-A** sıra hız → nereye → gelir payı. **K2-A** en fazla 3 kategori (`HomeDisplay.shownCategories`), satırlar PR5'e kadar
+dokunulmaz (UX-01 K5-A). **K3-D** büyük INC-04 kartı önerileriyle Analiz sekmesinin altına taşındı; "Tümü", "Nerede kısarım?" ve kart 1
+Analiz sekmesine geçirir (PR5'te kayan sayfa). **K4-B** maaşsız personada INC-04 cümlesi kalır, çubuk ve "Nerede kısarım?" görünmez.
+**K5-C** fark backend'in `change` ve `percentageChange`'i, işaretsiz yazılır; sözcük (az/fazla/aynı) ve ok yalnız işaretten, ok renksiz;
+yüzde `null` ise "Geçen ayın aynı günlerinde harcama yok" (asla "%0"); bu ay 0 ise "Henüz harcama yok". **K6-A** Profil'de "Hesaplarım ›"
+(`Profile/MyAccountsView`: `AccountsSection` + `RecentTransactionsSection`) ve "Tüm işlemler ›"; hesap, işlem ve geçmiş yolları Profil
+yığınında. **K7-A** `SpendingSummaryViewModel`/`Card` ve kullanılmayan `spending-summary` isteği silindi; başlıktaki gün ve "N gün"
+`current.endDate`'ten.
+
+Beklenen değerler (10 Ekim 2026, SQL ile doğrulandı): Murat 8.241,40 / 8.876,40 → −635,00 (%−7,15), Market 5.133,00 · Akaryakıt
+2.658,50 · Fatura 449,90, Eylül gelir payı %62,81; Zeynep TRY 5.118,50 (−389,00) ve USD 22,99 (aynı) iki satır; Ada 735,00 / 0 → yüzde
+`null`; Hasan 0 / 1.797,50; Can maaşsız (`NoIncome`). Planın "Elif EUR + TRY" örneği düzeltildi: Elif'in TRY hesabında bu ay harcama yok,
+iki para birimi görünen tek persona Zeynep.
+
+Doğrulama: 389 test durumu geçti (21 yeni panel testi `HomePanelTests`; eski özet kartının 7 testi karşılaştırma modeline taşındı).
+Sekiz kasıtlı bozmanın hepsi yakalandı: az/fazla ters, 4 kategori, `null` yüzde "%0", gün önceki dönemden, maaşsızda öneri, istek
+`PreviousFullMonth`, çubuk %100'de kırpılmıyor, işaretli tutar. Sınır: görünümler (Profil yolları, kartın düğme olması) birim testinde
+değil, simülatörde denenir.
+
+```text
+Home/MonthPaceViewModel.swift   yeni: period-comparison, endDate
+Home/MonthPaceCard.swift        yeni: kart 1
+Home/WhereItWentCard.swift      yeni: kart 2 (ayrı CategoryBreakdownViewModel, hep bu ay)
+Home/IncomeGlanceCard.swift     yeni: kart 3 (IncomeShareBar paylaşılır)
+Home/HomeDisplay.swift          paceTitle/Headline/Line/Symbol, topCategories, barFraction, incomeTitle/Glance, offersAdvice
+Home/HomeView.swift             gövde üç kart
+Profile/MyAccountsView.swift    yeni: hesaplar + son işlemler
+Profile/ProfileView.swift       "Hesaplarım", "Tüm işlemler" satırları
+Analytics/AnalyticsView.swift   INC-04 kartı en altta
+App/MainTabView.swift           pace, homeCategories; Profil yığınının yolları
+Networking/                     PeriodComparison, monthToDateComparison; SpendingSummary silindi
+Analytics/SpendingSummary*      silindi
+```

@@ -1378,6 +1378,9 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Ana ekranda "bu ay" paneli (UX-01 PR2, 14 Kasım 2026; docs/ios.md "iOS-w"): üç kart üç REST cevabından, model yok (asistan kapalıyken
+  dolu); fark backend'in `change`/`percentageChange`'i, telefon yalnız sözcüğü işaretten seçer; hesaplar ve tüm işlemler Profil'de, büyük
+  gelir kartı Analiz'de; eski özet kartı silindi. K1-A K2-A K3-D K4-B K5-C K6-A K7-A. iOS 389 test durumu, 8 kasıtlı bozma yakalandı.
 - Açık krem tema (UX-01 PR1, 13 Kasım 2026; docs/ios.md "iOS-v"): uygulama her zaman açık (UI-01 siyahı ve UI-04 mavisi yerine);
   vurgu koyu kehribar `#9A5100`, sarı `accentFill` `#F5A700` yalnız düğme dolgusu, asla yazı; kategori renkleri grafik (kartta ≥ 3:1, R1-A),
   çubuklar vurgu renginde (R2-A). Yalnız görünüm; ViewModel/ağ aynı. iOS 374 test durumu, 9 kasıtlı bozma yakalandı.

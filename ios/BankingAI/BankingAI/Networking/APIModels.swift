@@ -273,18 +273,23 @@ struct CategorySpending: Decodable, Equatable, Identifiable {
     var id: String { categoryCode ?? AnalyticsDisplay.uncategorizedID }
 }
 
-/// `GET /api/analytics/spending-summary`: what was spent in the period, per currency and never added together. Only what the
-/// home card shows is decoded; `period` carries the backend's own days (the card's date line, UI-03 K1-A).
-struct SpendingSummary: Decodable, Equatable {
-    let period: SearchedPeriod
-    let currencies: [CurrencySpending]
+/// `GET /api/analytics/period-comparison`: two periods' spending per currency, never added together. Only what the home
+/// panel shows is decoded (UX-01 PR2); `current.endDate` is the backend's today, which the header writes.
+struct PeriodComparison: Decodable, Equatable {
+    let current: SearchedPeriod
+    let previous: SearchedPeriod
+    let currencies: [CurrencyComparison]
 }
 
-/// One currency's spending in the period (purchases only, personal accounts).
-struct CurrencySpending: Decodable, Equatable, Identifiable {
+/// One currency of a comparison. `change` is current − previous as the backend computed it; `percentageChange` is nil when
+/// the previous period had nothing (no rate of growth from zero).
+struct CurrencyComparison: Decodable, Equatable, Identifiable {
     let currencyCode: String
-    let totalAmount: Decimal
-    let transactionCount: Int
+    let currentAmount: Decimal
+    let currentCount: Int
+    let previousAmount: Decimal
+    let change: Decimal
+    let percentageChange: Decimal?
 
     var id: String { currencyCode }
 }
