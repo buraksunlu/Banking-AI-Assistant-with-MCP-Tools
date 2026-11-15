@@ -649,6 +649,41 @@ Beklenen değerler (fiyat satırlarından elle; yüzdeler tutardan bağımsız):
 
 Sınırlar: pencere sabit 12 ay; öneri yalnız son tam aydan; faiz, enflasyon, alış-satış farkı yok (uyarıda yazılı); TL dışı tutar 400.
 
+## UX-01 PR3 — Kategori detayı (`CategorySpendingService`, 15 Kasım 2026)
+
+Soru: "Markete ne kadar gitti?" Tek kategori, para birimi başına: dönem toplamı ve işlem sayısı, önceki dönem ve fark, işyerlerine
+dağılım (kategorinin içinde pay), en büyük işlem, son 6 tam ay + devam eden ay, 6 tam ayın ortalaması ve toplam harcamadaki pay.
+Kararlar (15 Kasım 2026): K1-B K2-A K3-A K4-A K5-C K6-B K7-A.
+
+```text
+önceki dönem (K1-B, PeriodResolver.ResolvePrevious) = aynı pencere kendi birimiyle geri:
+  Today/Yesterday −1 gün · ThisWeek/LastWeek/Last7Days −7 gün · Last30Days −30 gün · ThisMonth −1 ay (aynı günler, kısa aya kırpılır)
+  LastMonth bir önceki tam ay · Last3Months/Last6Months bitişi başlangıçtan bir gün önce · ThisYear geçen yılın aynı günleri
+  Custom aynı uzunlukta, bir gün önce biten aralık
+seri (K2-A)   = ResolveMonthlyWindows(6): 6 tam ay + devam eden ay (IsPartial); ortalama yalnız 6 tam aydan
+ortalamaya göre = yalnız dönem bu tam aylardan biriyse (yoksa null: ayın bir kısmı tam ayların ortalamasıyla karşılaştırılmaz)
+en büyük (K3-A) = tutar ↓, en yeni, Id (en yüksek işlemlerle aynı)
+pay           = kategori / dönemin bütün harcaması (sınıflandırılmamış dahil)
+satır (K4-A)  = dönemde, önceki dönemde ya da seride harcaması olan her para birimi; 0 gerçek sıfırdır; kategoride hiç harcama yoksa boş liste
+```
+
+Yüzdeler ve ortalamalar 2 ondalık `AwayFromZero`; önceki dönem 0 ise `percentageChange` null, işlemsiz dönemde `averagePerTransaction`
+ve `largest` null. Bilinmeyen kod `ArgumentException` (`CategoryCode`). Ölçülen sorgu sayısı 4 (K7-A): saat dilimi, kategori,
+kategorinin üç penceredeki satırları (5 kolon; pencereler arasındaki satırlar okunmaz), dönemin para birimi toplamları.
+
+Beklenen değerler (demo anı 10 Ekim 2026, bağımsız SQL ile doğrulandı):
+
+| Vaka | Dönem | Önceki | Fark | İşyerleri | En büyük | Ortalama / göre | Pay |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Murat, Market, LastMonth | 18.016,50 (8; 2.252,06) | Ağu 11.944,50 (5) | +6.072,00, +%50,84 | BİM 6.216,00 %34,50 · Migros Jet 5.317,50 %29,51 · Migros Sanal Market 3.577,50 %19,86 · A101 2.905,50 %16,13 | 3.476,00 BİM 3 Eyl | 12.988,08 / +%38,72 | 53.388,39'un %33,75'i |
+| Murat, Market, ThisMonth | 5.133,00 (2; 2.566,50) | 1–10 Eyl 7.176,50 (3) | −2.043,50, −%28,47 | Migros Jet | 3.290,50 Migros Jet 6 Eki | null | 8.241,40'ın %62,28'i |
+| Ada, Yeme & İçme, ThisMonth | 590,00 (4) | 1–10 Eyl 0 | +590,00, null | — | — | — | 735'in %80,27'si |
+| Ada, Abonelik, ThisMonth | 0 (satır var) | 0 | 0, null | yok | null | 329,98 / null | %0,00 |
+
+Murat Market serisi (Nis–Eki): 8.654,00 · 10.339,00 · 12.896,00 · 16.078,50 · 11.944,50 · 18.016,50 · 5.133,00 (kısmi).
+
+Sınırlar: işyeri ya da hesap türüne göre ayrı seri yok; seri penceresi dönemden bağımsız hep "bugünden geriye"dir.
+
 ## ANA-08 — Kenar durumları (`AnalyticsEdgeCaseTests`)
 
 Geçici kayıtlar testin kendi DB transaction'ında eklenir ve rollback edilir; demo verisi 116

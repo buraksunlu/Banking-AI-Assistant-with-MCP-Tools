@@ -317,7 +317,9 @@ def test_real_server_lists_the_published_tools():
     assert names == {"get_spending_summary", "get_category_breakdown", "get_merchant_spending",  # MCP-a
                      "get_merchant_breakdown", "get_highest_transactions", "compare_spending", "get_monthly_trend",  # MCP-08
                      "get_recurring_payments", "get_upcoming_payments",
-                     "check_budget", "simulate_savings"}  # MCP-17/18
+                     "check_budget", "simulate_savings",  # MCP-17/18
+                     "get_income_share", "get_spending_advice", "what_if_one_off", "what_if_monthly",  # INC-03
+                     "get_category_spending"}  # UX-01 PR3
 
 
 @real

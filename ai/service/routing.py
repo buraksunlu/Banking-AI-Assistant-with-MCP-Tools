@@ -24,7 +24,9 @@ GENERAL, PLANNING, WEALTH = "general", "planning", "wealth"
 GROUPS = {
     GENERAL: ("get_spending_summary", "get_category_breakdown", "get_merchant_spending", "get_merchant_breakdown",
               "get_highest_transactions", "compare_spending", "get_monthly_trend", "get_recurring_payments",
-              "get_upcoming_payments"),
+              "get_upcoming_payments",
+              # UX-01 PR3 K6-B: the category detail is a spending question too; its description, not a rule, tells it apart.
+              "get_category_spending"),
     PLANNING: ("check_budget", "simulate_savings"),
     # INC-03 K3-A: income, advice and the what-if scenarios; reached by word rules only (K16-A: the model never picks this group).
     WEALTH: ("get_income_share", "get_spending_advice", "what_if_one_off", "what_if_monthly"),

@@ -18,7 +18,7 @@ public sealed class AnalyticsController(
     SpendingSummaryService summaries, CategoryBreakdownService categories, MerchantSpendingService merchants,
     SpendingComparisonService comparisons, HighestTransactionsService highest, RecurringPaymentService recurring,
     UpcomingPaymentService upcoming, BudgetCheckService budgets, SavingsSimulationService savings, IncomeShareService incomeShares,
-    SpendingAdviceService advice, WhatIfService whatIf)
+    SpendingAdviceService advice, WhatIfService whatIf, CategorySpendingService categoryDetails)
     : ControllerBase
 {
     /// <summary>
@@ -36,6 +36,19 @@ public sealed class AnalyticsController(
         [FromQuery] string? period, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] Guid? accountId,
         CancellationToken cancellationToken) =>
         Ok(await categories.GetAsync(Spending(period, from, to, accountId), cancellationToken));
+
+    /// <summary>
+    /// <c>GET /api/analytics/category-spending</c>: one category's spending per currency (UX-01 PR3): the period and the one
+    /// before it, its merchants, the largest purchase, the last six complete months plus the running one and the share of
+    /// all spending. <c>categoryCode</c> must be a defined category code.
+    /// </summary>
+    [HttpGet("category-spending")]
+    public async Task<ActionResult<CategorySpendingDetail>> CategorySpendingAsync(
+        [FromQuery] string? categoryCode,
+        [FromQuery] string? period, [FromQuery] DateOnly? from, [FromQuery] DateOnly? to, [FromQuery] Guid? accountId,
+        CancellationToken cancellationToken) =>
+        // A missing code reaches the service's own text rule, which names the field.
+        Ok(await categoryDetails.GetAsync(Spending(period, from, to, accountId), categoryCode!, cancellationToken));
 
     /// <summary><c>GET /api/analytics/merchant-breakdown</c>: spending per merchant and currency, largest first.</summary>
     [HttpGet("merchant-breakdown")]

@@ -452,6 +452,7 @@ public sealed class AnalyticsEndpointTests
     [InlineData("monthly-trend?months=6")]
     [InlineData("highest-transactions?period=ThisMonth")]
     [InlineData("recurring-payments?")]
+    [InlineData("category-spending?categoryCode=FOOD&period=ThisMonth")]
     public async Task Part_two_endpoints_apply_the_token_and_account_rules(string pathAndQuery)
     {
         var path = $"/api/analytics/{pathAndQuery}";
@@ -468,6 +469,34 @@ public sealed class AnalyticsEndpointTests
         await AssertInvalidAsync($"{path}{separator}accountId={DenizShopAccount}", Deniz,
             "accountId", "Harcama analizi yalnızca şahsi hesaplar içindir.");
     }
+
+    // ---- category-spending (UX-01 PR3; figures in docs/analytics.md, checked by SQL)
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Category_spending_is_the_period_the_one_before_its_merchants_and_six_months()
+    {
+        var body = Ok(await GetAsync("/api/analytics/category-spending?categoryCode=GROCERY&period=LastMonth", Murat));
+
+        Assert.Equal(("GROCERY", "Market"), (body["categoryCode"]!.GetValue<string>(), body["displayName"]!.GetValue<string>()));
+        Assert.Equal(("2026-08-01", "2026-08-31"), Dates(body["previousPeriod"]!));
+        var tl = Assert.Single(body["currencies"]!.AsArray())!;
+        Assert.Equal(("18016.50", "11944.50", "50.84", "33.75"),
+            (Money(tl["amount"]), Money(tl["previousAmount"]), Money(tl["percentageChange"]), Money(tl["shareOfSpending"])));
+        Assert.Equal(["BİM", "Migros Jet", "Migros Sanal Market", "A101"],
+            tl["merchants"]!.AsArray().Select(m => m!["displayName"]!.GetValue<string>()));
+        Assert.Equal(("3476.00", "2026-09-03"), (Money(tl["largest"]!["amount"]), tl["largest"]!["localDate"]!.GetValue<string>()));
+        Assert.Equal(7, tl["months"]!.AsArray().Count);
+        Assert.Equal(("12988.08", "38.72"), (Money(tl["monthlyAverage"]), Money(tl["percentageVsAverage"])));
+    }
+
+    [Theory]
+    [Trait("Category", "PostgreSQL")]
+    [InlineData("period=LastMonth", "categoryCode", "Metin null, boş veya yalnızca whitespace olamaz.")]
+    [InlineData("categoryCode=MARKET&period=LastMonth", "categoryCode", "Tanımlı bir kategori kodu olmalı.")]
+    [InlineData("categoryCode=GROCERY", "period", "Dönem zorunlu: period ya da from ile to verilmeli.")]
+    public async Task Category_spending_parameters_are_checked(string query, string field, string message) =>
+        await AssertInvalidAsync($"/api/analytics/category-spending?{query}", Murat, field, message);
 
     // ---- upcoming-payments (ANA-12)
 

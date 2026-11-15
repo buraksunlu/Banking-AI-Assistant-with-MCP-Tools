@@ -119,6 +119,35 @@ public sealed class PeriodResolver(TimeProvider timeProvider)
         }
     }
 
+    /// <summary>
+    /// The period before <paramref name="period"/> (UX-01 PR3, K1-B): the same window moved back by its own unit, so
+    /// "bu ay" (1–10 Oct) meets 1–10 Sep, "geçen ay" the whole month before and a custom range as many days ending the day
+    /// before it. Its kind is <see cref="PeriodKind.Custom"/>.
+    /// </summary>
+    public ResolvedPeriod ResolvePrevious(ResolvedPeriod period, string timeZoneId)
+    {
+        ArgumentNullException.ThrowIfNull(period);
+        var timeZone = FindTimeZone(timeZoneId);
+        var (start, end) = (period.StartDate, period.EndDate);
+
+        // Rolling month windows end the day before the current one starts; calendar periods keep their own days, and
+        // DateOnly.AddMonths clamps to the shorter month (31 Mar → 28 Feb).
+        var (previousStart, previousEnd) = period.Kind switch
+        {
+            PeriodKind.Today or PeriodKind.Yesterday => (start.AddDays(-1), end.AddDays(-1)),
+            PeriodKind.ThisWeek or PeriodKind.LastWeek or PeriodKind.Last7Days => (start.AddDays(-7), end.AddDays(-7)),
+            PeriodKind.Last30Days => (start.AddDays(-30), end.AddDays(-30)),
+            PeriodKind.ThisMonth => (start.AddMonths(-1), end.AddMonths(-1)),
+            PeriodKind.LastMonth => (start.AddMonths(-1), start.AddDays(-1)),
+            PeriodKind.Last3Months => (start.AddMonths(-3), start.AddDays(-1)),
+            PeriodKind.Last6Months => (start.AddMonths(-6), start.AddDays(-1)),
+            PeriodKind.ThisYear => (start.AddYears(-1), end.AddYears(-1)),
+            PeriodKind.Custom => (start.AddDays(-(end.DayNumber - start.DayNumber + 1)), start.AddDays(-1)),
+            _ => throw new ArgumentException("Bu dönemin bir önceki dönemi yok.", "period")
+        };
+        return Build(PeriodKind.Custom, previousStart, previousEnd, timeZone);
+    }
+
     // The last N complete calendar months plus the running month (IsPartial), oldest first.
     public IReadOnlyList<MonthWindow> ResolveMonthlyWindows(int fullMonths, string timeZoneId)
     {

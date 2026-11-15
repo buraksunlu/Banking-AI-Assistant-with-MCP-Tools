@@ -1156,3 +1156,25 @@ Sınırlar: öneriler araca göredir, sonucun içeriğine göre değil (tek kate
 işyeri dağılımının açıklaması "sınıflandırılmamış kategorisinde" dedi, anlam kontrolü kodda yok: AI-10); öneri yalnız bir sonraki mesaj
 ve 10 dk için kodla eşleşir; başlangıçlar her açılışta 3 MCP sorgusu yapar ve hız sınırında değildir; tamamen yeni müşteride "her zaman"
 soruları da "harcama bulunamadı" cevabı verir.
+
+# Kategori detayı sohbette (UX-01 PR3, 15 Kasım 2026)
+
+"Geçen ay markete ne kadar harcadım?" artık tek araçla cevaplanır: `get_category_spending(categoryCode, period)` (16. araç; backend
+`docs/analytics.md` "UX-01 PR3"). Kararlar K5-C (Python'un kural gerektirdiği her yer + ifade şablonları) ve K6-B (yalnız yeni aracın
+açıklaması; eski ölçülmüş açıklamalar aynen kaldı).
+
+- **Grup:** `routing.GROUPS[GENERAL]` 9 → 10 araç; harcama kelimeleri ("harca", "gitti", "ödedim") zaten genel gruba götürüyor, yeni
+  kural yok. Tarih gizleme genel (`from`/`to` olan her araç), ayrı liste gerekmedi.
+- **Kalemler:** `facts._category_spending`: dönem, önceki dönem, kategori; para birimi başına tutar (işlem sayısıyla), önceki dönem,
+  değişim (önceki 0 ise "yüzde hesaplanmaz"), toplam harcamadaki pay, işlem başı ortalama, en büyük işlem, ilk 5 işyeri (+ kalan sayısı),
+  7 ay ve 6 tam ayın ortalaması, ortalamaya göre ("üstünde"/"altında"). Backend'in null bıraktığı rakamın satırı yok. Kategoride hiç
+  harcama yoksa "Bu dönemde bu kategoride harcama bulunamadı."
+- **Öneriler:** yeni kalıp `CATEGORY_IN` = "{period} {category} harcamam ne kadar?" (kategori halkın kelimesiyle, ek almadan:
+  `suggestions.CATEGORY_WORDS`; `OTHER` adla önerilmez, "diğer" yazılınca okunacak bir şey yok). Sıra: aynı kategori öbür dönem →
+  dönemin kategori dağılımı → işyeri dağılımı. `result_shape`: dönem tutarı 0 olan satır harcama sayılmaz (satır, çevre aylar için var).
+- **Ölçüm vakaları:** `tool_selection_cases.json` C01–C08 (market/akaryakıt/fatura/yeme içme, iki öneri kalıbı, "Migros Sanal Market'e"
+  işyeri aracında kalmalı, dönemsiz "Markete ne kadar harcadım?" geri soru). `phrasing_templates.json`: yeni `category_detail` niyeti
+  (3 kalıp × 3 dönem × 4 kategori + geri soru) ve "offered" niyetinde `CATEGORY_IN` (bütün dönemler × 3 kategori). Modelsiz ifade testi
+  1.562 ifade, 0 açık. `mcp_tools.json` `--refresh-tools` ile 16 araç.
+- **Model ölçümü yapılmadı:** harici SSD takılı değildi, Ollama modeli yükleyemedi. Birleşmeden önce `tool_selection_eval.py` (121 vaka)
+  çalıştırılmalı; eşik: eski vakalarda bozulan yok. Karışma çıkarsa K6-A (kategori dağılımı açıklamasına "tek kategori için değil") ayrıca sorulur.

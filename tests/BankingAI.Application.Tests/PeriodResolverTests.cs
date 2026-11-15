@@ -287,4 +287,49 @@ public sealed class PeriodResolverTests
 
         Assert.Equal("period", error.ParamName);
     }
+    // UX-01 PR3 K1-B: the period before is the same window moved back by its own unit, so "bu ay" meets the same days of last
+    // month and "geçen ay" the whole month before it. Demo today is Saturday 10 October 2026.
+    [Theory]
+    [InlineData(PeriodKind.Today, "2026-10-09", "2026-10-09")]
+    [InlineData(PeriodKind.Yesterday, "2026-10-08", "2026-10-08")]
+    [InlineData(PeriodKind.ThisWeek, "2026-09-28", "2026-10-03")]
+    [InlineData(PeriodKind.LastWeek, "2026-09-21", "2026-09-27")]
+    [InlineData(PeriodKind.Last7Days, "2026-09-27", "2026-10-03")]
+    [InlineData(PeriodKind.Last30Days, "2026-08-12", "2026-09-10")]
+    [InlineData(PeriodKind.ThisMonth, "2026-09-01", "2026-09-10")]
+    [InlineData(PeriodKind.LastMonth, "2026-08-01", "2026-08-31")]
+    [InlineData(PeriodKind.Last3Months, "2026-04-10", "2026-07-09")]
+    [InlineData(PeriodKind.Last6Months, "2025-10-10", "2026-04-09")]
+    [InlineData(PeriodKind.ThisYear, "2025-01-01", "2025-10-10")]
+    public void Previous_period_moves_the_window_back_by_its_own_unit(PeriodKind kind, string start, string end)
+    {
+        var resolver = ResolverAt(DemoNowUtc);
+
+        var previous = resolver.ResolvePrevious(resolver.Resolve(kind, Istanbul), Istanbul);
+
+        Assert.Equal((DateOnly.Parse(start), DateOnly.Parse(end)), (previous.StartDate, previous.EndDate));
+        Assert.Equal(PeriodKind.Custom, previous.Kind);
+    }
+
+    [Fact]
+    public void Previous_period_of_a_custom_range_is_as_long_and_ends_the_day_before()
+    {
+        var resolver = ResolverAt(DemoNowUtc);
+        var current = resolver.Resolve(PeriodKind.Custom, Istanbul, new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 10));
+
+        var previous = resolver.ResolvePrevious(current, Istanbul);
+
+        Assert.Equal((new DateOnly(2026, 8, 22), new DateOnly(2026, 8, 31)), (previous.StartDate, previous.EndDate));
+        Assert.Equal((Utc(2026, 8, 21, 21), Utc(2026, 8, 31, 21)), (previous.StartUtc, previous.EndUtc));
+    }
+
+    [Fact]
+    public void Previous_period_of_this_month_on_the_31st_is_the_whole_shorter_month()
+    {
+        var resolver = ResolverAt(Utc(2026, 3, 31, 9));
+
+        var previous = resolver.ResolvePrevious(resolver.Resolve(PeriodKind.ThisMonth, Istanbul), Istanbul);
+
+        Assert.Equal((new DateOnly(2026, 2, 1), new DateOnly(2026, 2, 28)), (previous.StartDate, previous.EndDate));
+    }
 }

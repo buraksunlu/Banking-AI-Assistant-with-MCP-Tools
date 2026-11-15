@@ -72,6 +72,10 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/api/analytics/category-breakdown?period=ThisMonth
 Authorization: Bearer {{token}}
 
+### Kategori detayı (UX-01 PR3) — beklenen: 200, Yeme & İçme 590 (4 işlem), 1–10 Eylül 0, harcamanın %80,27'si
+GET {{baseUrl}}/api/analytics/category-spending?categoryCode=FOOD&period=ThisMonth
+Authorization: Bearer {{token}}
+
 ### Merchant dağılımı — beklenen: 200, Starbucks 375, Kahve Durağı 215
 GET {{baseUrl}}/api/analytics/merchant-breakdown?period=ThisMonth
 Authorization: Bearer {{token}}

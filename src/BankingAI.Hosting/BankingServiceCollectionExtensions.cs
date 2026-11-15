@@ -60,6 +60,7 @@ public static class BankingServiceCollectionExtensions
         services.AddScoped<TransactionSearchService>();
         services.AddScoped<SpendingSummaryService>();
         services.AddScoped<CategoryBreakdownService>();
+        services.AddScoped<CategorySpendingService>();
         services.AddScoped<MerchantSpendingService>();
         services.AddScoped<SpendingComparisonService>();
         services.AddScoped<HighestTransactionsService>();

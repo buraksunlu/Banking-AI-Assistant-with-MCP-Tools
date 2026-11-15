@@ -215,6 +215,10 @@ Beyazda en düşük: cyan 3,10, yellow 3,27, orange 3,23; gri 3,92.
 - **Testler:** Application (rakamlar, boş dönem, kategorisiz, iki para birimi, sorgu sayısı), Api (`EndpointSweepTests`, OpenAPI kopyası),
   McpServer (argüman filtresi, enum), Python araç seçimi vakaları (eski vakalarda bozulan yok).
 - **Karar soruları planında:** "son 6 ay" devam eden ayı içerir mi, dönem `Custom` kabul edilir mi, en büyük işlemde eşitlik.
+- **Uygulandı (15 Kasım 2026, docs/analytics.md "UX-01 PR3"):** K1-B önceki dönem aynı pencere kendi birimiyle geri (`Custom` dahil) ·
+  K2-A seri 6 tam ay + devam eden ay, ortalama tam aylardan · K3-A eşitlikte en yeni · K4-A dönemde 0 olan satır kalır · K5-C Python
+  grup/kalem/öneri/ölçüm vakası/ifade şablonu · K6-B eski açıklamalar aynen · K7-A 4 sorgu. Ortalamanın üstü %38,72, pay %33,75 (plan
+  yuvarlak yazmıştı). Araç seçimi model ölçümü SSD takılınca.
 
 ## PR4 — Kart sözleşmesi ve ilk altı araç (özet)
 

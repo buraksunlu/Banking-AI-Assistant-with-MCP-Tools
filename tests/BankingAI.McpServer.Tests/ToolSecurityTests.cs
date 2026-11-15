@@ -47,6 +47,7 @@ public sealed class ToolSecurityTests
     [InlineData("get_spending_summary", """{"period":"ThisMonth"}""")]
     [InlineData("get_category_breakdown", """{"period":"ThisMonth"}""")]
     [InlineData("get_merchant_spending", """{"merchant":"Starbucks","period":"ThisMonth"}""")]
+    [InlineData("get_category_spending", """{"categoryCode":"FOOD","period":"ThisMonth"}""")]
     [InlineData("get_merchant_breakdown", """{"period":"ThisMonth"}""")]
     [InlineData("get_highest_transactions", """{"period":"ThisMonth"}""")]
     [InlineData("compare_spending", """{"comparison":"PreviousFullMonth"}""")]

@@ -113,6 +113,14 @@
     {"id": "V03", "message": "1,5 yıl boyunca ayda 500 TL biriktirseydim bugün ne olurdu?", "expected": [{"tool": "what_if_monthly", "arguments": {"amount": 500, "currencyCode": "TRY", "months": 18}}, {"tool": "what_if_monthly", "arguments": {"amount": 500, "currencyCode": "TRY", "months": 18, "fromAdvice": false}}]},
     {"id": "V04", "message": "Önerdiğin tutarı 6 ay biriktirseydim ne olurdu?", "expected": [{"tool": "what_if_monthly", "arguments": {"fromAdvice": true, "months": 6}}]},
     {"id": "V05", "context": {"question": "Ayda 1.000 TL 12 ay biriktirseydim ne olurdu?", "tool": "what_if_monthly", "arguments": {"amount": 1000, "currencyCode": "TRY", "months": 12}}, "message": "Peki 6 ay?", "expected": [{"tool": "what_if_monthly", "arguments": {"amount": 1000, "currencyCode": "TRY", "months": 6}}]},
-    {"id": "V06", "message": "Ayda 1.000 TL 2 yıl biriktirseydim ne olurdu?", "expected": "clarify:duration"}
+    {"id": "V06", "message": "Ayda 1.000 TL 2 yıl biriktirseydim ne olurdu?", "expected": "clarify:duration"},
+    {"id": "C01", "message": "Geçen ay markete ne kadar harcadım?", "expected": {"tool": "get_category_spending", "arguments": {"categoryCode": "GROCERY", "period": "LastMonth"}}},
+    {"id": "C02", "message": "Bu ay akaryakıta ne kadar gitti?", "expected": {"tool": "get_category_spending", "arguments": {"categoryCode": "FUEL", "period": "ThisMonth"}}},
+    {"id": "C03", "message": "Son 3 ayda faturalara ne kadar ödedim?", "expected": {"tool": "get_category_spending", "arguments": {"categoryCode": "BILLS", "period": "Last3Months"}}},
+    {"id": "C04", "message": "Geçen ay market harcamam ne kadar?", "expected": {"tool": "get_category_spending", "arguments": {"categoryCode": "GROCERY", "period": "LastMonth"}}},
+    {"id": "C05", "message": "Bu ay yakıt harcamam ne kadar?", "expected": {"tool": "get_category_spending", "arguments": {"categoryCode": "FUEL", "period": "ThisMonth"}}},
+    {"id": "C06", "message": "Geçen ay Migros Sanal Market'e ne kadar harcadım?", "expected": {"tool": "get_merchant_spending", "arguments": {"merchant": "Migros Sanal Market", "period": "LastMonth"}}},
+    {"id": "C07", "message": "Markete ne kadar harcadım?", "expected": "clarify"},
+    {"id": "C08", "message": "Bu ay yeme içmeye ne kadar harcadım?", "expected": {"tool": "get_category_spending", "arguments": {"categoryCode": "FOOD", "period": "ThisMonth"}}}
   ]
 }

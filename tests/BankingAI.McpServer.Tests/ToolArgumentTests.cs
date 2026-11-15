@@ -24,6 +24,12 @@ public sealed class ToolArgumentTests
         { "get_merchant_spending", $$"""{"merchant":"{{new string('a', 151)}}","period":"ThisMonth"}""" },
         { "get_merchant_spending", """{"period":"ThisMonth"}""" },
         { "get_merchant_spending", """{"merchant":null,"period":"ThisMonth"}""" },
+        // The category (UX-01 PR3): one of the closed set, exactly; the model's own words never reach the backend.
+        { "get_category_spending", """{"categoryCode":"MARKET","period":"ThisMonth"}""" },
+        { "get_category_spending", """{"categoryCode":"grocery","period":"ThisMonth"}""" },
+        { "get_category_spending", """{"categoryCode":null,"period":"ThisMonth"}""" },
+        { "get_category_spending", """{"period":"ThisMonth"}""" },
+        { "get_category_spending", """{"categoryCode":"GROCERY"}""" },
         // Counts (MCP-16, MCP-24): whole JSON numbers inside the published limits; text, fractions and nulls are refused.
         { "get_monthly_trend", """{"months":0}""" },
         { "get_monthly_trend", """{"months":13}""" },

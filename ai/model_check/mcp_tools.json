@@ -354,6 +354,69 @@
   {
    "type": "function",
    "function": {
+    "name": "get_category_spending",
+    "description": "Bir dönemde tek bir kategoriye yapılan harcamayı ayrıntılı döndürür: önceki dönemle fark, işyerleri, en büyük işlem ve son 6 ay; \"markete / yakıta ne kadar harcadım\" gibi tek kategori soruları için. categoryCode: GROCERY=market, FOOD=yeme içme, FUEL=yakıt, BILLS=fatura, TRANSPORTATION=ulaşım, CLOTHING=giyim, ENTERTAINMENT=eğlence, SUBSCRIPTION=abonelik, TRAVEL=seyahat, HEALTH=sağlık, OTHER=diğer. period: Today=bugün, Yesterday=dün, ThisWeek=bu hafta (pazartesiden bugüne), LastWeek=geçen hafta, Last7Days=son 7 gün, Last30Days=son 30 gün, ThisMonth=bu ay, LastMonth=geçen ay, Last3Months=son 3 ay, Last6Months=son 6 ay, ThisYear=bu yıl.",
+    "parameters": {
+     "type": "object",
+     "properties": {
+      "categoryCode": {
+       "type": "string",
+       "enum": [
+        "FOOD",
+        "GROCERY",
+        "CLOTHING",
+        "TRANSPORTATION",
+        "ENTERTAINMENT",
+        "SUBSCRIPTION",
+        "TRAVEL",
+        "FUEL",
+        "BILLS",
+        "HEALTH",
+        "OTHER"
+       ]
+      },
+      "period": {
+       "type": "string",
+       "enum": [
+        "Today",
+        "Yesterday",
+        "ThisWeek",
+        "LastWeek",
+        "Last7Days",
+        "Last30Days",
+        "ThisMonth",
+        "LastMonth",
+        "Last3Months",
+        "Last6Months",
+        "ThisYear",
+        "Custom"
+       ]
+      },
+      "from": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      },
+      "to": {
+       "type": [
+        "string",
+        "null"
+       ],
+       "default": null
+      }
+     },
+     "required": [
+      "categoryCode",
+      "period"
+     ]
+    }
+   }
+  },
+  {
+   "type": "function",
+   "function": {
     "name": "compare_spending",
     "description": "Harcamayı önceki dönemle karşılaştırır: iki dönemin toplamı, fark ve değişime yol açan kategoriler. comparison: PreviousFullMonth=geçen ay ile ondan önceki ay (\"geçen aya göre\"), MonthToDate=bu ayın bugüne kadarki kısmı ile geçen ayın aynı günleri.",
     "parameters": {

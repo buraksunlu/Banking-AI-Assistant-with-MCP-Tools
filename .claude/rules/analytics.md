@@ -24,7 +24,9 @@ paths:
   (varsayılan harcama; istenirse tüm işlemler; limit ≤ 100), `SpendingComparisonService`
   ("geçen aya göre" = son tam ay vs önceki ay; tek CASE WHEN sorgusu; aylık seri takvim ayı +
   devam eden ay, boş ay 0), `RecurringPaymentService` + saf `RecurringPaymentDetector` (son 6 ay;
-  ≥3 ödeme, 26–35 gün aralık, ±%10 tutar, son ödeme ≤35 gün; tablo yok). İşlem listesi döndüren servisler
+  ≥3 ödeme, 26–35 gün aralık, ±%10 tutar, son ödeme ≤35 gün; tablo yok), `CategorySpendingService` (UX-01 PR3: tek kategori;
+  önceki dönem `PeriodResolver.ResolvePrevious` = aynı pencere kendi birimiyle geri, "bu ay" → geçen ayın aynı günleri; seri 6 tam ay
+  + devam eden ay, ortalama tam aylardan, "ortalamaya göre" yalnız dönem tam aylardan biriyse; 4 sorgu). İşlem listesi döndüren servisler
   `TransactionItemReader` (internal) ile aynı DTO'yu üretir: join'ler, maskeli karşı taraf
   (PairId), `LocalDate`, join'lerden sonra uygulanan sıralama. Join/maskeleme kodunu kopyalama.
   Sonuçlar para birimi başına satırdır; harcama yoksa boş liste döner (uydurma "0" satırı yok);

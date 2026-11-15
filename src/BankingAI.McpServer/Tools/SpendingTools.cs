@@ -7,7 +7,7 @@ using ModelContextProtocol.Server;
 namespace BankingAI.McpServer.Tools;
 
 /// <summary>
-/// The spending tools (MCP-05, MCP-07, MCP-25; MCP-08, MCP-09, MCP-10, MCP-24). Each one reads the customer from the token,
+/// The spending tools (MCP-05, MCP-07, MCP-25; MCP-08, MCP-09, MCP-10, MCP-24; UX-01 PR3). Each one reads the customer from the token,
 /// calls the same Application service as the API (decision K6-A) and returns the same result shape (K9-A). The first three
 /// descriptions are the ones the model was measured with in AI-14a (12 of 12), moved word for word (K3-A); the others are
 /// the texts of the MCP-08 tool-selection eval.
@@ -21,7 +21,7 @@ namespace BankingAI.McpServer.Tools;
 public sealed class SpendingTools(
     IHttpContextAccessor httpContext, SpendingSummaryService summaries, CategoryBreakdownService categories,
     MerchantSpendingService merchants, HighestTransactionsService highest, SpendingComparisonService comparisons,
-    ILogger<SpendingTools> logger)
+    CategorySpendingService categoryDetails, ILogger<SpendingTools> logger)
 {
     /// <summary>The period meanings, added to every description: this is how the model picked the right one.</summary>
     public const string PeriodHelp =
@@ -45,6 +45,20 @@ public sealed class SpendingTools(
     public Task<CategoryBreakdown> GetCategoryBreakdownAsync(
         ToolPeriod period, string? from = null, string? to = null, CancellationToken cancellationToken = default) =>
         ToolErrors.RunAsync(() => categories.GetAsync(Spending(period, from, to), cancellationToken), logger);
+
+    /// <summary>
+    /// <c>get_category_spending</c>: one category in detail (UX-01 PR3): the period against the one before it, its merchants,
+    /// the largest purchase and the last six months. The code is the closed <see cref="ToolCategory"/> set, so the model's own
+    /// words never reach the backend; the code-to-word list is in the description because the 4b model picks from it.
+    /// </summary>
+    [McpServerTool(Name = "get_category_spending", ReadOnly = true, Destructive = false, UseStructuredContent = true)]
+    [Description("Bir dönemde tek bir kategoriye yapılan harcamayı ayrıntılı döndürür: önceki dönemle fark, işyerleri, en büyük işlem ve son 6 ay; "
+        + "\"markete / yakıta ne kadar harcadım\" gibi tek kategori soruları için. "
+        + "categoryCode: GROCERY=market, FOOD=yeme içme, FUEL=yakıt, BILLS=fatura, TRANSPORTATION=ulaşım, CLOTHING=giyim, ENTERTAINMENT=eğlence, "
+        + "SUBSCRIPTION=abonelik, TRAVEL=seyahat, HEALTH=sağlık, OTHER=diğer. " + PeriodHelp)]
+    public Task<CategorySpendingDetail> GetCategorySpendingAsync(
+        ToolCategory categoryCode, ToolPeriod period, string? from = null, string? to = null, CancellationToken cancellationToken = default) =>
+        ToolErrors.RunAsync(() => categoryDetails.GetAsync(Spending(period, from, to), categoryCode.ToString(), cancellationToken), logger);
 
     /// <summary>
     /// <c>get_merchant_spending</c>: spending at one merchant. The text is matched against the customer's own merchants;

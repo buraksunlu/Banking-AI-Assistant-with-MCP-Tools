@@ -101,10 +101,12 @@ def test_the_model_can_send_a_question_to_planning():
     assert result == Route((PLANNING,), source="model")
 
 
-def test_the_groups_cover_the_fifteen_published_tools_once_each():
+def test_the_groups_cover_the_sixteen_published_tools_once_each():
     names = [name for tools in GROUPS.values() for name in tools]
-    assert len(names) == len(set(names)) == 15
-    assert len(GROUPS[GENERAL]) == 9 and group_of("check_budget") == PLANNING and group_of("unknown_tool") is None
+    assert len(names) == len(set(names)) == 16
+    assert len(GROUPS[GENERAL]) == 10 and group_of("check_budget") == PLANNING and group_of("unknown_tool") is None
+    # UX-01 PR3: the category detail answers spending questions, so it is shown with the other spending tools.
+    assert group_of("get_category_spending") == GENERAL
 
 
 def test_the_income_and_what_if_tools_stay_out_of_the_old_groups():

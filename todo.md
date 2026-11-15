@@ -484,7 +484,14 @@ ayrıntı için **cevap modu**: kullanıcı basit cevap mı, detaylı/istatistik
   kategori) K3-D (büyük gelir kartı Analiz'e, "Nerede kısarım?" oraya) K4-B (maaşsızda INC-04 cümlesi) K5-C (fark tutar + yüzde, backend'in)
   K6-A (Profil'de "Hesaplarım", "Tüm işlemler") K7-A (eski özet kartı ve `spending-summary` isteği silindi). iOS 389 test durumu (21 yeni),
   8 kasıtlı bozmanın hepsi yakalandı. Bulgu: iki para birimi örneği Elif değil Zeynep (TRY + USD).
-- [ ] UX-01 PR3 — `get_category_spending` analitiği + API + MCP aracı (K4-A).
+- [x] UX-01 PR3 — `get_category_spending` analitiği + API + MCP aracı (K4-A) (15 Kasım 2026, docs/analytics.md "UX-01 PR3"). Tek kategori:
+  dönem, önceki dönem (K1-B: aynı pencere kendi birimiyle geri; "bu ay" → geçen ayın aynı günleri), işyerleri, en büyük işlem (K3-A: eşitlikte
+  en yeni), 6 tam ay + devam eden ay, ortalama (K2-A: tam aylardan; "ortalamaya göre" yalnız tam ay dönemde), toplam harcamadaki pay; dönemde 0
+  olan satır kalır (K4-A); 4 sorgu (K7-A). Sohbet: genel grup (10 araç), `facts`, öneri kalıbı, C01–C08 ölçüm vakaları, `category_detail`
+  ifade niyeti (K5-C); eski açıklamalar aynen (K6-B). Application 500, Data 185, Api 591, McpServer 216, Python 1377 modelsiz; ifade 1.562 / 0
+  açık; 15 kasıtlı bozma yakalandı. Bilerek değişen eski testler: OpenAPI operasyon sayısı 30 → 31, araç sayıları 15 → 16 (routing,
+  phrasings), dönem aracı sayıları 6 → 7 ve 8 → 9 (keşif), gerçek sunucu araç listesi (eskimişti, 11 → 16). **Açık:** araç seçimi model
+  ölçümü (harici SSD takılı değildi).
 - [ ] UX-01 PR4 — `cards` sözleşmesi (`ai/service/cards.py`, .NET, OpenAPI) ve ilk altı araç.
 - [ ] UX-01 PR5 — iPhone kayan sayfa, kart şablonları, Basit/Detaylı; Asistan sekmesi aynı oturum.
 - [ ] UX-01 PR6 — Kalan dokuz aracın kartları ve ölçümler.
@@ -739,7 +746,11 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Güncelleme: 23 Ekim 2026.
+Güncelleme: 15 Kasım 2026. Aşağıdaki "tamamlanan bloklar" ve test sayıları 23 Ekim'in; sonrası `RULE.md` §29'da.
+
+- **Şimdi (15 Kasım 2026):** UX-01 cep asistanı — PR1 (açık tema, #81), PR2 (ana ekran paneli, #82) ve PR3 (kategori detayı backend'i, bu
+  dal) yapıldı. PR3'ün araç seçimi ölçümü harici SSD takılınca çalışacak. Sıradaki: PR4 kart sözleşmesi (`cards.py`, .NET, OpenAPI, ilk altı
+  araç) → PR5 iPhone kayan sayfa ve kartlar → PR6 kalan araçlar; INV-02 (yatırım özellik havuzu) sonra. PR2 paneli simülatörde denenmedi.
 
 Tamamlanan bloklar: banking foundation (DOC-09; SYN-01–14, KIND-01–05), deterministik analytics (ANA-01–14,
 REC-01–03, ANA-20), API ve güvenlik (API-01a/01b, API-02–15, SEC-01a/01b, SEC-06), local AI (AI-01–07: model seçimi,

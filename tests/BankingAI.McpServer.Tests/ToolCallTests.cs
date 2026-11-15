@@ -56,6 +56,20 @@ public sealed class ToolCallTests
                 .Select(c => (c.GetProperty("categoryCode").GetString(), Money(c.GetProperty("amount")), Money(c.GetProperty("percentage")))));
     }
 
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Category_spending_is_the_same_result_as_the_api()
+    {
+        var result = await CallAsync(Murat, "get_category_spending", """{"categoryCode":"GROCERY","period":"LastMonth"}""");
+
+        Assert.Equal("Market", result.GetProperty("displayName").GetString());
+        var tl = Assert.Single(result.GetProperty("currencies").EnumerateArray());
+        Assert.Equal(("18016.50", "11944.50", "50.84", "3476.00"),
+            (Money(tl.GetProperty("amount")), Money(tl.GetProperty("previousAmount")), Money(tl.GetProperty("percentageChange")),
+             Money(tl.GetProperty("largest").GetProperty("amount"))));
+        Assert.Equal(7, tl.GetProperty("months").GetArrayLength());
+    }
+
     [Theory]
     [Trait("Category", "PostgreSQL")]
     [InlineData("Starbucks", false)]
