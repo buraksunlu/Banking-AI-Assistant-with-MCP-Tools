@@ -28,6 +28,7 @@ Makine okunur sözleşme: `docs/openapi/v1.json`; tarayıcıda `http://localhost
 | `GET /api/analytics/what-if/one-off` | evet | uygulandı | INV-01 |
 | `GET /api/analytics/what-if/monthly` | evet | uygulandı | INV-01 |
 | `GET /api/analytics/merchants`, `merchant-group-spending` | evet | uygulandı | ANA-10 |
+| `GET /api/analytics/category-spending` | evet | uygulandı | UX-01 PR3 |
 | `GET /api/transactions` (bütün hesaplarda filtreli arama) | evet | uygulandı | ANA-09 (3. parça) |
 | `POST /api/assistant/messages`, `GET /api/assistant/status` (sohbet asistanı) | evet | uygulandı | AI-14b + AI-07 |
 | `GET /api/assistant/suggestions` (sohbet açılışında önerilen sorular) | evet | uygulandı | CHAT-06 |
@@ -676,6 +677,28 @@ birimi başına satır; harcama yoksa ya da merchant eşleşmezse `currencies: [
 
 Hatalar (400): oran yok ("Azaltma oranı zorunlu."), `0`/`101` ("1 ile 100 arasında olmalı."), `abc`; `months=25`; kategori +
 merchant; tanımsız kategori. Token yoksa 401, başkasının hesabı 404, işletme hesabı 400 (`errors.accountId`).
+
+### `GET /api/analytics/category-spending?categoryCode=GROCERY&period=… | &from=…&to=…` (UX-01 PR3)
+
+"Markete ne kadar gitti?": tek kategorinin dönemi, önceki dönemi (aynı pencere kendi birimiyle geri; "bu ay" → geçen ayın aynı
+günleri), işyerleri, en büyük işlemi, son 6 tam ay + devam eden ay ve toplam harcamadaki payı; para birimi başına satır. Kurallar ve
+elle hesaplanmış değerler `docs/analytics.md` "UX-01 PR3"te. İsteğe bağlı `accountId` (yalnız şahsi hesap).
+
+```json
+{ "period": { "kind": "LastMonth", "startDate": "2026-09-01", "endDate": "2026-09-30", "…": "…" },
+  "previousPeriod": { "kind": "Custom", "startDate": "2026-08-01", "endDate": "2026-08-31", "…": "…" },
+  "categoryCode": "GROCERY", "displayName": "Market", "months": [ "…7 pencere…" ],
+  "currencies": [ { "currencyCode": "TRY", "amount": 18016.50, "transactionCount": 8, "averagePerTransaction": 2252.06,
+                    "previousAmount": 11944.50, "previousCount": 5, "change": 6072.00, "percentageChange": 50.84,
+                    "totalSpending": 53388.39, "shareOfSpending": 33.75,
+                    "merchants": [ { "merchant": "BİM", "displayName": "BİM", "amount": 6216.00, "transactionCount": 2, "percentage": 34.50 }, "…" ],
+                    "largest": { "transactionId": "…", "amount": 3476.00, "merchant": "BİM", "localDate": "2026-09-03" },
+                    "months": [ { "year": 2026, "month": 4, "isPartial": false, "amount": 8654.00, "transactionCount": 5 }, "…" ],
+                    "monthlyAverage": 12988.08, "percentageVsAverage": 38.72 } ] }
+```
+
+Hatalar (400): `categoryCode` yok ("Metin null, boş veya yalnızca whitespace olamaz.") ya da tanımsız ("Tanımlı bir kategori kodu
+olmalı."), dönem yok, dönem adı + tarih. Token yoksa 401, başkasının hesabı 404, işletme hesabı 400 (`errors.accountId`).
 
 ### `GET /api/analytics/income-share?period=LastMonth | ?from=YYYY-MM-01&to=YYYY-MM-son` (INC-01)
 

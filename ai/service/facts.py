@@ -13,6 +13,7 @@ from formatting import day, money, month, percent, period, price
 
 NO_SPENDING = "Bu dönemde harcama bulunamadı."
 NO_MERCHANT_SPENDING = "Bu dönemde bu işyerinde harcama bulunamadı."
+NO_CATEGORY_SPENDING = "Bu dönemde bu kategoride harcama bulunamadı."
 CURRENCIES_APART = "Farklı para birimleri toplanmaz, ayrı gösterilir."
 NO_SPENDING_IN_EITHER = "Bu iki dönemde harcama bulunamadı."
 NO_RECURRING = "Son 6 ayda düzenli bir ödeme bulunamadı."
@@ -59,6 +60,7 @@ def outcome_for(tool: str, arguments: dict, result: dict) -> ToolOutcome:
     builders = {
         "get_spending_summary": _summary,
         "get_category_breakdown": _categories,
+        "get_category_spending": _category_spending,
         "get_merchant_spending": _merchant,
         "get_merchant_breakdown": _merchant_breakdown,
         "get_highest_transactions": _highest,
@@ -98,6 +100,41 @@ def _categories(arguments: dict, result: dict) -> ToolOutcome:
             text = f"{money(category['amount'], row['currencyCode'])} ({percent(category['percentage'])})"
             facts.append(_fact(f"{category['displayName']}{suffix}", text))
     return ToolOutcome(_closing(facts, rows, NO_SPENDING))
+
+
+def _category_spending(arguments: dict, result: dict) -> ToolOutcome:
+    # UX-01 PR3: one category in detail. A figure the backend left out (null: no purchase, a rate from zero, a part of a month
+    # against whole months) has no line, so the model cannot explain a number that does not exist.
+    name = result["displayName"]
+    facts = [_period(result), _fact("Önceki dönem", _range(result["previousPeriod"])), _fact("Kategori", name)]
+    rows = result["currencies"]
+    for row in rows:
+        suffix, currency = _suffix(row, rows), row["currencyCode"]
+        facts.append(_fact(f"{name} harcaması{suffix}", f"{money(row['amount'], currency)} ({row['transactionCount']} işlem)"))
+        facts.append(_fact(f"Önceki dönem harcaması{suffix}", f"{money(row['previousAmount'], currency)} ({row['previousCount']} işlem)"))
+        share = row["percentageChange"]
+        rate = (f"({percent(abs(share))})" if share is not None
+                else "(önceki dönemde harcama olmadığı için yüzde hesaplanmaz)")
+        facts.append(_fact(f"Değişim{suffix}", f"{_change(row['change'], currency)} {rate}"))
+        if row["shareOfSpending"] is not None:
+            facts.append(_fact(f"Toplam harcamadaki payı{suffix}",
+                               f"{percent(row['shareOfSpending'])} (toplam harcama {money(row['totalSpending'], currency)})"))
+        if row["averagePerTransaction"] is not None:
+            facts.append(_fact(f"İşlem başı ortalama{suffix}", money(row["averagePerTransaction"], currency)))
+        if (largest := row["largest"]) is not None:
+            facts.append(_fact(f"En büyük işlem{suffix}",
+                               f"{money(largest['amount'], currency)}, {largest['merchant'] or UNCLASSIFIED}, {_day(largest['localDate'])}"))
+        for item in row["merchants"][:LIST_LIMIT]:
+            facts.append(_fact(f"{item['displayName']}{suffix}", f"{money(item['amount'], currency)} ({percent(item['percentage'])})"))
+        facts.extend(_rest(row["merchants"], "işyeri", suffix))
+        for point in row["months"]:
+            label = month(point["year"], point["month"]) + (" (devam eden ay)" if point["isPartial"] else "")
+            facts.append(_fact(f"{label}{suffix}", money(point["amount"], currency)))
+        facts.append(_fact(f"Son 6 tam ayın ortalaması{suffix}", money(row["monthlyAverage"], currency)))
+        if (versus := row["percentageVsAverage"]) is not None:
+            text = "ortalamayla aynı" if versus == 0 else f"{percent(abs(versus))} {'üstünde' if versus > 0 else 'altında'}"
+            facts.append(_fact(f"Ortalamaya göre{suffix}", text))
+    return ToolOutcome(_closing(facts, rows, NO_CATEGORY_SPENDING))
 
 
 def _merchant(arguments: dict, result: dict) -> ToolOutcome:

@@ -413,6 +413,112 @@
         ]
       }
     },
+    "/api/analytics/category-spending": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "One category's spending per currency (UX-01 PR3)",
+        "description": "`GET /api/analytics/category-spending`: one category's spending per currency (UX-01 PR3): the period and the one\nbefore it, its merchants, the largest purchase, the last six complete months plus the running one and the share of\nall spending. `categoryCode` must be a defined category code.",
+        "parameters": [
+          {
+            "name": "categoryCode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "accountId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategorySpendingDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
     "/api/analytics/merchant-breakdown": {
       "get": {
         "tags": [
@@ -3558,6 +3664,44 @@
           }
         }
       },
+      "CategorySpendingDetail": {
+        "required": [
+          "period",
+          "previousPeriod",
+          "categoryCode",
+          "displayName",
+          "months",
+          "currencies"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "previousPeriod": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "categoryCode": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "months": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MonthWindow"
+            }
+          },
+          "currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurrencyCategoryDetail"
+            }
+          }
+        },
+        "description": "\"Markete ne kadar gitti?\": one category over a period, the period before it and the last six complete months plus the\nrunning one. A currency is listed when the category has spending in any of those windows (a 0 is then a real 0); an\nempty list means no spending in this category at all."
+      },
       "CreateAccountRequest": {
         "required": [
           "accountName",
@@ -3711,6 +3855,118 @@
             }
           }
         }
+      },
+      "CurrencyCategoryDetail": {
+        "required": [
+          "currencyCode",
+          "amount",
+          "transactionCount",
+          "averagePerTransaction",
+          "previousAmount",
+          "previousCount",
+          "change",
+          "percentageChange",
+          "totalSpending",
+          "shareOfSpending",
+          "merchants",
+          "largest",
+          "months",
+          "monthlyAverage",
+          "percentageVsAverage"
+        ],
+        "type": "object",
+        "properties": {
+          "currencyCode": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "transactionCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "averagePerTransaction": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "previousAmount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "previousCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "change": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "percentageChange": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "totalSpending": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "shareOfSpending": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "merchants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MerchantSpending"
+            }
+          },
+          "largest": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LargestPurchase"
+              }
+            ]
+          },
+          "months": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MonthlySpending"
+            }
+          },
+          "monthlyAverage": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "percentageVsAverage": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          }
+        },
+        "description": "One currency's spending in one category (UX-01 PR3). Amounts are exact; averages and percentages are rounded to two\ndecimals. `PercentageChange` is null when the previous period is 0, `PercentageVsAverage` unless the period is\none of the complete months of `Months` and the average is above 0."
       },
       "CurrencyComparison": {
         "required": [
@@ -4179,6 +4435,36 @@
             "format": "int32"
           }
         }
+      },
+      "LargestPurchase": {
+        "required": [
+          "transactionId",
+          "amount",
+          "merchant",
+          "localDate"
+        ],
+        "type": "object",
+        "properties": {
+          "transactionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "merchant": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "localDate": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "description": "The largest purchase of the period; `LocalDate` is the customer's calendar day."
       },
       "LoginRequest": {
         "required": [

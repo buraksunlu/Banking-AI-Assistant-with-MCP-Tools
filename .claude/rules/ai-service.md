@@ -34,7 +34,7 @@ sürümle eklenir. Starlette'in `TestClient`'ı `httpx` yerine `httpx2` ister.
 sunucusu kullanır; gerçek Ollama testleri Ollama kapalıysa atlanır.
 
 Sohbet (AI-14a, MCP-b): `POST /v1/chat` (Bearer zorunlu; gövde `{message, today, timeZone}`, ikisi de .NET'ten, CHAT-08 PR1: müşterinin günü) → `chat.ChatService`: CHAT-01 `routing.Router` (kod önce: kapsam dışı kuralı →
-sabit metin, modelsiz; planlama kelimesi → `planning` grubu, harcama/ödeme kelimesi → `general` = MCP-08'in 9 aracı; takipte son çağrının
+sabit metin, modelsiz; planlama kelimesi → `planning` grubu, harcama/ödeme kelimesi → `general` = MCP-08'in 9 aracı + UX-01 PR3'ün `get_category_spending`'i; takipte son çağrının
 grubu; kural yoksa `LangChainIntentClassifier` `intent-v1`, ≤ 5 sn, karar yoksa `general`) → `mcp_gateway.McpToolGateway.list_tools` (her
 turda, kullanıcının token'ıyla; MCP kapalıysa model çalışmaz), `narrow` ile grubun araçları (tabloda olmayan araç her grupta; yeni araç
 `routing.GROUPS`'a yazılır) → `LangChainToolSelector` (o turun listesiyle `bind_tools`, `tool-selection-v1`) →

@@ -226,9 +226,9 @@ def test_the_probe_runs_the_chat_service_itself_with_the_snapshot_and_no_model()
 
 # --- The whole set (K4-B) ----------------------------------------------------------------------------------------------------
 
-def test_the_tool_snapshot_has_the_fifteen_published_tools():
+def test_the_tool_snapshot_has_the_sixteen_published_tools():
     names = [tool["function"]["name"] for tool in load_tools()]
-    assert len(names) == 15 and "what_if_monthly" in names and TOOLS_FILE.name == "mcp_tools.json"
+    assert len(names) == 16 and "get_category_spending" in names and TOOLS_FILE.name == "mcp_tools.json"
 
 
 def test_every_phrasing_passes_or_is_a_known_gap_with_a_reason():

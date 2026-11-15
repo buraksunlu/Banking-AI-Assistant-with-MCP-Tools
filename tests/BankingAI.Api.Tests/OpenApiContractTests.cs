@@ -109,8 +109,9 @@ public sealed class OpenApiContractTests
             var bearer = operation["security"]?.AsArray().Any(r => r!.AsObject().ContainsKey("Bearer")) ?? false;
             Assert.True(bearer != open.Contains($"{method} {path}"), $"{method} {path}: security {bearer}");
         }
-        // 28 protected operations (INC-01 income-share, INC-02 spending-advice, INV-01 what-if/one-off and monthly) + health and login.
-        Assert.Equal(30, Operations(document).Count());
+        // 29 protected operations (INC-01 income-share, INC-02 spending-advice, INV-01 what-if/one-off and monthly, UX-01 PR3
+        // category-spending) + health and login.
+        Assert.Equal(31, Operations(document).Count());
     }
 
     [Theory]
@@ -122,6 +123,7 @@ public sealed class OpenApiContractTests
     [InlineData("GET", "/api/accounts/{id}", new[] { "200", "400", "401", "404", "500" })]
     [InlineData("POST", "/api/accounts", new[] { "201", "400", "401", "409", "500" })]
     [InlineData("POST", "/api/accounts/{accountId}/transactions", new[] { "201", "400", "401", "404", "409", "500" })]
+    [InlineData("GET", "/api/analytics/category-spending", new[] { "200", "400", "401", "404", "500" })]
     [InlineData("GET", "/api/analytics/spending-summary", new[] { "200", "400", "401", "404", "500" })]
     [InlineData("GET", "/api/analytics/spending-advice", new[] { "200", "400", "401", "500" })]
     [InlineData("GET", "/api/analytics/what-if/one-off", new[] { "200", "400", "401", "500" })]

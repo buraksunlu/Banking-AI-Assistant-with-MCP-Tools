@@ -1374,10 +1374,15 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   kullanıcıyla netleşir; açıkça istenen varlık korunur. Eksik veride kazanan uydurulmaz.
 
 ==================================================
-29. MEVCUT PROJE DURUMU — 13 KASIM 2026
+29. MEVCUT PROJE DURUMU — 15 KASIM 2026
 ==================================================
 
 COMPLETED
+- Kategori detayı (UX-01 PR3, 15 Kasım 2026; docs/analytics.md, docs/api.md, docs/mcp.md, docs/local-ai.md "UX-01 PR3"):
+  `CategorySpendingService` + `GET /api/analytics/category-spending` + 16. MCP aracı `get_category_spending` + sohbette genel grup, kalemler,
+  öneri kalıbı "{dönem} {kategori} harcamam ne kadar?". Önceki dönem aynı pencere kendi birimiyle geri (`PeriodResolver.ResolvePrevious`).
+  K1-B K2-A K3-A K4-A K5-C K6-B K7-A. Testler: Application 500, Data 185, Api 591, McpServer 216, Python 1377 modelsiz; 15 kasıtlı bozma
+  yakalandı (biri eklenen kapalı küme testiyle). Araç seçimi model ölçümü yapılmadı (harici SSD takılı değildi): birleşmeden önce çalışmalı.
 - Ana ekranda "bu ay" paneli (UX-01 PR2, 14 Kasım 2026; docs/ios.md "iOS-w"): üç kart üç REST cevabından, model yok (asistan kapalıyken
   dolu); fark backend'in `change`/`percentageChange`'i, telefon yalnız sözcüğü işaretten seçer; hesaplar ve tüm işlemler Profil'de, büyük
   gelir kartı Analiz'de; eski özet kartı silindi. K1-A K2-A K3-D K4-B K5-C K6-A K7-A. iOS 389 test durumu, 8 kasıtlı bozma yakalandı.

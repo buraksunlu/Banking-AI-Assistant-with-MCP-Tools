@@ -67,6 +67,18 @@ AUG = "1-31 Ağustos 2026 döneminde"
          [s("Son 3 ayda harcamalarım işyerlerine göre nasıl dağıldı?", "get_merchant_breakdown", period="Last3Months"),
           s("Son 3 ayda en büyük harcamalarım neler?", "get_highest_transactions", period="Last3Months"),
           s(CAT_TM, "get_category_breakdown", **TM)]),
+        # UX-01 PR3: the same category in the other period, then the whole period by category and by merchant; the category is
+        # said in the word people use for it, without an ending (like a merchant's name).
+        ("get_category_spending", {"categoryCode": "GROCERY", "period": "LastMonth"},
+         [s("Bu ay market harcamam ne kadar?", "get_category_spending", categoryCode="GROCERY", period="ThisMonth"),
+          s(CAT_LM, "get_category_breakdown", **LM), s(MER_LM, "get_merchant_breakdown", **LM)]),
+        ("get_category_spending", {"categoryCode": "FOOD", "period": "Last3Months"},
+         [s("Bu ay yeme içme harcamam ne kadar?", "get_category_spending", categoryCode="FOOD", period="ThisMonth"),
+          s("Son 3 ayda kategorilere göre harcamam nasıl?", "get_category_breakdown", period="Last3Months"),
+          s("Son 3 ayda harcamalarım işyerlerine göre nasıl dağıldı?", "get_merchant_breakdown", period="Last3Months")]),
+        # "Diğer" is not a word a typed question can be read back from: that category is not offered again by name.
+        ("get_category_spending", {"categoryCode": "OTHER", "period": "LastMonth"},
+         [s(CAT_LM, "get_category_breakdown", **LM), s(MER_LM, "get_merchant_breakdown", **LM)]),
         # P3-A: the merchant's name takes no ending.
         ("get_merchant_spending", {"merchant": "Starbucks", "period": "LastMonth"},
          [s("Son 3 ayda Starbucks harcamam ne kadar?", "get_merchant_spending", merchant="Starbucks", period="Last3Months"),
@@ -198,6 +210,10 @@ def test_no_regular_payment_offers_no_upcoming_payment():
     ("get_highest_transactions", {"currencies": [{"items": [{}]}]}, Shape(spent=True)),
     ("get_highest_transactions", {"currencies": [{"items": []}]}, Shape(spent=False)),
     ("get_merchant_spending", {"currencies": []}, Shape(spent=False)),
+    # UX-01 PR3: a category row with 0 in the period is a currency with spending in the months around it, not in the period.
+    ("get_category_spending", {"currencies": [{"amount": Decimal("0")}]}, Shape(spent=False)),
+    ("get_category_spending", {"currencies": [{"amount": Decimal("12.50")}]}, Shape(spent=True)),
+    ("get_category_spending", {"currencies": []}, Shape(spent=False)),
     ("get_recurring_payments", {"payments": []}, Shape(payments=0)),
     ("get_upcoming_payments", {"payments": [{}, {}]}, Shape(payments=2)),
     ("compare_spending", {"currencies": []}, Shape()),
@@ -226,7 +242,7 @@ def test_an_offered_list_is_a_copy_the_caller_cannot_change():
 
 # The texts must also work when they are typed, or the ten minutes are over: then they take the normal path.
 def every_follow_up():
-    arguments = {"period": "ThisMonth", "comparison": "MonthToDate", "months": 3, "merchant": "Starbucks", "days": 7,
+    arguments = {"period": "ThisMonth", "comparison": "MonthToDate", "months": 3, "merchant": "Starbucks", "days": 7, "categoryCode": "FUEL",
                  "amount": Decimal("1000"), "currencyCode": "TRY", "reductionPercent": 50}
     return [(tool, suggestion) for group in GROUPS.values() for tool in group for suggestion in follow_ups(tool, arguments)]
 
@@ -245,7 +261,8 @@ PHRASING = json.loads((Path(__file__).parent.parent / "model_check" / "phrasing_
 
 
 def _cases_of(pattern):
-    shape = re.escape(pattern).replace(re.escape("{period}"), "(?P<period>.+?)").replace(re.escape("{merchant}"), r"\S+")
+    shape = (re.escape(pattern).replace(re.escape("{period}"), "(?P<period>.+?)").replace(re.escape("{merchant}"), r"\S+")
+             .replace(re.escape("{category}"), r"\S+"))
     return [case for case in CASES if "context" not in case and isinstance(case["expected"], (dict, list))
             and re.fullmatch(shape, case["message"]) and re.fullmatch(shape, case["message"]).group("period") in PERIOD_NAMES.values()]
 

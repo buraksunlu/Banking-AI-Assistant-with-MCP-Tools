@@ -44,9 +44,10 @@ bir de `Custom`, aşağıda), merchant aracında `merchant` (1–150 karakter), 
 `Custom` yok), `get_monthly_trend`'de zorunlu `months` (tam sayı 1–12), `get_upcoming_payments`'ta isteğe bağlı `days` (tam sayı
 1–31, verilmezse 30), `check_budget`'te zorunlu `amount` (JSON sayısı) ve `currencyCode` (`TRY` | `USD` | `EUR` | `GBP`),
 `simulate_savings`'te zorunlu `reductionPercent` (tam sayı 1–100) ve isteğe bağlı `months` (1–12, verilmezse 6); ikisinde de isteğe
-bağlı `categoryCode` (11 kodluk kapalı küme, `ToolCategory`) ya da `merchant` (MCP-17/18). Müşteri ve hesap argümanı yoktur.
+bağlı `categoryCode` (11 kodluk kapalı küme, `ToolCategory`) ya da `merchant` (MCP-17/18); `get_category_spending`'de zorunlu
+`categoryCode` (aynı küme, `null` yok; UX-01 PR3). Müşteri ve hesap argümanı yoktur.
 
-**Tarih aralığı (CHAT-08 K2-B).** Dönem alan beş araçta (özet, kategori, tek işyeri, işyeri dağılımı, en büyükler) isteğe bağlı
+**Tarih aralığı (CHAT-08 K2-B).** Dönem alan araçlarda (özet, kategori, kategori detayı, tek işyeri, işyeri dağılımı, en büyükler) isteğe bağlı
 `from` ve `to` vardır (`["string", "null"]`) ve `period` `Custom` olabilir. Tarihi model seçmez (ANA-20): AI servisi bu üç değeri
 modelin gördüğü listeden gizler (`routing.hide_dates`), kullanıcının sözünden **kodla** okuduğu tarihi kendisi yazar. Sunucu yine
 de her çağrıyı denetler: `ToolCallFilter` metin tipini, `ToolDate` yalnız `YYYY-MM-DD` biçimindeki gerçek bir günü kabul eder
@@ -58,6 +59,7 @@ iki uç da zorunlu, başlangıç ≤ bitiş, bitiş gelecekte değil, en çok 24
 | --- | --- | --- |
 | `get_spending_summary` | `SpendingSummaryService` | `SpendingSummary` (`/api/analytics/spending-summary`) |
 | `get_category_breakdown` | `CategoryBreakdownService` | `CategoryBreakdown` (`/api/analytics/category-breakdown`) |
+| `get_category_spending` (UX-01 PR3) | `CategorySpendingService` | `CategorySpendingDetail` (`/api/analytics/category-spending`) |
 | `get_merchant_spending` | `MerchantSpendingService.GetSpendingAsync` | `MerchantSpendingResult` (`/api/analytics/merchant-spending`) |
 | `get_merchant_breakdown` (MCP-08) | `MerchantSpendingService.GetBreakdownAsync` | `MerchantBreakdown` (`/api/analytics/merchant-breakdown`) |
 | `get_highest_transactions` (MCP-10) | `HighestTransactionsService` (yalnız harcama, 5 kalem) | `HighestTransactions` (`/api/analytics/highest-transactions`) |
@@ -260,3 +262,12 @@ K15-B (birikimde `currencyCode` yalnız `TRY`, `ToolLiraCurrency`).
   781 → 782 modelsiz. 8 kasıtlı bozmanın hepsi yakalandı. Araç seçimi ve cevap ölçümü PR2'de (açıklamalar orada ölçülüp gerekirse
   değişir; değişirse keşif testi de güncellenir).
 
+
+## UX-01 PR3 — kategori detayı aracı (15 Kasım 2026)
+
+`get_category_spending` (16. araç, `SpendingTools`): zorunlu `categoryCode` (`ToolCategory`, `null` yok; şemadaki küme kategori
+tablosunun kodlarıyla testte karşılaştırılır) ve `period` (+ `Custom` ile `from`/`to`). Açıklama kod → kelime listesini taşır
+("GROCERY=market, FUEL=yakıt…"): seçici 4b modeli kodu buradan seçer; eski araçların açıklamaları değişmedi (K6-B). Sonuç REST'teki
+`CategorySpendingDetail`'in aynısı. Testler: keşif (allowlist, açıklama, argümanlar, kapalı küme), tarih aralığı (yedi dönem aracı),
+argüman reddi (`MARKET`, küçük harf, `null`, eksik), silinmiş müşteri, çağrı sonucu (Murat Market Eylül). Kasıtlı bozma: kapalı
+küme yerine serbest metin ilk turda yakalanmadı (servis yanlış kodu yine reddediyordu); kapalı küme şema testi eklendi, yakalandı.

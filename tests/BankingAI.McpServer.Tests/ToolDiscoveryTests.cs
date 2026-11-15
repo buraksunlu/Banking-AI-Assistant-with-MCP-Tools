@@ -22,6 +22,11 @@ public sealed class ToolDiscoveryTests
         ["get_spending_summary"] = ("Bir dönemdeki toplam harcamayı para birimi başına döndürür; \"ne harcadım / ne kadar harcadım\" gibi genel "
             + "harcama soruları için ilk tercih. " + PeriodHelp, ["from", "period", "to"], ["period"]),
         ["get_category_breakdown"] = ("Bir dönemdeki harcamanın kategorilere dağılımını döndürür. " + PeriodHelp, ["from", "period", "to"], ["period"]),
+        // UX-01 PR3: the category detail; the text the tool-selection eval of UX-01 PR3 was run with.
+        ["get_category_spending"] = (
+            "Bir dönemde tek bir kategoriye yapılan harcamayı ayrıntılı döndürür: önceki dönemle fark, işyerleri, en büyük işlem ve son 6 ay; \"markete / yakıta ne kadar harcadım\" gibi tek kategori soruları için. "
+            + "categoryCode: GROCERY=market, FOOD=yeme içme, FUEL=yakıt, BILLS=fatura, TRANSPORTATION=ulaşım, CLOTHING=giyim, ENTERTAINMENT=eğlence, SUBSCRIPTION=abonelik, TRAVEL=seyahat, HEALTH=sağlık, OTHER=diğer. " + PeriodHelp,
+            ["categoryCode", "from", "period", "to"], ["categoryCode", "period"]),
         ["get_merchant_spending"] = (
             "Bir dönemde tek bir işyerine (merchant) yapılan harcamayı döndürür. merchant: kullanıcının söylediği işyeri adı. " + PeriodHelp,
             ["from", "merchant", "period", "to"], ["merchant", "period"]),
@@ -129,7 +134,7 @@ public sealed class ToolDiscoveryTests
     {
         var tools = (await ToolsAsync()).Where(t => ToolDateRangeTests.PeriodTools.Contains(t.Name)).ToList();
 
-        Assert.Equal(6, tools.Count);
+        Assert.Equal(7, tools.Count);
         Assert.All(tools, t =>
         {
             var period = t.JsonSchema.GetProperty("properties").GetProperty("period");
@@ -146,8 +151,8 @@ public sealed class ToolDiscoveryTests
     {
         var tools = (await ToolsAsync()).Where(t => t.JsonSchema.GetProperty("properties").TryGetProperty("from", out _)).ToList();
 
-        // The six period tools and the two complete-month tools (INC-03).
-        Assert.Equal(8, tools.Count);
+        // The seven period tools and the two complete-month tools (INC-03).
+        Assert.Equal(9, tools.Count);
         Assert.All(tools, t => Assert.All(new[] { "from", "to" }, name =>
             Assert.Equal(["string", "null"],
                 t.JsonSchema.GetProperty("properties").GetProperty(name).GetProperty("type").EnumerateArray().Select(v => v.GetString()))));
@@ -206,6 +211,18 @@ public sealed class ToolDiscoveryTests
 
         // Optional: the published set is the table's codes plus null (left out), never a code the table does not have.
         Assert.Equal([.. codes, null], category.GetProperty("enum").EnumerateArray().Select(v => v.GetString()));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task The_category_detail_takes_exactly_one_of_the_category_tables_codes()
+    {
+        var category = (await ToolsAsync()).Single(t => t.Name == "get_category_spending").JsonSchema.GetProperty("properties").GetProperty("categoryCode");
+        await using var db = new BankingAI.Data.BankingDbContext();
+        var codes = await db.TransactionCategories.OrderBy(c => c.Id).Select(c => c.Code).ToListAsync();
+
+        // Required (UX-01 PR3): the closed set with no null, so the model chooses a code and never writes its own word.
+        Assert.Equal(codes, category.GetProperty("enum").EnumerateArray().Select(v => v.GetString()));
     }
 
     [Fact]

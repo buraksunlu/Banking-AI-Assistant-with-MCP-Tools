@@ -49,6 +49,8 @@ HIGHEST_IN = "{period} en büyük harcamalarım neler?"
 TOTAL_IN = "{period} toplam ne kadar harcadım?"
 # P3-A: the merchant's name takes no ending, so no Turkish suffix is made up for a name the code does not know.
 MERCHANT_IN = "{period} {merchant} harcamam ne kadar?"
+# UX-01 PR3: a category the same way, in the word people use for it (grounding._CATEGORY_WORDS reads it back when typed).
+CATEGORY_IN = "{period} {category} harcamam ne kadar?"
 INCOME_IN = "{period} maaşımın ne kadarını harcadım?"
 SAVE_WHERE_IN = "{period} nerede tasarruf edebilirim?"
 
@@ -62,7 +64,13 @@ _ANY_PERIOD = (*PERIOD_NAMES, "Custom")
 # Income and advice take a complete month only (INC-01 K2-A).
 _COMPLETE_MONTH = ("LastMonth", "Custom")
 PATTERNS = {CATEGORIES_IN: _ANY_PERIOD, MERCHANTS_IN: _ANY_PERIOD, HIGHEST_IN: _ANY_PERIOD, TOTAL_IN: _ANY_PERIOD,
-            MERCHANT_IN: _ANY_PERIOD, INCOME_IN: _COMPLETE_MONTH, SAVE_WHERE_IN: _COMPLETE_MONTH}
+            MERCHANT_IN: _ANY_PERIOD, CATEGORY_IN: _ANY_PERIOD, INCOME_IN: _COMPLETE_MONTH, SAVE_WHERE_IN: _COMPLETE_MONTH}
+
+# The word each category is offered with; "OTHER" has none, because "diğer" in a typed question means nothing to read back.
+CATEGORY_WORDS = {
+    "GROCERY": "market", "FOOD": "yeme içme", "CLOTHING": "giyim", "TRANSPORTATION": "ulaşım", "ENTERTAINMENT": "eğlence",
+    "SUBSCRIPTION": "abonelik", "TRAVEL": "seyahat", "FUEL": "yakıt", "BILLS": "fatura", "HEALTH": "sağlık",
+}
 
 # The period a follow-up turns to ("Peki geçen ay?" as a full question); a period with no counterpart turns to this month.
 _OTHER_PERIOD = {"ThisMonth": "LastMonth", "LastMonth": "ThisMonth", "ThisWeek": "LastWeek", "LastWeek": "ThisWeek",
@@ -109,7 +117,8 @@ def _in(pattern: str, tool: str, period: dict, **arguments) -> Suggestion:
         name = f"{format_period(date.fromisoformat(period['from']), date.fromisoformat(period['to']))} döneminde"
     else:
         name = PERIOD_NAMES[period["period"]]
-    text = pattern.format(period=name, merchant=arguments.get("merchant", ""))
+    text = pattern.format(period=name, merchant=arguments.get("merchant", ""),
+                          category=CATEGORY_WORDS.get(arguments.get("categoryCode"), ""))
     return Suggestion(text, tool, {**arguments, **period})
 
 
@@ -161,6 +170,13 @@ def _merchant(a: dict) -> list[Suggestion]:
             _in(MERCHANT_IN, "get_merchant_spending", _other(a), merchant=m)]
 
 
+def _category(a: dict) -> list[Suggestion]:
+    p = _period(a)
+    same = ([_in(CATEGORY_IN, "get_category_spending", _other(a), categoryCode=a["categoryCode"])]
+            if a["categoryCode"] in CATEGORY_WORDS else [])
+    return [*same, _in(CATEGORIES_IN, "get_category_breakdown", p), _in(MERCHANTS_IN, "get_merchant_breakdown", p)]
+
+
 def _comparison(a: dict) -> list[Suggestion]:
     p = _named(_PERIOD_OF[a["comparison"]])
     return [_in(CATEGORIES_IN, "get_category_breakdown", p), _s(TREND_6, "get_monthly_trend", months=6),
@@ -193,6 +209,7 @@ def _saving(a: dict) -> list[Suggestion]:
 _TABLE = {
     "get_spending_summary": _summary,
     "get_category_breakdown": _categories,
+    "get_category_spending": _category,
     "get_merchant_spending": _merchant,
     "get_merchant_breakdown": _merchants,
     "get_highest_transactions": _highest,
@@ -272,6 +289,9 @@ def result_shape(tool: str, result: dict) -> Shape:
             return Shape(spent=any(r["items"] for r in result["currencies"]))
         if tool in ("get_category_breakdown", "get_merchant_breakdown", "get_merchant_spending"):
             return Shape(spent=bool(result["currencies"]))
+        if tool == "get_category_spending":
+            # A row may be a real 0 of the period, there for the months around it (K4-A).
+            return Shape(spent=any(r["amount"] > 0 for r in result["currencies"]))
     except (KeyError, TypeError):
         pass
     return Shape()

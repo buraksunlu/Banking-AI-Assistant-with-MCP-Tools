@@ -11,10 +11,15 @@ public sealed class ToolDateRangeTests
 {
     internal static readonly string[] PeriodTools =
         ["get_spending_summary", "get_category_breakdown", "get_merchant_spending", "get_merchant_breakdown", "get_highest_transactions",
-         "what_if_one_off"];
+         "what_if_one_off", "get_category_spending"];
 
     private static string Arguments(string tool, string dates) =>
-        tool == "get_merchant_spending" ? $$"""{"merchant":"Starbucks",{{dates}}}""" : "{" + dates + "}";
+        tool switch
+        {
+            "get_merchant_spending" => $$"""{"merchant":"Starbucks",{{dates}}}""",
+            "get_category_spending" => $$"""{"categoryCode":"FOOD",{{dates}}}""",
+            _ => "{" + dates + "}"
+        };
 
     public static TheoryData<string> Tools => [.. PeriodTools];
 
