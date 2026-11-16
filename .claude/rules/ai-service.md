@@ -131,6 +131,11 @@ modelin yazdığı karşı taraf adı mesajda geçmiyorsa düşer (K4-B). Dönem
 yaptım" transfer sorusudur). `minAmount`/`maxAmount` kullanıcının rakamıdır (`FIGURE_ARGUMENTS`, yalnız "peki/ya" ile taşınır). Kalemler
 `facts._accounts`/`_listing`, kartlar `cards._accounts`/`_listing` (satırlar aracın kendi sonucundan, ilk 5; işletme ve para birimi ayrı kart).
 Aynı adlı iki kişi aday sorusu değil sabit cevaptır (maskeli ad geri yazılıp eşleştirilemez).
+**Güvenlik ağı (CHAT-12 PR2):** "ne kadar" zayıf kelimedir (`routing._WEAK_WORDS`), tek başına grup seçmez; kural tutmayan mesajla aynı yoldan
+modelin niyet sorusuna (`intent-v2`: spending/payments/planning/accounts/unclear) gider. `unclear` → `Route.ask_area` → sabit konu sorusu
+(`clarification.ask_area`, tür `area`, değerleri router grupları); dokunuş `chat`'te `forced_group` ile özgün soruyu o grupla yeniden işler.
+Kredi/borç/faiz kapsam dışı kuralındadır. Serbest yazılış ölçümü `free_eval.py` (doğru/sordu/cevapsız/yanlış; modelsiz temel
+`free_baseline.json` testle kilitli, modelli sonuç belgede); niyet prompt'u ya da kurallar değişince `--model` önce/sonra.
 **Araç sırası (ACC-01b bulgusu):** modele gösterilen liste `routing.MEASURED_ORDER` sırasındadır, sunucunun sırası değil (derlemeye göre
 değişiyor ve 4b'nin isabetini oynatıyordu). Yeni araç bu tuple'a eklenir (`test_the_measured_order_names_every_tool_of_the_table_once`);
 sıra değişirse bütün araç seçim ölçümü yeniden çalıştırılır. Ölçüm her zaman yeni kodla açılmış ayrı porttaki MCP/AI servisiyle yapılır.

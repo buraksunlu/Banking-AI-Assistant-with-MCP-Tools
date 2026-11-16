@@ -41,7 +41,7 @@ AMOUNT_EXAMPLES = (1000, 5000, 10000)
 AMOUNT_HINT = "Başka bir tutar yazın"
 # CHAT-09 K19-C: the two planning calculations, as the user is offered them. (K17-C's "one-off or monthly?" question was dropped
 # in CHAT-10 PR3b D8-B: an undecided "what if" is the monthly saving.)
-CHOICE_KINDS = ("topic",)
+CHOICE_KINDS = ("topic", "area")
 # Folded like the reply they are matched against (K11-A).
 _ORDINALS = {fold_rule(word): number for word, number in {
     "birinci": 1, "ilk": 1, "ilki": 1, "ikinci": 2, "ikincisi": 2, "üçüncü": 3, "üçüncüsü": 3, "dördüncü": 4,
@@ -65,6 +65,19 @@ TOPICS = (
            re.compile(fold_rule(r"bütçe|\blimit|\bsınır|\baş(?:ar|acak|ma)"))),
     Option("tasarruf hesabı", "simulate_savings", "bir harcamayı azaltırsanız ne kadar biriktirirsiniz",
            re.compile(fold_rule(r"tasarruf|\bazalt|\bkıs|biriktir|\bindir|\byarı"))),
+)
+
+
+# CHAT-12 K5-A: the topic of a message neither a rule nor the model could place; the value is the router's group (routing.GENERAL,
+# ACCOUNTS, PLANNING; written out here because routing imports this module's neighbours). The rows are tapped, the words read a
+# typed reply. The investment what-ifs stay with their word rules (INC-03 K16-A), so they are no row here.
+AREAS = (
+    Option("Harcamalarım", "general", "toplam harcama, kategoriler, işyerleri ve ödemeler",
+           re.compile(fold_rule(r"harca|masraf|alışveriş|ödeme|abonel|kategori|işyer"))),
+    Option("Hesabım ve para hareketlerim", "accounts", "bakiye, maaş ve gelirler, gönderilen ve gelen para",
+           re.compile(fold_rule(r"hesab|hesap|bakiye|maaş|gelir|transfer|hareket|gönder|gelen"))),
+    Option("Bütçe ve tasarruf", "planning", "bütçe kontrolü ya da bir harcamayı azaltınca biriktireceğiniz",
+           re.compile(fold_rule(r"bütçe|tasarruf|birik"))),
 )
 
 
@@ -101,7 +114,8 @@ class Pending:
     @property
     def model_worded(self) -> bool:
         """True when the model may word the question (CHAT-03 K4-B); a figure question is always the fixed text."""
-        return self.kind in ("period", "count", "merchant", *CHOICE_KINDS) and not self.note
+        # CHAT-12 K5-A: the topic question is the fixed text; the model's wording would be a guess about what it could not place.
+        return self.kind in ("period", "count", "merchant", *CHOICE_KINDS) and self.kind != "area" and not self.note
 
 
 def ask_period(tool: str, arguments: dict, question: str, note: str = "", original: str = "") -> Pending:
@@ -194,6 +208,11 @@ def ask_topic(question: str) -> Pending:
     return Pending("", {}, "tool", "topic", TOPICS, question, original=question)
 
 
+def ask_area(question: str) -> Pending:
+    """Which topic a message is about, when neither a word rule nor the model could tell (CHAT-12 K5-A)."""
+    return Pending("", {}, "group", "area", AREAS, question, original=question)
+
+
 def input_hint(pending: Pending) -> str:
     """The row that invites an answer of the user's own (PR3b D6-A); empty for a question whose options are all there is."""
     return {"amount": AMOUNT_HINT, "duration": DURATION_HINT}.get(pending.kind, "")
@@ -271,6 +290,8 @@ def template(pending: Pending) -> str:
         return "Ne kadar azaltmayı düşünüyorsunuz?"
     if pending.kind == "duration":
         return f"{note}Kaç ay boyunca biriktirirdiniz?"
+    if pending.kind == "area":
+        return "Sorunuzu tam anlayamadım. Hangi konuda yardımcı olayım?"
     if pending.kind in CHOICE_KINDS:
         return "Bunu iki şekilde hesaplayabilirim. Hangisini istersiniz?"
     if pending.kind == "merchant":

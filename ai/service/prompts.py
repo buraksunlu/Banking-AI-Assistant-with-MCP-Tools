@@ -144,15 +144,20 @@ def build_date_messages(expression: str, day) -> list[dict]:
     return [{"role": "system", "content": f"{DATE_SYSTEM_PROMPT}\n{context}"}, {"role": "user", "content": _neutralize(expression)}]
 
 
-INTENT_PROMPT_VERSION = "intent-v1"
+INTENT_PROMPT_VERSION = "intent-v2"
 
 # CHAT-01 K1-C: asked only when no word rule matched. The groups are given with their meanings (the AI-01 structured-output
 # pattern, 5 of 5); the answer is held to the schema by Ollama's "format", and the router accepts only a known group.
-INTENT_SYSTEM_PROMPT = ("Kullanıcının bankacılık sorusunu üç gruptan birine ayır ve yalnız JSON yaz. spending: harcama tutarı, "
-                        "kategoriler, işyerleri, en büyük harcamalar, dönem karşılaştırması ya da aylara göre değişim. payments: "
-                        "abonelikler, her ay tekrarlanan ödemeler ya da yaklaşan ödemeler. planning: kullanıcının söylediği bir "
-                        "bütçe ya da bir harcamayı azaltınca ne kadar biriktireceği.")
-INTENT_SCHEMA = {"type": "object", "properties": {"intent": {"type": "string", "enum": ["spending", "payments", "planning"]}},
+# CHAT-12 K3-B (intent-v2): the account questions of ACC-01a, and "unclear" for a message the model cannot place, which is asked back
+# as a topic question (K5-A) instead of being sent to the spending tools.
+INTENT_SYSTEM_PROMPT = ("Kullanıcının bankacılık sorusunu dört gruptan birine ayır ya da unclear de; yalnız JSON yaz. spending: harcama "
+                        "tutarı, kategoriler, işyerleri, en büyük harcamalar, dönem karşılaştırması ya da aylara göre değişim. "
+                        "payments: abonelikler, her ay tekrarlanan ödemeler ya da yaklaşan ödemeler. planning: kullanıcının söylediği "
+                        "bir bütçe ya da bir harcamayı azaltınca ne kadar biriktireceği. accounts: hesaplardaki para ve bakiye, maaş "
+                        "ya da gelirin yatması, gönderilen ya da gelen para transferleri. unclear: soru bu gruplardan hangisine ait "
+                        "olduğu belli değilse ya da kullanıcının kendi parasıyla ilgili değilse.")
+INTENT_SCHEMA = {"type": "object", "properties": {"intent": {"type": "string",
+                                                             "enum": ["spending", "payments", "planning", "accounts", "unclear"]}},
                  "required": ["intent"]}
 
 

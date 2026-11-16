@@ -24,7 +24,7 @@ from langchain_ollama import ChatOllama
 
 from accounts import ACCOUNT_TOOLS, BALANCE, code_arguments, fallback_arguments, implied_this_month
 from answer_check import check_answer, has_advice, misnamed
-from clarification import (CHOICE_KINDS, MAX_REPLY_WORDS, Choice, Pending, PendingStore, ask_amount, ask_amount_again, ask_complete_month, ask_count, ask_currency,
+from clarification import (CHOICE_KINDS, MAX_REPLY_WORDS, Choice, Pending, PendingStore, ask_amount, ask_amount_again, ask_area, ask_complete_month, ask_count, ask_currency,
                            ask_months, ask_months_again, months_out_of_range,
                            ask_merchant, ask_percent, ask_period, ask_topic, check_question, choices, chosen_tool, input_hint,
                            is_bare_choice, resolve, template, wants_one_off)
@@ -235,12 +235,18 @@ class ChatService:
         # CHAT-09 K17-C/K19-C: the tool the user chose between two calculations; their question then goes the normal way with
         # that tool alone, and its own words and figures (plus the reply's, "her ay 2 bin") are checked as always.
         forced = None
+        # CHAT-12 K5-A: the group the user tapped under the topic question; their question is then shown that group's tools.
+        forced_group = None
         if waiting is not None and wants_one_off(waiting, message):
             # PR3b D8-B: the monthly saving was only the default; "tek seferlik" under its amount question takes the one-off.
             forced, message, completed = ONE_OFF_TOOL, waiting.question, True
         elif waiting is not None and waiting.kind in CHOICE_KINDS:
-            forced = chosen_tool(waiting, message)
-            if forced is not None:
+            chosen = chosen_tool(waiting, message)
+            if chosen is not None:
+                if waiting.kind == "area":
+                    forced_group = chosen
+                else:
+                    forced = chosen
                 message = waiting.original if is_bare_choice(message) else f"{waiting.original} ({message})"
                 completed = True
         elif waiting is not None and waiting.tool == "":
@@ -293,8 +299,13 @@ class ChatService:
         context = self.history.recall(token) if not completed and is_follow_up(message) else None
         if forced is not None:
             route = Route((group_of(forced),), only=forced)
+        elif forced_group is not None:
+            route = Route((forced_group,), source="choice")
         else:
             route = self.router.route(message, context.tool if context else None, deadline)
+        if route.ask_area:
+            # CHAT-12 K5-A: neither a rule nor the model could place it; asking costs a tap, a guess could show another figure.
+            return self._ask(ask_area(message), [], token, deadline)
         if route.out_of_scope:
             # A request to move money or to advise is answered before any tool or model is involved (CHAT-01 K5-B).
             return _advice_declined() if route.advice else _out_of_scope()
