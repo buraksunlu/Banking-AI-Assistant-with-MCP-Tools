@@ -124,10 +124,10 @@ public class DayPlanTests
     }
 
     [Fact]
-    public void Half_a_year_never_overdraws_a_personal_account_and_only_the_shop_runs_short()
+    public void Half_a_year_never_overdraws_an_account_and_skips_nothing()
     {
-        // The live balances at the start (bankingai_live, 16 Nov 2026, equal to the fixed DB). A debit the balance cannot carry is skipped,
-        // as the writer refuses it (S8-A); only the shop's monthly 18.000 to Can may be skipped, its sales do not cover it.
+        // The live balances at the start (bankingai_live, 16 Nov 2026, equal to the fixed DB). A debit the balance cannot carry would be
+        // skipped, as the writer refuses it (S8-A); with the shop paying Can what its sales carry (RT-05a T3-A) nothing is.
         var balances = new Dictionary<Guid, decimal>
         {
             [Selin] = 79772.63m, [Murat] = 644659.42m, [ZeynepTry] = 135422.50m, [ZeynepUsd] = 11771.13m, [Hasan] = 174180.50m,
@@ -152,7 +152,7 @@ public class DayPlanTests
                 balances[counterpart] += p.Amount;
         }
 
-        Assert.All(skipped, p => Assert.Equal((CanShop, TransactionKind.Transfer), (p.AccountId, p.Kind)));
+        Assert.Empty(skipped);
         Assert.All(balances.Values, balance => Assert.True(balance >= 0));
     }
 
@@ -161,7 +161,7 @@ public class DayPlanTests
     {
         var day = DayPlan.For(new DateOnly(2026, 10, 26));
         var transfer = Assert.Single(day, p => p.Kind == TransactionKind.Transfer && p.AccountId == Hasan);
-        var purchase = day.First(p => p.Kind == TransactionKind.Purchase && p.CategoryId is not null);
+        var purchase = day.First(p => p.Kind == TransactionKind.Purchase && p.CategoryId is not null && p.CounterpartId is null);
 
         var legs = transfer.ToTransactions();
         var debit = Assert.Single(purchase.ToTransactions());
