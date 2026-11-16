@@ -380,6 +380,15 @@ Enum parametreleri `Api/Queries/ExactEnum` ile tam adla okunur (dönem ve karş�
 (demo anıyla), 20'lik sayfalarla 20 / 20 / 9; Selin 646 işlem, 50'likle 13 sayfa, tekrarsız. Analytics endpoint'lerinde
 `AllTime` dönem değildir (`400` `errors.period`; mesaj adı listelemez). Bilinen sınır: serbest metin araması yok (ANA-05 kararı).
 
+**ACC-01a (16 Kasım 2026): toplamlar ve karşı taraf.** Cevapta `totals`: bütün filtreli sonucun (yalnız bu sayfanın değil) para birimi
+ve yön başına toplamı, `[{currencyCode, direction, count, amount}]` (para birimi, sonra `Debit` önce; giden ve gelen asla tek toplam
+değildir). Ada bu ay: `TRY Debit 6 × 2.235` (5 harcama 735 + transfer 1.500), `TRY Credit 2 × 45.300`. Yeni parametre `counterparty`
+(isteğe bağlı, 1–150): müşterinin kendi çiftlerindeki (transfer, dükkân alışverişi) karşı tarafla eşleşir — kişi **ilk adıyla**, dükkân
+ya da kendi hesabı hesap adıyla; `MerchantMatcher` kuralları (tam, tek adaylı kısmi ≥ 3 harf, yazım düzeltmesi yok); aynı ilk adı taşıyan
+iki kişi `Ambiguous` (birleştirilmez), bir kişinin iki hesabı tek eşleşme. `counterpartyMatch {status, name, candidates}` yalnız
+`counterparty` verilince doludur; karşı tarafın hesap kimlikleri hiçbir zaman dönmez. Hasan, son 3 ay, `kind=Transfer&direction=Debit&counterparty=Selin`
+→ "Selin K***", 3 × 3.000 = 9.000.
+
 ## `GET /api/transactions/{id}` (API-10)
 
 Token gerekir. Tek işlemi kimliğiyle, **zarfsız** düz `TransactionItem` olarak döndürür (liste kalemiyle birebir

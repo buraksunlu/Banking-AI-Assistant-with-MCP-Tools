@@ -17,7 +17,11 @@ public sealed record TransactionSearchQuery(
     TransactionKind? Kind = null, TransactionDirection? Direction = null,
     string? CategoryCode = null, bool OnlyUnclassified = false, string? Merchant = null,
     int Limit = 20, string? Cursor = null,
-    decimal? MinAmount = null, decimal? MaxAmount = null, string? CurrencyCode = null, AccountType? AccountType = null);
+    decimal? MinAmount = null, decimal? MaxAmount = null, string? CurrencyCode = null, AccountType? AccountType = null,
+    string? Counterparty = null);
+
+// ACC-01a K2-A: what the whole filtered result adds up to, per currency and direction (money out and money in are never one sum).
+public sealed record SearchTotal(string CurrencyCode, TransactionDirection Direction, int Count, decimal Amount);
 
 // A DTO, never the entity. Counterparty is a masked person ("Deniz M***"), a shop's account name,
 // or the customer's own account name (CounterpartyIsOwnAccount); full names never leave the service.
@@ -27,11 +31,11 @@ public sealed record TransactionItem(
     string? Merchant, string? CategoryCode, string? CategoryDisplayName, string RawDescription,
     string? Counterparty, bool CounterpartyIsOwnAccount);
 
-// MerchantMatch is set only when a merchant filter was given; Ambiguous/NotFound return no rows.
-// TotalCount is the whole filtered result on every page; NextCursor is null on the last page.
+// MerchantMatch / CounterpartyMatch are set only when that filter was given; Ambiguous/NotFound return no rows.
+// TotalCount and Totals are the whole filtered result on every page; NextCursor is null on the last page.
 public sealed record TransactionSearchResult(
     ResolvedPeriod Period, MerchantMatch? MerchantMatch, int TotalCount, bool HasMore, string? NextCursor,
-    IReadOnlyList<TransactionItem> Items);
+    IReadOnlyList<TransactionItem> Items, IReadOnlyList<SearchTotal> Totals, CounterpartyMatch? CounterpartyMatch = null);
 
 public sealed class TransactionSearchService(BankingDbContext db, PeriodResolver periodResolver)
 {
@@ -83,18 +87,36 @@ public sealed class TransactionSearchService(BankingDbContext db, PeriodResolver
                 .ToListAsync(cancellationToken);
             merchantMatch = MerchantMatcher.Match(merchant, knownMerchants);
             if (merchantMatch.Status != MerchantMatchStatus.Matched)
-                return new TransactionSearchResult(period, merchantMatch, 0, false, null, []);
+                return new TransactionSearchResult(period, merchantMatch, 0, false, null, [], []);
             var canonical = merchantMatch.Merchant!;
             transactions = transactions.Where(t => t.NormalizedMerchant == canonical);
         }
 
-        // One query for the count and, for AllTime, the oldest moment that starts the period. No rows, no group.
-        var totals = await transactions
-            .GroupBy(_ => 1)
-            .Select(g => new { Count = g.Count(), Oldest = g.Min(t => t.OccurredAt) })
-            .SingleOrDefaultAsync(cancellationToken);
+        CounterpartyMatch? counterpartyMatch = null;
+        if (query.Counterparty is { } counterparty)
+        {
+            counterpartyMatch = CounterpartyMatcher.Match(counterparty,
+                await CounterpartiesAsync(accounts, query.CustomerId, cancellationToken));
+            if (counterpartyMatch.Status != CounterpartyMatchStatus.Matched)
+                return new TransactionSearchResult(period, merchantMatch, 0, false, null, [], [], counterpartyMatch);
+            var others = counterpartyMatch.AccountIds;
+            transactions = transactions.Where(t => db.Transactions.Any(
+                o => o.PairId != null && o.PairId == t.PairId && o.Id != t.Id && others.Contains(o.AccountId)));
+        }
+
+        // One query for the count, the totals per currency and direction and, for AllTime, the oldest moment that starts the
+        // period. No rows, no group.
+        var groups = await transactions
+            .GroupBy(t => new { t.CurrencyCode, t.Direction })
+            .Select(g => new { g.Key.CurrencyCode, g.Key.Direction, Count = g.Count(), Amount = g.Sum(t => t.Amount), Oldest = g.Min(t => t.OccurredAt) })
+            .ToListAsync(cancellationToken);
+        var count = groups.Sum(g => g.Count);
+        var totals = groups
+            .OrderBy(g => g.CurrencyCode, StringComparer.Ordinal).ThenBy(g => g.Direction)
+            .Select(g => new SearchTotal(g.CurrencyCode, g.Direction, g.Count, g.Amount))
+            .ToList();
         if (allTime)
-            period = periodResolver.ResolveAllTime(timeZoneId, totals?.Oldest);
+            period = periodResolver.ResolveAllTime(timeZoneId, groups.Count == 0 ? null : groups.Min(g => g.Oldest));
 
         // Keyset paging: rows strictly after the cursor in (OccurredAt, Id) order, the order of the list itself. Rows
         // added meanwhile are newer, so they can no longer push a row of the previous page onto this one.
@@ -107,8 +129,8 @@ public sealed class TransactionSearchService(BankingDbContext db, PeriodResolver
         var hasMore = rows.Count > query.Limit;
         var items = hasMore ? rows[..query.Limit] : rows;
 
-        return new TransactionSearchResult(period, merchantMatch, totals?.Count ?? 0, hasMore,
-            hasMore ? TransactionCursor.After(items[^1]) : null, items);
+        return new TransactionSearchResult(period, merchantMatch, count, hasMore,
+            hasMore ? TransactionCursor.After(items[^1]) : null, items, totals, counterpartyMatch);
     }
 
     /// <summary>
@@ -134,6 +156,25 @@ public sealed class TransactionSearchService(BankingDbContext db, PeriodResolver
         return items.SingleOrDefault() ?? throw new KeyNotFoundException("İşlem bulunamadı.");
     }
 
+    // The other side of every pair on the scope's accounts, in the names the statement shows (TransactionItemReader): the
+    // customer's own account or a shop by its account name, a person by first name with the masked surname shown.
+    private async Task<List<CounterpartyCandidate>> CounterpartiesAsync(
+        IQueryable<Guid> accounts, Guid customerId, CancellationToken cancellationToken)
+    {
+        var others = await (
+                from t in db.Transactions.AsNoTracking()
+                where accounts.Contains(t.AccountId) && t.PairId != null
+                from o in db.Transactions.Where(o => o.PairId != null && o.PairId == t.PairId && o.Id != t.Id)
+                join a in db.Accounts on o.AccountId equals a.Id
+                join c in db.Customers on a.CustomerId equals c.Id
+                select new { a.Id, a.AccountName, a.AccountType, a.CustomerId, c.FirstName, c.LastName })
+            .Distinct()
+            .ToListAsync(cancellationToken);
+        return [.. others.Select(o => o.CustomerId == customerId || o.AccountType == AccountType.Business
+            ? new CounterpartyCandidate(o.Id, o.AccountName, o.AccountName)
+            : new CounterpartyCandidate(o.Id, o.FirstName, TransactionItemReader.MaskName(o.FirstName, o.LastName)))];
+    }
+
     // Every input check runs before the database is touched.
     private static void Validate(TransactionSearchQuery query)
     {
@@ -152,6 +193,8 @@ public sealed class TransactionSearchService(BankingDbContext db, PeriodResolver
             InputRules.Text(query.CategoryCode, 50, nameof(query.CategoryCode));
         if (query.Merchant is not null)
             InputRules.Text(query.Merchant, MerchantMatcher.MaximumLength, nameof(query.Merchant));
+        if (query.Counterparty is not null)
+            InputRules.Text(query.Counterparty, MerchantMatcher.MaximumLength, nameof(query.Counterparty));
         AmountFilter.Validate(query.MinAmount, query.MaxAmount, query.CurrencyCode);
     }
 }

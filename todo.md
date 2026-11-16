@@ -410,6 +410,20 @@ fiyat → o varlıkta rakam yok), K19-A (12 alım satırı), K20-A (öneri yoksa
   enflasyon dahil değil. Yatırım emri yok.
 - [ ] OC-10 — Hangi sorularda sohbetin bunu önereceği INC-03'te belirlenir; her harcama sorusuna otomatik eklenmez.
 
+## 12g. Temel bankacılık soruları — kullanıcı kararı 16 Kasım 2026
+
+Simülatör incelemesinden sonra kullanıcının seçtiği 1. grup: asistanın bugün "yardımcı olamıyorum" dediği bakiye, işlem arama, gelir ve
+transfer soruları. Kararlar K1-A (dört ayrı araç) K2-A (aramaya para birimi + yön toplamı) K3-A (karşı taraf ilk adla, kapalı küme, iki
+aday = geri soru) K4-A (kişisel ve işletme ayrı kart) K5-A (yeni "hesaplar" yönlendirme grubu) K6-A (kartta toplam + ilk satırlar + tam
+liste bağlantısı) K7-A (eski 121 vaka bozulmaz, yeni ≥ 14/16, cevap doğruluğuna 4 vaka).
+
+- [x] ACC-01a — Backend (16 Kasım 2026, docs/mcp.md "ACC-01a", docs/api.md): arama sonucuna `totals` (para birimi + yön, bütün sayfalar)
+  ve `counterparty` filtresi (`CounterpartyMatcher`: kişi ilk adla, dükkân/kendi hesabı adla; hesap kimlikleri dışarı çıkmaz); dört MCP
+  aracı (`Tools/AccountTools`: `get_accounts`, `search_transactions`, `get_income`, `get_transfers`; kişisel hesaplar, ≤ 10 satır);
+  `IAccountReadService` ortak kurulumda; AI servisinde `accounts` grubu (yolsuz). Application 500 → 511, McpServer 216 → 222, Api 605 → 606,
+  Python 1464; 8 kasıtlı bozma yakalandı (biri eklenen testle: kişisel hesap kapsamı).
+- [ ] ACC-01b — Asistan + iPhone: yönlendirme kuralları, mesajdan tutar/ad okuma, dört kart, öneriler, işlem bağlantısı, model ölçümü.
+
 ## 14. SwiftUI — çalışan endpoint üzerine küçük ekranlar
 
 - [x] IOS-01 — SwiftUI proje temelini oluştur. MVVM, NavigationStack ve native state kullan; gereksiz paket ekleme. Sonuç (20 Ekim 2026, iOS-a, dal `ios-13-login`, docs/ios.md): `ios/BankingAI` (Xcode 26.5 eşitlenen klasörler, Swift 6.3, en düşük iOS 17, Swift Testing; arayüz testi hedefi kaldırıldı). Klasörler App/Networking/Session/Login/Home; `@Observable` ViewModel'ler, View'da ağ kodu yok; kütüphane yok. Info.plist yalnız `NSAllowsLocalNetworking`. Kullanıcı kararları (AI-08 planı): K1-B iki adım (iOS-a giriş, iOS-b sohbet), K2-A projeyi kullanıcı Xcode'da oluşturdu, K3-A iOS 17.

@@ -40,7 +40,6 @@ builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 // shared with the MCP server (BankingAI.Hosting, MCP-a K8-A). What follows is only what the API itself exposes.
 builder.Services.AddBankingCore();
 builder.Services.AddSingleton<TokenIssuer>();
-builder.Services.AddScoped<IAccountReadService, AccountReadService>();
 builder.Services.AddScoped<IAccountWriteService, AccountWriteService>();
 builder.Services.AddScoped<ITransactionWriteService>(services => new TransactionWriteService(
     services.GetRequiredService<BankingDbContext>(), services.GetRequiredService<PeriodResolver>(),

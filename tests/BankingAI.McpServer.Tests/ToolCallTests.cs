@@ -416,4 +416,83 @@ public sealed class ToolCallTests
             (result.GetProperty("months").GetInt32(), result.GetProperty("firstBuyDate").GetString(),
              result.GetProperty("invested").GetDecimal(), result.GetProperty("assets")[2].GetProperty("value").GetDecimal()));
     }
+
+    // MARK: ACC-01a (16 Nov 2026): balances, search, income, transfers
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Accounts_give_each_balance_and_the_totals_per_type_and_currency()
+    {
+        var result = await CallAsync(Zeynep, "get_accounts", "{}");
+
+        Assert.Equal(["Personal TRY 135422.50", "Personal USD 11771.13"],
+            result.GetProperty("totals").EnumerateArray().Select(t =>
+                $"{t.GetProperty("accountType").GetString()} {t.GetProperty("currencyCode").GetString()} {Money(t.GetProperty("balance"))}"));
+        Assert.All(result.GetProperty("accounts").EnumerateArray(), a => Assert.Equal("•••• 001", a.GetProperty("shortNumber").GetString()));
+        Assert.DoesNotContain("DUMMY-", result.GetRawText());
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Search_lists_and_totals_purchases_over_an_amount()
+    {
+        var result = await CallAsync(Murat, "search_transactions",
+            """{"period":"LastMonth","minAmount":2000,"currencyCode":"TRY"}""");
+
+        Assert.Equal(7, result.GetProperty("totalCount").GetInt32());
+        var total = Assert.Single(result.GetProperty("totals").EnumerateArray());
+        Assert.Equal(("TRY", "Debit", "41363.50"),
+            (total.GetProperty("currencyCode").GetString(), total.GetProperty("direction").GetString(), Money(total.GetProperty("amount"))));
+        Assert.All(result.GetProperty("items").EnumerateArray(), i => Assert.Equal("Purchase", i.GetProperty("kind").GetString()));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Income_is_the_salary_of_the_period()
+    {
+        var result = await CallAsync(Murat, "get_income", """{"period":"LastMonth"}""");
+
+        var salary = Assert.Single(result.GetProperty("items").EnumerateArray());
+        Assert.Equal(("2026-09-15", "85000.00", "Salary"),
+            (salary.GetProperty("localDate").GetString(), Money(salary.GetProperty("amount")), salary.GetProperty("kind").GetString()));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Transfers_to_a_person_are_found_by_first_name_and_never_show_account_ids_of_others()
+    {
+        var result = await CallAsync(Hasan, "get_transfers", """{"period":"Last3Months","direction":"Sent","counterparty":"Selin"}""");
+
+        Assert.Equal(("Matched", "Selin K***"),
+            (result.GetProperty("counterpartyMatch").GetProperty("status").GetString(),
+             result.GetProperty("counterpartyMatch").GetProperty("name").GetString()));
+        Assert.False(result.GetProperty("counterpartyMatch").TryGetProperty("accountIds", out _));
+        var total = Assert.Single(result.GetProperty("totals").EnumerateArray());
+        Assert.Equal(("Debit", 3, "9000.00"),
+            (total.GetProperty("direction").GetString(), total.GetProperty("count").GetInt32(), Money(total.GetProperty("amount"))));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Received_transfers_are_the_money_that_came_in()
+    {
+        // Ada's October: 300 from Ege came in; the 1.500 to Deniz went out and is left out.
+        var result = await CallAsync(Ada, "get_transfers", """{"period":"ThisMonth","direction":"Received"}""");
+
+        var transfer = Assert.Single(result.GetProperty("items").EnumerateArray());
+        Assert.Equal(("Ege Y***", "300.00", "Credit"),
+            (transfer.GetProperty("counterparty").GetString(), Money(transfer.GetProperty("amount")), transfer.GetProperty("direction").GetString()));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Transfers_count_the_personal_accounts_only()
+    {
+        // 1 October: Can's shop pays him 18.000. His personal account received it; the shop's own leg is not his money moving.
+        var result = await CallAsync(Can, "get_transfers", """{"period":"ThisMonth"}""");
+
+        var transfer = Assert.Single(result.GetProperty("items").EnumerateArray());
+        Assert.Equal(("Credit", "Can Kırtasiye – Moda", "18000.00"),
+            (transfer.GetProperty("direction").GetString(), transfer.GetProperty("counterparty").GetString(), Money(transfer.GetProperty("amount"))));
+    }
 }

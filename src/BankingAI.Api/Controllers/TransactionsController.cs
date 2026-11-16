@@ -88,6 +88,7 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
         [FromQuery] string? maxAmount = null,
         [FromQuery] string? currencyCode = null,
         [FromQuery] string? accountType = null,
+        [FromQuery] string? counterparty = null,
         CancellationToken cancellationToken = default) =>
         // Filter combinations, paging bounds and account ownership are the service's rules.
         Ok(await search.SearchAsync(
@@ -97,7 +98,7 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
                 ExactEnum.Parse<TransactionDirection>(direction, nameof(direction), "Debit veya Credit olmalı."),
                 categoryCode, onlyUnclassified, merchant, limit, cursor,
                 AmountParameter.Parse(minAmount, nameof(minAmount)), AmountParameter.Parse(maxAmount, nameof(maxAmount)), currencyCode,
-                ExactEnum.Parse<AccountType>(accountType, nameof(accountType), "Personal veya Business olmalı.")),
+                ExactEnum.Parse<AccountType>(accountType, nameof(accountType), "Personal veya Business olmalı."), counterparty),
             cancellationToken));
 
     /// <summary>

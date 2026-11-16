@@ -75,6 +75,6 @@ internal static class TransactionItemReader
     }
 
     // "Deniz M***": first name in clear, first letter of the surname, never the full surname.
-    private static string MaskName(string firstName, string lastName) =>
+    internal static string MaskName(string firstName, string lastName) =>
         $"{firstName} {StringInfo.GetNextTextElement(lastName.Trim())}***";
 }

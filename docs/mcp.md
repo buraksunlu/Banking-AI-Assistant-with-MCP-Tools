@@ -271,3 +271,22 @@ tablosunun kodlarıyla testte karşılaştırılır) ve `period` (+ `Custom` ile
 `CategorySpendingDetail`'in aynısı. Testler: keşif (allowlist, açıklama, argümanlar, kapalı küme), tarih aralığı (yedi dönem aracı),
 argüman reddi (`MARKET`, küçük harf, `null`, eksik), silinmiş müşteri, çağrı sonucu (Murat Market Eylül). Kasıtlı bozma: kapalı
 küme yerine serbest metin ilk turda yakalanmadı (servis yanlış kodu yine reddediyordu); kapalı küme şema testi eklendi, yakalandı.
+
+## ACC-01a — bakiye, işlem arama, gelir ve transfer araçları (16 Kasım 2026)
+
+Kullanıcının seçtiği 1. grup ("temel bankacılık soruları"); kararlar K1-A (dört ayrı araç) K2-A (toplamı arama servisi verir) K3-A
+(karşı taraf ilk adla) K4-A (kişisel ve işletme ayrı toplam) K5-A (yeni yönlendirme grubu) K6-A (kartta toplam + ilk satırlar) K7-A
+(ölçüm eşiği; ACC-01b). `Tools/AccountTools` (20 araç):
+
+| Araç | Servis | Not |
+|---|---|---|
+| `get_accounts` | `IAccountReadService` + saf `AccountBalances.Summarize` | hesap adı, kısa numara ("•••• 001"; tam numara modele gitmez, AI-13), bakiye; toplam tür + para birimi başına, kişisel önce |
+| `search_transactions` | `TransactionSearchService` | `Purchase`, kişisel hesaplar; `minAmount`/`maxAmount` + `currencyCode`, `merchant`, `categoryCode` |
+| `get_income` | aynı | `Salary`, kişisel hesaplar |
+| `get_transfers` | aynı | `Transfer`, kişisel hesaplar; `direction` `Sent`/`Received` (yoksa ikisi), `counterparty` |
+
+Üç liste aracı en fazla `AccountTools.ListLimit` = 10 satır döner; `totalCount` ve `totals` bütün sonucu kapsar. Kişisel hesap kapsamı
+sohbet cevaplarının kapsamıdır (CHAT-07): Can'ın Ekim'i yalnız kişisel hesabına gelen 18.000'i gösterir, dükkânın giden bacağını değil.
+`IAccountReadService` artık `AddBankingCore`'da (salt okunur; yazma servisi yalnız API'de). AI servisinde dört araç `routing.GROUPS`'ta
+kendi `accounts` grubunda ve henüz hiçbir yol oraya gitmez (INC-03 PR1 kalıbı): kurallar, kartlar ve ölçüm ACC-01b'de.
+
