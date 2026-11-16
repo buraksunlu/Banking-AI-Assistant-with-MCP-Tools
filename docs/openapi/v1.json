@@ -2718,6 +2718,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "counterparty",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3972,6 +3979,41 @@
           }
         },
         "description": "\"Markete ne kadar gitti?\": one category over a period, the period before it and the last six complete months plus the\nrunning one. A currency is listed when the category has spending in any of those windows (a 0 is then a real 0); an\nempty list means no spending in this category at all."
+      },
+      "CounterpartyMatch": {
+        "required": [
+          "status",
+          "name",
+          "candidates"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/CounterpartyMatchStatus"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "The outcome: on a match, the shown name and every account of that party (one person may have several); when ambiguous,\nthe shown names to ask about. Account ids stay inside the backend; the API and the tools never return them."
+      },
+      "CounterpartyMatchStatus": {
+        "enum": [
+          "Matched",
+          "Ambiguous",
+          "NotFound"
+        ],
+        "type": "string",
+        "description": "How a counterparty name the user said was resolved against the customer's own transfers (ACC-01a, K3-A)."
       },
       "CreateAccountRequest": {
         "required": [
@@ -5743,6 +5785,35 @@
         },
         "description": "Result of SavingsSimulationService: the complete months used (`From`–`To`), the assumption in\n`Method` and one row per currency with spending in those months (none: empty list). A merchant text that does not\nmatch exactly one of the customer's merchants gives no rows; `MerchantMatch` says why. `CategoryDisplayName`\nis the category's Turkish name (MCP-18), as in BudgetCheck."
       },
+      "SearchTotal": {
+        "required": [
+          "currencyCode",
+          "direction",
+          "count",
+          "amount"
+        ],
+        "type": "object",
+        "properties": {
+          "currencyCode": {
+            "type": "string"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/TransactionDirection"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          }
+        }
+      },
       "SpendingAdvice": {
         "required": [
           "period",
@@ -6078,7 +6149,8 @@
           "totalCount",
           "hasMore",
           "nextCursor",
-          "items"
+          "items",
+          "totals"
         ],
         "type": "object",
         "properties": {
@@ -6117,6 +6189,22 @@
             "items": {
               "$ref": "#/components/schemas/TransactionItem"
             }
+          },
+          "totals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchTotal"
+            }
+          },
+          "counterpartyMatch": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CounterpartyMatch"
+              }
+            ]
           }
         }
       },

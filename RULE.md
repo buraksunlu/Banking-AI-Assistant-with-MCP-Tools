@@ -1378,6 +1378,8 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Temel bankacılık araçları (ACC-01a, 16 Kasım 2026; docs/mcp.md "ACC-01a"): `get_accounts`, `search_transactions`, `get_income`,
+  `get_transfers` (20 araç); işlem aramasında `totals` ve `counterparty`. Sohbete açılması ACC-01b'de.
 - Kart incelemesi (16 Kasım 2026, #95; docs/ios.md "iOS-z"): Basit/Detaylı yerine kartın altında "Tümünü göster (N)"; özet ve işyeri
   kartı cevabın ilk 5 işlemini içinde gösterir. Yalnız iPhone; iOS 426.
 - Canlı veride çeşitlilik (RT-05a, 16 Kasım 2026; docs/database-design.md "RT-05a"): her yıl tekrar eden takvim olayları, abonelik

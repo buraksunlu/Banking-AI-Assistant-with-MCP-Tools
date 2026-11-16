@@ -74,6 +74,22 @@ public sealed class ToolDiscoveryTests
             + "dalgalandı; yatırım tavsiyesi değildir. months: kaç ay biriktirildiği, 2-22. amount: kullanıcının söylediği aylık tutar, "
             + "currencyCode: TRY. fromAdvice: tutar yerine önerilen aylık tasarruf isteniyorsa true.",
             ["amount", "currencyCode", "fromAdvice", "months"], ["months"]),
+        // ACC-01a: balances, the transaction search, income and transfers.
+        ["get_accounts"] = (
+            "Müşterinin hesaplarını ve güncel bakiyelerini döndürür; \"bakiyem / hesabımda ne kadar para var\" soruları için. Argüman almaz.",
+            [], []),
+        ["search_transactions"] = (
+            "Bir dönemdeki harcamaları listeler ve toplar; tutar sınırıyla (\"2.000 TL üstü\"), bir işyeri ya da kategoriyle süzülebilir. "
+            + "minAmount/maxAmount: kullanıcının söylediği tutar sınırı, currencyCode ile. merchant: işyeri adı. categoryCode: kategori. "
+            + PeriodHelp,
+            ["categoryCode", "currencyCode", "from", "maxAmount", "merchant", "minAmount", "period", "to"], ["period"]),
+        ["get_income"] = (
+            "Bir dönemde hesaplara yatan maaş ve gelirleri listeler ve toplar; \"maaşım yattı mı / ne kadar gelirim oldu\" soruları için. "
+            + PeriodHelp, ["from", "period", "to"], ["period"]),
+        ["get_transfers"] = (
+            "Bir dönemdeki para transferlerini listeler ve toplar; \"kime para gönderdim / kimden para geldi\" soruları için. "
+            + "direction: Sent=gönderilen, Received=gelen; verilmezse ikisi. counterparty: kullanıcının söylediği kişi ya da hesap adı. "
+            + PeriodHelp, ["counterparty", "direction", "from", "period", "to"], ["period"]),
     };
 
     private static async Task<IList<ModelContextProtocol.Client.McpClientTool>> ToolsAsync()
@@ -151,8 +167,8 @@ public sealed class ToolDiscoveryTests
     {
         var tools = (await ToolsAsync()).Where(t => t.JsonSchema.GetProperty("properties").TryGetProperty("from", out _)).ToList();
 
-        // The seven period tools and the two complete-month tools (INC-03).
-        Assert.Equal(9, tools.Count);
+        // The seven period tools, the two complete-month tools (INC-03) and the search, income and transfer tools (ACC-01a).
+        Assert.Equal(12, tools.Count);
         Assert.All(tools, t => Assert.All(new[] { "from", "to" }, name =>
             Assert.Equal(["string", "null"],
                 t.JsonSchema.GetProperty("properties").GetProperty(name).GetProperty("type").EnumerateArray().Select(v => v.GetString()))));

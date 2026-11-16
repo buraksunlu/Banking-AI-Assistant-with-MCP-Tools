@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from ollama_client import OllamaTimeout
-from routing import GENERAL, GROUPS, PLANNING, WEALTH, Route, Router, group_of, hide_dates, narrow, planning_of
+from routing import ACCOUNTS, GENERAL, GROUPS, PLANNING, WEALTH, Route, Router, group_of, hide_dates, narrow, planning_of
 
 # CHAT-01: the tools a turn shows the model. Decisions K1-C (word rules first, the model only when none matches), K2-C (two
 # groups: the nine tools of MCP-08 and the two planning tools; K2-B's three groups broke S15 and F01 on every run), K3-A (the
@@ -101,12 +101,20 @@ def test_the_model_can_send_a_question_to_planning():
     assert result == Route((PLANNING,), source="model")
 
 
-def test_the_groups_cover_the_sixteen_published_tools_once_each():
+def test_the_groups_cover_the_twenty_published_tools_once_each():
     names = [name for tools in GROUPS.values() for name in tools]
-    assert len(names) == len(set(names)) == 16
+    assert len(names) == len(set(names)) == 20
     assert len(GROUPS[GENERAL]) == 10 and group_of("check_budget") == PLANNING and group_of("unknown_tool") is None
     # UX-01 PR3: the category detail answers spending questions, so it is shown with the other spending tools.
     assert group_of("get_category_spending") == GENERAL
+
+
+def test_the_account_tools_stay_out_of_the_other_groups():
+    # ACC-01a: published on the server, in no route until ACC-01b; without this row they would join every group.
+    assert GROUPS[ACCOUNTS] == ("get_accounts", "search_transactions", "get_income", "get_transfers")
+    tools = [tool(name) for name in ("get_spending_summary", "check_budget", "get_income_share", *GROUPS[ACCOUNTS])]
+    for group, shown in ((GENERAL, "get_spending_summary"), (PLANNING, "check_budget"), (WEALTH, "get_income_share")):
+        assert [t["function"]["name"] for t in narrow(tools, Route((group,), source="rule"))] == [shown]
 
 
 def test_the_income_and_what_if_tools_stay_out_of_the_old_groups():

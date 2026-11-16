@@ -1,3 +1,4 @@
+using BankingAI.Application.Accounts;
 using BankingAI.Application.Analytics;
 using BankingAI.Application.Customers;
 using BankingAI.Application.Investment;
@@ -57,6 +58,8 @@ public static class BankingServiceCollectionExtensions
         // Anything that uses the DbContext is scoped like the context itself; a singleton would keep the first
         // request's context forever and share it between concurrent requests.
         services.AddScoped<ICustomerCheck, CustomerCheck>();
+        // ACC-01a: the account list is read-only too, so the MCP server's get_accounts gets it; the write service stays the API's.
+        services.AddScoped<IAccountReadService, AccountReadService>();
         services.AddScoped<TransactionSearchService>();
         services.AddScoped<SpendingSummaryService>();
         services.AddScoped<CategoryBreakdownService>();

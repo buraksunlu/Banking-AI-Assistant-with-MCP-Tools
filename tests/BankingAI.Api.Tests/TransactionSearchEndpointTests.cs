@@ -53,8 +53,11 @@ public sealed class TransactionSearchEndpointTests
     {
         var body = Ok(await GetAsync("?period=ThisMonth", Ada));
 
-        Assert.Equal(["period", "merchantMatch", "totalCount", "hasMore", "nextCursor", "items"], body.AsObject().Select(p => p.Key));
+        // ACC-01a added the totals and the counterparty match (null without that filter).
+        Assert.Equal(["period", "merchantMatch", "totalCount", "hasMore", "nextCursor", "items", "totals", "counterpartyMatch"],
+            body.AsObject().Select(p => p.Key));
         Assert.Null(body["merchantMatch"]);
+        Assert.Null(body["counterpartyMatch"]);
         Assert.Equal((8, false), Counts(body));
         Assert.Equal(
             [("2026-10-09", "Purchase", "Debit", 145m, null), ("2026-10-08", "Transfer", "Credit", 300m, "Ege Y***"),
@@ -122,6 +125,24 @@ public sealed class TransactionSearchEndpointTests
         Assert.Equal("Ambiguous", ambiguous["merchantMatch"]!["status"]!.GetValue<string>());
         Assert.Equal((0, false), Counts(ambiguous));
         Assert.Empty(Items(ambiguous));
+    }
+
+    // ACC-01a: the other side of a transfer by the name the customer sees, and the totals of every page; account ids of the
+    // other side never leave the backend.
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task Counterparty_filter_finds_a_transfer_by_first_name_with_its_totals()
+    {
+        var ege = Ok(await GetAsync("?period=ThisMonth&kind=Transfer&counterparty=ege", Ada));
+
+        Assert.Equal(("Matched", "Ege Y***"),
+            (ege["counterpartyMatch"]!["status"]!.GetValue<string>(), ege["counterpartyMatch"]!["name"]!.GetValue<string>()));
+        Assert.Null(ege["counterpartyMatch"]!["accountIds"]);
+        Assert.Equal(300m, Assert.Single(Items(ege))!["amount"]!.GetValue<decimal>());
+        var total = Assert.Single(ege["totals"]!.AsArray())!;
+        Assert.Equal(("TRY", "Credit", 1, 300m),
+            (total["currencyCode"]!.GetValue<string>(), total["direction"]!.GetValue<string>(), total["count"]!.GetValue<int>(),
+             total["amount"]!.GetValue<decimal>()));
     }
 
     [Fact]

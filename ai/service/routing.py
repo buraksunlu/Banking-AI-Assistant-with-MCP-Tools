@@ -18,7 +18,7 @@ from typing import Protocol
 from answer_check import fold_rule, fold_turkish
 from ollama_client import OllamaError
 
-GENERAL, PLANNING, WEALTH = "general", "planning", "wealth"
+GENERAL, PLANNING, WEALTH, ACCOUNTS = "general", "planning", "wealth", "accounts"
 
 # A tool the table does not know is shown in every group (narrow): a tool added on the server must not vanish.
 GROUPS = {
@@ -30,6 +30,9 @@ GROUPS = {
     PLANNING: ("check_budget", "simulate_savings"),
     # INC-03 K3-A: income, advice and the what-if scenarios; reached by word rules only (K16-A: the model never picks this group).
     WEALTH: ("get_income_share", "get_spending_advice", "what_if_one_off", "what_if_monthly"),
+    # ACC-01a K5-A: balances, the transaction search, income and transfers. Listed before their word rules exist (ACC-01b) so the
+    # model is not shown four new tools in every group meanwhile: until then no route reaches this group.
+    ACCOUNTS: ("get_accounts", "search_transactions", "get_income", "get_transfers"),
 }
 
 # The model's answer (intent-v1 names three kinds of question); spending and payments share the general group.
