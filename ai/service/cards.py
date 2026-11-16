@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
-from facts import RECURRING_RULE, UNCLASSIFIED, UPCOMING_RULE, when as _when
+from facts import BUDGET_RULE, RECURRING_RULE, SAVINGS_RULE, UNCLASSIFIED, UPCOMING_RULE, when as _when
 from formatting import day, money, month, percent, period
 
 logger = logging.getLogger(__name__)
@@ -142,7 +142,27 @@ def card_texts(card: Card) -> list[str]:
 
 def _has_card(tool: str, result: dict) -> bool:
     # An ambiguous or unknown merchant is asked back or answered by a fixed text: there is no figure to show.
-    return tool != "get_merchant_spending" or result["match"]["status"] == "Matched"
+    if tool == "get_merchant_spending":
+        return result["match"]["status"] == "Matched"
+    return tool != "simulate_savings" or _matched(result)
+
+
+def _matched(result: dict) -> bool:
+    # The budget and the saving name a merchant only when asked for one; an unmatched one is answered by a fixed text.
+    match = result["merchantMatch"]
+    return match is None or match["status"] == "Matched"
+
+
+def _target(result: dict) -> str | None:
+    # "Market", "Starbucks", or None for all spending.
+    if result["categoryDisplayName"]:
+        return result["categoryDisplayName"]
+    return result["merchantMatch"]["merchant"] if result["merchantMatch"] else None
+
+
+def _against(amount: Decimal, budget: Decimal) -> Decimal:
+    # A bar against the budget, full at the budget and never longer.
+    return min(_share(amount, budget), Decimal("1.00"))
 
 
 def _summary(arguments: dict, result: dict, row: dict, suffix: str) -> Card:
@@ -277,6 +297,46 @@ def _upcoming(arguments: dict, result: dict) -> list[Card]:
     return cards if result["payments"] else []
 
 
+def _budget(arguments: dict, result: dict) -> list[Card]:
+    if not _matched(result):
+        return []
+    f, currency, budget = result["figures"], result["currencyCode"], Decimal(str(result["budgetAmount"]))
+    spent, projected = money(f["spentAmount"], currency), money(f["projectedMonthEnd"], currency)
+    # K6-C: today and the month end, each against the budget; the bar is drawn, its length is never written.
+    bars = (Bar("Bugün", f["spentAmount"], f"{spent} / {money(budget, currency)}", _against(f["spentAmount"], budget)),
+            Bar("Bu hızla ay sonu", f["projectedMonthEnd"], projected, _against(f["projectedMonthEnd"], budget),
+                "up" if f["willExceed"] else None))
+    items = [Stat("Bütçe aşımı", money(f["overAmount"], currency)) if f["isOverBudget"]
+             else Stat("Kalan", money(f["remainingAmount"], currency))]
+    if f["willExceed"]:
+        items.append(Stat("Tahmini aşım", money(f["projectedOverAmount"], currency)))
+    detailed = (Block("stats", items=(Stat("Günlük ortalama", money(f["dailyAverage"], currency)), Stat("İşlem", str(f["transactionCount"])),
+                                      Stat("Gün", f"ayın {f['elapsedDays']}. günü; ay {f['daysInMonth']} gün"))),)
+    later = money(f["projectedOverAmount"], currency)
+    if f["isOverBudget"]:
+        sentence = f"Bütçeyi şimdiden {money(f['overAmount'], currency)} aştınız; bu hızla ay sonunda {later} aşar."
+    else:
+        sentence = f"Bu hızla bütçeyi {later} aşar." if f["willExceed"] else "Bu hızla bütçenin içinde kalır."
+    target = _target(result)
+    title = f"{target} bütçesi" if target else "Bütçe"
+    return [Card(f"{title} · {_label(result['period'])}", _headline(f["spentAmount"], currency), None,
+                 (Block("bars", rows=bars), Block("stats", items=tuple(items))), detailed, sentence, (BUDGET_RULE,))]
+
+
+def _saving(arguments: dict, result: dict, row: dict, suffix: str) -> Card:
+    currency, cut = row["currencyCode"], f"%{result['reductionPercent']}"
+    monthly, annual = money(row["monthlySaving"], currency), money(row["annualSaving"], currency)
+    target = _target(result)
+    title = f"{target} tasarrufu {cut}" if target else f"Tasarruf {cut}"
+    used = period(date.fromisoformat(result["from"]), date.fromisoformat(result["to"]))
+    months = [{**m, "isPartial": False} for m in row["monthlyAmounts"]]
+    detailed = (Block("series", points=_points(months, currency)),
+                Block("stats", items=(Stat("Toplam harcama", money(row["totalSpent"], currency)), Stat("Dönem", f"{result['months']} tam ay"))))
+    return Card(f"{title} · {used}{suffix}", _headline(row["monthlySaving"], currency), None,
+                (Block("stats", items=(Stat("Yılda", annual), Stat("Aylık ortalama", money(row["monthlyAverage"], currency)))),),
+                detailed, f"{cut} azaltırsanız ayda {monthly}, yılda {annual}.", (SAVINGS_RULE,))
+
+
 _BUILDERS = {
     "get_spending_summary": _summary,
     "get_merchant_breakdown": _merchants,
@@ -286,12 +346,14 @@ _BUILDERS = {
     "get_merchant_spending": _merchant,
     "compare_spending": _comparison,
     "get_monthly_trend": _trend,
+    "simulate_savings": _saving,
 }
 
 # Results that are not one row per currency: the builder makes its own cards, one per currency of its totals.
 _WHOLE_BUILDERS = {
     "get_recurring_payments": _recurring,
     "get_upcoming_payments": _upcoming,
+    "check_budget": _budget,
 }
 
 

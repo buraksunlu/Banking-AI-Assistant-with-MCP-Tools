@@ -1257,3 +1257,21 @@ birimi başına kart).
   (Can'ın Spotify'ı, "109,99 TL / ay"), yeni A27 (Murat yaklaşan: Netflix 229,99 TL, "12 Ekim 2026 · 2 gün sonra"), A28 (Murat en büyük:
   Okul Taksidi 25.000,00 TL), A29 (Zeynep işyerleri: TRY 10.490,00 + USD 37,99, iki kart); kartlı turlar 0,8–1,5 sn.
 
+## UX-01 PR6b (16 Kasım 2026): planlama kartları
+
+Bütçe ve tasarruf kart alır (12 araç). Cevap metnini burada zaten kod yazıyor (CHAT-10 PR3b): **K5-B**, `answer` o metin kalır, kart
+yanına eklenir (`chat`'te `written` karttan önce gelir). iPhone kart varken metni göstermez, bu yüzden telefonda görünen kartın cümlesidir;
+metin erişilebilirlik ve eski istemci içindir.
+
+- **Bütçe (K6-C):** `_WHOLE_BUILDERS` (tek para birimi). İki çubuk: "Bugün" (harcanan / bütçe, yazısı "5.133,00 TL / 8.000,00 TL") ve "Bu
+  hızla ay sonu" (tahmini ay sonu / bütçe; aşacaksa ↑). Çubuk bütçeyle doludur, asla uzamaz (`_against`). Basit'te "Kalan" ya da "Bütçe
+  aşımı" ve aşılacaksa "Tahmini aşım"; Detaylı'da günlük ortalama, işlem, gün. Cümle: "Bu hızla bütçeyi 7.912,30 TL aşar." / "Bütçeyi şimdiden
+  55,03 EUR aştınız; bu hızla ay sonunda 3.320,59 EUR aşar." / "Bu hızla bütçenin içinde kalır." Not: `BUDGET_RULE`. Başlık hedefin adıyla
+  ("Market bütçesi", "Starbucks bütçesi", hedefsiz "Bütçe").
+- **Tasarruf:** para birimi başına. Büyük rakam aylık tasarruf; Basit'te yılda ve aylık ortalama, Detaylı'da altı ayın serisi (harcamasız ay
+  0 olarak, ANA-14 K2-A) ve toplam harcama. Cümle: "%20 azaltırsanız ayda 637,50 TL, yılda 7.650,00 TL." Not: `SAVINGS_RULE`.
+- Eşleşmeyen işyeri (bütçe ya da tasarruf) kart almaz; metin cevabı geri sorar ya da eşleşmediğini söyler.
+- **Doğrulama:** gerçek MCP sonuçlarıyla elle değerler (Murat market 8.000: çubuklar 0,64 ve 1,00; Elif aşım; Selin %20; Zeynep iki kart);
+  Python 1433 → 1442; 6 kasıtlı bozma yakalandı (biri eklenen testle: eşleşmeyen işyerinin tasarrufu). Cevap doğruluğu **29/29** (A11–A15
+  kart beklentisi aldı, A11'in `noCard`'ı kalktı).
+
