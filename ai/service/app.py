@@ -23,7 +23,7 @@ from starlette.exceptions import HTTPException
 
 from answer_check import AnswerRejected
 from cards import Card
-from contracts import (BarOut, BlockOut, CardOut, ChangeOut, ChatRequest, ChatResponse, ChoiceOut, HeadlineOut, PointOut, StatOut, ExplanationRequest, ExplanationResponse, HealthResponse, SuggestionsResponse,
+from contracts import (BarOut, BlockOut, CardOut, ChangeOut, ChatRequest, ChatResponse, ChoiceOut, EntryOut, HeadlineOut, PointOut, StatOut, ExplanationRequest, ExplanationResponse, HealthResponse, SuggestionsResponse,
                        ToolCallOut)
 from chat import (ChatService, LangChainClarificationWriter, LangChainDateInterpreter, LangChainIntentClassifier,
                   LangChainToolSelector)
@@ -175,11 +175,13 @@ def _card_out(card: Card) -> CardOut:
     """A card in the reply's shape: every block lists all three row kinds, the ones its kind does not use empty (UX-01 PR4 K2-A)."""
     def block(b) -> BlockOut:
         return BlockOut(kind=b.kind, rows=[BarOut(**vars(r)) for r in b.rows], points=[PointOut(**vars(p)) for p in b.points],
-                        items=[StatOut(**vars(i)) for i in b.items], highlight=b.highlight)
+                        items=[StatOut(**vars(i)) for i in b.items], highlight=b.highlight,
+                        entries=[EntryOut(**vars(e)) for e in b.entries])
 
     change = None if card.change is None else ChangeOut(**vars(card.change))
     return CardOut(title=card.title, headline=HeadlineOut(**vars(card.headline)), change=change,
-                   simple=[block(b) for b in card.simple], detailed=[block(b) for b in card.detailed], sentence=card.sentence)
+                   simple=[block(b) for b in card.simple], detailed=[block(b) for b in card.detailed], sentence=card.sentence,
+                   notes=list(card.notes))
 
 
 def _as_text(value) -> str:

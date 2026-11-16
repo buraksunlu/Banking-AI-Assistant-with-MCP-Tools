@@ -9,7 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from answer_check import AnswerRejected
-from cards import Bar, Block, Card, Change, Headline, Point, Stat
+from cards import Bar, Block, Card, Change, Entry, Headline, Point, Stat
 from app import create_app, get_chat_service, get_explainer, get_readiness, get_starter_questions, get_tools_ready
 from clarification import Choice
 from chat import ChatReply, ChatService, LangChainClarificationWriter, LangChainToolSelector, ToolCall
@@ -339,14 +339,33 @@ def test_chat_returns_the_cards_with_amounts_as_json_numbers():
         "headline": {"amount": 18016.5, "currency": "TRY", "text": "18.016,50 TL"},
         "change": {"percent": 50.84, "direction": "up", "against": "Ağustos 2026", "againstText": "11.944,50 TL", "text": "%50,84 artış"},
         "simple": [{"kind": "bars", "rows": [{"label": "BİM", "amount": 6216.0, "text": "6.216,00 TL · %34,50", "share": 1.0,
-                                              "direction": None}], "points": [], "items": [], "highlight": None}],
+                                              "direction": None}], "points": [], "items": [], "highlight": None, "entries": []}],
         "detailed": [{"kind": "series", "rows": [], "points": [{"label": "Eki", "amount": 5133.0, "text": "5.133,00 TL", "share": 0.28,
-                                                               "partial": True}], "items": [], "highlight": "Eyl"},
-                     {"kind": "stats", "rows": [], "points": [], "items": [{"label": "İşlem", "text": "8"}], "highlight": None}],
+                                                               "partial": True}], "items": [], "highlight": "Eyl", "entries": []},
+                     {"kind": "stats", "rows": [], "points": [], "items": [{"label": "İşlem", "text": "8"}], "highlight": None,
+                      "entries": []}],
         "sentence": "Market: önceki döneme göre 6.072,00 TL fazla.",
+        "notes": [],
     }]
     # The text keeps its trailing zero; the number is the same value.
     assert '"amount":18016.5' in response.text
+
+
+def test_chat_returns_a_list_block_the_notes_and_a_headline_without_money():
+    # UX-01 PR6a: the list block (K3-B), code's fixed notes (K4-A) and a headline that is not money (K7-B, the income share of PR6c).
+    card = Card("Yaklaşan ödemeler · 10-17 Ekim 2026", Headline(None, None, "%62,81"), None,
+                (Block("list", entries=(Entry("Netflix", "12 Ekim 2026 · 2 gün sonra", "229,99 TL"),)),), (),
+                "Tahmini toplam 229,99 TL.", ("Tarih ve tutarlar tahmindir.",))
+
+    response = chat_client(FakeChat(replace(CHAT_REPLY, cards=[card]))).post(
+        "/v1/chat", json={"message": "Yaklaşan?", **DAY}, headers={"Authorization": "Bearer abc"})
+
+    shown = response.json()["cards"][0]
+    assert shown["headline"] == {"amount": None, "currency": None, "text": "%62,81"}
+    assert shown["simple"] == [{"kind": "list", "rows": [], "points": [], "items": [], "highlight": None,
+                                "entries": [{"label": "Netflix", "detail": "12 Ekim 2026 · 2 gün sonra", "text": "229,99 TL",
+                                             "direction": None}]}]
+    assert shown["notes"] == ["Tarih ve tutarlar tahmindir."]
 
 
 def test_chat_passes_the_customers_day_to_the_service():

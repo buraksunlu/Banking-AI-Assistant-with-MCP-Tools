@@ -507,7 +507,16 @@ ayrıntı için **cevap modu**: kullanıcı basit cevap mı, detaylı/istatistik
   sabit). iOS 389 → 413 test durumu, Python 1403 → 1407 modelsiz; 11 kasıtlı bozma yakalandı (Python 4, iOS 7). Bilerek değişen eski testler:
   açıklama yolunu sınayan 11 sohbet testi `no_cards` ile kartsız (`conftest.py`), dönem satırı testi kart cümlesini bekler, A26'nın cevap
   beklentisi "6.072,00". **Açık:** simülatörde Murat/Zeynep denemesi. Model ölçümü 16 Kasım 2026'da yapıldı (docs/local-ai.md "UX-01 PR3–PR5 model ölçümü"): araç seçimi 120/121, cevap 25/26, ifade 124/127; "Netflix'e ne kadar" gerilemesi aynı gün düzeltildi (121/121, 26/26, 125/127).
-- [ ] UX-01 PR6 — Kalan dokuz aracın kartları ve ölçümler.
+- [ ] UX-01 PR6 — Kalan on aracın kartları ve ölçümler (plan 9 dedi; işyeri dağılımı listede unutulmuştu). Kararlar (16 Kasım 2026):
+  K1-B (aileye göre üç PR, sözleşme ilkinde) K2-A (bekleyen ölçümler önce; #86, #87) K3-B (tek `list` bloğu) K4-A (`notes`) K5-B (kodun
+  yazdığı metin `answer`'da kalır) K6-C (bütçede iki çubuk: bugün, ay sonu) K7-B (gelir payında yüzde başlık) K8-A/C (boş sonuçta kart yok;
+  "ne olurdu"da fiyatsız satır "hesaplanamadı").
+  - [x] PR6a — Liste kartları + sözleşme (16 Kasım 2026, docs/local-ai.md "UX-01 PR6a", docs/ios.md "iOS-y"): işyeri dağılımı, en büyük
+    harcamalar, düzenli ve yaklaşan ödemeler; `list` bloğu, `notes`, isteğe bağlı başlık tutarı (Python + .NET + OpenAPI + iPhone). P1-A P2-A
+    P3-A P4-A. Python 1433, Api 605, iOS 417; 9 kasıtlı bozma; cevap doğruluğu 29/29 (A09 kartlı, yeni A27–A29). Bilerek değişen eski
+    testler: kart şekline `entries: []`/`notes: []` (`test_app`, .NET `MarketCard`), A09 `noCard` → `card`.
+  - [ ] PR6b — Planlama kartları (bütçe, tasarruf).
+  - [ ] PR6c — Zenginlik kartları (gelir payı, öneri, iki "ne olurdu") + son model ölçümü.
 
 ## 15. Local AI — önce hazır sonucu açıklama
 
@@ -766,8 +775,8 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 Güncelleme: 16 Kasım 2026. Aşağıdaki "tamamlanan bloklar" ve test sayıları 23 Ekim'in; sonrası `RULE.md` §29'da.
 
 - **Şimdi (15 Kasım 2026):** UX-01 cep asistanı — PR1 (açık tema, #81), PR2 (ana ekran paneli, #82), PR3 (kategori detayı backend'i, #83) ve
-  PR4 (kart sözleşmesi, #84) ve PR5 (iPhone kartları, kayan sayfa, Basit/Detaylı; 16 Kasım 2026) yapıldı. Model ölçümü 16 Kasım 2026'da yapıldı;
-  "Netflix'e ne kadar" gerilemesi aynı gün düzeltildi. Sıradaki: PR6 kalan dokuz aracın kartları; INV-02 sonra. PR2 paneli ve PR5 simülatörde denenmedi.
+  PR4 (kart sözleşmesi, #84), PR5 (iPhone kartları, kayan sayfa, Basit/Detaylı, #85) ve PR6a (liste kartları + sözleşme; 16 Kasım 2026) yapıldı. Model ölçümü 16 Kasım 2026'da yapıldı;
+  "Netflix'e ne kadar" gerilemesi aynı gün düzeltildi. Sıradaki: PR6b planlama kartları → PR6c zenginlik kartları; INV-02 sonra. PR2 paneli ve PR5 simülatörde denenmedi.
 
 Tamamlanan bloklar: banking foundation (DOC-09; SYN-01–14, KIND-01–05), deterministik analytics (ANA-01–14,
 REC-01–03, ANA-20), API ve güvenlik (API-01a/01b, API-02–15, SEC-01a/01b, SEC-06), local AI (AI-01–07: model seçimi,

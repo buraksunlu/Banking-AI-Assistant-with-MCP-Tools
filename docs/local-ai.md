@@ -1238,3 +1238,22 @@ kart düşer), K7-A (Basit'te ilk 3 satır), K8-A (karşılaştırmada değişim
 - **Bildik:** büyük harfli tasarruf ifadesi ("MARKET HARCAMAMI YARIYA İNDİRSEM NE OLUR?") kategorisini kaybediyor (14 Kasım'da da vardı).
 - **PR5 etkisi:** kartlı vakalarda cevap artık kart cümlesi (A04–A08, A16–A18, A26 geçti); kartlı turlar ~1,2–2,5 sn.
 
+## UX-01 PR6a (16 Kasım 2026): liste kartları ve sözleşmenin yeni parçaları
+
+Dört araç kart alır: işyeri dağılımı (`bars`, backend'in yüzdesi), en büyük harcamalar, düzenli ve yaklaşan ödemeler (yeni `list` bloğu:
+`Entry(label, detail, text, direction)`). Kararlar (PR6 planı): K3-B (tek genel `list` türü), K4-A (`Card.notes`: kodun sabit cümleleri;
+ödemelerde `RECURRING_RULE`/`UPCOMING_RULE`), K7-B (`Headline.amount`/`currency` `None` olabilir, PR6c'nin yüzde başlığı için), K8-A (boş
+sonuçta kart yok); PR6a'nın P1-A (`kind: "list"`, alan `entries`) P2-A (ilk 3 Basit, 4–5 Detaylı) P3-A (notlar her iki modda) P4-A (para
+birimi başına kart).
+
+- **Para birimi başına olmayan sonuç:** düzenli/yaklaşan ödemeler `cards._WHOLE_BUILDERS`'ta; kurucu sonucun toplam listesinden (her para
+  birimi) kartlarını kendisi kurar. Kalemler ilk 5 ödemeyi bütün para birimleri için birlikte listeler; kart kendi para biriminin olanlarını
+  bu 5'ten alır, bu yüzden kartta kalemlerde olmayan ödeme yok.
+- **Cümleler** yalnız kalemdeki sayıları kullanır ("Aylık toplam 609,99 TL.", "Tahmini toplam 229,99 TL.", "En büyüğü Okul Taksidi:
+  25.000,00 TL.", "En büyük pay Okul Taksidi: %46,83."); adet yazılmaz (kalemlerde yok, denetim kartı düşürürdü). `card_texts` satırları ve
+  notları da verir.
+- **Doğrulama:** Murat/Zeynep'in demo anındaki gerçek MCP sonuçlarıyla elle değerler (`test_cards_lists.py`); Python 1422 → 1433, Api 600 →
+  605, iOS 413 → 417; 9 kasıtlı bozma yakalandı (Python 4, .NET 2, iOS 3). Cevap doğruluğu (gerçek model) **29/29**: A09 artık kartlı
+  (Can'ın Spotify'ı, "109,99 TL / ay"), yeni A27 (Murat yaklaşan: Netflix 229,99 TL, "12 Ekim 2026 · 2 gün sonra"), A28 (Murat en büyük:
+  Okul Taksidi 25.000,00 TL), A29 (Zeynep işyerleri: TRY 10.490,00 + USD 37,99, iki kart); kartlı turlar 0,8–1,5 sn.
+

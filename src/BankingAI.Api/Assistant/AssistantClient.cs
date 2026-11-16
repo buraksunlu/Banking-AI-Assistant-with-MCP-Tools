@@ -285,12 +285,18 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
 
     // The card's wire format (ai/service/contracts.py CardOut); ToCard is null when anything the phone needs is missing or wrong.
     private sealed record ChatCard(
-        string? Title, ChatHeadline? Headline, ChatChange? Change, List<ChatBlock?>? Simple, List<ChatBlock?>? Detailed, string? Sentence)
+        string? Title, ChatHeadline? Headline, ChatChange? Change, List<ChatBlock?>? Simple, List<ChatBlock?>? Detailed, string? Sentence,
+        List<string?>? Notes)
     {
         public AssistantCard? ToCard()
         {
-            if (Title is null || Sentence is null || Headline is not { Amount: { } amount, Currency: { } currency, Text: { } text }
+            // K7-B: a headline is money (amount and currency) or not money (neither); one without the other is no figure at all.
+            if (Title is null || Sentence is null || Headline is not { Text: { } text } || (Headline.Amount is null) != (Headline.Currency is null)
                 || Simple is null || Detailed is null)
+                return null;
+            // An AI service older than UX-01 PR6a sends no notes: none, not a broken card.
+            var notes = Notes ?? [];
+            if (notes.Any(n => n is null))
                 return null;
             CardChange? change = null;
             if (Change is not null)
@@ -304,7 +310,8 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
             var detailed = Detailed.Select(b => b?.ToBlock()).ToList();
             if (simple.Any(b => b is null) || detailed.Any(b => b is null))
                 return null;
-            return new AssistantCard(Title, new CardHeadline(amount, currency, text), change, simple!, detailed!, Sentence);
+            return new AssistantCard(Title, new CardHeadline(Headline.Amount, Headline.Currency, text), change, simple!, detailed!, Sentence,
+                notes!);
         }
     }
 
@@ -312,7 +319,8 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
 
     private sealed record ChatChange(decimal? Percent, string? Direction, string? Against, string? AgainstText, string? Text);
 
-    private sealed record ChatBlock(string? Kind, List<ChatBar?>? Rows, List<ChatPoint?>? Points, List<ChatStat?>? Items, string? Highlight)
+    private sealed record ChatBlock(
+        string? Kind, List<ChatBar?>? Rows, List<ChatPoint?>? Points, List<ChatStat?>? Items, string? Highlight, List<ChatEntry?>? Entries)
     {
         public CardBlock? ToBlock()
         {
@@ -324,11 +332,18 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
             var points = Points.Select(p => p is { Label: { } l, Amount: { } a, Text: { } t, Share: { } s, Partial: { } partial } && IsShare(s)
                 ? new CardPoint(l, a, t, s, partial) : null).ToList();
             var items = Items.Select(i => i is { Label: { } l, Text: { } t } ? new CardStat(l, t) : null).ToList();
-            if (rows.Any(r => r is null) || points.Any(p => p is null) || items.Any(i => i is null))
+            // An AI service older than UX-01 PR6a sends no entries: an empty list, which only a list block cannot be.
+            var entries = (Entries ?? []).Select(e => e is { Label: { } l, Detail: { } d, Text: { } t }
+                                                      && (e.Direction is null || Directions.Contains(e.Direction))
+                ? new CardEntry(l, d, t, e.Direction) : null).ToList();
+            if (rows.Any(r => r is null) || points.Any(p => p is null) || items.Any(i => i is null) || entries.Any(e => e is null))
                 return null;
             // The list its kind draws must have rows; a block of another kind is one the phone has no template for.
-            var used = Kind switch { "bars" => rows.Count, "series" => points.Count, "stats" => items.Count, _ => 0 };
-            return used == 0 ? null : new CardBlock(Kind!, rows!, points!, items!, Highlight);
+            var used = Kind switch
+            {
+                "bars" => rows.Count, "series" => points.Count, "stats" => items.Count, "list" => entries.Count, _ => 0,
+            };
+            return used == 0 ? null : new CardBlock(Kind!, rows!, points!, items!, Highlight, entries!);
         }
 
         private static bool IsShare(decimal share) => share is >= 0m and <= 1m;
@@ -339,4 +354,6 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
     private sealed record ChatPoint(string? Label, decimal? Amount, string? Text, decimal? Share, bool? Partial);
 
     private sealed record ChatStat(string? Label, string? Text);
+
+    private sealed record ChatEntry(string? Label, string? Detail, string? Text, string? Direction);
 }

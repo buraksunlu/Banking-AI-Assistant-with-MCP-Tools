@@ -836,7 +836,8 @@ modun blokları ve kodun tek cümlesi. Telefon hiçbir rakamı yazmaz ya da hesa
 - **Kelimeler:** kategori kodu → kelime (`HomeDisplay.askWords`) AI servisinin `CATEGORY_WORDS`'üyle aynı 10 kelimedir; "Diğer" ve
   sınıflandırılmamış satırı buton değildir.
 
-Doğrulama: 413 test durumu geçti (24 yeni `AnswerCardTests`); derleme uyarısız. Yedi kasıtlı bozmanın hepsi yakalandı: çubuk hep tam, mod yok
+Doğrulama: 413 test durumu geçti (24 yeni `AnswerCardTests`); derleme artımlıydı, uyarı görünmedi (PR6a'nın tam derlemesinde bu
+PR'ın test dosyasında bir uyarı çıktı ve düzeltildi). Yedi kasıtlı bozmanın hepsi yakalandı: çubuk hep tam, mod yok
 sayılıyor, anahtar hep görünür, kartın kendi seçimi yok sayılıyor, bozuk kart bütün cevabı düşürüyor, "Diğer" satırı buton, panel sorusu
 gönderilmiyor. Sınır: görünümler (kart düzeni, sayfa yüksekliği, son karta kaydırma, sayfa ile sekmenin aynı nesneyi göstermesi) birim
 testinde değil; simülatörde Murat (market satırı) ve Zeynep (iki kart) ile denenmeli. Model harici SSD'de olmadığı için bu PR'da denenmedi.
@@ -855,5 +856,24 @@ Home/HomeView.swift             + "Kılavuz'a sor…" alanı
 Home/WhereItWentCard.swift      kategori satırı buton; ShareBar paylaşılır
 Profile/ProfileView.swift       + "Cevap biçimi"
 App/MainTabView.swift           + AnswerPreferences, AskSheet, .sheet (aynı ChatViewModel)
+```
+
+## iOS-y: liste kartları ve notlar (UX-01 PR6a; 16 Kasım 2026)
+
+Kartlar dördüncü blok türünü (`list`) ve kartın altındaki notları çizer. Liste satırı (`CardEntry`): ad ve tutar ilk satırda, `detail`
+(kategori · gün, "sonraki 22 Ekim 2026", "2 gün sonra") ikinci satırda, isteğe bağlı ok; AX boyutunda tutar adın altına iner. Notlar
+(`AssistantCard.notes`) cümlenin altında küçük gri yazı, Basit'te de (P3-A: tahmin kuralı ve PR6c'nin yatırım uyarısı hiç gizlenmez).
+Başlıkta yalnız `text` okunur; PR6c'nin yüzde başlığı (`amount`/`currency` `null`) bu yüzden değişiklik istemez. PR6a'dan eski API
+`entries`/`notes` göndermezse ikisi boş okunur, kart bozuk sayılmaz.
+
+Doğrulama: 417 test durumu geçti (4 yeni `AnswerCardTests`); tam derlemede bu PR'ın dosyalarında uyarı yok. Üç kasıtlı bozmanın hepsi
+yakalandı: notlar Basit'te gizli, eski kart (alansız) bozuk sayılıyor, notlar okunmuyor. **Bulgu:** tam derlemede önceki PR'lardan altı
+Swift 6 uyarısı var (`HomePanelTests` 3, `TransactionsTests`, `NavigationProfileTests`, `Home/IncomeGlanceCard.swift:33`: ana aktöre bağlı
+uygunluk/metot eşzamansız olmayan bağlamda); bu PR'a girmedi, ayrı küçük düzeltme.
+
+```text
+Networking/APIModels.swift      + CardEntry, CardBlock.Kind.list, entries ve notes (yoksa boş)
+Chat/CardDisplay.swift          + notes(_:mode:) (her iki modda)
+Chat/AnswerCard.swift           + ListBlock, notlar
 ```
 

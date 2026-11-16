@@ -50,8 +50,11 @@ bağlamla gider (`tool-selection-v2`), `check_arguments(…, previous)` son ça�
 yok (MCP'den keşif); modelin listesinden `routing.hide_dates` beş dönem aracının `from`/`to`'sunu ve `Custom` dönemini çıkarır (tarihi model seçmez, CHAT-08). Tarihi `dates.read_dates` kodla okur ("1-5 Eylül", "Eylül'de"; modelsiz): araç seçici tarih yerine "bu ay" görür, kod dönemi `Custom` + `from`/`to` ile ezer, cevabın başına `Dönem: …` satırı ekler; geçersiz/okunamayan tarih ve araç seçilemeyen harcama sorusu araçsız dönem sorusuna gider (`Pending.tool == ""`). Bütün tur tek süre; token yalnız MCP başlığına gider (testte modele gitmediği doğrulanır). Uçtan uca deneme için
 .NET API ve MCP server `BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z` ile açık olmalı. Tool seçimi ve açıklama aynı `explainer.stream_message`'ı kullanır.
 
-Kartlar (UX-01 PR4, `ai/service/cards.py`): `cards_for(tool, arguments, result)` altı araçta (özet, kategori dağılımı, kategori
-detayı, tek işyeri, karşılaştırma, aylık seri) para birimi başına kart kurar; model kartın hiçbir alanını yazmaz. Yazılar `formatting.py`
+Kartlar (UX-01 PR4, `ai/service/cards.py`): `cards_for(tool, arguments, result)` on araçta (özet, kategori dağılımı, kategori
+detayı, tek işyeri, karşılaştırma, aylık seri; PR6a: işyeri dağılımı, en büyük harcamalar, düzenli ve yaklaşan ödemeler) para birimi başına
+kart kurar (`_BUILDERS` `currencies` satırı başına; para birimi başına olmayan sonuç `_WHOLE_BUILDERS`, kurucu toplamlardan kartlarını kendisi
+kurar). Bloklar `bars`/`series`/`stats`/`list` (`Entry`); `Card.notes` kodun sabit cümleleri (kural, uyarı), `Headline.amount`/`currency`
+para olmayan başlıkta `None`. Kart cümlesinde yalnız kalemdeki sayılar (adet yazma); model kartın hiçbir alanını yazmaz. Yazılar `formatting.py`
 ile backend rakamlarından; Python'un ürettiği tek sayı çubuk boyu `share` (satır / kartın en büyük satırı, yalnız çizim). Satırlar kalemlerin
 sınırında (ilk 5); Basit ilk 3. `chat._checked_cards`: kartın bütün yazıları `check_answer` ile kalemlere karşı; tutmayan kart düşer +
 log. Okunamayan sonuç `[]`, hata değil. Yeni araç kartı → `cards._BUILDERS` + `test_cards.py`'de elle değerler. Kart varsa `answer` kartların

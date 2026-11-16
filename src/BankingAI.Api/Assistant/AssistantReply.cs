@@ -36,8 +36,11 @@ public sealed record AssistantFact(string Label, string Text);
 /// <param name="Detail">What the option is, for a choice between two calculations; empty when the label says it alone.</param>
 public sealed record AssistantChoice(string Label, string Detail);
 
-/// <summary>The big figure of an answer card, with its text as people read it (UX-01 PR4).</summary>
-public sealed record CardHeadline(decimal Amount, string Currency, string Text);
+/// <summary>
+/// The big figure of an answer card, with its text as people read it (UX-01 PR4). <c>amount</c> and <c>currency</c> are both null
+/// for a figure that is not money, such as a share of income (UX-01 PR6 K7-B); the phone shows <c>text</c> only.
+/// </summary>
+public sealed record CardHeadline(decimal? Amount, string? Currency, string Text);
 
 /// <summary>
 /// The change against the period before: <c>direction</c> is <c>up</c>, <c>down</c> or <c>same</c>; <c>percent</c> is null when
@@ -58,20 +61,28 @@ public sealed record CardPoint(string Label, decimal Amount, string Text, decima
 public sealed record CardStat(string Label, string Text);
 
 /// <summary>
+/// One line of a <c>list</c> block (UX-01 PR6a): a payment or a purchase, <c>detail</c> its second line ("Faturalar · 15 Eylül
+/// 2026"), <c>direction</c> an optional arrow (<c>up</c>, <c>down</c>, <c>same</c>).
+/// </summary>
+public sealed record CardEntry(string Label, string Detail, string Text, string? Direction);
+
+/// <summary>
 /// A part of a card. <c>kind</c> is <c>bars</c> (uses <c>rows</c>), <c>series</c> (uses <c>points</c> and the month label in
-/// <c>highlight</c>) or <c>stats</c> (uses <c>items</c>); the two lists its kind does not use are empty.
+/// <c>highlight</c>), <c>stats</c> (uses <c>items</c>) or <c>list</c> (uses <c>entries</c>); the lists its kind does not use are empty.
 /// </summary>
 public sealed record CardBlock(
-    string Kind, IReadOnlyList<CardBar> Rows, IReadOnlyList<CardPoint> Points, IReadOnlyList<CardStat> Items, string? Highlight);
+    string Kind, IReadOnlyList<CardBar> Rows, IReadOnlyList<CardPoint> Points, IReadOnlyList<CardStat> Items, string? Highlight,
+    IReadOnlyList<CardEntry> Entries);
 
 /// <summary>
 /// One answer card (UX-01 PR4), built by the AI service's code from the tool result, never by the model. <c>simple</c> is
 /// always shown, <c>detailed</c> on request (empty when there is nothing more); one card per currency, never a total of two.
-/// The phone draws it as it is: it formats no figure and computes none.
+/// The phone draws it as it is: it formats no figure and computes none. <c>notes</c> are code's fixed sentences shown under the card
+/// (an estimate's rule, an investment warning; UX-01 PR6 K4-A), empty when there are none.
 /// </summary>
 public sealed record AssistantCard(
     string Title, CardHeadline Headline, CardChange? Change, IReadOnlyList<CardBlock> Simple, IReadOnlyList<CardBlock> Detailed,
-    string Sentence);
+    string Sentence, IReadOnlyList<string> Notes);
 
 /// <summary>
 /// Reply of <c>POST /api/assistant/messages</c>. The figures in <c>answer</c> come from <c>facts</c>, which the

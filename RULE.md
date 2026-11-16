@@ -1378,6 +1378,9 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Liste kartları (UX-01 PR6a, 16 Kasım 2026; docs/local-ai.md "UX-01 PR6a", docs/ios.md "iOS-y"): işyeri dağılımı, en büyük harcamalar,
+  düzenli ve yaklaşan ödemeler kart alır (10 araç). Sözleşme bir kez değişti: `list` bloğu (`entries`), kartın `notes`'u (kodun sabit
+  cümleleri, her iki modda), `headline.amount`/`currency` isteğe bağlı (ikisi birden). Python 1433, Api 605, iOS 417; cevap doğruluğu 29/29.
 - UX-01 PR3–PR5 model ölçümü (16 Kasım 2026; docs/local-ai.md): araç seçimi 120/121, cevap doğruluğu 25/26, ifade örneklemi 124/127.
   Gerileme (PR3): "Netflix'e ne kadar harcadım?" kategori detayına gidiyordu; aynı gün düzeltildi (`grounding.brand_in`, marka → işyeri
   aracı; tekrarlanan kategori çağrısı tek çağrı). Yeni kodla araç seçimi 121/121, cevap 26/26, ifade 125/127. Açık: CHAT-11 ("5 bin 6 ay").

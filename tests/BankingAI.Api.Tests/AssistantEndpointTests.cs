@@ -277,11 +277,19 @@ public sealed class AssistantEndpointTests
         {"title":"Market · Eylül 2026","headline":{"amount":18016.5,"currency":"TRY","text":"18.016,50 TL"},
          "change":{"percent":50.84,"direction":"up","against":"Ağustos 2026","againstText":"11.944,50 TL","text":"%50,84 artış"},
          "simple":[{"kind":"bars","rows":[{"label":"BİM","amount":6216.0,"text":"6.216,00 TL · %34,50","share":1.0,"direction":null}],
-                    "points":[],"items":[],"highlight":null}],
+                    "points":[],"items":[],"highlight":null,"entries":[]}],
          "detailed":[{"kind":"series","rows":[],"points":[{"label":"Eki","amount":5133.0,"text":"5.133,00 TL","share":0.28,"partial":true}],
-                      "items":[],"highlight":"Eyl"},
-                     {"kind":"stats","rows":[],"points":[],"items":[{"label":"İşlem","text":"8"}],"highlight":null}],
-         "sentence":"Market: önceki döneme göre 6.072,00 TL fazla."}
+                      "items":[],"highlight":"Eyl","entries":[]},
+                     {"kind":"stats","rows":[],"points":[],"items":[{"label":"İşlem","text":"8"}],"highlight":null,"entries":[]}],
+         "sentence":"Market: önceki döneme göre 6.072,00 TL fazla.","notes":[]}
+        """;
+
+    // UX-01 PR6a: a list block (K3-B), code's notes under the card (K4-A) and a headline that is not money (K7-B).
+    private const string ListCard = """
+        {"title":"Yaklaşan ödemeler · 10-17 Ekim 2026","headline":{"amount":null,"currency":null,"text":"%62,81"},"change":null,
+         "simple":[{"kind":"list","rows":[],"points":[],"items":[],"highlight":null,
+                    "entries":[{"label":"Netflix","detail":"12 Ekim 2026 · 2 gün sonra","text":"229,99 TL","direction":null}]}],
+         "detailed":[],"sentence":"Tahmini toplam 229,99 TL.","notes":["Tarih ve tutarlar tahmindir."]}
         """;
 
     private static string ReplyWithCards(params string[] cards) => $$"""
@@ -300,6 +308,15 @@ public sealed class AssistantEndpointTests
     }
 
     [Fact]
+    public async Task A_list_card_with_its_notes_reaches_the_client_as_written()
+    {
+        var (status, body) = await AskAsync(FakeAssistantService.Answering(ReplyWithCards(ListCard)));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(JsonNode.Parse(ListCard)!.ToJsonString(), body["cards"]![0]!.ToJsonString());
+    }
+
+    [Fact]
     public async Task A_reply_without_cards_has_none()
     {
         var (status, body) = await AskAsync(FakeAssistantService.Answering());
@@ -315,6 +332,11 @@ public sealed class AssistantEndpointTests
         MarketCard.Replace("\"direction\":\"up\"", "\"direction\":\"sideways\""),           // an unknown direction
         MarketCard.Replace("\"items\":[{\"label\":\"İşlem\",\"text\":\"8\"}]", "\"items\":[]"),     // a block without its rows
         MarketCard.Replace("\"sentence\":\"Market: önceki döneme göre 6.072,00 TL fazla.\"", "\"sentence\":null"),
+        ListCard.Replace("\"entries\":[{\"label\":\"Netflix\",\"detail\":\"12 Ekim 2026 · 2 gün sonra\",\"text\":\"229,99 TL\",\"direction\":null}]",
+                         "\"entries\":[]"),                                                  // a list without its lines
+        ListCard.Replace("\"detail\":\"12 Ekim 2026 · 2 gün sonra\",", ""),                     // a line without its second line
+        ListCard.Replace("\"notes\":[\"Tarih ve tutarlar tahmindir.\"]", "\"notes\":[null]"),  // a note that is no text
+        ListCard.Replace("\"currency\":null", "\"currency\":\"TRY\""),                           // a currency without its amount
         "42");
 
     [Theory]

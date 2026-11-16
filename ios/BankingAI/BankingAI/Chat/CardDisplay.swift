@@ -8,6 +8,11 @@ enum CardDisplay {
         mode == .detailed ? card.simple + card.detailed : card.simple
     }
 
+    /// Code's notes go under the card in either mode (UX-01 PR6 P3-A): an estimate's rule or an investment warning is never hidden.
+    static func notes(_ card: AssistantCard, mode: AnswerMode) -> [String] {
+        card.notes
+    }
+
     /// A card with nothing more to show has no switch (§6.3).
     static func hasDetail(_ card: AssistantCard) -> Bool {
         !card.detailed.isEmpty

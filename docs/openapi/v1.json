@@ -3232,7 +3232,8 @@
           "change",
           "simple",
           "detailed",
-          "sentence"
+          "sentence",
+          "notes"
         ],
         "type": "object",
         "properties": {
@@ -3266,9 +3267,15 @@
           },
           "sentence": {
             "type": "string"
+          },
+          "notes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
-        "description": "One answer card (UX-01 PR4), built by the AI service's code from the tool result, never by the model. `simple` is\nalways shown, `detailed` on request (empty when there is nothing more); one card per currency, never a total of two.\nThe phone draws it as it is: it formats no figure and computes none."
+        "description": "One answer card (UX-01 PR4), built by the AI service's code from the tool result, never by the model. `simple` is\nalways shown, `detailed` on request (empty when there is nothing more); one card per currency, never a total of two.\nThe phone draws it as it is: it formats no figure and computes none. `notes` are code's fixed sentences shown under the card\n(an estimate's rule, an investment warning; UX-01 PR6 K4-A), empty when there are none."
       },
       "AssistantChoice": {
         "required": [
@@ -3626,7 +3633,8 @@
           "rows",
           "points",
           "items",
-          "highlight"
+          "highlight",
+          "entries"
         ],
         "type": "object",
         "properties": {
@@ -3656,9 +3664,15 @@
               "null",
               "string"
             ]
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardEntry"
+            }
           }
         },
-        "description": "A part of a card. `kind` is `bars` (uses `rows`), `series` (uses `points` and the month label in\n`highlight`) or `stats` (uses `items`); the two lists its kind does not use are empty."
+        "description": "A part of a card. `kind` is `bars` (uses `rows`), `series` (uses `points` and the month label in\n`highlight`), `stats` (uses `items`) or `list` (uses `entries`); the lists its kind does not use are empty."
       },
       "CardChange": {
         "required": [
@@ -3692,6 +3706,33 @@
         },
         "description": "The change against the period before: `direction` is `up`, `down` or `same`; `percent` is null when\nthat period had nothing to compare with."
       },
+      "CardEntry": {
+        "required": [
+          "label",
+          "detail",
+          "text",
+          "direction"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          },
+          "direction": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One line of a `list` block (UX-01 PR6a): a payment or a purchase, `detail` its second line (\"Faturalar · 15 Eylül\n2026\"), `direction` an optional arrow (`up`, `down`, `same`)."
+      },
       "CardHeadline": {
         "required": [
           "amount",
@@ -3701,17 +3742,23 @@
         "type": "object",
         "properties": {
           "amount": {
-            "type": "number",
+            "type": [
+              "null",
+              "number"
+            ],
             "format": "decimal"
           },
           "currency": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "text": {
             "type": "string"
           }
         },
-        "description": "The big figure of an answer card, with its text as people read it (UX-01 PR4)."
+        "description": "The big figure of an answer card, with its text as people read it (UX-01 PR4). `amount` and `currency` are both null\nfor a figure that is not money, such as a share of income (UX-01 PR6 K7-B); the phone shows `text` only."
       },
       "CardPoint": {
         "required": [
