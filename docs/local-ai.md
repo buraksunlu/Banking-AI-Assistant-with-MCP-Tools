@@ -1209,3 +1209,25 @@ kart düşer), K7-A (Basit'te ilk 3 satır), K8-A (karşılaştırmada değişim
   sınıflandırılmamışın kelimesi yok, normal yoldan gider. Kelime listesi iPhone'da `HomeDisplay.askWords`; iki taraf aynı listeyi test eder.
 - **Testler:** açıklama yolunu sınayan sohbet testleri `conftest.no_cards` ile kartsız çalışır (özet aracı PR4'ten beri kartlı).
   `answer_eval` A26 artık cevapta kart cümlesinin farkını ("6.072,00") arar; toplam kartın büyük rakamındadır.
+
+## UX-01 PR3–PR5 model ölçümü (16 Kasım 2026)
+
+Ölçüm PR3 (kategori detayı aracı), PR4 (kartlar) ve PR5'ten (kart varsa model açıklamaz, panel soruları) sonra harici SSD ile çalıştırıldı. Ortam: güncel
+`main` (d8f3be0), MCP server 5259 ve AI servisi 8010 (çalışan eski servislere dokunmadan ayrı portlar), `BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z`,
+`qwen3.5:4b`, `--pause 1`; sonunda `ollama stop`.
+
+| Ölçüm | Önce (14 Kasım, INV-03 PR2) | Şimdi |
+|---|---|---|
+| Araç seçimi (`tool_selection_eval.py`) | 113/113 | **120/121** (yeni C01–C08 8/8; S25 kırıldı) |
+| Cevap doğruluğu (`answer_eval.py`) | 25/25 | **25/26** (A26 geçti; A10 kırıldı) |
+| İfade örneklemi (`phrasing_eval.py`) | 119/121 | **124/127** |
+
+- **Gerileme (PR3): "Netflix'e ne kadar harcadım?"** S25, A10 ve `merchant.t2.merchant2.period0.ascii` aynı hatadır. Model kategori detayını
+  (`get_category_spending`, `SUBSCRIPTION`) seçiyor; `grounding._CATEGORY_WORDS` Abonelik kelimeleri arasında `netflix`/`spotify` marka
+  adlarını taşıdığı için argüman denetimi bunu "kategori söylenmiş" sayıp geçiriyor. Cevap yanıltıcı: Can'ın Netflix'i yok, cevap
+  "Abonelik: önceki döneme göre değişmedi." oluyor. Modelsiz ifade testi yakalayamadı (OracleSelector doğru aracı verir). Düzeltmesi ayrı iş.
+- **Eski açık, ilk kez örneklemde:** "Ayda 5 bin 6 ay biriktirseydim ne olurdu?" → tutar soruluyor (iki denemede aynı); "5 bin TL 6 ay" doğru.
+  Tutar okuma INV-03 PR2'den beri değişmedi; ifade PR3'te şablonlar büyüyünce örnekleme girdi.
+- **Bildik:** büyük harfli tasarruf ifadesi ("MARKET HARCAMAMI YARIYA İNDİRSEM NE OLUR?") kategorisini kaybediyor (14 Kasım'da da vardı).
+- **PR5 etkisi:** kartlı vakalarda cevap artık kart cümlesi (A04–A08, A16–A18, A26 geçti); kartlı turlar ~1,2–2,5 sn.
+
