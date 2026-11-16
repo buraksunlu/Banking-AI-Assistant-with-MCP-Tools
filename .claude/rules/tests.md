@@ -7,6 +7,9 @@ paths:
 
 > CLAUDE.md'den taşındı (23 Ekim 2026). Bu dosya, eşleşen bir dosya okunduğunda ya da düzenlendiğinde kendiliğinden yüklenir.
 
+RT-01: testler yalnız sabit demo DB'de çalışır; `tests/Shared/LiveDatabaseGuard.cs` (dört projeye bağlı, `[ModuleInitializer]`) adında
+`live` geçen veritabanını ilk sorgudan önce reddeder. Yeni test projesi de bu dosyayı `<Compile Include … Link>` ile bağlar.
+
 Testlerin ortak yardımcıları `tests/Shared` (`TestTokens`, `CapturedLogs`, `CommittedRowsLock`), `BankingAI.TestSupport`
 namespace'i proje dosyasında global using.
 

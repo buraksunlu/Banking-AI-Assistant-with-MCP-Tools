@@ -19,3 +19,4 @@ DerivedData/
 
 # Demo script logs (scripts/demo.sh)
 .demo/
+logs/

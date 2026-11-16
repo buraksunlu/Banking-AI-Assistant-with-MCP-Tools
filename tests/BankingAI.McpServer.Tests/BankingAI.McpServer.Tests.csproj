@@ -20,6 +20,7 @@
     <Using Include="BankingAI.TestSupport" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../Shared/LiveDatabaseGuard.cs" Link="Shared/LiveDatabaseGuard.cs" />
     <Compile Include="../Shared/TestTokens.cs" Link="Shared/TestTokens.cs" />
     <Compile Include="../Shared/CapturedLogs.cs" Link="Shared/CapturedLogs.cs" />
     <Compile Include="../BankingAI.Application.Tests/DemoData.cs" Link="Shared/DemoData.cs" />

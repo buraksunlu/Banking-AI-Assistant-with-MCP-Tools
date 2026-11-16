@@ -1378,6 +1378,9 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Sabit ve canlı veritabanı (RT-01, 16 Kasım 2026; docs/database-design.md "RT-01"): `bankingai_foundation` sabit demo verisi (testler,
+  ölçümler, demo anı, sunum yedeği), `bankingai_live` onun kopyası (canlı akış, RT-02'den). Canlı süreçler `scripts/run-live.sh` ile; testler
+  adında `live` geçen DB'ye bağlanmaz (`tests/Shared/LiveDatabaseGuard`).
 - Zenginlik kartları (UX-01 PR6c, 16 Kasım 2026; docs/local-ai.md "UX-01 PR6c"): gelir payı (yüzde başlık), öneri (backend cümleleri
   not), iki "ne olurdu" (varlık satırları, yatırım uyarısı her zaman); on altı aracın hepsi kartlı, UX-01 tamam. Python 1453; ölçüm cevap 29/29,
   araç seçimi 121/121, ifade 125/127. Sıradaki yön: real time (todo 14d, RT-01–06).

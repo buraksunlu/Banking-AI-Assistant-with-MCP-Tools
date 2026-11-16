@@ -395,3 +395,23 @@ Müşterinin giriş bilgisi; ayrıntılar [güvenlik belgesinde](security.md).
 | CreatedAt / UpdatedAt | `DateTimeOffset` | `timestamptz` | Sunucu saati; `UpdatedAt >= CreatedAt` |
 
 Migration: `AddCustomerCredentials` (11. migration).
+
+## RT-01: sabit ve canlı veritabanı (16 Kasım 2026)
+
+Aynı PostgreSQL container'ında iki veritabanı, aynı şema ve migration geçmişi:
+
+| Veritabanı | Ne için | Saat |
+|---|---|---|
+| `bankingai_foundation` | sabit demo verisi: bütün testler, model ölçümleri, sunumun yedeği | demo anı (`BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z`) |
+| `bankingai_live` | canlı akış: simülatör (RT-02), canlı API/MCP/AI servisi | RT-03'ten sonra gerçek saat |
+
+- **Kopya (D1-A):** `createdb -U bankingai -O bankingai_foundation bankingai_live` (uygulama rolünde CREATEDB yok; açan yönetici rol
+  `bankingai`), sonra `pg_dump -U bankingai_foundation -d bankingai_foundation --no-owner --no-privileges | psql -v ON_ERROR_STOP=1 -U
+  bankingai_foundation -d bankingai_live`. `pg_dump` yalnız okur; kaynağa bağlı servisler açık kalabilir.
+- **Bağlantı (D3-C):** `.env` değişmez. `scripts/run-live.sh` API (5248), MCP (5249) ve AI servisini (8000) canlı DB ile açar; canlı adres
+  `BANKINGAI_LIVE_CONNECTION_STRING`'den, yoksa `BANKINGAI_CONNECTION_STRING`'in `Database=bankingai_foundation`'ı değiştirilerek türetilir.
+  Loglar `logs/live-*.log` (git dışı). Ctrl-C üçünü kapatır.
+- **Koruma (D4-A):** dört test projesi `tests/Shared/LiveDatabaseGuard.cs`'i bağlar; test derlemesi yüklenirken (`[ModuleInitializer]`)
+  bağlantının veritabanı adında `live` geçerse çalışma ilk sorgudan önce durur. Mesajda yalnız DB adı yazar (bağlantıda şifre var).
+- **Migration:** yeni migration iki veritabanına da uygulanır (önce sabit, sonra canlı; ikisi için de üretilen SQL gösterilir ve onay alınır).
+
