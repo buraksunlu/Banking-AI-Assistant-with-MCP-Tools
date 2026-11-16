@@ -4,16 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-export DOTNET_ROOT=/usr/local/share/dotnet PATH="/usr/local/share/dotnet:$PATH"
-set -a; source .env; set +a
-
-# The live connection: its own setting when .env has one, otherwise the demo connection with the live database's name.
-live="${BANKINGAI_LIVE_CONNECTION_STRING:-${BANKINGAI_CONNECTION_STRING/Database=bankingai_foundation/Database=bankingai_live}}"
-case "$live" in
-  *Database=bankingai_live*) ;;
-  *) echo "run-live: could not find the live database in the connection settings" >&2; exit 1 ;;
-esac
-export BANKINGAI_CONNECTION_STRING="$live"
+source scripts/live-env.sh
 
 mkdir -p logs
 pids=()

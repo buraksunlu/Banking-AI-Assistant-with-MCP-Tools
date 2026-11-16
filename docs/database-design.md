@@ -415,3 +415,19 @@ Aynı PostgreSQL container'ında iki veritabanı, aynı şema ve migration geçm
   bağlantının veritabanı adında `live` geçerse çalışma ilk sorgudan önce durur. Mesajda yalnız DB adı yazar (bağlantıda şifre var).
 - **Migration:** yeni migration iki veritabanına da uygulanır (önce sabit, sonra canlı; ikisi için de üretilen SQL gösterilir ve onay alınır).
 
+## RT-02a: canlı gün planı ve yetiştirme (16 Kasım 2026)
+
+Canlı veritabanının sabit verinin bittiği andan (`RealisticCutoff`, 10 Ekim 2026 12:00 UTC) sonraki akışı. Sabit seed değişmez; canlı DB
+onun devamını alır.
+
+- **Gün planı (`Data/Simulation/DayPlan`):** altı SYN-15 personasının bir günü (S1-A; Ada/Deniz/Ege'ye yazılmaz). Aylık sabitler (maaş,
+  fatura, abonelik) ayın gününe bağlı; arka plan (kahve, market, yakıt…) `RandomSeed + gün numarası × 1000 + hesap numarası` tohumlu
+  `Random`'dan: aynı gün her zaman aynı plan, hiçbir gün öncekine bakmaz (S3-A). Saatler İstanbul'da, Elif Berlin'de (yaz saati dahil).
+- **Kimlik:** `NameId("simulator:{gün}:{slot}")` (SHA-256'nın ilk 16 baytı, v8 UUID). Aynı plan ikinci kez yazılırsa yazıcı
+  `AlreadyExisted` döner, bakiye ikinci kez değişmez. Sonuç: **yazılmış bir günün planı değişemez** (aynı kimlik, farklı içerik = çakışma);
+  bu yüzden canlıya ilk yazma çeşitlilikten (RT-05a) sonra yapılır.
+- **Yazma (`LiveSimulator.CatchUpAsync`):** yalnız adında `live` geçen DB (`EnsureLive`); tek bacak `TransactionWriter`, transfer
+  `PairedTransactionWriter` (S5-A). Bakiye yetmezse (`BalanceLimitException`) işlem atlanır ve log'a yazılır (S8-A).
+- **CLI:** `scripts/live-cli.sh simulate catch-up [--until <ISO-8601>] [--dry-run]`; `--until` şimdiden sonrasını kabul etmez.
+  `scripts/live-env.sh` canlı adresi `run-live.sh` ile ortak türetir.
+

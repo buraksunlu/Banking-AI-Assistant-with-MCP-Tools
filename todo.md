@@ -541,11 +541,25 @@ yoklama; gerekirse sonra SSE). Her madde kendi detaylı planıyla, kullanıcı o
   toplamı 2.562.327,68), iki ayrı API'den Ada'nın hesapları aynı. Testler sabit DB'de: Data 185 → 191, diğerleri aynı; canlı adresle dört test
   projesi de ilk anda durdu, koruma kaldırılınca 150 test çalışıp 41'i canlıya bağlanmaya kalktı. Sınır: canlı DB RT-02'ye kadar kopyadır.
 - [ ] RT-02 — Simülatör + yetiştirme (`BankingAI.Simulator` + CLI `simulate --until now`): personaların günlük ritmi (saat, hafta sonu, maaş
-  günü), mevcut şemada; açılışta kaçırılan günleri yetiştirir. Çeşitliliğin ilk dilimi (R4-A).
+  günü), mevcut şemada; açılışta kaçırılan günleri yetiştirir. Çeşitliliğin ilk dilimi (R4-A). Kararlar S1-A … S10-A.
+  - [x] RT-02a — Gün planı + yetiştirme motoru + CLI (16 Kasım 2026, docs/database-design.md "RT-02a"): `Data/Simulation/DayPlan`
+    (altı SYN-15 personası; aylık sabitler gün numarasıyla, arka plan gün + persona tohumlu), `PlannedTransaction` (transfer = iki bacak),
+    `LiveSimulator.CatchUpAsync` (yalnız canlı DB, seed yazıcılarıyla, yetmeyen bakiye atlanır ve log'a yazılır), CLI
+    `simulate catch-up [--until] [--dry-run]` (`scripts/live-cli.sh`). Kimlik plan adından (`simulator:{gün}:{slot}`, SHA-256 → v8 UUID):
+    tekrar çalıştırma çift yazmaz. Data 191 → 208, 7 kasıtlı bozma yakalandı. Kuru çalıştırma (10 Ekim 12:00 → 16 Kasım): 153 işlem.
+    **Canlıya henüz yazılmadı** (kullanıcı kararı T1-A, 16 Kasım: önce RT-05a çeşitliliği, sonra tek seferde yazma; kimlik plan adından
+    geldiği için yazılan gün sonradan zenginleşemez).
+  - [ ] RT-02b — Sürekli çalışan simülatör (dakikada bir tur, `run-live.sh`'e eklenir).
 - [ ] RT-03 — Gerçek saate geçiş (canlıda `BANKINGAI_DEMO_NOW` yok) ve iPhone yenileme (sekmeye dönünce, ekran açıkken 30 sn).
   Sunum (16 Kasım 2026 kullanıcı sorusu): canlı DB'de yapılır ("bu sabah kahve aldım, şimdi soruyorum"); R5-A/R6-A yalnız testleri ve
   ölçümleri sabit kopyaya bağlar. Sabit demo DB yedektir (bağlantı adresiyle saniyeler içinde geçilir); sunum sabahı canlı veriyle prova.
 - [ ] RT-04 — Günlük piyasa verisi (TCMB, gold-api; simülatör içinde, hata yalnız log).
+- [ ] RT-05a — Altı personada zenginlik, canlıya ilk yazmadan önce (16 Kasım 2026 kullanıcı isteği: "bütün tool'ları ve feature'ları en iyi
+  şekilde gösterecek çeşitlilik"). Kararlar T1-A (önce zenginleştir, sonra tek yazma) T2-C (şimdi altı persona, yeni personalar RT-05'te)
+  T3-A (personalar Can Kırtasiye'den alır, çift; dükkândan Can'a transfer satışların taşıyacağı tutara iner) T4-A (elektronik "Diğer") T5-A
+  (her yıl tekrar eden takvim kuralları, bitiş yok). İçerik: bayram/Black Friday/yılbaşı/ara tatil/14 Şubat olayları, Seyahat ve Diğer
+  kategorileri, Elif'in TL hesabı (Aralık İstanbul ziyareti), ikramiye ve emekli zammı, abonelik başlama/iptal/zam, tek seferlik büyük
+  kalemler, rastgele dakika ve gün içi yoğunluk.
 - [ ] RT-05 — Çeşitliliğin geri kalanı: personalar ~20, işyerleri ~150, aynı işyerinin farklı ham açıklamaları, mevsim ve indirim dönemleri.
 - [ ] RT-06 — İade/iptal (KIND-06; yeni `Kind`, migration).
 

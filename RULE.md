@@ -1378,6 +1378,9 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Canlı simülatör motoru (RT-02a, 16 Kasım 2026; docs/database-design.md "RT-02a"): `Data/Simulation` (gün planı, yetiştirme), CLI
+  `simulate catch-up` yalnız canlı DB'ye yazar (sabit DB'de reddedilir), kimlik plan adından (tekrar çift yazmaz). Canlıya ilk yazma
+  RT-05a çeşitliliğinden sonra (T1-A).
 - Sabit ve canlı veritabanı (RT-01, 16 Kasım 2026; docs/database-design.md "RT-01"): `bankingai_foundation` sabit demo verisi (testler,
   ölçümler, demo anı, sunum yedeği), `bankingai_live` onun kopyası (canlı akış, RT-02'den). Canlı süreçler `scripts/run-live.sh` ile; testler
   adında `live` geçen DB'ye bağlanmaz (`tests/Shared/LiveDatabaseGuard`).
