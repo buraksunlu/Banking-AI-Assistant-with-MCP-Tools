@@ -547,8 +547,7 @@ yoklama; gerekirse sonra SSE). Her madde kendi detaylı planıyla, kullanıcı o
     `LiveSimulator.CatchUpAsync` (yalnız canlı DB, seed yazıcılarıyla, yetmeyen bakiye atlanır ve log'a yazılır), CLI
     `simulate catch-up [--until] [--dry-run]` (`scripts/live-cli.sh`). Kimlik plan adından (`simulator:{gün}:{slot}`, SHA-256 → v8 UUID):
     tekrar çalıştırma çift yazmaz. Data 191 → 208, 7 kasıtlı bozma yakalandı. Kuru çalıştırma (10 Ekim 12:00 → 16 Kasım): 153 işlem.
-    **Canlıya henüz yazılmadı** (kullanıcı kararı T1-A, 16 Kasım: önce RT-05a çeşitliliği, sonra tek seferde yazma; kimlik plan adından
-    geldiği için yazılan gün sonradan zenginleşemez).
+    İlk yazma RT-05a'dan sonra yapıldı (T1-A; kimlik plan adından geldiği için yazılan gün sonradan zenginleşemez).
   - [ ] RT-02b — Sürekli çalışan simülatör (dakikada bir tur, `run-live.sh`'e eklenir).
 - [ ] RT-03 — Gerçek saate geçiş (canlıda `BANKINGAI_DEMO_NOW` yok) ve iPhone yenileme (sekmeye dönünce, ekran açıkken 30 sn).
   Sunum (16 Kasım 2026 kullanıcı sorusu): canlı DB'de yapılır ("bu sabah kahve aldım, şimdi soruyorum"); R5-A/R6-A yalnız testleri ve
@@ -563,7 +562,10 @@ yoklama; gerekirse sonra SSE). Her madde kendi detaylı planıyla, kullanıcı o
   hekimi (9.500), Ocak zamları (Netflix 249,99, emekli maaşı 25.300), YouTube Premium (3 Aralık'tan), Figma iptali (Ocak'tan), 6 Şubat noter,
   14 Şubat yemekleri, 15 Mart oto servis, 8 Eylül okul kırtasiyesi. Yeni günlük alışkanlıklar (yemek siparişi, kahve, bakkal, simit,
   scooter, kargo) ve rastgele dakika. Data 208 → 223, 9 kasıtlı bozma yakalandı. Kuru çalıştırma: 153 → 222 işlem, 11 kategorinin hepsi,
-  40 işyeri. Sınır: Can'ın hesabı ~Mayıs 2027, dükkân ~Haziran 2027'de tükenir (dükkânın tek geliri personalar; RT-05 dükkân müşterileri).
+  40 işyeri. **İlk yazma (16 Kasım 2026, kullanıcı onayıyla):** 10 Ekim 12:00 → 16 Kasım 11:06 UTC, 222 işlem / 225 satır yazıldı, 0 atlandı;
+  ikinci çalıştırma `written 0`. Canlı 1.826 → 2.051 işlem, sabit DB 1.826'da; eksi bakiye yok, her hesabın bakiyesi işlemlerinin toplamı.
+  Murat: maaş 170.000, sabitler 2.919,88, Ekim'in en büyüğü Otel 14.800 → Ekim önerisi Seyahat (son 6 ay 0; elle hesap: fazla 14.800 ≥
+  gelirin %2'si; isteğe bağlı toplam 17.048,49 < 25.500 sınırı, ikinci kural tutmaz). Sınır: Can'ın hesabı ~Mayıs 2027, dükkân ~Haziran 2027'de tükenir (dükkânın tek geliri personalar; RT-05 dükkân müşterileri).
 - [ ] RT-05 — Çeşitliliğin geri kalanı: personalar ~20, işyerleri ~150, aynı işyerinin farklı ham açıklamaları, mevsim ve indirim dönemleri.
 - [ ] RT-06 — İade/iptal (KIND-06; yeni `Kind`, migration).
 
