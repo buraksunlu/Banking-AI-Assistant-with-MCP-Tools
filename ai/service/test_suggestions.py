@@ -9,7 +9,7 @@ import pytest
 from conversation import is_follow_up
 from routing import GROUPS, Router, group_of
 from suggestions import (OUT_OF_SCOPE_SUGGESTIONS, PATTERNS, PERIOD_NAMES, AskedStore, OfferedStore, Shape, StarterQuestions,
-                         Suggestion, follow_ups, match, result_shape)
+                         Suggestion, follow_ups, match, panel_questions, result_shape)
 from test_mcp_gateway import _real_token, real
 from mcp_gateway import McpSettings, McpToolGateway
 
@@ -438,3 +438,17 @@ def test_the_same_call_asked_twice_is_kept_once_and_the_list_is_bounded():
     kept = store.recall(TOKEN)
     assert len(kept) == 50 and kept[-1] == ("get_monthly_trend", {"months": 59})
     assert kept.count(("get_spending_summary", {"period": "ThisMonth"})) <= 1
+
+
+def test_the_panel_questions_are_this_months_category_pattern_for_every_category_with_a_word():
+    # UX-01 PR5 K1-C: the phone keeps the same ten words (HomeDisplay.askWords); a change here must be made there too.
+    questions = panel_questions()
+
+    assert [q.text for q in questions] == [
+        "Bu ay market harcamam ne kadar?", "Bu ay yeme içme harcamam ne kadar?", "Bu ay giyim harcamam ne kadar?",
+        "Bu ay ulaşım harcamam ne kadar?", "Bu ay eğlence harcamam ne kadar?", "Bu ay abonelik harcamam ne kadar?",
+        "Bu ay seyahat harcamam ne kadar?", "Bu ay yakıt harcamam ne kadar?", "Bu ay fatura harcamam ne kadar?",
+        "Bu ay sağlık harcamam ne kadar?"]
+    assert {(q.tool, q.arguments["period"]) for q in questions} == {("get_category_spending", "ThisMonth")}
+    assert [q.arguments["categoryCode"] for q in questions] == [
+        "GROCERY", "FOOD", "CLOTHING", "TRANSPORTATION", "ENTERTAINMENT", "SUBSCRIPTION", "TRAVEL", "FUEL", "BILLS", "HEALTH"]

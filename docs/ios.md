@@ -821,3 +821,39 @@ App/MainTabView.swift           pace, homeCategories; Profil yığınının yoll
 Networking/                     PeriodComparison, monthToDateComparison; SpendingSummary silindi
 Analytics/SpendingSummary*      silindi
 ```
+
+## iOS-x: cevap kartları, kayan sayfa, Basit/Detaylı (UX-01 PR5; 16 Kasım 2026)
+
+Sohbet cevabında `cards` varsa iPhone metin yerine kartı çizer: başlık, büyük rakam, değişim satırı (yalnız ok, renk yargılamaz), seçili
+modun blokları ve kodun tek cümlesi. Telefon hiçbir rakamı yazmaz ya da hesaplamaz: her yazı kartın `text`'idir, tek kullanılan sayı
+çubuk boyu `share` (0–1'e kırpılır). Kararlar K1-C K2-A K3-B K4-C K5-A K6-A K7-A (todo UX-01 PR5).
+
+- **Akış:** ana ekranın "Market" satırı → `HomeDisplay.question` → `AskSheet.ask` → sayfa yarım açılır, `ChatViewModel.send("Bu ay market
+  harcamam ne kadar?")` → sunucu kalıbı tanır, aracı modelsiz çalıştırır, `answer` kartın cümlesi → `MessageBubble` kartı `AnswerCard` ile
+  çizer. "Kılavuz'a sor…" alanı sayfayı boş açar ve yazı alanını odaklar. Sayfa ile Asistan sekmesi aynı sohbet nesnesini gösterir.
+- **Mod:** Profil'de "Cevap biçimi" (`AnswerPreferences`, `UserDefaults`; cihaz tercihi, çıkışta kalır). Kartın köşesindeki anahtar o kartın
+  seçimini `ChatMessage.modes`'a yazar; dokunulmamış kart varsayılanı izler. Detaylı bölümü boş kartta anahtar yok. Geçiş istek atmaz.
+- **Kelimeler:** kategori kodu → kelime (`HomeDisplay.askWords`) AI servisinin `CATEGORY_WORDS`'üyle aynı 10 kelimedir; "Diğer" ve
+  sınıflandırılmamış satırı buton değildir.
+
+Doğrulama: 413 test durumu geçti (24 yeni `AnswerCardTests`); derleme uyarısız. Yedi kasıtlı bozmanın hepsi yakalandı: çubuk hep tam, mod yok
+sayılıyor, anahtar hep görünür, kartın kendi seçimi yok sayılıyor, bozuk kart bütün cevabı düşürüyor, "Diğer" satırı buton, panel sorusu
+gönderilmiyor. Sınır: görünümler (kart düzeni, sayfa yüksekliği, son karta kaydırma, sayfa ile sekmenin aynı nesneyi göstermesi) birim
+testinde değil; simülatörde Murat (market satırı) ve Zeynep (iki kart) ile denenmeli. Model harici SSD'de olmadığı için bu PR'da denenmedi.
+
+```text
+Chat/AnswerCard.swift           yeni: kart + üç blok şablonu (BarsBlock, SeriesBlock, StatsBlock)
+Chat/AnswerMode.swift           yeni: AnswerMode, AnswerPreferences (UserDefaults), AskSheet
+Chat/CardDisplay.swift          yeni: blocks(mode), hasDetail, fraction, symbol
+Chat/ChatMessage.swift          + cards, modes
+Chat/ChatViewModel.swift        + preferences, mode(for:card:), setMode
+Chat/ChatView.swift             + startsWriting, açılınca son mesaja kaydırma
+Chat/MessageBubble.swift        kart varsa metin yerine kartlar
+Networking/APIModels.swift      + AssistantCard, CardHeadline, CardChange, CardBlock, CardBar, CardPoint, CardStat
+Home/HomeDisplay.swift          + askWords, question(forCategory:)
+Home/HomeView.swift             + "Kılavuz'a sor…" alanı
+Home/WhereItWentCard.swift      kategori satırı buton; ShareBar paylaşılır
+Profile/ProfileView.swift       + "Cevap biçimi"
+App/MainTabView.swift           + AnswerPreferences, AskSheet, .sheet (aynı ChatViewModel)
+```
+

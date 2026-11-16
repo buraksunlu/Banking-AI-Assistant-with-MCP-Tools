@@ -4,6 +4,8 @@ import SwiftUI
 /// logic here.
 struct ChatView: View {
     @Bindable var model: ChatViewModel
+    /// Opened from the home screen's "Kılavuz'a sor…" field: the input takes the keyboard at once (UX-01 PR5).
+    var startsWriting = false
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// The text field's focus; the "Başka bir tutar yazın" row sets it (PR3b D6-A).
@@ -28,7 +30,9 @@ struct ChatView: View {
                             welcome
                         }
                         ForEach(model.messages) { message in
-                            MessageBubble(message: message, canRetry: model.canSend, list: model.transactions(for:)) {
+                            MessageBubble(message: message, canRetry: model.canSend, list: model.transactions(for:),
+                                          mode: { model.mode(for: message.id, card: $0) },
+                                          select: { model.setMode($1, for: message.id, card: $0) }) {
                                 Task { await model.retry(message.id) }
                             }
                             .id(message.id)
@@ -61,6 +65,11 @@ struct ChatView: View {
                     .motion(value: model.choices)
                 }
                 .scrollDismissesKeyboard(.interactively)
+                // The sheet and the tab open where the chat ended (K4-C), not at its first question.
+                .onAppear {
+                    if let last = model.messages.last { proxy.scrollTo(last.id, anchor: .bottom) }
+                    if startsWriting { isWriting = true }
+                }
                 .onChange(of: model.messages.count) {
                     withAnimation(Motion.animation(.default, reduceMotion: reduceMotion)) {
                         if model.isWaiting {

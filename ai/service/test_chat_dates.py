@@ -4,6 +4,7 @@ The date is read by code, the model is shown "bu ay" in its place (K10-A) and ne
 code read (K2-B). Expected dates are worked out by hand from the demo moment, Saturday 10 October 2026.
 """
 
+import pytest
 from datetime import date
 from decimal import Decimal
 
@@ -45,6 +46,7 @@ def test_a_range_in_the_message_becomes_a_custom_call_with_the_dates_code_read()
     assert reply.type == "answer"
 
 
+@pytest.mark.usefixtures("no_cards")
 def test_the_model_is_shown_a_period_name_in_the_place_of_the_dates():
     chat, selector, gateway, explainer = dated()
 
@@ -87,8 +89,8 @@ def test_the_answer_starts_with_the_period_that_was_run():
 
     reply = chat.answer("1-5 Eylül arası ne kadar harcadım?", TOKEN, DAY)
 
-    # Fixed by code, after the answer check: the user sees which days were meant (K16-A).
-    assert reply.answer == f"Dönem: 1-5 Eylül 2026.\n\n{ANSWER}"
+    # Fixed by code, after the answer check: the user sees which days were meant (K16-A); since UX-01 PR5 above the card's sentence.
+    assert reply.answer == "Dönem: 1-5 Eylül 2026.\n\n1-5 Eylül 2026: 2 harcama, toplam 5.116,50 TL."
 
 
 def test_a_year_less_date_is_the_most_recent_past_one():

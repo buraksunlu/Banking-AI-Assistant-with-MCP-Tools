@@ -4,6 +4,7 @@ Decisions: K1-C (nothing asked in the conversation is offered again; with no can
 answer is looked at by counts only), K3-B (every offered text says its period), P2-A (a range is written out by code).
 """
 
+import pytest
 from decimal import Decimal
 
 from chat import ToolCall
@@ -83,6 +84,7 @@ def test_one_purchase_is_not_broken_down():
     assert reply.suggestions == [SAME_DAYS, TOTAL_LM]
 
 
+@pytest.mark.usefixtures("no_cards")
 def test_a_failed_call_is_not_counted_as_asked():
     from answer_check import AnswerRejected
     from test_chat_retry import FailingOnce

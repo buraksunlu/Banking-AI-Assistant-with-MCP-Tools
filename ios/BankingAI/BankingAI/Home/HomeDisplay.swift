@@ -82,3 +82,19 @@ extension HomeDisplay {
         currency.spentShare != nil
     }
 }
+
+/// The home panel's questions (UX-01 PR5 K1-C): a category row sends this month's category pattern of the AI service, which runs
+/// it without the model. The words are the service's own (`suggestions.CATEGORY_WORDS`); a test on each side keeps the lists equal.
+extension HomeDisplay {
+    static let askWords: [(code: String, word: String)] = [
+        ("GROCERY", "market"), ("FOOD", "yeme içme"), ("CLOTHING", "giyim"), ("TRANSPORTATION", "ulaşım"),
+        ("ENTERTAINMENT", "eğlence"), ("SUBSCRIPTION", "abonelik"), ("TRAVEL", "seyahat"), ("FUEL", "yakıt"), ("BILLS", "fatura"),
+        ("HEALTH", "sağlık"),
+    ]
+
+    /// nil for "Diğer", the unclassified group and any code without a word: such a row is not a button.
+    static func question(forCategory code: String?) -> String? {
+        guard let word = askWords.first(where: { $0.code == code })?.word else { return nil }
+        return "Bu ay \(word) harcamam ne kadar?"
+    }
+}

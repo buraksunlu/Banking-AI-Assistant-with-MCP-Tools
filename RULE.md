@@ -1378,6 +1378,11 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- iPhone cevap kartları (UX-01 PR5, 16 Kasım 2026; docs/ios.md "iOS-x", docs/local-ai.md "UX-01 PR5"): kart varsa `answer` kartın kod
+  cümlesidir, açıklayıcı model çağrılmaz; ana ekranın kategori satırı "Bu ay {kategori} harcamam ne kadar?" gönderir ve sunucu bunu sunulmamış
+  olsa da modelsiz çalıştırır (`suggestions.panel_questions`; kelimeler iPhone'da `HomeDisplay.askWords`, iki tarafta eşitlik testi). iPhone kartı
+  üç şablonla çizer (yalnız `text`/`share`), Basit/Detaylı kart köşesinde ve Profil'de (`UserDefaults`), "Kılavuz'a sor…" alttan kayan sayfayı açar
+  (Asistan sekmesiyle aynı `ChatViewModel`). K1-C K2-A K3-B K4-C K5-A K6-A K7-A. iOS 413, Python 1407 modelsiz; 11 kasıtlı bozma yakalandı.
 - Cevap kartları (UX-01 PR4, 15 Kasım 2026; docs/local-ai.md "Cevap kartları", docs/api.md `cards`): AI servisinin kodu altı araçta
   (özet, kategori dağılımı, kategori detayı, tek işyeri, karşılaştırma, aylık seri) para birimi başına kart kurar (`ai/service/cards.py`),
   her yazısı kalemlere karşı denetlenir; .NET `AssistantReply.Cards` taşır, bozuk kart düşer, cevap 200. Model açıklaması PR5'e kadar sürer.

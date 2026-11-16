@@ -2,10 +2,11 @@ import SwiftUI
 
 /// "Nereye gitti", the second card of the home panel (UX-01 PR2): this month's first three categories with the backend's
 /// share as a bar (K2-A). Its own ``CategoryBreakdownViewModel`` stays on this month, whatever the analysis tab shows.
-/// The rows are not buttons yet: tapping one opens the assistant sheet in PR5 (K5-A).
+/// A row with a question (`HomeDisplay.question`) is a button that asks it in the assistant sheet (UX-01 PR5 K5-A, K1-C).
 struct WhereItWentCard: View {
     let model: CategoryBreakdownViewModel
     let showAll: () -> Void
+    let ask: (String) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Layout.medium) {
@@ -48,7 +49,7 @@ struct WhereItWentCard: View {
                                 .font(Typography.eyebrow)
                                 .foregroundStyle(Palette.secondaryText.color)
                         }
-                        CategoryBars(categories: HomeDisplay.topCategories(currency), currency: currency.currencyCode)
+                        CategoryBars(categories: HomeDisplay.topCategories(currency), currency: currency.currencyCode, ask: ask)
                     }
                 }
             }
@@ -66,35 +67,47 @@ struct WhereItWentCard: View {
 private struct CategoryBars: View {
     let categories: [CategorySpending]
     let currency: String
+    var ask: ((String) -> Void)? = nil
     @Environment(\.dynamicTypeSize) private var textSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: Layout.medium) {
             ForEach(categories) { slice in
-                VStack(alignment: .leading, spacing: Layout.tight) {
-                    let layout = textSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: Layout.tight))
-                                                              : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
-                    layout {
-                        Text(slice.displayName)
-                            .font(Typography.body)
-                            .foregroundStyle(Palette.primaryText.color)
-                        if !textSize.isAccessibilitySize { Spacer(minLength: Layout.small) }
-                        Text(Money.text(slice.amount, currency: currency))
-                            .font(Typography.body.monospacedDigit())
-                            .foregroundStyle(Palette.primaryText.color)
-                    }
-                    ShareBar(fraction: HomeDisplay.barFraction(slice.percentage),
-                             color: AnalyticsDisplay.tone(forCategory: slice.categoryCode).swatch.color)
+                if let ask, let question = HomeDisplay.question(forCategory: slice.categoryCode) {
+                    Button { ask(question) } label: { row(slice) }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("\(Brand.assistantName)'a sorar")
+                } else {
+                    row(slice)
                 }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(AnalyticsDisplay.summary(slice, currency: currency))
             }
         }
     }
+
+    private func row(_ slice: CategorySpending) -> some View {
+        VStack(alignment: .leading, spacing: Layout.tight) {
+            let layout = textSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: Layout.tight))
+                                                      : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
+            layout {
+                Text(slice.displayName)
+                    .font(Typography.body)
+                    .foregroundStyle(Palette.primaryText.color)
+                if !textSize.isAccessibilitySize { Spacer(minLength: Layout.small) }
+                Text(Money.text(slice.amount, currency: currency))
+                    .font(Typography.body.monospacedDigit())
+                    .foregroundStyle(Palette.primaryText.color)
+            }
+            ShareBar(fraction: HomeDisplay.barFraction(slice.percentage),
+                     color: AnalyticsDisplay.tone(forCategory: slice.categoryCode).swatch.color)
+        }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(AnalyticsDisplay.summary(slice, currency: currency))
+    }
 }
 
-/// A thin bar on an empty track, as long as the backend's share.
-private struct ShareBar: View {
+/// A thin bar on an empty track, as long as the backend's share; the answer cards use it too (UX-01 PR5).
+struct ShareBar: View {
     let fraction: Double
     let color: Color
 

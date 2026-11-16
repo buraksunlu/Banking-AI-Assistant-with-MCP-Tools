@@ -39,7 +39,7 @@ from prompts import (ADVICE_DECLINED_TEXT, BARE_CHOICE_TEXT, CLARIFY_TEXT, DATE_
 from dates import CustomerDay, DateReading, check_range, period_line, read_dates, with_span_replaced
 from grounding import category_in, check_arguments, mentions_period, unclear_amounts
 from routing import DATE_FIELDS, ONE_OFF, PLANNING, Route, Router, group_of, hide_dates, is_spending_question, narrow, planning_of
-from suggestions import OUT_OF_SCOPE_SUGGESTIONS, AskedStore, OfferedStore, follow_ups, match, result_shape
+from suggestions import OUT_OF_SCOPE_SUGGESTIONS, AskedStore, OfferedStore, follow_ups, match, panel_questions, result_shape
 from tools import ToolArgumentsRejected, ToolGateway
 from wealth import (LIRA, MONTH_TOOLS, MONTHLY_TOOL, ONE_OFF_TOOL, WEALTH_TOOLS, advised_saving_call, carried_monthly, chosen_scenario_arguments,
                     has_complete_month, monthly_follow_up, needs_month_question, plan_monthly, scenario_by_figures)
@@ -273,8 +273,9 @@ class ChatService:
                 return self._run(ToolCall(waiting.tool, arguments), question, token, deadline, day)
 
         # The text of an offered follow-up stands for the call it was built from (CHAT-06 K3-C): code chose the tool, so the
-        # model is not asked again; the MCP server still checks the arguments.
-        chosen = match(offered, message)
+        # model is not asked again; the MCP server still checks the arguments. The home panel's questions are known the same way,
+        # never offered (UX-01 PR5 K1-C).
+        chosen = match([*offered, *panel_questions()], message)
         if chosen is not None and chosen.tool == MONTHLY_TOOL and "months" not in chosen.arguments:
             # INV-03 K9-A: "Önerdiğin tutarı her ay biriktirseydim" says no duration; it is asked like a typed one's.
             return self._monthly(ToolCall(chosen.tool, dict(chosen.arguments)), message, None, token, deadline, day)
@@ -435,12 +436,16 @@ class ChatService:
             return ChatReply(kind, text, used, outcome.facts)
 
         # CHAT-09 K7-A: a what-if is explained from the question code wrote, not from the user's words and replies.
+        cards = _checked_cards(call, question, outcome.facts, result)
         if outcome.written is not None:
             # CHAT-10 PR3b D9-A: an answer code wrote needs neither the model nor its checks.
             answer = outcome.written
+        elif cards:
+            # UX-01 PR5 K2-A: the phone draws the card; its sentence, already checked against the facts, is the whole text.
+            answer = "\n".join(card.sentence for card in cards)
         else:
             answer = self.explainer.explain(outcome.question or question, outcome.facts, deadline=deadline)
-        if outcome.written is None and call.tool in WEALTH_TOOLS and (has_advice(answer) or misnamed(answer, outcome.named_values)):
+        if outcome.written is None and not cards and call.tool in WEALTH_TOOLS and (has_advice(answer) or misnamed(answer, outcome.named_values)):
             # INC-03 K7-A: the model must not say what to buy or what a price will do; CHAT-09 K16-A: nor leave the reader to guess
             # which value is whose. The figures alone stand.
             logger.info("Explanation of %s sounded like advice or mixed up the assets; the facts are shown instead", call.tool)
@@ -461,7 +466,7 @@ class ChatService:
         suggestions = follow_ups(call.tool, call.arguments, asked, result_shape(call.tool, result))
         self.offered.put(token, suggestions)
         return ChatReply("answer", answer, used, outcome.facts, [s.text for s in suggestions],
-                         cards=_checked_cards(call, question, outcome.facts, result))
+                         cards=cards)
 
     @staticmethod
     def _question_for(call: ToolCall, unsaid: tuple[str, ...], schema: dict, message: str) -> Pending:
