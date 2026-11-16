@@ -120,6 +120,7 @@ def service(calls, gateway=None, explainer=None, seconds=2.0, writer=None, turns
 SUMMARY_YESTERDAY = ToolCall("get_spending_summary", {"period": "Yesterday"})
 
 
+@pytest.mark.usefixtures("no_cards")
 def test_a_tool_call_is_run_and_explained():
     chat, selector, gateway, explainer = service([SUMMARY_YESTERDAY])
 
@@ -136,6 +137,7 @@ def test_a_tool_call_is_run_and_explained():
     assert explainer.calls == [("Dün ne harcadım?", YESTERDAY_FACTS, 30.0)]
 
 
+@pytest.mark.usefixtures("no_cards")
 def test_the_whole_turn_shares_one_deadline():
     # Selection took 3 s of the 30: listing, the tool call and the explanation get the same absolute deadline, not 30 s each.
     chat, selector, gateway, explainer = service([SUMMARY_YESTERDAY], seconds=3.0)
@@ -269,6 +271,7 @@ def test_a_guessed_period_is_asked_back_and_nothing_runs():
     assert gateway.calls == [] and explainer.calls == []
 
 
+@pytest.mark.usefixtures("no_cards")
 def test_the_reply_completes_the_question_without_the_model():
     gateway = FakeGateway(LAST_MONTH)
     chat, selector, gateway, explainer = service([ToolCall("get_spending_summary", {"period": "ThisMonth"})], gateway=gateway)
@@ -286,6 +289,7 @@ def test_the_reply_completes_the_question_without_the_model():
     assert ("Toplam harcama", "624,98 TL") in [(f.label, f.text) for f in explainer.calls[0][1]]
 
 
+@pytest.mark.usefixtures("no_cards")
 def test_a_merchant_choice_keeps_the_period_of_the_question():
     gateway = FakeGateway([AMBIGUOUS_CITY, CITY_SIX_MONTHS])
     call = ToolCall("get_merchant_spending", {"merchant": "şehir", "period": "Last6Months"})
@@ -418,6 +422,7 @@ STARBUCKS_LAST_MONTH = ToolCall("get_merchant_spending", {"merchant": "Starbucks
 KAHVE_LAST_MONTH = ToolCall("get_merchant_spending", {"merchant": "Kahve Durağı", "period": "LastMonth"})
 
 
+@pytest.mark.usefixtures("no_cards")
 def test_a_follow_up_gets_the_last_call_and_changes_only_what_was_said():
     gateway = FakeGateway([THIS_MONTH_SUMMARY, LAST_MONTH])
     turns = [[ToolCall("get_spending_summary", {"period": "ThisMonth"})], [ToolCall("get_spending_summary", {"period": "LastMonth"})]]
@@ -480,6 +485,7 @@ def test_an_argument_neither_said_nor_carried_over_is_asked_back():
     assert len(gateway.calls) == 1
 
 
+@pytest.mark.usefixtures("no_cards")
 def test_a_full_question_gets_no_context():
     gateway = FakeGateway([THIS_MONTH_SUMMARY, LAST_MONTH])
     turns = [[ToolCall("get_spending_summary", {"period": "ThisMonth"})], [ToolCall("get_spending_summary", {"period": "LastMonth"})]]
@@ -515,6 +521,7 @@ def test_a_turn_without_a_tool_keeps_the_context_for_the_next_follow_up():
     assert selector.contexts[2].arguments == {"period": "ThisMonth"}
 
 
+@pytest.mark.usefixtures("no_cards")
 def test_a_call_completed_by_a_clarification_becomes_the_context():
     gateway = FakeGateway([LAST_MONTH, THIS_MONTH_SUMMARY])
     turns = [[ToolCall("get_spending_summary", {"period": "ThisMonth"})], [ToolCall("get_spending_summary", {"period": "ThisMonth"})]]
@@ -800,6 +807,7 @@ YESTERDAY_CATEGORIES = {"period": {"kind": "Yesterday", "startDate": "2026-10-09
                                                         "percentage": Decimal("100.00")}]}]}
 
 
+@pytest.mark.usefixtures("no_cards")
 def test_an_offered_follow_up_runs_its_call_without_listing_or_selecting():
     chat, selector, gateway, explainer = service([SUMMARY_YESTERDAY], gateway=FakeGateway([YESTERDAY_TWO, YESTERDAY_CATEGORIES]))
     chat.answer("Dün ne harcadım?", TOKEN)

@@ -26,6 +26,6 @@
     {"id": "A23", "customer": "selin", "messages": ["Geçen ay nerede tasarruf edebilirim?", "Önerdiğin tutarı biriktirseydim ne olurdu?", "12 ay"], "type": "answer", "tool": "what_if_monthly", "facts": ["236,18 TL", "3.000,60 TL", "-%3,24"], "answer": ["3.000,60"]},
     {"id": "A24", "customer": "ada", "messages": ["Ayda 1.000 TL biriktirseydim ne olurdu?", "3 ay"], "type": "answer", "tool": "what_if_monthly", "facts": ["3.000,00 TL", "3.111,65 TL", "3.035,90 TL", "3.142,18 TL"], "answer": ["3.111,65", "3.035,90", "3.142,18"]},
     {"id": "A25", "customer": "ada", "messages": ["Ayda 1.000 TL 6 ay biriktirseydim ne olurdu?", "Peki 3 ay?"], "type": "answer", "tool": "what_if_monthly", "facts": ["3.000,00 TL", "3.111,65 TL"], "answer": ["3.111,65"]},
-    {"id": "A26", "customer": "murat", "messages": ["Geçen ay markete ne kadar harcadım?"], "type": "answer", "tool": "get_category_spending", "facts": ["18.016,50 TL"], "answer": ["18.016,50"], "card": ["18.016,50 TL", "%50,84 artış", "BİM"]}
+    {"id": "A26", "customer": "murat", "messages": ["Geçen ay markete ne kadar harcadım?"], "type": "answer", "tool": "get_category_spending", "facts": ["18.016,50 TL"], "answer": ["6.072,00"], "card": ["18.016,50 TL", "%50,84 artış", "BİM"]}
   ]
 }

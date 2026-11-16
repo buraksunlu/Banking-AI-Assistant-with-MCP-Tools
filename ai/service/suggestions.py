@@ -122,6 +122,12 @@ def _in(pattern: str, tool: str, period: dict, **arguments) -> Suggestion:
     return Suggestion(text, tool, {**arguments, **period})
 
 
+def panel_questions() -> list[Suggestion]:
+    """The questions the phone's home panel sends for a row of this month's categories (UX-01 PR5 K1-C): the category pattern of
+    PR3 for every category with a word. They are always recognised, offered or not, so a tap runs its call without the model."""
+    return [_in(CATEGORY_IN, "get_category_spending", _named("ThisMonth"), categoryCode=code) for code in CATEGORY_WORDS]
+
+
 def _period(arguments: dict) -> dict:
     """The period of a call with its days when it is a range, so a follow-up about the same period runs the same days."""
     return {key: arguments[key] for key in ("period", "from", "to") if key in arguments}

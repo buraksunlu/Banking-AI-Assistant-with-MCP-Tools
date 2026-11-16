@@ -24,13 +24,19 @@ struct ChatMessage: Identifiable, Equatable {
     var state: State
     /// The buttons that came with an assistant answer (CHAT-07). They stay with their answer: they are its evidence.
     let links: [AssistantLink]
+    /// The answer drawn as cards (UX-01 PR5); empty for every reply without one, which is then shown as text.
+    let cards: [AssistantCard]
+    /// The cards the user switched themselves, by position (K6-A); a card not here follows the profile's default.
+    var modes: [Int: AnswerMode] = [:]
 
-    init(role: Role, text: String, state: State = .sent, links: [AssistantLink] = [], id: UUID = UUID()) {
+    init(role: Role, text: String, state: State = .sent, links: [AssistantLink] = [], cards: [AssistantCard] = [],
+         id: UUID = UUID()) {
         self.id = id
         self.role = role
         self.text = text
         self.state = state
         self.links = links
+        self.cards = cards
     }
 
     /// The text as shown: inline Markdown (bold, italic, links) applied (decision AI-08 K8-A) and, in an answer, every

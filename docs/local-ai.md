@@ -1198,3 +1198,14 @@ kart düşer), K7-A (Basit'te ilk 3 satır), K8-A (karşılaştırmada değişim
   6 ay) ve Zeynep'in iki para birimi gerçek sonuçla kart kurdu, hepsi sayı denetiminden geçti; rakamlar plandaki elle hesaplananlarla aynı.
 - **Ölçüm:** `answer_eval.py` vakaları `card` (kartta görünmesi gereken yazılar) ve `noCard` alır; 11 vakada (A01, A04–A09, A11, A16, A18,
   yeni A26 Murat market). Model ölçümü yapılmadı (harici SSD takılı değildi): SSD takılınca PR3'ün araç seçimi ölçümüyle birlikte çalıştırılmalı.
+
+## UX-01 PR5 (16 Kasım 2026): kart varken model yok, panel soruları
+
+- **K2-A:** kartı olan cevapta `answer` = kartların `sentence`'ları (para birimi başına bir satır); açıklayıcı model çağrılmaz, tavsiye/ad
+  denetimi de çalışmaz (kart cümlesi zaten kalemlere karşı denetlendi). `Dönem:` satırı ve `appendix` eskisi gibi kodla eklenir. Kartı
+  olmayan araçlarda ve düşen kartta açıklama aynen sürer. Kazanç: kartlı turda ~2 sn (açıklama çağrısı) yok.
+- **K1-C:** `suggestions.panel_questions()` bu ayın kategori kalıbını (`CATEGORY_IN`, `ThisMonth`) `CATEGORY_WORDS`'teki 10 kategori için
+  kurar; `chat` bunları her mesajda sunulmuş önerilerle birlikte eşler, eşleşen mesaj araç seçimi olmadan çalışır. "Diğer" ve
+  sınıflandırılmamışın kelimesi yok, normal yoldan gider. Kelime listesi iPhone'da `HomeDisplay.askWords`; iki taraf aynı listeyi test eder.
+- **Testler:** açıklama yolunu sınayan sohbet testleri `conftest.no_cards` ile kartsız çalışır (özet aracı PR4'ten beri kartlı).
+  `answer_eval` A26 artık cevapta kart cümlesinin farkını ("6.072,00") arar; toplam kartın büyük rakamındadır.

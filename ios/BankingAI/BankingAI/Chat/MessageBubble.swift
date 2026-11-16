@@ -7,6 +7,9 @@ struct MessageBubble: View {
     let canRetry: Bool
     /// The list a link under this answer opens; built when the button is tapped (CHAT-07).
     let list: (AssistantLink) -> TransactionHistoryViewModel
+    /// The mode of a card of this answer, by position, and the card's own switch (UX-01 PR5 K6-A).
+    var mode: (Int) -> AnswerMode = { _ in .simple }
+    var select: (Int, AnswerMode) -> Void = { _, _ in }
     let retry: () -> Void
 
     var body: some View {
@@ -36,11 +39,18 @@ struct MessageBubble: View {
     private var answer: some View {
         VStack(alignment: .leading, spacing: Layout.small) {
             AssistantHeader()
-            Text(message.displayText)
-                .font(Typography.body)
-                .foregroundStyle(Palette.primaryText.color)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled)
+            if message.cards.isEmpty {
+                Text(message.displayText)
+                    .font(Typography.body)
+                    .foregroundStyle(Palette.primaryText.color)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+            } else {
+                // The card is the answer (UX-01 K2-A): its sentence is the text, so the text is not shown twice.
+                ForEach(Array(message.cards.enumerated()), id: \.offset) { index, card in
+                    AnswerCard(card: card, mode: mode(index)) { select(index, $0) }
+                }
+            }
             // Under its own answer for good, unlike the suggestions: the list is the proof of this answer's figure.
             ForEach(message.links, id: \.self) { link in
                 // A link with its own destination, not a value: a value link pushed after the chat's own destination link

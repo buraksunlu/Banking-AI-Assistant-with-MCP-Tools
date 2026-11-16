@@ -102,6 +102,7 @@ def test_the_waiting_question_given_back_is_still_used_once():
     assert chat.answer("1", TOKEN, DAY) == ChatReply("clarification", BARE_CHOICE_TEXT, [], [])
 
 
+@pytest.mark.usefixtures("no_cards")
 def test_retrying_a_failed_offered_follow_up_runs_it_without_the_model():
     gateway = FakeGateway([YESTERDAY_TWO, YESTERDAY_CATEGORIES, YESTERDAY_CATEGORIES])
     chat, selector, gateway, _ = service([SUMMARY_YESTERDAY], gateway=gateway, explainer=FailingOnce(fail_at=2))

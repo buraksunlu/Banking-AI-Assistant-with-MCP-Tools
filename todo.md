@@ -500,7 +500,13 @@ ayrıntı için **cevap modu**: kullanıcı basit cevap mı, detaylı/istatistik
   Bilerek değişen eski testler: cevap şekli (`cards: []` eklendi; Python `test_app`, .NET `A_reply_reaches_the_client…`), özet turu
   karşılaştırması kartsız yapıldı (`test_chat`), `AssistantReply` kurucusuna `Cards` (`AssistantLinksTests`). **Açık:** cevap doğruluğu
   model ölçümü (A26 dahil 26 vaka) SSD takılınca.
-- [ ] UX-01 PR5 — iPhone kayan sayfa, kart şablonları, Basit/Detaylı; Asistan sekmesi aynı oturum.
+- [x] UX-01 PR5 — iPhone kayan sayfa, kart şablonları, Basit/Detaylı; Asistan sekmesi aynı oturum (16 Kasım 2026, docs/ios.md "iOS-x",
+  docs/local-ai.md "UX-01 PR5"). Kararlar K1-C (panelin kategori sorusu sunulmamış olsa da modelsiz çalışır, `panel_questions`) K2-A (kart varsa
+  `answer` kartın cümlesi, açıklayıcı model çağrılmaz; PR4 K1-B kapandı) K3-B (üç şablon `bars`/`series`/`stats`, yalnız `text`/`share`) K4-C
+  (aynı `ChatView`, açılınca son karta) K5-A (yarım/tam sayfa) K6-A (dokunulmamış kart Profil varsayılanını izler) K7-A ("Kılavuz'a sor…" alt
+  sabit). iOS 389 → 413 test durumu, Python 1403 → 1407 modelsiz; 11 kasıtlı bozma yakalandı (Python 4, iOS 7). Bilerek değişen eski testler:
+  açıklama yolunu sınayan 11 sohbet testi `no_cards` ile kartsız (`conftest.py`), dönem satırı testi kart cümlesini bekler, A26'nın cevap
+  beklentisi "6.072,00". **Açık:** simülatörde Murat/Zeynep denemesi ve model ölçümleri (harici SSD).
 - [ ] UX-01 PR6 — Kalan dokuz aracın kartları ve ölçümler.
 
 ## 15. Local AI — önce hazır sonucu açıklama
@@ -753,11 +759,11 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 ## Şu anki sonraki adım
 
-Güncelleme: 15 Kasım 2026. Aşağıdaki "tamamlanan bloklar" ve test sayıları 23 Ekim'in; sonrası `RULE.md` §29'da.
+Güncelleme: 16 Kasım 2026. Aşağıdaki "tamamlanan bloklar" ve test sayıları 23 Ekim'in; sonrası `RULE.md` §29'da.
 
 - **Şimdi (15 Kasım 2026):** UX-01 cep asistanı — PR1 (açık tema, #81), PR2 (ana ekran paneli, #82), PR3 (kategori detayı backend'i, #83) ve
-  PR4 (kart sözleşmesi, bu dal) yapıldı. Model ölçümleri (PR3 araç seçimi, PR4 cevap doğruluğu) harici SSD takılınca. Sıradaki: PR5 iPhone
-  kayan sayfa, kart şablonları, Basit/Detaylı ve kart varken açıklamanın kalkması (PR4 K1-B) → PR6 kalan araçlar; INV-02 sonra. PR2 paneli simülatörde denenmedi.
+  PR4 (kart sözleşmesi, #84) ve PR5 (iPhone kartları, kayan sayfa, Basit/Detaylı; 16 Kasım 2026) yapıldı. Model ölçümleri (PR3 araç seçimi,
+  PR4/PR5 cevap doğruluğu) harici SSD takılınca. Sıradaki: PR6 kalan dokuz aracın kartları; INV-02 sonra. PR2 paneli ve PR5 simülatörde denenmedi.
 
 Tamamlanan bloklar: banking foundation (DOC-09; SYN-01–14, KIND-01–05), deterministik analytics (ANA-01–14,
 REC-01–03, ANA-20), API ve güvenlik (API-01a/01b, API-02–15, SEC-01a/01b, SEC-06), local AI (AI-01–07: model seçimi,
@@ -765,7 +771,7 @@ Ollama bağlantısı, FastAPI servisi, LangChain, açıklama prompt'u, çıktı 
 (AI-14a FastAPI `/v1/chat` + AI-14b .NET `POST /api/assistant/messages`), MCP (MCP-a/b) ve iPhone (IOS-01/13, AI-08, IOS-04, IOS-07).
 Testler: .NET Data 84, Application 332, Api 478, McpServer 131; Python 647 modelsiz (+ gerçek Ollama/MCP testleri); iOS 125; hepsi
 yeşil (API-17 sonrası). 16 Ekim 2026'dan beri her iş kendi dalında yapılır ve PR ile (squash) `main`'e
-girer; git komutlarını kullanıcı çalıştırır (CLAUDE.md "Git akışı").
+girer; git akışını (dal, commit, PR, squash merge) Claude yürütür (CLAUDE.md "Git akışı", 16 Kasım 2026).
 
 Sıradaki (kullanıcı seçer; müşteri her zaman token'dan gelir):
 

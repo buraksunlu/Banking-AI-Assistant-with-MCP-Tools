@@ -54,8 +54,10 @@ Kartlar (UX-01 PR4, `ai/service/cards.py`): `cards_for(tool, arguments, result)`
 detayı, tek işyeri, karşılaştırma, aylık seri) para birimi başına kart kurar; model kartın hiçbir alanını yazmaz. Yazılar `formatting.py`
 ile backend rakamlarından; Python'un ürettiği tek sayı çubuk boyu `share` (satır / kartın en büyük satırı, yalnız çizim). Satırlar kalemlerin
 sınırında (ilk 5); Basit ilk 3. `chat._checked_cards`: kartın bütün yazıları `check_answer` ile kalemlere karşı; tutmayan kart düşer +
-log. Okunamayan sonuç `[]`, hata değil. Yeni araç kartı → `cards._BUILDERS` + `test_cards.py`'de elle değerler. Model açıklaması şimdilik
-sürer (PR4 K1-B; PR5'te kart varken kalkar). Tutar JSON'da sayıdır (`contracts.Amount`; float'a tam dönmeyen değer reddedilir).
+log. Okunamayan sonuç `[]`, hata değil. Yeni araç kartı → `cards._BUILDERS` + `test_cards.py`'de elle değerler. Kart varsa `answer` kartların
+cümlesidir, açıklayıcı model çağrılmaz (PR5 K2-A); açıklamayı sınayan test `@pytest.mark.usefixtures("no_cards")` alır (`conftest.py`).
+Panel soruları (`suggestions.panel_questions`, bu ayın kategori kalıbı) sunulmamış olsa da modelsiz çalışır (PR5 K1-C); `CATEGORY_WORDS`
+değişirse iPhone'daki `HomeDisplay.askWords` da değişir. Tutar JSON'da sayıdır (`contracts.Amount`; float'a tam dönmeyen değer reddedilir).
 `answer_eval` vakaları `card` (kartta görünmesi gereken yazılar) ve `noCard` alır.
 
 Önerilen sorular (CHAT-06, `ai/service/suggestions.py`): açıklanmış cevabın `suggestions`'ı sabit `follow_ups` tablosundan (araç → 2–3 öneri,

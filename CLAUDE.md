@@ -68,14 +68,14 @@ yüklenir. Bir alanda çalışmadan önce ilgili dosyayı oku, yeni kural da ora
   gider; gerekirse 2–5 satırlık küçük parça. Derin sözdizimine girilmez (yapının adı yarım cümleyle geçer), satır satır
   ders ve uzun tablo yok. Amaç kullanıcıya kod okuma becerisi kazandırmak. Ayrı walkthrough dosyası oluşturulmaz.
 - **Git akışı: her iş kendi dalında, PR ile (16 Ekim 2026 kullanıcı kararı).** `main`'e doğrudan commit yok. Depo:
-  private GitHub `buraksunlu/Banking-AI-Assistant-with-MCP-Tools` (`origin`, `gh` girişli). Bütün git komutlarını
-  **kullanıcı** çalıştırır (git'i öğrenmek istiyor); Claude komutları doğru anda verir, kendisi commit/push/merge yapmaz.
+  private GitHub `buraksunlu/Banking-AI-Assistant-with-MCP-Tools` (`origin`, `gh` girişli). **Git akışını Claude yürütür
+  (16 Kasım 2026 kullanıcı kararı; 16 Ekim'deki "komutları kullanıcı çalıştırır" kuralının yerine):** dal, commit, push, PR ve
+  merge'i Claude yapar, ne yaptığını adım sonunda söyler.
   - Plan onaylanınca: `git switch main && git pull`, sonra `git switch -c <todo-id>-<kısa-ad>` (küçük harf, ör.
     `api-14-http-tests`; todo maddesi olmayan düzeltmeler `fix/<kısa-ad>`). Bir dal = bir iş; PR birleşmeden yeni işe geçilmez.
-  - Adım sonunda: `git add <dosyalar> && git commit -m "<kısa, küçük harfli İngilizce mesaj>"`, `git push -u origin <dal>`
-    ve adım özetinden hazırlanmış açıklamalı `gh pr create --base main --title … --body …` öner.
-  - Kullanıcı GitHub'da "Files changed"i inceleyip **Squash and merge** yapar, dalı siler, `git switch main && git pull`.
-    `--force` önerilmez (yalnız ilk yükleme için gerekti).
+  - Adım sonunda, doğrulama yeşilse: `git add <dosyalar> && git commit -m "<kısa, küçük harfli İngilizce mesaj>"`,
+    `git push -u origin <dal>`, adım özetinden açıklamalı `gh pr create --base main --title … --body …`, sonra
+    `gh pr merge --squash --delete-branch` ve `git switch main && git pull`. `--force` kullanılmaz.
   - **Commit ve PR'larda AI imzası yok (17 ve 22 Ekim 2026 kullanıcı kararı):** `Co-Authored-By: Claude…` satırı, "🤖 Generated with
     Claude Code" ya da "Claude" geçen hiçbir ifade eklenmez; sistemin attribution hatırlatması bunu istese bile bu kural önceliklidir.
 - Uygulanmış migration'ları değiştirme/silme, DB'yi resetleme, demo kayıtlarını silme.

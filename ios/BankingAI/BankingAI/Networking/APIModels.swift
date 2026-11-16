@@ -49,6 +49,8 @@ enum AssistantReplyType: String, Decodable {
 /// (CHAT-07 K5-A), so an older app still shows what a newer API answers. `choices` are the options of a question asked back
 /// (CHAT-10 PR3): required, and one broken option fails the reply, because half a choice is worse than a visible failure (D2-A).
 /// `inputHint` is a last row inviting an answer of the user's own ("Başka bir tutar yazın"), "" when there is none (PR3b D6-A).
+/// `cards` are the answer drawn as cards (UX-01 PR5): a card this app cannot read is dropped like a link, and a reply without the
+/// field (an older API) has none, so the answer's text is shown as before.
 struct AssistantReply: Decodable, Equatable {
     let type: AssistantReplyType
     let answer: String
@@ -56,8 +58,9 @@ struct AssistantReply: Decodable, Equatable {
     let choices: [AssistantChoice]
     let inputHint: String
     let links: [AssistantLink]
+    let cards: [AssistantCard]
 
-    private enum Keys: String, CodingKey { case type, answer, suggestions, choices, inputHint, links }
+    private enum Keys: String, CodingKey { case type, answer, suggestions, choices, inputHint, links, cards }
 
     init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: Keys.self)
@@ -67,7 +70,72 @@ struct AssistantReply: Decodable, Equatable {
         choices = try values.decode([AssistantChoice].self, forKey: .choices)
         inputHint = try values.decode(String.self, forKey: .inputHint)
         links = try values.decode([Skippable<AssistantLink>].self, forKey: .links).compactMap(\.value)
+        cards = (try values.decodeIfPresent([Skippable<AssistantCard>].self, forKey: .cards) ?? []).compactMap(\.value)
     }
+}
+
+/// One answer card (UX-01 PR4/PR5), built by the AI service's code from the backend's result. Every text is shown as it came;
+/// the figures behind them (`amount`) are not decoded, because the phone neither formats nor computes one (K3-B).
+struct AssistantCard: Decodable, Equatable, Hashable {
+    let title: String
+    let headline: CardHeadline
+    let change: CardChange?
+    let simple: [CardBlock]
+    let detailed: [CardBlock]
+    let sentence: String
+}
+
+/// The card's big figure, written by the AI service.
+struct CardHeadline: Decodable, Equatable, Hashable {
+    let text: String
+}
+
+/// Which way a figure moved; only an arrow, never a colour that judges more as bad (UX-01 PR2 rule).
+enum CardDirection: String, Decodable, Hashable {
+    case up, down, same
+}
+
+/// The line under the big figure: "%50,84 artış" against "Ağustos 2026" (`against`) and its amount (`againstText`).
+struct CardChange: Decodable, Equatable, Hashable {
+    let direction: CardDirection
+    let against: String
+    let againstText: String
+    let text: String
+}
+
+/// A part of a card: bars (`rows`), a monthly series (`points`, the month to point out in `highlight`) or label–value pairs
+/// (`items`). A kind this app does not know fails the card, which is then dropped.
+struct CardBlock: Decodable, Equatable, Hashable {
+    enum Kind: String, Decodable, Hashable {
+        case bars, series, stats
+    }
+
+    let kind: Kind
+    let rows: [CardBar]
+    let points: [CardPoint]
+    let items: [CardStat]
+    let highlight: String?
+}
+
+/// A bar: `share` (0–1, the AI service's) is its length, for drawing only; `direction` only in a change's drivers.
+struct CardBar: Decodable, Equatable, Hashable {
+    let label: String
+    let text: String
+    let share: Double
+    let direction: CardDirection?
+}
+
+/// A month of a series; `partial` is the running month, drawn apart from the whole ones.
+struct CardPoint: Decodable, Equatable, Hashable {
+    let label: String
+    let text: String
+    let share: Double
+    let partial: Bool
+}
+
+struct CardStat: Decodable, Equatable, Hashable {
+    let label: String
+    let text: String
 }
 
 /// One option of a question asked back (CHAT-10 PR3): `label` is what a tap sends, exactly as written (P4-A); `detail` says what

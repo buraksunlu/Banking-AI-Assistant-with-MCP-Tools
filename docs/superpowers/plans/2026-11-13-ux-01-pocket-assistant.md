@@ -244,6 +244,10 @@ Beyazda en düşük: cyan 3,10, yellow 3,27, orange 3,23; gri 3,92.
 - **Testler:** şablon görünüm modelleri yalnız `text`/`share` kullanır (hesap yok), mod anahtarı istek atmaz, sekme değişince oturum
   sürer, çıkışta silinir; simülatörde Murat senaryosu.
 
+- **Uygulandı (16 Kasım 2026, docs/ios.md "iOS-x"):** K1-C panel sorusu sunucuda her zaman tanınır (`panel_questions`) · K2-A kart varsa
+  model açıklamaz · K3-B üç hafif şablon · K4-C aynı `ChatView`, açılınca son karta · K5-A yarım/tam · K6-A dokunulmamış kart varsayılanı
+  izler · K7-A "Kılavuz'a sor…" alt sabit.
+
 ## PR6 — Kalan dokuz aracın kartları ve ölçümler (özet)
 
 - **Ne:** `rows` (düzenli/yaklaşan ödemeler, en büyük işlemler, arama), `assets` (iki "ne olurdu"), bütçe, tasarruf, gelir payı, öneri.

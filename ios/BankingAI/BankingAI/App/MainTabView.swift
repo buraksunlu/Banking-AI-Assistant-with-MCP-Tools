@@ -16,6 +16,9 @@ struct MainTabView: View {
     @State private var category: CategoryBreakdownViewModel
     @State private var monthly: MonthlyTrendViewModel
     @State private var chat: ChatViewModel
+    @State private var preferences: AnswerPreferences
+    /// The home screen's question sheet; it shows the same chat as the assistant tab (UX-01 K2-B).
+    @State private var sheet = AskSheet()
 
     init(api: APIClient, session: SessionStore) {
         _home = State(initialValue: HomeViewModel(api: api, session: session))
@@ -27,12 +30,14 @@ struct MainTabView: View {
         _income = State(initialValue: IncomeShareViewModel(api: api))
         _category = State(initialValue: CategoryBreakdownViewModel(api: api))
         _monthly = State(initialValue: MonthlyTrendViewModel(api: api))
-        _chat = State(initialValue: ChatViewModel(api: api))
+        let preferences = AnswerPreferences()
+        _preferences = State(initialValue: preferences)
+        _chat = State(initialValue: ChatViewModel(api: api, preferences: preferences))
     }
 
     var body: some View {
         TabView(selection: $selection) {
-            HomeView(model: home, pace: pace, categories: homeCategories, income: income, show: show)
+            HomeView(model: home, pace: pace, categories: homeCategories, income: income, show: show, ask: ask)
                 .tabItem { label(.home) }
                 .tag(AppTab.home)
             NavigationStack {
@@ -46,7 +51,7 @@ struct MainTabView: View {
             .tabItem { label(.assistant) }
             .tag(AppTab.assistant)
             NavigationStack {
-                ProfileView(model: home)
+                ProfileView(model: home, preferences: preferences)
                     .navigationDestination(for: MyAccountsRoute.self) { _ in
                         MyAccountsView(accounts: accounts, recent: recent)
                     }
@@ -63,6 +68,20 @@ struct MainTabView: View {
         // Above every tab, not only the home stack: the chat's "İşlemleri gör" opens transaction details in its own stack,
         // and they show times in the customer's zone.
         .environment(\.customerTimeZone, home.timeZone)
+        .sheet(isPresented: $sheet.isPresented) {
+            NavigationStack {
+                ChatView(model: chat, startsWriting: sheet.startsWriting)
+            }
+            // Half open over the panel, pulled up to the whole screen (K5-A); pulled down, it closes and the chat stays.
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .environment(\.customerTimeZone, home.timeZone)
+        }
+    }
+
+    /// A panel row's question or the empty field opens the sheet (K5-A).
+    private func ask(_ question: String?) {
+        Task { await sheet.ask(question, in: chat) }
     }
 
     private func label(_ tab: AppTab) -> some View {

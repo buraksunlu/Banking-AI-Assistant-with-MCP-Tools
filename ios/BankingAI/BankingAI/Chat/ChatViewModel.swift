@@ -27,11 +27,14 @@ final class ChatViewModel {
     private(set) var inputHint = ""
     /// The questions of an empty chat; empty while they are still being asked for.
     private(set) var starters: [String] = []
+    /// The profile's Basit/Detaylı default (UX-01 PR5); shared with the profile screen.
+    let preferences: AnswerPreferences
     @ObservationIgnored private let api: APIClient
     @ObservationIgnored private var pending: Task<Void, Never>?
 
-    init(api: APIClient) {
+    init(api: APIClient, preferences: AnswerPreferences = AnswerPreferences()) {
         self.api = api
+        self.preferences = preferences
     }
 
     /// One message at a time: the single local model answers in turn, and the API allows ten a minute (SEC-06).
@@ -123,11 +126,23 @@ final class ChatViewModel {
 
     private func received(_ reply: AssistantReply, for id: UUID) {
         setState(.sent, for: id)
-        messages.append(ChatMessage(role: .assistant, text: reply.answer, links: reply.links))
+        messages.append(ChatMessage(role: .assistant, text: reply.answer, links: reply.links, cards: reply.cards))
         choices = reply.choices
         inputHint = reply.inputHint
         // A question waiting for its answer offers nothing else to ask (D4-A).
         suggestions = reply.choices.isEmpty ? reply.suggestions : []
+    }
+
+    /// How one card of an answer is shown: its own choice once the user switched it, the profile's default until then (K6-A).
+    func mode(for message: UUID, card: Int) -> AnswerMode {
+        messages.first(where: { $0.id == message })?.modes[card] ?? preferences.mode
+    }
+
+    /// The card's own switch; it only shows or hides a part that is already there, so nothing is asked (UX-01 UX-E).
+    func setMode(_ mode: AnswerMode, for message: UUID, card: Int) {
+        if let index = messages.firstIndex(where: { $0.id == message }) {
+            messages[index].modes[card] = mode
+        }
     }
 
     /// The list a link under an answer opens: the same paged search, narrowed the way the backend wrote it (CHAT-07).

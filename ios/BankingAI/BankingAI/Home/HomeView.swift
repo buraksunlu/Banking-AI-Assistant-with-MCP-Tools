@@ -10,6 +10,8 @@ struct HomeView: View {
     let income: IncomeShareViewModel
     /// Switches the tab bar to another tab.
     let show: (AppTab) -> Void
+    /// Opens the assistant sheet: with a panel row's question, or empty from the "Kılavuz'a sor…" field (UX-01 PR5).
+    let ask: (String?) -> Void
 
     var body: some View {
         NavigationStack {
@@ -27,7 +29,7 @@ struct HomeView: View {
                             .buttonStyle(.plain)
                             .accessibilityHint("Harcama analizini açar")
                         }
-                        WhereItWentCard(model: categories) { show(.analysis) }
+                        WhereItWentCard(model: categories, showAll: { show(.analysis) }, ask: { ask($0) })
                         IncomeGlanceCard(model: income) { show(.analysis) }
                     }
                 }
@@ -36,6 +38,8 @@ struct HomeView: View {
                 .padding(.bottom, Layout.large)
             }
             .background(Palette.background.color)
+            // Above the tab bar, in reach of the thumb (K7-A); it opens the sheet, it is not a field of its own.
+            .safeAreaInset(edge: .bottom) { askField }
             .refreshable {
                 async let paceLoaded: Void = pace.load()
                 async let categoriesLoaded: Void = categories.load()
@@ -46,5 +50,26 @@ struct HomeView: View {
             .toolbar(.hidden, for: .navigationBar)
             .task { await model.load() }
         }
+    }
+
+    private var askField: some View {
+        Button { ask(nil) } label: {
+            HStack(spacing: Layout.small) {
+                AssistantMark()
+                Text("\(Brand.askAssistant)…")
+                    .font(Typography.body)
+                    .foregroundStyle(Palette.secondaryText.color)
+                Spacer()
+            }
+            .padding(.horizontal, Layout.regular)
+            .frame(minHeight: 48)
+            .background(Palette.surface.color, in: RoundedRectangle(cornerRadius: Layout.cardRadius))
+            .overlay(RoundedRectangle(cornerRadius: Layout.cardRadius).stroke(Palette.hairline.color, lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, Layout.regular)
+        .padding(.vertical, Layout.small)
+        .background(Palette.background.color)
     }
 }
