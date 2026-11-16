@@ -446,7 +446,7 @@ class ChatService:
             return ChatReply(kind, text, used, outcome.facts)
 
         # CHAT-09 K7-A: a what-if is explained from the question code wrote, not from the user's words and replies.
-        cards = _checked_cards(call, question, outcome.facts, result)
+        cards = _checked_cards(call, "\n".join([question, *outcome.appendix]), outcome.facts, result)
         if outcome.written is not None:
             # CHAT-10 PR3b D9-A: an answer code wrote needs neither the model nor its checks.
             answer = outcome.written

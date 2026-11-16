@@ -507,7 +507,7 @@ ayrıntı için **cevap modu**: kullanıcı basit cevap mı, detaylı/istatistik
   sabit). iOS 389 → 413 test durumu, Python 1403 → 1407 modelsiz; 11 kasıtlı bozma yakalandı (Python 4, iOS 7). Bilerek değişen eski testler:
   açıklama yolunu sınayan 11 sohbet testi `no_cards` ile kartsız (`conftest.py`), dönem satırı testi kart cümlesini bekler, A26'nın cevap
   beklentisi "6.072,00". **Açık:** simülatörde Murat/Zeynep denemesi. Model ölçümü 16 Kasım 2026'da yapıldı (docs/local-ai.md "UX-01 PR3–PR5 model ölçümü"): araç seçimi 120/121, cevap 25/26, ifade 124/127; "Netflix'e ne kadar" gerilemesi aynı gün düzeltildi (121/121, 26/26, 125/127).
-- [ ] UX-01 PR6 — Kalan on aracın kartları ve ölçümler (plan 9 dedi; işyeri dağılımı listede unutulmuştu). Kararlar (16 Kasım 2026):
+- [x] UX-01 PR6 — Kalan on aracın kartları ve ölçümler (plan 9 dedi; işyeri dağılımı listede unutulmuştu). Kararlar (16 Kasım 2026):
   K1-B (aileye göre üç PR, sözleşme ilkinde) K2-A (bekleyen ölçümler önce; #86, #87) K3-B (tek `list` bloğu) K4-A (`notes`) K5-B (kodun
   yazdığı metin `answer`'da kalır) K6-C (bütçede iki çubuk: bugün, ay sonu) K7-B (gelir payında yüzde başlık) K8-A/C (boş sonuçta kart yok;
   "ne olurdu"da fiyatsız satır "hesaplanamadı").
@@ -518,7 +518,31 @@ ayrıntı için **cevap modu**: kullanıcı basit cevap mı, detaylı/istatistik
   - [x] PR6b — Planlama kartları (16 Kasım 2026, docs/local-ai.md "UX-01 PR6b"): bütçe (iki çubuk K6-C, `BUDGET_RULE` notu) ve tasarruf
     (para birimi başına, aylık seri, `SAVINGS_RULE`); `answer` kodun yazdığı metin kalır (K5-B). Python 1442; 6 kasıtlı bozma; cevap
     doğruluğu 29/29 (A11–A15 kartlı). Yalnız Python; sözleşme PR6a'da.
-  - [ ] PR6c — Zenginlik kartları (gelir payı, öneri, iki "ne olurdu") + son model ölçümü.
+  - [x] PR6c — Zenginlik kartları + son model ölçümü (16 Kasım 2026, docs/local-ai.md "UX-01 PR6c"): gelir payı (yüzde başlık), öneri
+    (backend cümleleri not), iki "ne olurdu" (varlık satırları, uyarı notu, fiyatsız "hesaplanamadı"); kart denetimi cevabın ekini de bilir.
+    Python 1453; 5 kasıtlı bozma. Ölçüm: cevap 29/29, araç seçimi 121/121, ifade 125/127. On altı aracın hepsi kartlı.
+
+## 14d. Real time: canlı banka simülasyonu — kullanıcı kararı 16 Kasım 2026 (⭐ yön)
+
+Kullanıcı isteği: "artık real time'a geçirelim, data çeşitliliği olabildiğince artsın, uygulama real time'a geçsin". Bugün uygulama 10 Ekim
+2026 demo anına sabit (`BANKINGAI_DEMO_NOW`); veri 1 Nisan 2025 – 10 Ekim 2026, 1.826 işlem, 10 müşteri, 16 hesap, 41 işyeri, 11 kategori,
+3 para birimi; piyasa verisi 6 Kasım'a kadar. Kararlar (16 Kasım 2026, önerilerle): R0-A (önce UX-01 PR6b/PR6c, sonra real time) R1-B→C
+(sürekli akış, sonra telefonda canlı görünüm) R2-A (ayrı .NET simülatör süreci + aynı kodla CLI; yazma yalnız `ITransactionWriteService`, API ve
+MCP yine yalnız okur) R3-A (gün başına sabit tohum, işlem başına anahtar: yeniden üretim çift kayıt yazmaz) R4-A→B (önce şema değişmeden
+çeşitlilik, sonra iade) R5-A/C (sabit demo DB + canlı DB: bugünkü DB kopyalanır, testler ve ölçümler sabit kopyada; mevcut kayıt silinmez,
+migration değişmez) R6-A (model ölçümleri sabit DB'de, demo anında) R7-A (piyasa verisi simülatörde günde bir) R8-B (yenile + ekran açıkken 30 sn
+yoklama; gerekirse sonra SSE). Her madde kendi detaylı planıyla, kullanıcı onayından sonra.
+
+- [ ] RT-01 — Sabit ve canlı veritabanı ayrımı (DB-01'in yolu): `bankingai_demo` (bugünkü veri, testler, ölçümler, demo anı) ve
+  `bankingai_live` (gerçek saat). Kopyalama komutları ve ikinci bağlantı adresi onaylı plana bağlı.
+- [ ] RT-02 — Simülatör + yetiştirme (`BankingAI.Simulator` + CLI `simulate --until now`): personaların günlük ritmi (saat, hafta sonu, maaş
+  günü), mevcut şemada; açılışta kaçırılan günleri yetiştirir. Çeşitliliğin ilk dilimi (R4-A).
+- [ ] RT-03 — Gerçek saate geçiş (canlıda `BANKINGAI_DEMO_NOW` yok) ve iPhone yenileme (sekmeye dönünce, ekran açıkken 30 sn).
+  Sunum (16 Kasım 2026 kullanıcı sorusu): canlı DB'de yapılır ("bu sabah kahve aldım, şimdi soruyorum"); R5-A/R6-A yalnız testleri ve
+  ölçümleri sabit kopyaya bağlar. Sabit demo DB yedektir (bağlantı adresiyle saniyeler içinde geçilir); sunum sabahı canlı veriyle prova.
+- [ ] RT-04 — Günlük piyasa verisi (TCMB, gold-api; simülatör içinde, hata yalnız log).
+- [ ] RT-05 — Çeşitliliğin geri kalanı: personalar ~20, işyerleri ~150, aynı işyerinin farklı ham açıklamaları, mevsim ve indirim dönemleri.
+- [ ] RT-06 — İade/iptal (KIND-06; yeni `Kind`, migration).
 
 ## 15. Local AI — önce hazır sonucu açıklama
 
@@ -777,8 +801,8 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 Güncelleme: 16 Kasım 2026. Aşağıdaki "tamamlanan bloklar" ve test sayıları 23 Ekim'in; sonrası `RULE.md` §29'da.
 
 - **Şimdi (15 Kasım 2026):** UX-01 cep asistanı — PR1 (açık tema, #81), PR2 (ana ekran paneli, #82), PR3 (kategori detayı backend'i, #83) ve
-  PR4 (kart sözleşmesi, #84), PR5 (iPhone kartları, kayan sayfa, Basit/Detaylı, #85) PR6a (liste kartları + sözleşme, #88) ve PR6b (planlama kartları; 16 Kasım 2026) yapıldı. Model ölçümü 16 Kasım 2026'da yapıldı;
-  "Netflix'e ne kadar" gerilemesi aynı gün düzeltildi. Sıradaki: PR6c zenginlik kartları → real time (RT-01–06, 16 Kasım 2026 kararı); INV-02 sonra. PR2 paneli ve PR5 simülatörde denenmedi.
+  PR4 (kart sözleşmesi, #84), PR5 (iPhone kartları, kayan sayfa, Basit/Detaylı, #85) PR6a (liste kartları + sözleşme, #88), PR6b (planlama kartları, #89) ve PR6c (zenginlik kartları; 16 Kasım 2026) yapıldı: UX-01 tamam. Model ölçümü 16 Kasım 2026'da yapıldı;
+  "Netflix'e ne kadar" gerilemesi aynı gün düzeltildi. Sıradaki: real time (14d, RT-01–06, 16 Kasım 2026 kararı), önce RT-01'in planı; INV-02 sonra. PR2 paneli ve PR5 simülatörde denenmedi.
 
 Tamamlanan bloklar: banking foundation (DOC-09; SYN-01–14, KIND-01–05), deterministik analytics (ANA-01–14,
 REC-01–03, ANA-20), API ve güvenlik (API-01a/01b, API-02–15, SEC-01a/01b, SEC-06), local AI (AI-01–07: model seçimi,
