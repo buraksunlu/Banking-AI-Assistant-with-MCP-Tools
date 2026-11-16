@@ -1378,6 +1378,9 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Zenginlik kartları (UX-01 PR6c, 16 Kasım 2026; docs/local-ai.md "UX-01 PR6c"): gelir payı (yüzde başlık), öneri (backend cümleleri
+  not), iki "ne olurdu" (varlık satırları, yatırım uyarısı her zaman); on altı aracın hepsi kartlı, UX-01 tamam. Python 1453; ölçüm cevap 29/29,
+  araç seçimi 121/121, ifade 125/127. Sıradaki yön: real time (todo 14d, RT-01–06).
 - Planlama kartları (UX-01 PR6b, 16 Kasım 2026; docs/local-ai.md "UX-01 PR6b"): bütçe (bugün ve ay sonu çubukları, bütçeyle dolu) ve
   tasarruf (para birimi başına) kart alır (12 araç); kodun yazdığı cevap metni `answer`'da kalır (K5-B). Python 1442; cevap 29/29.
 - Liste kartları (UX-01 PR6a, 16 Kasım 2026; docs/local-ai.md "UX-01 PR6a", docs/ios.md "iOS-y"): işyeri dağılımı, en büyük harcamalar,

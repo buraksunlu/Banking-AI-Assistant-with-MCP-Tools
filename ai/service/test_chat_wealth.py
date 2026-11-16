@@ -58,6 +58,7 @@ FROM_ADVICE = ToolCall("what_if_monthly", {"fromAdvice": True})
 
 # --- Income share and advice ----------------------------------------------------------------------------------------------------
 
+@pytest.mark.usefixtures("no_cards")
 def test_the_income_share_is_run_and_explained():
     chat, selector, gateway, explainer = wealth([income(income_row())], [[INCOME_SHARE]])
 
@@ -69,6 +70,7 @@ def test_the_income_share_is_run_and_explained():
     assert [t["function"]["name"] for t in selector.calls[0][1]] == ["get_income_share", "get_spending_advice", "what_if_one_off", "what_if_monthly"]
 
 
+@pytest.mark.usefixtures("no_cards")
 def test_the_advice_sentences_are_put_under_the_answer_by_code():
     chat, _, _, explainer = wealth([advice(advice_row())], [[ADVICE]])
 
@@ -242,10 +244,11 @@ def test_advice_or_a_forecast_is_refused_with_a_fixed_text_and_no_model(message)
     assert selector.calls == [] and gateway.calls == [] and explainer.calls == []
 
 
+@pytest.mark.usefixtures("no_cards")
 @pytest.mark.parametrize("sentence", ["Altın almalısınız, çok kazandırır.", "Dolar yükselecek, tavsiye ederim.",
                                       "Euro düşecek gibi görünüyor."])
 def test_an_explanation_that_sounds_like_advice_is_replaced_by_the_facts(sentence):
-    # The income share is still explained by the model (the two "what if"s are written by code since CHAT-10 PR3b).
+    # The income share without a card is still explained by the model (the two "what if"s are written by code since CHAT-10 PR3b).
     chat, _, _, _ = wealth([income(income_row())], [[INCOME_SHARE]], explainer=FakeExplainer(sentence))
 
     reply = chat.answer("Geçen ay maaşımın ne kadarını harcadım?", TOKEN, DAY)
@@ -432,3 +435,14 @@ def test_the_monthly_answer_offers_two_other_durations_that_run_when_tapped():
 
     assert first.suggestions == ["Peki 6 ay biriktirseydim?", "Peki 3 ay biriktirseydim?"]
     assert len(selector.calls) == 1 and gateway.calls[1][1] == {"amount": 1000, "currencyCode": "TRY", "months": 6}
+
+
+def test_with_a_card_the_advice_answer_is_its_sentence_with_the_backends_advice_under_it():
+    # UX-01 PR6c: the model does not explain (K2-A); the backend's sentence stays under the answer and is the card's note too.
+    chat, _, _, explainer = wealth([advice(advice_row())], [[ADVICE]])
+
+    reply = chat.answer("Geçen ay nerede tasarruf edebilirim?", TOKEN, DAY)
+
+    assert explainer.calls == []
+    assert reply.answer == f"{reply.cards[0].sentence}\n\n{ADVICE_SENTENCE}"
+    assert reply.cards[0].notes == (ADVICE_SENTENCE,)

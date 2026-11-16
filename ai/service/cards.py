@@ -13,7 +13,8 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
-from facts import BUDGET_RULE, RECURRING_RULE, SAVINGS_RULE, UNCLASSIFIED, UPCOMING_RULE, when as _when
+from facts import (BUDGET_RULE, GROUP_LABELS, NO_PRICE, RECURRING_RULE, SAVINGS_RULE, UNCLASSIFIED, UPCOMING_RULE, alternatives_line,
+                   asset_name, change_text, volatility_facts, when as _when)
 from formatting import day, money, month, percent, period
 
 logger = logging.getLogger(__name__)
@@ -120,6 +121,8 @@ def cards_for(tool: str, arguments: dict, result: dict) -> list[Card]:
         if whole is not None:
             return whole(arguments, result)
         rows = result["currencies"]
+        if tool in ("get_income_share", "get_spending_advice"):
+            rows = [r for r in rows if r.get("incomeBase") is not None and r.get("reason") != "NoIncome"]
         return [build(arguments, result, row, _suffix(row, rows)) for row in rows if _has_card(tool, result)]
     except (KeyError, TypeError, ValueError, IndexError) as error:
         # A result of another shape (a server newer than this code): the text answer is enough, the turn goes on.
@@ -144,6 +147,9 @@ def _has_card(tool: str, result: dict) -> bool:
     # An ambiguous or unknown merchant is asked back or answered by a fixed text: there is no figure to show.
     if tool == "get_merchant_spending":
         return result["match"]["status"] == "Matched"
+    if tool in ("get_income_share", "get_spending_advice"):
+        # K8-A: without a salary there is no share to show; the text answer says so. One currency at a time.
+        return True
     return tool != "simulate_savings" or _matched(result)
 
 
@@ -337,6 +343,72 @@ def _saving(arguments: dict, result: dict, row: dict, suffix: str) -> Card:
                 detailed, f"{cut} azaltırsanız ayda {monthly}, yılda {annual}.", (SAVINGS_RULE,))
 
 
+def _income(arguments: dict, result: dict, row: dict, suffix: str) -> Card:
+    currency, categories = row["currencyCode"], row["categories"][:FACT_ROWS]
+    share = percent(row["spentShare"])
+    bars = _bars([(c["displayName"], c["amount"], f"{money(c['amount'], currency)} · {percent(c['incomeShare'])}", None)
+                  for c in categories])
+    window = period(date.fromisoformat(result["incomeFrom"]), date.fromisoformat(result["incomeTo"]))
+    simple = (Block("stats", items=(Stat("Harcama", money(row["totalSpent"], currency)),
+                                    Stat("Gelir tabanı", money(row["incomeBase"], currency)))), *_part(bars[:SIMPLE_ROWS]))
+    detailed = (*_part(bars[SIMPLE_ROWS:]), Block("stats", items=(Stat("Gelir dönemi", f"son 3 tam ayın ortalama maaşı: {window}"),)))
+    # K7-B: the share is the answer to "maaşımın ne kadarını", so it is the big figure; it is not money.
+    return Card(f"Gelir payı · {_label(result['period'])}{suffix}", Headline(None, None, share), None, simple, detailed,
+                f"Gelirinizin {share} kadarını harcadınız.")
+
+
+def _advice(arguments: dict, result: dict, row: dict, suffix: str) -> Card:
+    currency, groups = row["currencyCode"], row["groups"]
+    bars = _bars([(GROUP_LABELS[g["group"]], g["amount"], f"{money(g['amount'], currency)} · gelirin {percent(g['incomeShare'])}", None)
+                  for g in groups])
+    free = next((g for g in groups if g["group"] == "Discretionary"), None)
+    sentence = (f"İsteğe bağlı harcama gelirin {percent(free['incomeShare'])} kadarı." if free
+                else f"Toplam harcama {money(row['totalSpent'], currency)}.")
+    # K18-C: the backend's own sentences as written, or why there is none; P3-A: always shown.
+    limit = result["thresholds"]["discretionaryLimitPercent"]
+    notes = tuple(a["message"] for a in row["advice"]) or (
+        f"Yok: isteğe bağlı harcama gelirin %{limit} sınırının altında ve hiçbir kategori olağan ayından belirgin ölçüde sapmadı.",)
+    return Card(f"Harcama önerisi · {_label(result['period'])}{suffix}", _headline(row["totalSpent"], currency), None, _part(bars), (),
+                sentence, notes)
+
+
+def _one_off(arguments: dict, result: dict) -> list[Card]:
+    if not result["assets"]:
+        return []
+    currency, name = result["currencyCode"], result["categoryDisplayName"]
+    title = " · ".join(filter(None, ["Ne olurdu", name, _label(result["period"])]))
+    buy, value = _day(result["buyDate"]), _day(result["valueDate"])
+    detailed = (Block("stats", items=(Stat("Alış günü", buy), Stat("Değerleme günü", value))),)
+    return [Card(title, _headline(result["spentAmount"], currency), None, _list(_assets(result["assets"], currency)), detailed,
+                 f"Alış {buy}, değerleme {value}.", _warnings(result))]
+
+
+def _monthly(arguments: dict, result: dict) -> list[Card]:
+    if result["adviceStatus"] == "NoAdvice" or not result["assets"]:
+        return []
+    currency = result["currencyCode"]
+    buys = f"{result['months']} ay, her ayın 1'i: {_day(result['firstBuyDate'])} - {_day(result['lastBuyDate'])}"
+    risks = [Stat(f.label, f.text) for a in result["assets"] if a["value"] is not None and a.get("volatility")
+             for f in volatility_facts(a, currency)]
+    invested = money(result["invested"], currency)
+    return [Card(f"Aylık birikim · {money(result['amount'], currency)} × {result['months']} ay", _headline(Decimal(str(result["invested"])), currency),
+                 None, _list(_assets(result["assets"], currency)), (Block("stats", items=(Stat("Alımlar", buys), *risks)),),
+                 f"Toplam {invested} yatırmış olurdunuz; değerleme {_day(result['valueDate'])}.", _warnings(result))]
+
+
+def _assets(assets: list[dict], currency: str) -> list[Entry]:
+    # K8-C: an asset without a price stays as "hesaplanamadı"; hidden, the others would read as the only choices.
+    return [Entry(asset_name(a), NO_PRICE.split(";")[0], "hesaplanamadı") if a["value"] is None else
+            Entry(asset_name(a), f"{change_text(a['difference'], currency)} · {percent(abs(a['differencePercent']))}",
+                  money(a["value"], currency), _direction(a["difference"]))
+            for a in assets]
+
+
+def _warnings(result: dict) -> tuple[str, ...]:
+    # INC-03 K6-A: the investment warning is always under a what-if; alternatives are never a sum.
+    return (result["disclaimer"], *alternatives_line(result["assets"]))
+
+
 _BUILDERS = {
     "get_spending_summary": _summary,
     "get_merchant_breakdown": _merchants,
@@ -347,6 +419,8 @@ _BUILDERS = {
     "compare_spending": _comparison,
     "get_monthly_trend": _trend,
     "simulate_savings": _saving,
+    "get_income_share": _income,
+    "get_spending_advice": _advice,
 }
 
 # Results that are not one row per currency: the builder makes its own cards, one per currency of its totals.
@@ -354,6 +428,8 @@ _WHOLE_BUILDERS = {
     "get_recurring_payments": _recurring,
     "get_upcoming_payments": _upcoming,
     "check_budget": _budget,
+    "what_if_one_off": _one_off,
+    "what_if_monthly": _monthly,
 }
 
 

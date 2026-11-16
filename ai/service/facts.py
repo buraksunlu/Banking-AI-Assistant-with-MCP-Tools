@@ -357,6 +357,8 @@ UNIT_NAMES = {"GRAM": "gram"}
 ASSET_NAMES = {"USD": "Dolar", "EUR": "Euro", "GRAM": "Gram altın"}
 # The word an answer names each asset by, folded like answer_check folds the answer ("Gram altın", "altını" → "altin").
 ASSET_WORDS = {"USD": "dolar", "EUR": "euro", "GRAM": "altin"}
+# The line under a what-if with more than one priced asset, in the answer code writes and on its card.
+ALTERNATIVES_LINE = "Bu seçenekler birbirinin alternatifidir; değerler toplanmaz."
 ALTERNATIVES = "Bu üç seçenek birbirinin alternatifidir: aynı tutar yalnız birine yatırılmış sayılır; değerler toplanmaz."
 
 
@@ -437,7 +439,7 @@ def _asset_lines(assets: list[dict], currency: str) -> list[str]:
 
 def _alternatives_line(assets: list[dict]) -> list[str]:
     # Only when there is something one might add up.
-    return ["Bu seçenekler birbirinin alternatifidir; değerler toplanmaz."] if sum(a["value"] is not None for a in assets) > 1 else []
+    return [ALTERNATIVES_LINE] if sum(a["value"] is not None for a in assets) > 1 else []
 
 
 def _monthly(arguments: dict, result: dict) -> ToolOutcome:
@@ -600,3 +602,7 @@ def _closing(facts: list[Fact], rows: list[dict], empty_text: str) -> list[Fact]
 
 def _fact(label: str, text: str) -> Fact:
     return Fact(label=label, text=text)
+
+
+# Shared with the cards (UX-01 PR6c), so a card says a change, an asset and a risk in the facts' own words.
+change_text, asset_name, alternatives_line, volatility_facts = _change, _asset_name, _alternatives_line, _volatility

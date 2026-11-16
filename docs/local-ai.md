@@ -1275,3 +1275,23 @@ metin erişilebilirlik ve eski istemci içindir.
   Python 1433 → 1442; 6 kasıtlı bozma yakalandı (biri eklenen testle: eşleşmeyen işyerinin tasarrufu). Cevap doğruluğu **29/29** (A11–A15
   kart beklentisi aldı, A11'in `noCard`'ı kalktı).
 
+## UX-01 PR6c (16 Kasım 2026): zenginlik kartları ve PR6'nın son ölçümü
+
+Gelir payı, harcama önerisi ve iki "ne olurdu" kart alır; on altı aracın hepsi kartlı. Yalnız Python (sözleşme PR6a'da).
+
+- **Gelir payı (K7-B):** büyük rakam yüzde (`Headline(None, None, "%90,36")`); Basit'te harcama ve gelir tabanı, ilk 3 kategori gelire oranıyla;
+  Detaylı'da 4–5. kategori ve gelir dönemi. Maaşı olmayan para birimi kart almaz (K8-A; Can). Cümle: "Gelirinizin %90,36 kadarını harcadınız."
+- **Öneri:** büyük rakam toplam harcama; temel / isteğe bağlı / diğer grupları gelire oranıyla. Backend'in öneri cümleleri kartın notudur
+  (K18-C, her iki modda), öneri yoksa nedeni. Cümle: "İsteğe bağlı harcama gelirin %28,92 kadarı." Maaşsızda kart yok.
+- **İki "ne olurdu":** varlıklar `list` satırı (değer, fark ve yüzde, yön); fiyatı olmayan varlık "hesaplanamadı" olarak kalır (K8-C). Notlar:
+  yatırım uyarısı (INC-03 K6-A, her zaman) ve birden çok fiyatlı varlıkta "değerler toplanmaz". Aylık birikimde Detaylı'da alımlar ve
+  varlık başına risk satırları (`facts.volatility_facts`, kalemlerle aynı sözler). Cevap metni kodun yazdığı metin kalır (K5-B).
+- **Denetim:** backend'in öneri cümleleri ve uyarı kalemlerde değil cevabın ekinde (`ToolOutcome.appendix`); `chat` kart denetimine onları da
+  kaynak olarak verir (soru metniyle birlikte; kalem metni 200 karakterle sınırlı). Kartlı turda model açıklamaz, tavsiye/ad denetimi de
+  yalnız modelin yazdığı metinde çalışır.
+- **Doğrulama:** gerçek MCP sonuçlarıyla elle değerler (Selin %90,36, öneri 236,18 TL/ay; eğlence harcamasıyla dolar 2.297,38 TL; 1.000 TL ×
+  12 ay altın 12.704,72 TL ve en kötü an -%3,24; Zeynep iki gelir kartı); Python 1442 → 1453; 5 kasıtlı bozma yakalandı. Bilerek değişen eski
+  testler: açıklama yolunu sınayan 5 zenginlik sohbet testi `no_cards` ile kartsız.
+- **PR6'nın son ölçümü (K2-A, gerçek `qwen3.5:4b`, demo anı):** cevap doğruluğu **29/29** (25 vaka kart beklentisiyle), araç seçimi
+  **121/121**, ifade örneklemi **125/127** (iki bildik açık: büyük harfli tasarruf, CHAT-11).
+
