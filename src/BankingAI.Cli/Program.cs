@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 if (MarketCommands.Matches(args))
     return await MarketCommands.RunAsync(args);
+if (SimulateCommands.Matches(args))
+    return await SimulateCommands.RunAsync(args);
 
 var isSeedCategories = args.Length == 2 && args[0] == "seed" && args[1] == "categories";
 var isSeedMarketAssets = args.Length == 2 && args[0] == "seed" && args[1] == "market-assets";
@@ -25,7 +27,7 @@ var isSetPassword = args.Length is 3 or 5 && args[0] == "users" && args[1] == "s
 var isSingleCommand = args.Length == 1 && (args[0] == "migrate" || args[0] == "show");
 if (!isSingleCommand && !isSeedCategories && !isSeedMarketAssets && !isSeedCustomers && !isSeedAccounts && !isSeedCredits && !isSeedSubscriptions && !isSeedCategoryExamples && !isSeedGroceryGrowth && !isSeedCategorizationBoundaries && !isSeedRecentSpending && !isSeedDemoCoverage && !isSeedPairs && !isSeedRealistic && !isSetPassword)
 {
-    Console.WriteLine($"Usage: BankingAI.Cli migrate | show | seed categories | seed market-assets | seed customers | seed accounts | seed transactions credits | seed transactions subscriptions | seed transactions category-examples | seed transactions grocery-growth | seed transactions categorization-boundaries | seed transactions recent-spending | seed transactions demo-coverage | seed transactions pairs | seed transactions realistic | users set-password <username> [--customer <customer-id>] | {MarketCommands.Usage}");
+    Console.WriteLine($"Usage: BankingAI.Cli migrate | show | seed categories | seed market-assets | seed customers | seed accounts | seed transactions credits | seed transactions subscriptions | seed transactions category-examples | seed transactions grocery-growth | seed transactions categorization-boundaries | seed transactions recent-spending | seed transactions demo-coverage | seed transactions pairs | seed transactions realistic | users set-password <username> [--customer <customer-id>] | {MarketCommands.Usage} | {SimulateCommands.Usage}");
     return 1;
 }
 
