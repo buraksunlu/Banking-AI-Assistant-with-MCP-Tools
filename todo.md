@@ -506,7 +506,7 @@ ayrıntı için **cevap modu**: kullanıcı basit cevap mı, detaylı/istatistik
   (aynı `ChatView`, açılınca son karta) K5-A (yarım/tam sayfa) K6-A (dokunulmamış kart Profil varsayılanını izler) K7-A ("Kılavuz'a sor…" alt
   sabit). iOS 389 → 413 test durumu, Python 1403 → 1407 modelsiz; 11 kasıtlı bozma yakalandı (Python 4, iOS 7). Bilerek değişen eski testler:
   açıklama yolunu sınayan 11 sohbet testi `no_cards` ile kartsız (`conftest.py`), dönem satırı testi kart cümlesini bekler, A26'nın cevap
-  beklentisi "6.072,00". **Açık:** simülatörde Murat/Zeynep denemesi ve model ölçümleri (harici SSD).
+  beklentisi "6.072,00". **Açık:** simülatörde Murat/Zeynep denemesi. Model ölçümü 16 Kasım 2026'da yapıldı (docs/local-ai.md "UX-01 PR3–PR5 model ölçümü"): araç seçimi 120/121, cevap 25/26, ifade 124/127; "Netflix'e ne kadar" gerilemesi (PR3) açık.
 - [ ] UX-01 PR6 — Kalan dokuz aracın kartları ve ölçümler.
 
 ## 15. Local AI — önce hazır sonucu açıklama
@@ -762,8 +762,8 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 Güncelleme: 16 Kasım 2026. Aşağıdaki "tamamlanan bloklar" ve test sayıları 23 Ekim'in; sonrası `RULE.md` §29'da.
 
 - **Şimdi (15 Kasım 2026):** UX-01 cep asistanı — PR1 (açık tema, #81), PR2 (ana ekran paneli, #82), PR3 (kategori detayı backend'i, #83) ve
-  PR4 (kart sözleşmesi, #84) ve PR5 (iPhone kartları, kayan sayfa, Basit/Detaylı; 16 Kasım 2026) yapıldı. Model ölçümleri (PR3 araç seçimi,
-  PR4/PR5 cevap doğruluğu) harici SSD takılınca. Sıradaki: PR6 kalan dokuz aracın kartları; INV-02 sonra. PR2 paneli ve PR5 simülatörde denenmedi.
+  PR4 (kart sözleşmesi, #84) ve PR5 (iPhone kartları, kayan sayfa, Basit/Detaylı; 16 Kasım 2026) yapıldı. Model ölçümü 16 Kasım 2026'da yapıldı;
+  "Netflix'e ne kadar" gerilemesi (PR3) açık. Sıradaki: PR6 kalan dokuz aracın kartları; INV-02 sonra. PR2 paneli ve PR5 simülatörde denenmedi.
 
 Tamamlanan bloklar: banking foundation (DOC-09; SYN-01–14, KIND-01–05), deterministik analytics (ANA-01–14,
 REC-01–03, ANA-20), API ve güvenlik (API-01a/01b, API-02–15, SEC-01a/01b, SEC-06), local AI (AI-01–07: model seçimi,

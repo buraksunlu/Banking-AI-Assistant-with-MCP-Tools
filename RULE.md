@@ -1378,6 +1378,8 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- UX-01 PR3–PR5 model ölçümü (16 Kasım 2026; docs/local-ai.md): araç seçimi 120/121, cevap doğruluğu 25/26, ifade örneklemi 124/127.
+  Gerileme (PR3): "Netflix'e ne kadar harcadım?" kategori detayına gidiyor (`_CATEGORY_WORDS`'teki marka adları denetimi geçiriyor); açık.
 - iPhone cevap kartları (UX-01 PR5, 16 Kasım 2026; docs/ios.md "iOS-x", docs/local-ai.md "UX-01 PR5"): kart varsa `answer` kartın kod
   cümlesidir, açıklayıcı model çağrılmaz; ana ekranın kategori satırı "Bu ay {kategori} harcamam ne kadar?" gönderir ve sunucu bunu sunulmamış
   olsa da modelsiz çalıştırır (`suggestions.panel_questions`; kelimeler iPhone'da `HomeDisplay.askWords`, iki tarafta eşitlik testi). iPhone kartı
