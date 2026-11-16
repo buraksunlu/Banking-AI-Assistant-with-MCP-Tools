@@ -208,6 +208,13 @@ struct LinkQuery: Decodable, Hashable {
     let accountType: AccountType
     let categoryCode: String?
     let merchant: String?
+    /// ACC-01b PR2: a transfer's direction and person, a search's amount limit and its currency; null (or absent, an older
+    /// backend) when the answer's tool took none. The phone passes them on as they are.
+    let direction: TransactionDirection?
+    let counterparty: String?
+    let minAmount: Decimal?
+    let maxAmount: Decimal?
+    let currencyCode: String?
 
     /// The filter the search runs with; nil when the days do not fit the period (a range needs two real days, a named
     /// period takes none), so a link the phone would misread is never followed.

@@ -1378,6 +1378,9 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Cevaptan işlem listesine bağlantı (ACC-01b PR2, 16 Kasım 2026; docs/api.md "links", docs/ios.md "iOS-aa"): gelir, transfer (yön + kişi) ve
+  tutar sınırlı arama bağlantı alır, bakiye almaz; liste cevabın rakamıyla aynı toplamı verir. Python'da modelin `null` argümanı düşer (bağlantı
+  "null" adlı işyeri arıyordu). Api 606 → 622, iOS 426 → 435, Python 1598; 9 kasıtlı bozma yakalandı. ACC-01b tamam; sıradaki CHAT-12 planı.
 - Temel bankacılık soruları sohbette (ACC-01b PR1, 16 Kasım 2026; docs/local-ai.md "ACC-01b PR1"): bakiye, tutar sınırlı arama, gelir ve
   transfer kelime kurallarıyla (`ai/service/accounts.py`) kendi araçlarına gider; sınır, yön ve "yattı mı = bu ay" kodun; kalemler ve kartlar
   (işletme ve para birimi ayrı). Kapsam dışı kuralı geçmiş zamanı ("gönderdim") artık reddetmiyor. Bulgu: modele gösterilen araç sırası

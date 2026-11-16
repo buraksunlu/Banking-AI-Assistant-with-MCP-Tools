@@ -858,6 +858,13 @@ iPhone ──Bearer──► POST /api/assistant/messages ── token → müş
   kategoriden önce gelir); karşılaştırma, aylık seri, düzenli/yaklaşan ödeme ve tasarruf almaz (tek bir satır listesi yok). Okunamayan
   argüman (`Yesterdayy`, tek uçlu tarih) bağlantısız bırakır, cevabı bozmaz; yalnız `Answer` bağlantı taşır. **`Custom` dönemde
   istemci `period` göndermez, yalnız `from` ve `to` gönderir** (arama ikisini birlikte kabul etmez).
+  ACC-01b PR2: sorguda ayrıca `direction`, `counterparty`, `minAmount`, `maxAmount`, `currencyCode` (araç almadıysa `null`).
+  `get_income` → `kind = Salary`; `get_transfers` → `kind = Transfer`, `Sent`/`Received` → `Debit`/`Credit` (yoksa iki yön), kişi
+  kullanıcının yazdığı adla (arama aynı `CounterpartyMatcher`'la eşleştirir); `search_transactions` → `Purchase` + işyeri, kategori ve
+  tutar sınırı. Tutar argümanı JSON biçiminde okunur (`^\d+(\.\d{1,2})?$`, sıfırdan büyük; "2.000" okunmaz), tutar para birimsiz ya da
+  para birimi tutarsız gelirse bağlantı yok (arama ikisini birlikte ister). Bakiye (`get_accounts`) bağlantı almaz. İstemci bu alanları
+  yalnız doluysa gönderir; liste cevabın rakamıyla aynı toplamı verir (`AssistantLinkEndToEndTests`: 7 işlem 41.363,50 TL; maaş
+  85.000,00 TL; Hasan → Selin 3 × 3.000 = 9.000,00 TL).
 - Müşteri **başına** dakikada 10 mesaj (SEC-06, K6-A); aşınca 429 + `Retry-After`. Sınır token'daki müşteriye
   bakar; bu yüzden `UseRateLimiter` kimlik doğrulamanın **arkasındadır** (tokensız istek sayaca girmeden 401 alır).
 - Hata eşlemesi (K5-A; iPhone'un yapacağı şeye göre üç kod, AI servisinin kendi kodu yalnız logda):

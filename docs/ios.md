@@ -899,3 +899,12 @@ Chat/AskSheet.swift        AnswerMode.swift'ten kalan tek parça
 Profile/ProfileView.swift  "Cevap biçimi" yok
 ```
 
+## iOS-aa: sohbet bağlantısında transfer, gelir ve tutar sınırı (ACC-01b PR2; 16 Kasım 2026)
+
+Gelir, transfer ve tutar sınırlı arama cevaplarının altındaki "İşlemleri gör" artık doğru listeyi açar. `LinkQuery` beş isteğe bağlı alan
+okur (`direction`, `counterparty`, `minAmount`, `maxAmount`, `currencyCode`; yoksa ya da `null` ise eski backend'in bağlantısı gibi);
+tanınmayan yön bağlantıyı düşürür, cevap kalır (CHAT-07 K5-A). `TransactionCriteria` bunları eski süzgeçlerden sonra, yalnız doluysa
+gönderir; tutar API'nin okuduğu biçimde (`NSDecimalNumber.stringValue`: "2000", "5000.5"; gruplama yok). Liste başlığı satırı yönü
+("Gönderilen transferler" / "Gelen transferler"), kişiyi ve tutar sınırını ("2.000,00 TL ve üstü", `Money` ile) söyler; telefon hesap
+yapmaz. Testler: iOS 426 → 435 test durumu (`ChatLinkTests`); 4 kasıtlı bozma yakalandı (yön gönderilmez, tutar yuvarlanır, başlıkta kişi
+yok, en az tutar geçmez). Simülatörde denenmedi.

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.RegularExpressions;
 using BankingAI.Application.Analytics;
 using BankingAI.Data.Enums;
 
@@ -6,11 +7,14 @@ namespace BankingAI.Api.Assistant;
 
 /// <summary>
 /// The transaction-list query behind a chat answer's link: what <c>GET /api/transactions</c> is asked so the list
-/// shows the rows the answer's figure was computed from. <c>From</c>/<c>To</c> are set only for <c>Custom</c>.
+/// shows the rows the answer's figure was computed from. <c>From</c>/<c>To</c> are set only for <c>Custom</c>. ACC-01b PR2: a
+/// transfer's direction and person and a search's amount limit (with its currency, never one without the other) are the same
+/// filters the answer's tool ran with; null when the tool took none.
 /// </summary>
 public sealed record TransactionLinkQuery(
     PeriodKind Period, DateOnly? From, DateOnly? To, TransactionKind Kind, AccountType AccountType,
-    string? CategoryCode, string? Merchant);
+    string? CategoryCode, string? Merchant, TransactionDirection? Direction = null, string? Counterparty = null,
+    decimal? MinAmount = null, decimal? MaxAmount = null, string? CurrencyCode = null);
 
 /// <summary>
 /// A button under a chat answer (CHAT-07): the title to show and the list it opens.
@@ -58,8 +62,68 @@ public static class AssistantLinks
             => Period(arguments) is { } period && Text(arguments, "merchant") is { Present: true, Value: not null } merchant
                 ? Purchases(period, null, merchant.Value) : null,
         "check_budget" => Budget(arguments),
+        "get_income" => Period(arguments) is { } period
+            ? new(period.Kind, period.From, period.To, TransactionKind.Salary, AccountType.Personal, null, null) : null,
+        "get_transfers" => Transfers(arguments),
+        "search_transactions" => Search(arguments),
         _ => null
     };
+
+    // The MCP server's ToolTransferDirection; left out, both ways.
+    private static readonly Dictionary<string, TransactionDirection> Directions = new(StringComparer.Ordinal)
+    {
+        ["Sent"] = TransactionDirection.Debit, ["Received"] = TransactionDirection.Credit
+    };
+
+    private static TransactionLinkQuery? Transfers(IReadOnlyDictionary<string, string> arguments)
+    {
+        if (Period(arguments) is not { } period)
+            return null;
+        TransactionDirection? direction = null;
+        if (arguments.TryGetValue("direction", out var name))
+        {
+            if (!Directions.TryGetValue(name, out var known))
+                return null;
+            direction = known;
+        }
+        var person = Text(arguments, "counterparty");
+        if (person.Present && person.Value is null)
+            return null;
+        return new(period.Kind, period.From, period.To, TransactionKind.Transfer, AccountType.Personal, null, null, direction, person.Value);
+    }
+
+    private static TransactionLinkQuery? Search(IReadOnlyDictionary<string, string> arguments)
+    {
+        if (Period(arguments) is not { } period)
+            return null;
+        var merchant = Text(arguments, "merchant");
+        var category = Text(arguments, "categoryCode");
+        var minimum = Amount(arguments, "minAmount");
+        var maximum = Amount(arguments, "maxAmount");
+        var currency = Text(arguments, "currencyCode");
+        if (merchant.Present && merchant.Value is null || category.Present && category.Value is null
+            || minimum.Present && minimum.Value is null || maximum.Present && maximum.Value is null)
+            return null;
+        // The search takes an amount only with its currency (currencies are never mixed), and a code is three capital letters.
+        var hasAmount = minimum.Value is not null || maximum.Value is not null;
+        if (hasAmount != currency.Present || currency.Present && !CurrencyCode.IsMatch(currency.Value ?? ""))
+            return null;
+        return new(period.Kind, period.From, period.To, TransactionKind.Purchase, AccountType.Personal, category.Value, merchant.Value,
+            MinAmount: minimum.Value, MaxAmount: maximum.Value, CurrencyCode: currency.Value);
+    }
+
+    // An amount the AI service wrote the JSON way ("2000", "5000.5", at most two decimals like the money it filters); a Turkish
+    // "2.000", a sign or an exponent is not read.
+    private static readonly Regex JsonAmount = new(@"^\d+(\.\d{1,2})?$", RegexOptions.CultureInvariant);
+    private static readonly Regex CurrencyCode = new("^[A-Z]{3}$", RegexOptions.CultureInvariant);
+
+    private static (bool Present, decimal? Value) Amount(IReadOnlyDictionary<string, string> arguments, string key)
+    {
+        if (!arguments.TryGetValue(key, out var text))
+            return (false, null);
+        var amount = JsonAmount.IsMatch(text) ? decimal.Parse(text, CultureInfo.InvariantCulture) : 0m;
+        return (true, amount > 0 ? amount : null);
+    }
 
     // The budget always measures the running month; like the budget service, the merchant wins over the category.
     private static TransactionLinkQuery? Budget(IReadOnlyDictionary<string, string> arguments)

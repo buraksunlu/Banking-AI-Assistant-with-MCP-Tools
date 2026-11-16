@@ -7,13 +7,20 @@ import Testing
 // search the link names, with the same paging. Expected query strings are hand-written, never produced by the code.
 
 private func linkJSON(period: String = "ThisMonth", from: String? = nil, to: String? = nil, kind: String = "Purchase",
-                      accountType: String = "Personal", categoryCode: String? = nil, merchant: String? = nil) -> String {
+                      accountType: String = "Personal", categoryCode: String? = nil, merchant: String? = nil,
+                      extra: String = "") -> String {
     func text(_ value: String?) -> String { value.map { "\"\($0)\"" } ?? "null" }
+    // `extra`: ACC-01b PR2's fields as the backend writes them (",\"direction\":\"Debit\"…"); left out, an older backend's link.
     return """
     {"title":"İşlemleri gör","query":{"period":"\(period)","from":\(text(from)),"to":\(text(to)),"kind":"\(kind)",
-    "accountType":"\(accountType)","categoryCode":\(text(categoryCode)),"merchant":\(text(merchant))}}
+    "accountType":"\(accountType)","categoryCode":\(text(categoryCode)),"merchant":\(text(merchant))\(extra)}}
     """
 }
+
+// ACC-01b PR2: a transfer's direction and person, a search's amount limit with its currency (null when the tool took none).
+private let sentToSelin = #","direction":"Debit","counterparty":"Selin","minAmount":null,"maxAmount":null,"currencyCode":null"#
+private let over2000 = #","direction":null,"counterparty":null,"minAmount":2000,"maxAmount":null,"currencyCode":"TRY""#
+private let between = #","direction":null,"counterparty":null,"minAmount":1000,"maxAmount":5000.5,"currencyCode":"TRY""#
 
 private func replyJSON(links: String?, suggestions: String = "[]") -> String {
     let field = links.map { #","links":\#($0)"# } ?? ""
@@ -68,7 +75,8 @@ struct ChatLinkTests {
         linkJSON(period: "Custom", from: "2026-09-01"),
         linkJSON(period: "ThisMonth", from: "2026-09-01", to: "2026-09-05"), // a named period takes no days
         linkJSON(kind: "Gift"),
-        linkJSON(accountType: "Joint")
+        linkJSON(accountType: "Joint"),
+        linkJSON(kind: "Transfer", extra: #","direction":"Sideways""#)
     ])
     func aLinkThatCannotBeReadIsDroppedAndTheAnswerStays(bad: String) throws {
         // K5-A: one unreadable button must not cost the customer the answer; the good one next to it stays.
@@ -116,7 +124,14 @@ struct ChatLinkTests {
         (linkJSON(period: "Custom", from: "2026-09-01", to: "2026-09-05"), "from=2026-09-01&to=2026-09-05&kind=Purchase&accountType=Personal&limit=20"),
         (linkJSON(period: "LastMonth", merchant: "Starbucks"), "period=LastMonth&kind=Purchase&accountType=Personal&merchant=Starbucks&limit=20"),
         (linkJSON(categoryCode: "FOOD"), "period=ThisMonth&kind=Purchase&accountType=Personal&categoryCode=FOOD&limit=20"),
-        (linkJSON(period: "Last7Days", merchant: "Kahve Durağı"), "period=Last7Days&kind=Purchase&accountType=Personal&merchant=Kahve%20Dura%C4%9F%C4%B1&limit=20")
+        (linkJSON(period: "Last7Days", merchant: "Kahve Durağı"), "period=Last7Days&kind=Purchase&accountType=Personal&merchant=Kahve%20Dura%C4%9F%C4%B1&limit=20"),
+        // ACC-01b PR2: the new filters follow the old ones, only when the link has them; the amount the JSON way.
+        (linkJSON(period: "Last3Months", kind: "Transfer", extra: sentToSelin),
+         "period=Last3Months&kind=Transfer&accountType=Personal&direction=Debit&counterparty=Selin&limit=20"),
+        (linkJSON(period: "LastMonth", extra: over2000), "period=LastMonth&kind=Purchase&accountType=Personal&minAmount=2000&currencyCode=TRY&limit=20"),
+        (linkJSON(period: "LastMonth", extra: between),
+         "period=LastMonth&kind=Purchase&accountType=Personal&minAmount=1000&maxAmount=5000.5&currencyCode=TRY&limit=20"),
+        (linkJSON(period: "LastMonth", kind: "Salary"), "period=LastMonth&kind=Salary&accountType=Personal&limit=20")
     ])
     func theListAsksTheSameSearchTheLinkNames(linkJson: String, expected: String) async throws {
         let (_, app) = try await opened(linkJson)
@@ -175,7 +190,12 @@ struct ChatLinkTests {
         (linkJSON(period: "ThisYear"), "Bu yıl · Harcamalar · Kişisel hesaplar"),
         // The days are on the line under it, as the backend resolved them; the summary does not repeat them.
         (linkJSON(period: "Custom", from: "2026-09-01", to: "2026-09-05"), "Özel tarih aralığı · Harcamalar · Kişisel hesaplar"),
-        (linkJSON(period: "LastMonth", merchant: "Starbucks"), "Geçen ay · Harcamalar · Kişisel hesaplar · Starbucks")
+        (linkJSON(period: "LastMonth", merchant: "Starbucks"), "Geçen ay · Harcamalar · Kişisel hesaplar · Starbucks"),
+        (linkJSON(period: "Last3Months", kind: "Transfer", extra: sentToSelin), "Son 3 ay · Gönderilen transferler · Kişisel hesaplar · Selin"),
+        (linkJSON(kind: "Transfer", extra: #","direction":"Credit""#), "Bu ay · Gelen transferler · Kişisel hesaplar"),
+        (linkJSON(period: "LastMonth", extra: over2000), "Geçen ay · Harcamalar · Kişisel hesaplar · 2.000,00 TL ve üstü"),
+        (linkJSON(period: "LastMonth", extra: between), "Geçen ay · Harcamalar · Kişisel hesaplar · 1.000,00 TL – 5.000,50 TL"),
+        (linkJSON(period: "LastMonth", extra: #","maxAmount":500,"currencyCode":"TRY""#), "Geçen ay · Harcamalar · Kişisel hesaplar · 500,00 TL ve altı")
     ])
     func theListSaysWhatItShowsInOneLine(linkJson: String, expected: String) throws {
         #expect(try link(linkJson).summary == expected)
