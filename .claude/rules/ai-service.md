@@ -57,7 +57,9 @@ sınırında (ilk 5); Basit ilk 3. `chat._checked_cards`: kartın bütün yazıl
 log. Okunamayan sonuç `[]`, hata değil. Yeni araç kartı → `cards._BUILDERS` + `test_cards.py`'de elle değerler. Kart varsa `answer` kartların
 cümlesidir, açıklayıcı model çağrılmaz (PR5 K2-A); açıklamayı sınayan test `@pytest.mark.usefixtures("no_cards")` alır (`conftest.py`).
 Panel soruları (`suggestions.panel_questions`, bu ayın kategori kalıbı) sunulmamış olsa da modelsiz çalışır (PR5 K1-C); `CATEGORY_WORDS`
-değişirse iPhone'daki `HomeDisplay.askWords` da değişir. Tutar JSON'da sayıdır (`contracts.Amount`; float'a tam dönmeyen değer reddedilir).
+değişirse iPhone'daki `HomeDisplay.askWords` da değişir. Marka işyeridir (`grounding._BRANDS`, `brand_in`): kategori detayı seçilip
+mesajda tek marka varsa `chat` çağrıyı `get_merchant_spending`'e çevirir; yeni marka kelimesi `_BRANDS`'e (Abonelik kelimelerine kendiliğinden
+girer). Tutar JSON'da sayıdır (`contracts.Amount`; float'a tam dönmeyen değer reddedilir).
 `answer_eval` vakaları `card` (kartta görünmesi gereken yazılar) ve `noCard` alır.
 
 Önerilen sorular (CHAT-06, `ai/service/suggestions.py`): açıklanmış cevabın `suggestions`'ı sabit `follow_ups` tablosundan (araç → 2–3 öneri,

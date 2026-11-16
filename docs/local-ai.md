@@ -1225,9 +1225,16 @@ kart düşer), K7-A (Basit'te ilk 3 satır), K8-A (karşılaştırmada değişim
 - **Gerileme (PR3): "Netflix'e ne kadar harcadım?"** S25, A10 ve `merchant.t2.merchant2.period0.ascii` aynı hatadır. Model kategori detayını
   (`get_category_spending`, `SUBSCRIPTION`) seçiyor; `grounding._CATEGORY_WORDS` Abonelik kelimeleri arasında `netflix`/`spotify` marka
   adlarını taşıdığı için argüman denetimi bunu "kategori söylenmiş" sayıp geçiriyor. Cevap yanıltıcı: Can'ın Netflix'i yok, cevap
-  "Abonelik: önceki döneme göre değişmedi." oluyor. Modelsiz ifade testi yakalayamadı (OracleSelector doğru aracı verir). Düzeltmesi ayrı iş.
+  "Abonelik: önceki döneme göre değişmedi." oluyor. Modelsiz ifade testi yakalayamadı (OracleSelector doğru aracı verir).
+  **Düzeltildi (aynı gün, `fix/brand-not-category`, K1-B):** `grounding.brand_in` mesajın tek markasını işyeri adıyla verir (`_BRANDS`:
+  netflix → Netflix, spotify → Spotify; marka kelimeleri Abonelik'in kelimelerinde kalır, "Netflix bütçem" bütçe/tasarrufta yine kategori).
+  `chat`: model kategori detayını seçtiyse ve mesajda tek marka varsa çağrı aynı dönemle `get_merchant_spending {merchant}` olur; model
+  kategori detayını iki dönemle iki kez döndürdüyse ("…ne kadar ödedim?", S25) ilki alınır, söylenen dönem onu ezer. Farklı iki araç yine
+  geri sorudur. Ölçüm (yeni kodla): araç seçimi **121/121**, cevap doğruluğu **26/26** (A10: "Bu dönemde bu işyerinde harcama
+  bulunamadı."; Murat'ın Eylül Netflix'i 229,99 TL, SQL), ifade örneklemi **125/127** (Netflix ifadesi düzeldi; ikinci kuraldan önce ölçüldü,
+  kalan iki hata aşağıdaki bildik açıklar). Python 1422 modelsiz.
 - **Eski açık, ilk kez örneklemde:** "Ayda 5 bin 6 ay biriktirseydim ne olurdu?" → tutar soruluyor (iki denemede aynı); "5 bin TL 6 ay" doğru.
-  Tutar okuma INV-03 PR2'den beri değişmedi; ifade PR3'te şablonlar büyüyünce örnekleme girdi.
+  Tutar okuma INV-03 PR2'den beri değişmedi; ifade PR3'te şablonlar büyüyünce örnekleme girdi. todo CHAT-11.
 - **Bildik:** büyük harfli tasarruf ifadesi ("MARKET HARCAMAMI YARIYA İNDİRSEM NE OLUR?") kategorisini kaybediyor (14 Kasım'da da vardı).
 - **PR5 etkisi:** kartlı vakalarda cevap artık kart cümlesi (A04–A08, A16–A18, A26 geçti); kartlı turlar ~1,2–2,5 sn.
 
