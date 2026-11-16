@@ -521,6 +521,10 @@ ayrıntı için **cevap modu**: kullanıcı basit cevap mı, detaylı/istatistik
   - [x] PR6c — Zenginlik kartları + son model ölçümü (16 Kasım 2026, docs/local-ai.md "UX-01 PR6c"): gelir payı (yüzde başlık), öneri
     (backend cümleleri not), iki "ne olurdu" (varlık satırları, uyarı notu, fiyatsız "hesaplanamadı"); kart denetimi cevabın ekini de bilir.
     Python 1453; 5 kasıtlı bozma. Ölçüm: cevap 29/29, araç seçimi 121/121, ifade 125/127. On altı aracın hepsi kartlı.
+- [x] UX-01 simülatör düzeltmesi (16 Kasım 2026, #95, docs/ios.md "iOS-z"): kullanıcının simülatör incelemesinden iki bulgu, yalnız iPhone.
+  Bulgu 1: satırsız kart (özet, işyeri) cevabın işlemlerini içinde gösterir (bağlantının ilk sayfası, ilk 5; fazlası "Tümünü göster (N)" →
+  tam liste); bu kartlarda cümle yok. Bulgu 2: Basit/Detaylı (kart anahtarı + Profil ayarı, `AnswerPreferences`) kalktı; kartın altında
+  "Tümünü göster (N)" / "Daha az göster" (kalanı rakamsa "Ayrıntıları göster"), notlar her zaman. iOS 417 → 426, 6 kasıtlı bozma yakalandı.
 
 ## 14d. Real time: canlı banka simülasyonu — kullanıcı kararı 16 Kasım 2026 (⭐ yön)
 

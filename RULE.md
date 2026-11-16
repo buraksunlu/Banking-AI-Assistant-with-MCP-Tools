@@ -1378,6 +1378,8 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Kart incelemesi (16 Kasım 2026, #95; docs/ios.md "iOS-z"): Basit/Detaylı yerine kartın altında "Tümünü göster (N)"; özet ve işyeri
+  kartı cevabın ilk 5 işlemini içinde gösterir. Yalnız iPhone; iOS 426.
 - Canlı veride çeşitlilik (RT-05a, 16 Kasım 2026; docs/database-design.md "RT-05a"): her yıl tekrar eden takvim olayları, abonelik
   başlama/iptal/zam, ikramiye ve emekli zammı, Seyahat/Diğer, Elif'in TL hesabı, Can Kırtasiye alışveriş çiftleri, rastgele dakika. Kimlik
   plan adından geldiği için canlıya yazılmış bir günün planı değiştirilmez; yeni olay yalnız yazılmamış günlere eklenir.
