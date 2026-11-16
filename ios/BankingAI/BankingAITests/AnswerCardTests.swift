@@ -30,9 +30,27 @@ private let listCard = #"""
 
 private let broken = #"{"title":"Bozuk","headline":{"amount":1,"currency":"TRY","text":"1,00 TL"},"change":null,"simple":[{"kind":"pie","rows":[],"points":[],"items":[],"highlight":null}],"detailed":[],"sentence":"x"}"#
 
-private func reply(cards: String?) -> String {
+/// Murat's September categories (UX-01 PR4): three bars in the simple part, the other four in the detailed one.
+private let categoriesCard = #"""
+{"title":"Kategoriler · Eylül 2026","headline":{"amount":53388.39,"currency":"TRY","text":"53.388,39 TL"},"change":null,
+ "simple":[{"kind":"bars","rows":[\#(bar("Faturalar")),\#(bar("Market")),\#(bar("Yakıt"))],"points":[],"items":[],"highlight":null}],
+ "detailed":[{"kind":"bars","rows":[\#(bar("Yeme & İçme")),\#(bar("Diğer")),\#(bar("Eğlence")),\#(bar("Abonelik"))],"points":[],"items":[],
+              "highlight":null}],
+ "sentence":"En büyük pay Faturalar: %51,40."}
+"""#
+
+private func bar(_ label: String) -> String {
+    #"{"label":"\#(label)","amount":1,"text":"1,00 TL","share":0.5,"direction":null}"#
+}
+
+private let summaryLink = #"""
+{"title":"İşlemleri gör","query":{"period":"ThisMonth","from":null,"to":null,"kind":"Purchase","accountType":"Personal",
+ "categoryCode":null,"merchant":null}}
+"""#
+
+private func reply(cards: String?, links: String = "") -> String {
     let field = cards.map { #","cards":[\#($0)]"# } ?? ""
-    return #"{"type":"Answer","answer":"Market: önceki döneme göre 6.072,00 TL fazla.","toolCalls":[],"facts":[],"suggestions":[],"choices":[],"inputHint":"","links":[]\#(field)}"#
+    return #"{"type":"Answer","answer":"Market: önceki döneme göre 6.072,00 TL fazla.","toolCalls":[],"facts":[],"suggestions":[],"choices":[],"inputHint":"","links":[\#(links)]\#(field)}"#
 }
 
 @MainActor private func decoded(_ body: String) throws -> AssistantReply {
@@ -85,14 +103,12 @@ struct AnswerCardTests {
         #expect(card.simple.first?.entries.isEmpty == true)
     }
 
-    @Test(arguments: [AnswerMode.simple, .detailed])
-    func theNotesAreShownInEitherMode(mode: AnswerMode) throws {
+    @Test(arguments: [false, true])
+    func theNotesAreShownOpenOrClosed(expanded: Bool) throws {
         let card = try #require(try decoded(reply(cards: listCard)).cards.first)
 
-        #expect(CardDisplay.notes(card, mode: mode) == ["Tarih ve tutarlar tahmindir."])
+        #expect(CardDisplay.notes(card) == ["Tarih ve tutarlar tahmindir."])
     }
-
-    // MARK: Drawing
 
     @Test(arguments: [(1.0, 1.0), (0.5, 0.5), (0, 0), (1.4, 1.0), (-0.2, 0)])
     func aBarIsAsLongAsItsShareKeptBetweenEmptyAndFull(share: Double, fraction: Double) {
@@ -102,22 +118,22 @@ struct AnswerCardTests {
     @Test func aRowWithANoughtShareIsStillARow() throws {
         let card = try #require(try decoded(reply(cards: marketCard)).cards.first)
 
-        #expect(CardDisplay.blocks(card, mode: .simple).first?.rows.last?.label == "A101")
+        #expect(CardDisplay.blocks(card, expanded: false).first?.rows.last?.label == "A101")
     }
 
-    @Test func simpleShowsTheSimplePartAndDetailedAddsTheRest() throws {
+    @Test func aClosedCardShowsTheFirstPartAndAnOpenOneTheRestToo() throws {
         let card = try #require(try decoded(reply(cards: marketCard)).cards.first)
 
-        #expect(CardDisplay.blocks(card, mode: .simple).map(\.kind) == [.bars])
-        #expect(CardDisplay.blocks(card, mode: .detailed).map(\.kind) == [.bars, .stats])
+        #expect(CardDisplay.blocks(card, expanded: false).map(\.kind) == [.bars])
+        #expect(CardDisplay.blocks(card, expanded: true).map(\.kind) == [.bars, .stats])
     }
 
-    @Test func aCardWithNothingMoreHasNoSwitch() throws {
+    @Test func aCardWithNothingMoreHasNoMoreLine() throws {
         let market = try #require(try decoded(reply(cards: marketCard)).cards.first)
         let plain = try #require(try decoded(reply(cards: simpleOnly)).cards.first)
 
-        #expect(CardDisplay.hasDetail(market))
-        #expect(!CardDisplay.hasDetail(plain))
+        #expect(CardDisplay.moreTitle(market, expanded: false) != nil)
+        #expect(CardDisplay.moreTitle(plain, expanded: false) == nil)
     }
 
     @Test(arguments: [(CardDirection.up, "arrow.up.right" as String?), (.down, "arrow.down.right"), (.same, nil)])
@@ -125,45 +141,67 @@ struct AnswerCardTests {
         #expect(CardDisplay.symbol(direction) == symbol)
     }
 
-    // MARK: Basit / Detaylı
+    // MARK: Tümünü göster (16 Kasım 2026 simulator review, Bulgu 2: the Basit/Detaylı switch is replaced)
 
-    @Test func theDefaultIsSimpleAndIsKeptOnTheDevice() throws {
-        let defaults = try #require(UserDefaults(suiteName: "answer-mode-\(UUID())"))
-        #expect(AnswerPreferences(defaults: defaults).mode == .simple)
+    @Test func theMoreLineCountsEveryRowTheOpenCardWillShow() throws {
+        let card = try #require(try decoded(reply(cards: categoriesCard)).cards.first)
 
-        AnswerPreferences(defaults: defaults).mode = .detailed
-
-        #expect(AnswerPreferences(defaults: defaults).mode == .detailed)
+        #expect(CardDisplay.moreTitle(card, expanded: false) == "Tümünü göster (7)")
+        #expect(CardDisplay.moreTitle(card, expanded: true) == "Daha az göster")
     }
 
-    @Test func anUntouchedCardFollowsTheDefaultAndATouchedOneKeepsItsOwn() async throws {
+    @Test func aMoreLineOverFiguresWithoutRowsAsksForTheDetails() throws {
+        let card = try #require(try decoded(reply(cards: marketCard)).cards.first)
+
+        #expect(CardDisplay.moreTitle(card, expanded: false) == "Ayrıntıları göster")
+    }
+
+    @Test func openingACardAsksNothingAndLeavesTheOtherCardsClosed() async throws {
         let app = TestApp { _ in json(200, reply(cards: "\(marketCard),\(marketCard)")) }
-        let preferences = AnswerPreferences(defaults: try #require(UserDefaults(suiteName: "answer-mode-\(UUID())")))
-        let model = ChatViewModel(api: app.api, preferences: preferences)
-        await model.send("Geçen ay markete ne kadar harcadım?")
-        let answer = try #require(model.messages.last)
-        #expect(answer.cards.count == 2)
-
-        model.setMode(.detailed, for: answer.id, card: 0)
-        preferences.mode = .detailed
-        preferences.mode = .simple
-
-        #expect(model.mode(for: answer.id, card: 0) == .detailed)
-        #expect(model.mode(for: answer.id, card: 1) == .simple)
-    }
-
-    @Test func switchingACardAsksNothing() async throws {
-        let app = TestApp { _ in json(200, reply(cards: marketCard)) }
-        let model = ChatViewModel(api: app.api,
-                                  preferences: AnswerPreferences(defaults: try #require(UserDefaults(suiteName: "m-\(UUID())"))))
+        let model = ChatViewModel(api: app.api)
         await model.send("Geçen ay markete ne kadar harcadım?")
         let sent = app.requests.count
         let answer = try #require(model.messages.last)
 
-        model.setMode(.detailed, for: answer.id, card: 0)
-        model.setMode(.simple, for: answer.id, card: 0)
+        model.toggleExpanded(answer.id, card: 0)
 
+        #expect(model.isExpanded(answer.id, card: 0))
+        #expect(!model.isExpanded(answer.id, card: 1))
         #expect(app.requests.count == sent)
+        model.toggleExpanded(answer.id, card: 0)
+        #expect(!model.isExpanded(answer.id, card: 0))
+    }
+
+    // MARK: Transactions in the card (Bulgu 1)
+
+    @Test func aCardWithoutRowsTakesItsTransactionsInside() throws {
+        let reply = try decoded(reply(cards: simpleOnly, links: summaryLink))
+
+        #expect(CardDisplay.cardTransactions(reply.cards, links: reply.links) == reply.links.first)
+    }
+
+    @Test(arguments: [categoriesCard, listCard])
+    func aCardWithItsOwnRowsKeepsTheLinkUnderIt(card: String) throws {
+        let reply = try decoded(reply(cards: card, links: summaryLink))
+
+        #expect(CardDisplay.cardTransactions(reply.cards, links: reply.links) == nil)
+    }
+
+    @Test func twoCardsKeepTheLinkUnderThem() throws {
+        let reply = try decoded(reply(cards: "\(simpleOnly),\(simpleOnly)", links: summaryLink))
+
+        #expect(CardDisplay.cardTransactions(reply.cards, links: reply.links) == nil)
+    }
+
+    @Test(arguments: [(4, nil as String?), (5, nil), (6, "Tümünü göster (6)"), (12, "Tümünü göster (12)")])
+    func theCardShowsFiveTransactionsAndOffersTheRest(total: Int, title: String?) {
+        #expect(CardDisplay.previewRows == 5)
+        #expect(CardDisplay.allTransactionsTitle(total: total) == title)
+    }
+
+    @Test func theSentenceGivesWayToTheTransactions() {
+        #expect(CardDisplay.showsSentence(withTransactions: false))
+        #expect(!CardDisplay.showsSentence(withTransactions: true))
     }
 
     // MARK: The home panel's questions (K1-C)

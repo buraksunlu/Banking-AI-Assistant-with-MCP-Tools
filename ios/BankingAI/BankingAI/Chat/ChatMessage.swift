@@ -26,8 +26,8 @@ struct ChatMessage: Identifiable, Equatable {
     let links: [AssistantLink]
     /// The answer drawn as cards (UX-01 PR5); empty for every reply without one, which is then shown as text.
     let cards: [AssistantCard]
-    /// The cards the user switched themselves, by position (K6-A); a card not here follows the profile's default.
-    var modes: [Int: AnswerMode] = [:]
+    /// The cards the user opened with "Tümünü göster", by position; every card starts closed.
+    var expanded: Set<Int> = []
 
     init(role: Role, text: String, state: State = .sent, links: [AssistantLink] = [], cards: [AssistantCard] = [],
          id: UUID = UUID()) {

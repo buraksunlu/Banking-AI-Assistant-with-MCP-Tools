@@ -1,28 +1,22 @@
 import SwiftUI
 
-/// One answer card (UX-01 B): the subject and period, the big figure, its change, the blocks of the chosen mode and the code's
-/// one sentence. It draws the card as it came; the switch in its corner shows or hides the detailed part (UX-E).
+/// One answer card (UX-01 B): the subject and period, the big figure, its change, the first rows and the code's one sentence.
+/// "Tümünü göster" under the rows opens the rest in place (16 Nov 2026 review, replacing Basit/Detaylı); a card without rows has
+/// its answer's transactions inside, the first five, with the way to the whole list.
 struct AnswerCard: View {
     let card: AssistantCard
-    let mode: AnswerMode
-    let select: (AnswerMode) -> Void
+    let expanded: Bool
+    /// The link whose transactions go inside this card, or nil (`CardDisplay.cardTransactions`).
+    var transactions: AssistantLink?
+    var list: (AssistantLink) -> TransactionHistoryViewModel = { _ in fatalError("A card with transactions needs their list.") }
+    let toggle: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Layout.medium) {
-            HStack(alignment: .center, spacing: Layout.small) {
-                Text(card.title)
-                    .font(Typography.eyebrow)
-                    .foregroundStyle(Palette.secondaryText.color)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer(minLength: Layout.small)
-                if CardDisplay.hasDetail(card) {
-                    Picker("Cevap biçimi", selection: Binding(get: { mode }, set: select)) {
-                        ForEach(AnswerMode.allCases, id: \.self) { Text($0.title).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    .fixedSize()
-                }
-            }
+            Text(card.title)
+                .font(Typography.eyebrow)
+                .foregroundStyle(Palette.secondaryText.color)
+                .accessibilityAddTraits(.isHeader)
             VStack(alignment: .leading, spacing: Layout.tight) {
                 Text(card.headline.text)
                     .font(Typography.balance)
@@ -38,14 +32,22 @@ struct AnswerCard: View {
                     .foregroundStyle(Palette.secondaryText.color)
                 }
             }
-            ForEach(Array(CardDisplay.blocks(card, mode: mode).enumerated()), id: \.offset) { _, block in
+            ForEach(Array(CardDisplay.blocks(card, expanded: expanded).enumerated()), id: \.offset) { _, block in
                 CardBlockView(block: block)
             }
-            Text(card.sentence)
-                .font(Typography.body)
-                .foregroundStyle(Palette.primaryText.color)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            ForEach(Array(CardDisplay.notes(card, mode: mode).enumerated()), id: \.offset) { _, note in
+            if let title = CardDisplay.moreTitle(card, expanded: expanded) {
+                MoreLine(title: title, expanded: expanded, action: toggle)
+            }
+            if let transactions {
+                CardTransactions(link: transactions, list: list)
+            }
+            if CardDisplay.showsSentence(withTransactions: transactions != nil) {
+                Text(card.sentence)
+                    .font(Typography.body)
+                    .foregroundStyle(Palette.primaryText.color)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            ForEach(Array(CardDisplay.notes(card).enumerated()), id: \.offset) { _, note in
                 Text(note)
                     .font(Typography.caption)
                     .foregroundStyle(Palette.secondaryText.color)
@@ -54,7 +56,83 @@ struct AnswerCard: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardSurface()
-        .motion(value: mode)
+        .motion(value: expanded)
+    }
+}
+
+/// "Tümünü göster (7)" / "Daha az göster": the whole line is the button, at least 44 pt tall.
+private struct MoreLine: View {
+    let title: String
+    let expanded: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Layout.tight) {
+                Text(title)
+                Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                    .font(.caption.weight(.semibold))
+                    .accessibilityHidden(true)
+                Spacer(minLength: 0)
+            }
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(Palette.accent.color)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// The answer's transactions inside its card (Bulgu 1): the first page of the link's own search, its first five rows, and the
+/// whole list when there are more. The rows and the count are the backend's; the phone adds nothing up.
+private struct CardTransactions: View {
+    let link: AssistantLink
+    let list: (AssistantLink) -> TransactionHistoryViewModel
+    @State private var model: TransactionHistoryViewModel
+
+    init(link: AssistantLink, list: @escaping (AssistantLink) -> TransactionHistoryViewModel) {
+        self.link = link
+        self.list = list
+        _model = State(initialValue: list(link))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if model.items.isEmpty, let message = model.errorMessage {
+                StatusBand(text: message, actionTitle: "Tekrar dene") { Task { await model.retry() } }
+            } else if model.items.isEmpty && !model.loadedOnce {
+                TransactionSkeletonRows(items: Array(Skeleton.history(firstPage: false).prefix(CardDisplay.previewRows)),
+                                        verticalPadding: Layout.small)
+                    .skeleton()
+            } else {
+                ForEach(Array(model.items.prefix(CardDisplay.previewRows))) { item in
+                    HairlineDivider()
+                    TransactionRow(item: item)
+                        .padding(.vertical, Layout.small)
+                }
+                if let title = CardDisplay.allTransactionsTitle(total: model.totalCount) {
+                    HairlineDivider()
+                    NavigationLink {
+                        LinkedTransactionsView(link: link, model: list(link))
+                    } label: {
+                        HStack(spacing: Layout.tight) {
+                            Text(title)
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .accessibilityHidden(true)
+                            Spacer(minLength: 0)
+                        }
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(Palette.accent.color)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .task { if model.items.isEmpty { await model.loadMore() } }
     }
 }
 
