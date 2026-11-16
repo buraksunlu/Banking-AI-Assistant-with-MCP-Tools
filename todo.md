@@ -554,12 +554,16 @@ yoklama; gerekirse sonra SSE). Her madde kendi detaylı planıyla, kullanıcı o
   Sunum (16 Kasım 2026 kullanıcı sorusu): canlı DB'de yapılır ("bu sabah kahve aldım, şimdi soruyorum"); R5-A/R6-A yalnız testleri ve
   ölçümleri sabit kopyaya bağlar. Sabit demo DB yedektir (bağlantı adresiyle saniyeler içinde geçilir); sunum sabahı canlı veriyle prova.
 - [ ] RT-04 — Günlük piyasa verisi (TCMB, gold-api; simülatör içinde, hata yalnız log).
-- [ ] RT-05a — Altı personada zenginlik, canlıya ilk yazmadan önce (16 Kasım 2026 kullanıcı isteği: "bütün tool'ları ve feature'ları en iyi
-  şekilde gösterecek çeşitlilik"). Kararlar T1-A (önce zenginleştir, sonra tek yazma) T2-C (şimdi altı persona, yeni personalar RT-05'te)
-  T3-A (personalar Can Kırtasiye'den alır, çift; dükkândan Can'a transfer satışların taşıyacağı tutara iner) T4-A (elektronik "Diğer") T5-A
-  (her yıl tekrar eden takvim kuralları, bitiş yok). İçerik: bayram/Black Friday/yılbaşı/ara tatil/14 Şubat olayları, Seyahat ve Diğer
-  kategorileri, Elif'in TL hesabı (Aralık İstanbul ziyareti), ikramiye ve emekli zammı, abonelik başlama/iptal/zam, tek seferlik büyük
-  kalemler, rastgele dakika ve gün içi yoğunluk.
+- [x] RT-05a — Altı personada zenginlik, canlıya ilk yazmadan önce (16 Kasım 2026 kullanıcı isteği: "bütün tool'ları ve feature'ları en iyi
+  şekilde gösterecek çeşitlilik"; docs/database-design.md "RT-05a"). Kararlar T1-A (önce zenginleştir, sonra tek yazma) T2-C (şimdi altı
+  persona, yeni personalar RT-05'te) T3-A (personalar Can Kırtasiye'den alır: alışveriş + satış çifti; dükkândan Can'a 18.000 → 3.000) T4-A
+  (elektronik "Diğer") T5-A (her yıl tekrar eden takvim, bitiş yok). Takvim: 20 Ekim tatil (14.800), 29 Ekim konser, 5 Kasım dolar müşterisi,
+  10 Kasım çocuk doktoru, Black Friday (Kasım'ın son cuması: Teknosa 21.999 Diğer, Zara 4.850), 15 Aralık ikramiye 42.500, yılbaşı hediyeleri,
+  Elif'in uçuşu (312 EUR) ve TL hesabından İstanbul ziyareti (8.700), 8–10 Ocak indirim, 10 Ocak ara tatil (26.000 Seyahat), 14 Ocak diş
+  hekimi (9.500), Ocak zamları (Netflix 249,99, emekli maaşı 25.300), YouTube Premium (3 Aralık'tan), Figma iptali (Ocak'tan), 6 Şubat noter,
+  14 Şubat yemekleri, 15 Mart oto servis, 8 Eylül okul kırtasiyesi. Yeni günlük alışkanlıklar (yemek siparişi, kahve, bakkal, simit,
+  scooter, kargo) ve rastgele dakika. Data 208 → 223, 9 kasıtlı bozma yakalandı. Kuru çalıştırma: 153 → 222 işlem, 11 kategorinin hepsi,
+  40 işyeri. Sınır: Can'ın hesabı ~Mayıs 2027, dükkân ~Haziran 2027'de tükenir (dükkânın tek geliri personalar; RT-05 dükkân müşterileri).
 - [ ] RT-05 — Çeşitliliğin geri kalanı: personalar ~20, işyerleri ~150, aynı işyerinin farklı ham açıklamaları, mevsim ve indirim dönemleri.
 - [ ] RT-06 — İade/iptal (KIND-06; yeni `Kind`, migration).
 

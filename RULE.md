@@ -1378,6 +1378,9 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Canlı veride çeşitlilik (RT-05a, 16 Kasım 2026; docs/database-design.md "RT-05a"): her yıl tekrar eden takvim olayları, abonelik
+  başlama/iptal/zam, ikramiye ve emekli zammı, Seyahat/Diğer, Elif'in TL hesabı, Can Kırtasiye alışveriş çiftleri, rastgele dakika. Kimlik
+  plan adından geldiği için canlıya yazılmış bir günün planı değiştirilmez; yeni olay yalnız yazılmamış günlere eklenir.
 - Canlı simülatör motoru (RT-02a, 16 Kasım 2026; docs/database-design.md "RT-02a"): `Data/Simulation` (gün planı, yetiştirme), CLI
   `simulate catch-up` yalnız canlı DB'ye yazar (sabit DB'de reddedilir), kimlik plan adından (tekrar çift yazmaz). Canlıya ilk yazma
   RT-05a çeşitliliğinden sonra (T1-A).

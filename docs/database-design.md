@@ -431,3 +431,19 @@ onun devamını alır.
 - **CLI:** `scripts/live-cli.sh simulate catch-up [--until <ISO-8601>] [--dry-run]`; `--until` şimdiden sonrasını kabul etmez.
   `scripts/live-env.sh` canlı adresi `run-live.sh` ile ortak türetir.
 
+## RT-05a: canlı veride çeşitlilik (16 Kasım 2026)
+
+Amaç: canlı veride her aracın ve kartın gösterilecek bir şeyi olsun. Altı persona korunur (T2-C), şema değişmez.
+
+- **Takvim (T5-A):** `OnDate(ay, gün)` her yıl tekrar eder; Black Friday Kasım'ın son cumasıdır. Abonelik değişiklikleri tarihlidir
+  (YouTube Premium 3 Aralık 2026'dan, Figma Aralık 2026'da son, Netflix Ocak 2027'den 249,99; ±%10 içinde, düzenli ödeme bozulmaz).
+- **Araçların gördüğü:** tek seferlik büyük kalemler (en büyük harcamalar), Ocak'ta her zamankinin çok üstünde Seyahat (öneri kuralı),
+  "Diğer" elektronik (gelir payında "Bilinmiyor"), ikramiye ve emekli zammı (gelir tabanı), iptal edilen abonelik (yaklaşan ödemelerden
+  düşer), Elif'te iki para birimi, kategorisiz kart ödemesi (VAL-04).
+- **Dükkân (T3-A):** Selin, Murat ve Zeynep'in Can Kırtasiye alışverişi bir çifttir: alışveriş bacağı (Diğer, işyeri adıyla) + dükkânda
+  Sale bacağı ("Can Kırtasiye satış geliri"). Dükkândan Can'a aylık transfer 3.000 TL. Sınır: dükkânın tek geliri personalar olduğu için Can
+  ~Mayıs 2027, dükkân ~Haziran 2027'de tükenir; sonrası atlanır ve log'a yazılır (RT-05: dükkân müşterisi personalar).
+- **Canlı akış:** arka plan işlemleri saat aralığında rastgele dakikada; iş günü ortalaması ≥ 6 alışveriş. Sabit ödemeler (maaş, fatura)
+  banka saatinde kalır.
+- **Kural:** canlıya yazılmış günün planı değişmez (aynı kimlik, farklı içerik = çakışma); yeni olay yalnız gelecek günlere eklenir.
+
