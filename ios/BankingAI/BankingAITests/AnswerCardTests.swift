@@ -20,6 +20,14 @@ private let simpleOnly = #"""
  "sentence":"9 Ekim 2026: 1 harcama, toplam 145,00 TL."}
 """#
 
+/// UX-01 PR6a: Murat's upcoming payments as a list block, with code's note and a headline that is not money.
+private let listCard = #"""
+{"title":"Yaklaşan ödemeler · 10-17 Ekim 2026","headline":{"amount":null,"currency":null,"text":"229,99 TL"},"change":null,
+ "simple":[{"kind":"list","rows":[],"points":[],"items":[],"highlight":null,
+            "entries":[{"label":"Netflix","detail":"12 Ekim 2026 · 2 gün sonra","text":"229,99 TL","direction":null}]}],
+ "detailed":[],"sentence":"Tahmini toplam 229,99 TL.","notes":["Tarih ve tutarlar tahmindir."]}
+"""#
+
 private let broken = #"{"title":"Bozuk","headline":{"amount":1,"currency":"TRY","text":"1,00 TL"},"change":null,"simple":[{"kind":"pie","rows":[],"points":[],"items":[],"highlight":null}],"detailed":[],"sentence":"x"}"#
 
 private func reply(cards: String?) -> String {
@@ -27,7 +35,7 @@ private func reply(cards: String?) -> String {
     return #"{"type":"Answer","answer":"Market: önceki döneme göre 6.072,00 TL fazla.","toolCalls":[],"facts":[],"suggestions":[],"choices":[],"inputHint":"","links":[]\#(field)}"#
 }
 
-private func decoded(_ body: String) throws -> AssistantReply {
+@MainActor private func decoded(_ body: String) throws -> AssistantReply {
     try JSONDecoder().decode(AssistantReply.self, from: Data(body.utf8))
 }
 
@@ -57,6 +65,31 @@ struct AnswerCardTests {
 
     @Test func aReplyWithoutCardsHasNone() throws {
         #expect(try decoded(reply(cards: nil)).cards.isEmpty)
+    }
+
+    @Test func aListCardCarriesItsLinesAndItsNotes() throws {
+        let card = try #require(try decoded(reply(cards: listCard)).cards.first)
+
+        #expect(card.simple.first?.kind == .list)
+        #expect(card.simple.first?.entries == [CardEntry(label: "Netflix", detail: "12 Ekim 2026 · 2 gün sonra", text: "229,99 TL",
+                                                         direction: nil)])
+        #expect(card.headline.text == "229,99 TL")
+        #expect(card.notes == ["Tarih ve tutarlar tahmindir."])
+    }
+
+    @Test func aCardOfAnOlderServiceHasNoNotesAndNoLines() throws {
+        // PR4's cards had neither field: they are read as empty, not as broken.
+        let card = try #require(try decoded(reply(cards: marketCard)).cards.first)
+
+        #expect(card.notes.isEmpty)
+        #expect(card.simple.first?.entries.isEmpty == true)
+    }
+
+    @Test(arguments: [AnswerMode.simple, .detailed])
+    func theNotesAreShownInEitherMode(mode: AnswerMode) throws {
+        let card = try #require(try decoded(reply(cards: listCard)).cards.first)
+
+        #expect(CardDisplay.notes(card, mode: mode) == ["Tarih ve tutarlar tahmindir."])
     }
 
     // MARK: Drawing

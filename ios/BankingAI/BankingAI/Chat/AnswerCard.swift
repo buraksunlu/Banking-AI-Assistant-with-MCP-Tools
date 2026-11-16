@@ -45,6 +45,12 @@ struct AnswerCard: View {
                 .font(Typography.body)
                 .foregroundStyle(Palette.primaryText.color)
                 .frame(maxWidth: .infinity, alignment: .leading)
+            ForEach(Array(CardDisplay.notes(card, mode: mode).enumerated()), id: \.offset) { _, note in
+                Text(note)
+                    .font(Typography.caption)
+                    .foregroundStyle(Palette.secondaryText.color)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardSurface()
@@ -61,6 +67,7 @@ struct CardBlockView: View {
         case .bars: BarsBlock(rows: block.rows)
         case .series: SeriesBlock(points: block.points, highlight: block.highlight)
         case .stats: StatsBlock(items: block.items)
+        case .list: ListBlock(entries: block.entries)
         }
     }
 }
@@ -146,6 +153,43 @@ private struct StatsBlock: View {
             ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                 if index > 0 { HairlineDivider() }
                 DetailRow(label: item.label, value: item.text)
+            }
+        }
+    }
+}
+
+/// Payments or purchases, one under another: the name and its amount on the first line, where and when on the second.
+private struct ListBlock: View {
+    let entries: [CardEntry]
+    @Environment(\.dynamicTypeSize) private var textSize
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(entries.enumerated()), id: \.offset) { index, entry in
+                if index > 0 { HairlineDivider() }
+                VStack(alignment: .leading, spacing: Layout.tight) {
+                    let layout = textSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: Layout.tight))
+                                                              : AnyLayout(HStackLayout(alignment: .firstTextBaseline))
+                    layout {
+                        Text(entry.label)
+                            .font(Typography.body)
+                            .foregroundStyle(Palette.primaryText.color)
+                        if !textSize.isAccessibilitySize { Spacer(minLength: Layout.small) }
+                        HStack(spacing: Layout.tight) {
+                            if let direction = entry.direction, let symbol = CardDisplay.symbol(direction) {
+                                Image(systemName: symbol).font(.caption).accessibilityHidden(true)
+                            }
+                            Text(entry.text).font(Typography.body.monospacedDigit())
+                        }
+                        .foregroundStyle(Palette.primaryText.color)
+                    }
+                    Text(entry.detail)
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.secondaryText.color)
+                }
+                .padding(.vertical, Layout.small)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("\(entry.label), \(entry.text), \(entry.detail)")
             }
         }
     }

@@ -245,7 +245,7 @@ def _upcoming(arguments: dict, result: dict) -> ToolOutcome:
     payments = result["payments"]
     for payment in payments[:LIST_LIMIT]:
         text = (f"tahmini {money(payment['estimatedAmount'], payment['currencyCode'])}; "
-                f"tahmini tarih {_day(payment['estimatedDate'])} ({_when(payment['daysUntil'], payment['isOverdue'])})")
+                f"tahmini tarih {_day(payment['estimatedDate'])} ({when(payment['daysUntil'], payment['isOverdue'])})")
         facts.append(_fact(payment["merchant"], text))
     facts.extend(_rest(payments, "ödeme", ""))
     totals = result["totals"]
@@ -564,7 +564,8 @@ def _change(amount, currency: str) -> str:
     return f"{money(abs(amount), currency)} {'artış' if amount > 0 else 'azalış'}"
 
 
-def _when(days: int, overdue: bool) -> str:
+def when(days: int, overdue: bool) -> str:
+    """How soon a payment is due: "2 gün sonra", "bugün", or how late it is."""
     if overdue:
         return f"{abs(days)} gün gecikti, henüz ödenmedi"
     return "bugün" if days == 0 else f"{days} gün sonra"

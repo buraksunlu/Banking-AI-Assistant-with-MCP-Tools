@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
+from facts import RECURRING_RULE, UNCLASSIFIED, UPCOMING_RULE, when as _when
 from formatting import day, money, month, percent, period
 
 logger = logging.getLogger(__name__)
@@ -25,10 +26,10 @@ SHORT_MONTHS = ("Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl",
 
 @dataclass(frozen=True)
 class Headline:
-    """The big figure of a card."""
+    """The big figure of a card; ``amount`` and ``currency`` are None when the figure is not money (a share, UX-01 PR6 K7-B)."""
 
-    amount: Decimal
-    currency: str
+    amount: Decimal | None
+    currency: str | None
     text: str
 
 
@@ -74,14 +75,26 @@ class Stat:
 
 
 @dataclass(frozen=True)
+class Entry:
+    """One line of a ``list`` block (UX-01 PR6a): a payment, a purchase; ``detail`` is its second line, ``direction`` an arrow."""
+
+    label: str
+    detail: str
+    text: str
+    direction: str | None = None
+
+
+@dataclass(frozen=True)
 class Block:
-    """A part of a card: ``bars`` uses ``rows``, ``series`` ``points`` (and ``highlight``), ``stats`` ``items``."""
+    """A part of a card: ``bars`` uses ``rows``, ``series`` ``points`` (and ``highlight``), ``stats`` ``items``, ``list``
+    ``entries``."""
 
     kind: str
     rows: tuple[Bar, ...] = ()
     points: tuple[Point, ...] = ()
     items: tuple[Stat, ...] = ()
     highlight: str | None = None
+    entries: tuple[Entry, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -94,14 +107,18 @@ class Card:
     simple: tuple[Block, ...]
     detailed: tuple[Block, ...]
     sentence: str
+    # UX-01 PR6 K4-A: code's own fixed sentences (an estimate's rule, an investment warning), always shown under the card.
+    notes: tuple[str, ...] = ()
 
 
 def cards_for(tool: str, arguments: dict, result: dict) -> list[Card]:
     """The cards of one tool result, one per currency; [] for a tool without cards or a result the code cannot read."""
-    build = _BUILDERS.get(tool)
-    if build is None:
+    build, whole = _BUILDERS.get(tool), _WHOLE_BUILDERS.get(tool)
+    if build is None and whole is None:
         return []
     try:
+        if whole is not None:
+            return whole(arguments, result)
         rows = result["currencies"]
         return [build(arguments, result, row, _suffix(row, rows)) for row in rows if _has_card(tool, result)]
     except (KeyError, TypeError, ValueError, IndexError) as error:
@@ -119,7 +136,8 @@ def card_texts(card: Card) -> list[str]:
         texts += [t for bar in block.rows for t in (bar.label, bar.text)]
         texts += [t for point in block.points for t in (point.label, point.text)]
         texts += [t for stat in block.items for t in (stat.label, stat.text)]
-    return texts
+        texts += [t for entry in block.entries for t in (entry.label, entry.detail, entry.text)]
+    return [*texts, *card.notes]
 
 
 def _has_card(tool: str, result: dict) -> bool:
@@ -211,13 +229,69 @@ def _trend(arguments: dict, result: dict, row: dict, suffix: str) -> Card:
                 (Block("stats", items=items),), sentence)
 
 
+def _merchants(arguments: dict, result: dict, row: dict, suffix: str) -> Card:
+    currency, merchants = row["currencyCode"], row["merchants"][:FACT_ROWS]
+    bars = _bars([(m["displayName"], m["amount"], f"{money(m['amount'], currency)} · {percent(m['percentage'])}", None)
+                  for m in merchants])
+    sentence = f"En büyük pay {merchants[0]['displayName']}: {percent(merchants[0]['percentage'])}."
+    return Card(f"İşyerleri · {_label(result['period'])}{suffix}", _headline(row["totalAmount"], currency), None,
+                _part(bars[:SIMPLE_ROWS]), _part(bars[SIMPLE_ROWS:]), sentence)
+
+
+def _highest(arguments: dict, result: dict, row: dict, suffix: str) -> Card:
+    items = row["items"][:FACT_ROWS]
+    entries = [Entry(i["merchant"] or UNCLASSIFIED, " · ".join(filter(None, [i["categoryDisplayName"], _day(i["localDate"])])),
+                     money(i["amount"], i["currencyCode"])) for i in items]
+    first = items[0]
+    sentence = f"En büyüğü {entries[0].label}: {money(first['amount'], first['currencyCode'])}."
+    return Card(f"En büyük harcamalar · {_label(result['period'])}{suffix}", _headline(first["amount"], first["currencyCode"]), None,
+                _list(entries[:SIMPLE_ROWS]), _list(entries[SIMPLE_ROWS:]), sentence)
+
+
+def _recurring(arguments: dict, result: dict) -> list[Card]:
+    # The facts list the first five payments of all currencies together; a card shows its own currency's among them.
+    shown, totals = result["payments"][:FACT_ROWS], result["monthlyTotals"]
+    title = f"Düzenli ödemeler · {_label(result['period'])}"
+    cards = []
+    for total in totals:
+        currency = total["currencyCode"]
+        entries = [Entry(p["merchant"], f"{p['categoryDisplayName']} · sonraki {_day(p['pattern']['nextExpectedDate'])}",
+                         f"{money(p['pattern']['latestAmount'], currency)} / ay") for p in shown if p["currencyCode"] == currency]
+        amount = money(total["monthlyTotal"], currency)
+        cards.append(Card(f"{title}{_suffix(total, totals)}", _headline(total["monthlyTotal"], currency), None,
+                          _list(entries[:SIMPLE_ROWS]), _list(entries[SIMPLE_ROWS:]), f"Aylık toplam {amount}.", (RECURRING_RULE,)))
+    return cards if result["payments"] else []
+
+
+def _upcoming(arguments: dict, result: dict) -> list[Card]:
+    shown, totals = result["payments"][:FACT_ROWS], result["totals"]
+    title = f"Yaklaşan ödemeler · {period(date.fromisoformat(result['from']), date.fromisoformat(result['to']))}"
+    cards = []
+    for total in totals:
+        currency = total["currencyCode"]
+        entries = [Entry(p["merchant"], f"{_day(p['estimatedDate'])} · {_when(p['daysUntil'], p['isOverdue'])}",
+                         money(p["estimatedAmount"], currency)) for p in shown if p["currencyCode"] == currency]
+        amount = money(total["estimatedTotal"], currency)
+        cards.append(Card(f"{title}{_suffix(total, totals)}", _headline(total["estimatedTotal"], currency), None,
+                          _list(entries[:SIMPLE_ROWS]), _list(entries[SIMPLE_ROWS:]), f"Tahmini toplam {amount}.", (UPCOMING_RULE,)))
+    return cards if result["payments"] else []
+
+
 _BUILDERS = {
     "get_spending_summary": _summary,
+    "get_merchant_breakdown": _merchants,
+    "get_highest_transactions": _highest,
     "get_category_breakdown": _categories,
     "get_category_spending": _category_spending,
     "get_merchant_spending": _merchant,
     "compare_spending": _comparison,
     "get_monthly_trend": _trend,
+}
+
+# Results that are not one row per currency: the builder makes its own cards, one per currency of its totals.
+_WHOLE_BUILDERS = {
+    "get_recurring_payments": _recurring,
+    "get_upcoming_payments": _upcoming,
 }
 
 
@@ -245,6 +319,14 @@ def _share(amount: Decimal, largest: Decimal) -> Decimal:
 
 def _part(bars: list[Bar]) -> tuple[Block, ...]:
     return (Block("bars", rows=tuple(bars)),) if bars else ()
+
+
+def _list(entries: list[Entry]) -> tuple[Block, ...]:
+    return (Block("list", entries=tuple(entries)),) if entries else ()
+
+
+def _day(text: str) -> str:
+    return day(date.fromisoformat(text))
 
 
 def _change(delta: Decimal, rate: Decimal | None, previous: dict, previous_amount: Decimal, currency: str) -> Change:

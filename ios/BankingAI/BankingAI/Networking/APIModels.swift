@@ -83,9 +83,24 @@ struct AssistantCard: Decodable, Equatable, Hashable {
     let simple: [CardBlock]
     let detailed: [CardBlock]
     let sentence: String
+    /// Code's fixed sentences under the card (an estimate's rule, an investment warning; UX-01 PR6 K4-A); none from an older API.
+    let notes: [String]
+
+    private enum Keys: String, CodingKey { case title, headline, change, simple, detailed, sentence, notes }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: Keys.self)
+        title = try values.decode(String.self, forKey: .title)
+        headline = try values.decode(CardHeadline.self, forKey: .headline)
+        change = try values.decodeIfPresent(CardChange.self, forKey: .change)
+        simple = try values.decode([CardBlock].self, forKey: .simple)
+        detailed = try values.decode([CardBlock].self, forKey: .detailed)
+        sentence = try values.decode(String.self, forKey: .sentence)
+        notes = try values.decodeIfPresent([String].self, forKey: .notes) ?? []
+    }
 }
 
-/// The card's big figure, written by the AI service.
+/// The card's big figure, written by the AI service; it may be a share rather than money (UX-01 PR6 K7-B), so only its text is read.
 struct CardHeadline: Decodable, Equatable, Hashable {
     let text: String
 }
@@ -103,11 +118,12 @@ struct CardChange: Decodable, Equatable, Hashable {
     let text: String
 }
 
-/// A part of a card: bars (`rows`), a monthly series (`points`, the month to point out in `highlight`) or label–value pairs
-/// (`items`). A kind this app does not know fails the card, which is then dropped.
+/// A part of a card: bars (`rows`), a monthly series (`points`, the month to point out in `highlight`), label–value pairs
+/// (`items`) or lines of payments and purchases (`entries`, UX-01 PR6a). A kind this app does not know fails the card, which is
+/// then dropped.
 struct CardBlock: Decodable, Equatable, Hashable {
     enum Kind: String, Decodable, Hashable {
-        case bars, series, stats
+        case bars, series, stats, list
     }
 
     let kind: Kind
@@ -115,6 +131,28 @@ struct CardBlock: Decodable, Equatable, Hashable {
     let points: [CardPoint]
     let items: [CardStat]
     let highlight: String?
+    let entries: [CardEntry]
+
+    private enum Keys: String, CodingKey { case kind, rows, points, items, highlight, entries }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: Keys.self)
+        kind = try values.decode(Kind.self, forKey: .kind)
+        rows = try values.decode([CardBar].self, forKey: .rows)
+        points = try values.decode([CardPoint].self, forKey: .points)
+        items = try values.decode([CardStat].self, forKey: .items)
+        highlight = try values.decodeIfPresent(String.self, forKey: .highlight)
+        // An API older than UX-01 PR6a sends no entries; only a list block draws them.
+        entries = try values.decodeIfPresent([CardEntry].self, forKey: .entries) ?? []
+    }
+}
+
+/// A line of a list block: a payment or a purchase, its second line (`detail`) and its amount, with an optional arrow.
+struct CardEntry: Decodable, Equatable, Hashable {
+    let label: String
+    let detail: String
+    let text: String
+    let direction: CardDirection?
 }
 
 /// A bar: `share` (0–1, the AI service's) is its length, for drawing only; `direction` only in a change's drivers.

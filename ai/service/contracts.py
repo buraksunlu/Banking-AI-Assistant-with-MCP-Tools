@@ -121,10 +121,10 @@ Amount = Annotated[Decimal, PlainSerializer(_json_number, return_type=float, whe
 
 
 class HeadlineOut(BaseModel):
-    """The big figure of a card (UX-01 PR4)."""
+    """The big figure of a card (UX-01 PR4); ``amount`` and ``currency`` are null for a figure that is not money (PR6 K7-B)."""
 
-    amount: Amount
-    currency: str
+    amount: Amount | None
+    currency: str | None
     text: str
 
 
@@ -165,14 +165,24 @@ class StatOut(BaseModel):
     text: str
 
 
+class EntryOut(BaseModel):
+    """A ``list`` line (UX-01 PR6a): a payment or a purchase, with its second line and an optional arrow."""
+
+    label: str
+    detail: str
+    text: str
+    direction: str | None
+
+
 class BlockOut(BaseModel):
-    """A part of a card; the list its ``kind`` names is filled, the other two are empty."""
+    """A part of a card; the list its ``kind`` names is filled, the other three are empty."""
 
     kind: str
     rows: list[BarOut]
     points: list[PointOut]
     items: list[StatOut]
     highlight: str | None
+    entries: list[EntryOut]
 
 
 class CardOut(BaseModel):
@@ -184,6 +194,8 @@ class CardOut(BaseModel):
     simple: list[BlockOut]
     detailed: list[BlockOut]
     sentence: str
+    # UX-01 PR6 K4-A: code's fixed sentences under the card (an estimate's rule, an investment warning); [] when there are none.
+    notes: list[str]
 
 
 class ChatResponse(BaseModel):

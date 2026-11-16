@@ -56,7 +56,8 @@ Sohbet kapısı (AI-14b + AI-07, .NET): iPhone yalnız .NET'e konuşur. `POST /a
 müşteri model çalışmadan 401) → `IAssistantClient` (`Api/Assistant/AssistantClient`, typed `HttpClient`) aynı `Authorization`
 başlığıyla `/v1/chat`'e → `AssistantReply` (`Suggestions` dahil, eksikse 502; UX-01 PR4 `Cards`: her kart ayrı ve katı sayıyla
 (`JsonNumberHandling.Strict`, istemcinin geri kalanı `JsonSerializerOptions.Web` ile okur) çözülür, okunamayan kart düşer + log, cevap 200 kalır;
-alan yoksa `[]`); `GET /api/assistant/status` hep 200 `{available}`;
+alan yoksa `[]`; PR6a: `list` bloğu `entries` ister, `notes` içinde `null` ya da başlıkta tutarsız `amount`/`currency` kartı düşürür, eski
+servisin eksik `entries`/`notes`'u boş sayılır); `GET /api/assistant/status` hep 200 `{available}`;
 `GET /api/assistant/suggestions` → `/v1/suggestions` (hatalar mesajınkiyle aynı, hız sınırı dışında). AI hataları `AssistantException`
 (`Unavailable`/`Timeout`/`Failed`) → `ApiExceptionHandler`'da 503/504/502. Ayarlar `BANKINGAI_AI_URL` (yoksa `http://127.0.0.1:8000/`),
 `BANKINGAI_AI_TIMEOUT_SECONDS` (35). Müşteri başına dakikada 10 mesaj: **`UseRateLimiter` `UseAuthorization`'dan sonra** gelmeli
