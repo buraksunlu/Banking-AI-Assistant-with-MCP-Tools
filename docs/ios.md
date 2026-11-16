@@ -877,3 +877,25 @@ Chat/CardDisplay.swift          + notes(_:mode:) (her iki modda)
 Chat/AnswerCard.swift           + ListBlock, notlar
 ```
 
+## iOS-z: "Tümünü göster" ve kartın içindeki işlemler (16 Kasım 2026, simülatör incelemesi, #95)
+
+Kullanıcının simülatör incelemesinden iki bulgu; backend ve kart sözleşmesi değişmedi.
+
+- **Basit/Detaylı kalktı (Bulgu 2):** kart anahtarı ve Profil'deki "Cevap biçimi" (`AnswerPreferences`) silindi. Kartın `simple` kısmı
+  her zaman, `detailed` kısmı kartın altındaki satırla açılır: "Tümünü göster (N)" (N = iki kısmın `rows` + `entries` sayısı, backend'in
+  satırları; hesap yok), kalanında satır yoksa "Ayrıntıları göster", açıkken "Daha az göster". Açık kartlar `ChatMessage.expanded`
+  (konum kümesi); dokunmak istek atmaz. `notes` her zaman görünür.
+- **İşlemler kartın içinde (Bulgu 1):** tek kartlı ve tek bağlantılı cevapta kartın hiç satırı yoksa (özet, işyeri)
+  `CardDisplay.cardTransactions` bağlantıyı karta verir: `CardTransactions` bağlantının aramasının ilk sayfasını yükler, ilk 5 satırı
+  gösterir; `totalCount` > 5 ise "Tümünü göster (N)" `LinkedTransactionsView`'u açar. Kartın cümlesi (büyük rakamın tekrarı) bu kartta
+  gösterilmez; bağlantı kartın altında ikinci kez çıkmaz. Satırlı kartlar "İşlemleri gör"ü altında tutar.
+
+```text
+Chat/CardDisplay.swift     blocks(_:expanded:), moreTitle, cardTransactions, allTransactionsTitle, showsSentence, previewRows = 5
+Chat/AnswerCard.swift      MoreLine, CardTransactions; anahtar yok
+Chat/ChatMessage.swift     modes → expanded
+Chat/ChatViewModel.swift   isExpanded / toggleExpanded; preferences yok
+Chat/AskSheet.swift        AnswerMode.swift'ten kalan tek parça
+Profile/ProfileView.swift  "Cevap biçimi" yok
+```
+
