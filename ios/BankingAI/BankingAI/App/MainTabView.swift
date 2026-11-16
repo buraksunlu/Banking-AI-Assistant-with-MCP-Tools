@@ -16,7 +16,6 @@ struct MainTabView: View {
     @State private var category: CategoryBreakdownViewModel
     @State private var monthly: MonthlyTrendViewModel
     @State private var chat: ChatViewModel
-    @State private var preferences: AnswerPreferences
     /// The home screen's question sheet; it shows the same chat as the assistant tab (UX-01 K2-B).
     @State private var sheet = AskSheet()
 
@@ -30,9 +29,7 @@ struct MainTabView: View {
         _income = State(initialValue: IncomeShareViewModel(api: api))
         _category = State(initialValue: CategoryBreakdownViewModel(api: api))
         _monthly = State(initialValue: MonthlyTrendViewModel(api: api))
-        let preferences = AnswerPreferences()
-        _preferences = State(initialValue: preferences)
-        _chat = State(initialValue: ChatViewModel(api: api, preferences: preferences))
+        _chat = State(initialValue: ChatViewModel(api: api))
     }
 
     var body: some View {
@@ -51,7 +48,7 @@ struct MainTabView: View {
             .tabItem { label(.assistant) }
             .tag(AppTab.assistant)
             NavigationStack {
-                ProfileView(model: home, preferences: preferences)
+                ProfileView(model: home)
                     .navigationDestination(for: MyAccountsRoute.self) { _ in
                         MyAccountsView(accounts: accounts, recent: recent)
                     }

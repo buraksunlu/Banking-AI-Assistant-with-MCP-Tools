@@ -7,9 +7,9 @@ struct MessageBubble: View {
     let canRetry: Bool
     /// The list a link under this answer opens; built when the button is tapped (CHAT-07).
     let list: (AssistantLink) -> TransactionHistoryViewModel
-    /// The mode of a card of this answer, by position, and the card's own switch (UX-01 PR5 K6-A).
-    var mode: (Int) -> AnswerMode = { _ in .simple }
-    var select: (Int, AnswerMode) -> Void = { _, _ in }
+    /// Whether a card of this answer is open, by position, and its "Tümünü göster" line.
+    var expanded: (Int) -> Bool = { _ in false }
+    var toggle: (Int) -> Void = { _ in }
     let retry: () -> Void
 
     var body: some View {
@@ -48,11 +48,12 @@ struct MessageBubble: View {
             } else {
                 // The card is the answer (UX-01 K2-A): its sentence is the text, so the text is not shown twice.
                 ForEach(Array(message.cards.enumerated()), id: \.offset) { index, card in
-                    AnswerCard(card: card, mode: mode(index)) { select(index, $0) }
+                    AnswerCard(card: card, expanded: expanded(index), transactions: inside, list: list) { toggle(index) }
                 }
             }
-            // Under its own answer for good, unlike the suggestions: the list is the proof of this answer's figure.
-            ForEach(message.links, id: \.self) { link in
+            // Under its own answer for good, unlike the suggestions: the list is the proof of this answer's figure. A card without
+            // rows has it inside instead (Bulgu 1).
+            ForEach(message.links.filter { $0 != inside }, id: \.self) { link in
                 // A link with its own destination, not a value: a value link pushed after the chat's own destination link
                 // makes the unnamed stack pop straight back (found on the simulator, not by any unit test).
                 NavigationLink {
@@ -70,6 +71,10 @@ struct MessageBubble: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    private var inside: AssistantLink? {
+        CardDisplay.cardTransactions(message.cards, links: message.links)
     }
 
     @ViewBuilder

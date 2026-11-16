@@ -4,7 +4,6 @@ import SwiftUI
 /// the whole history (UX-01 PR2, K6-A), the app's version, and signing out behind a confirmation (K7-B).
 struct ProfileView: View {
     let model: HomeViewModel
-    @Bindable var preferences: AnswerPreferences
     @State private var confirmingSignOut = false
 
     var body: some View {
@@ -27,21 +26,6 @@ struct ProfileView: View {
                     HairlineDivider()
                     ProfileLink(title: "Tüm işlemler", symbol: "list.bullet.rectangle", route: TransactionHistoryRoute())
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .cardSurface(padding: Layout.regular)
-                // UX-01 UX-E: the answer cards' default; each card's own switch overrides it for that card.
-                HStack(spacing: Layout.medium) {
-                    Text("Cevap biçimi")
-                        .font(Typography.body)
-                        .foregroundStyle(Palette.primaryText.color)
-                    Spacer()
-                    Picker("Cevap biçimi", selection: $preferences.mode) {
-                        ForEach(AnswerMode.allCases, id: \.self) { Text($0.title).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    .fixedSize()
-                }
-                .frame(minHeight: 44)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .cardSurface(padding: Layout.regular)
                 if let version = ProfileDisplay.version(Bundle.main.infoDictionary ?? [:]) {
