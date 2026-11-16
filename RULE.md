@@ -1378,6 +1378,9 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Serbest yazılışların ölçümü (CHAT-12 PR1, 16 Kasım 2026; docs/local-ai.md "CHAT-12 PR1"): 80 gerçekçi cümle, dört sonuç (doğru / sordu /
+  cevapsız / yanlış), modelsiz temel testle kilitli. Bugün modelsiz %12,5, modelle %6,2 yanlış; "2 binin üstü" 2 TL okunuyor. Davranış
+  değişmedi; PR2 güvenlik ağı, PR3 kurallar.
 - Cevaptan işlem listesine bağlantı (ACC-01b PR2, 16 Kasım 2026; docs/api.md "links", docs/ios.md "iOS-aa"): gelir, transfer (yön + kişi) ve
   tutar sınırlı arama bağlantı alır, bakiye almaz; liste cevabın rakamıyla aynı toplamı verir. Python'da modelin `null` argümanı düşer (bağlantı
   "null" adlı işyeri arıyordu). Api 606 → 622, iOS 426 → 435, Python 1598; 9 kasıtlı bozma yakalandı. ACC-01b tamam; sıradaki CHAT-12 planı.
