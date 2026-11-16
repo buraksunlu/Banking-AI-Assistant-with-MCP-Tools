@@ -67,13 +67,18 @@ _TENS = {fold_rule(word): number for word, number in {
 
 # The words people use for each category code (INC-03 PR2 measurement: the model filled in OTHER and FOOD for "harcadığım parayla altın
 # alsaydım"). Folded text; the codes are the server's closed set (ToolCategory), the words are only for checking that the user said it.
+# Brands people name a category by ("Netflix bütçem" is the subscriptions' budget); in a question about what was spent, a brand is the
+# merchant (fix after the UX-01 PR3 model run). The key is the word, the value the merchant's name as the backend matches it.
+_BRANDS = {"netflix": "Netflix", "spotify": "Spotify"}
+_BRAND_RULE = re.compile(fold_rule(r"\b(" + "|".join(_BRANDS) + ")"))
+
 _CATEGORY_WORDS = {code: fold_rule(words) for code, words in {
     "FOOD": r"yeme|yemek|içme|restoran|lokanta|kafe|kahve",
     "GROCERY": r"market|bakkal|manav|kasap",
     "CLOTHING": r"giyim|kiyafet|elbise|ayakkabi",
     "TRANSPORTATION": r"ulaşim|ulasim|otobüs|metro|taksi|toplu\s+taşima",
     "ENTERTAINMENT": r"eğlence|eglence|sinema|konser|oyun",
-    "SUBSCRIPTION": r"abonel|abone|üyelik|netflix|spotify",
+    "SUBSCRIPTION": r"abonel|abone|üyelik|" + "|".join(_BRANDS),
     "TRAVEL": r"seyahat|tatil|otel|uçak",
     "FUEL": r"yakit|benzin|akaryakit|mazot",
     "BILLS": r"fatura|elektrik|doğalgaz|internet",
@@ -232,6 +237,12 @@ def category_in(message: str) -> str | None:
     folded = fold_turkish(message)
     named = [code for code, words in _CATEGORY_WORDS.items() if re.search(rf"\b(?:{words})", folded)]
     return named[0] if len(named) == 1 else None
+
+
+def brand_in(message: str) -> str | None:
+    """The one brand the message names, as the merchant's name ("Netflix'e" → "Netflix"); None for none, or for two."""
+    named = {_BRANDS[m.group(1)] for m in _BRAND_RULE.finditer(fold_turkish(message))}
+    return named.pop() if len(named) == 1 else None
 
 
 def mentions_currency(message: str, code) -> bool:

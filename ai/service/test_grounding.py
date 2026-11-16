@@ -392,3 +392,13 @@ def test_no_duration_or_a_part_of_a_month_is_none(text):
 def test_a_duration_is_no_amount(text, amounts):
     assert amounts_in(text) == amounts
     assert unclear_amounts(text) == []
+
+
+@pytest.mark.parametrize("message, merchant", [("Netflix'e ne kadar?", "Netflix"), ("spotify aboneliğim", "Spotify"),
+                                               ("NETFLIX", "Netflix"), ("abonelik harcamam", None),
+                                               ("Netflix ve Spotify", None), ("Migros'a ne kadar?", None)])
+def test_the_one_brand_a_message_names(message, merchant):
+    # Fix after the UX-01 PR3 model run: a brand is a merchant; the category words keep it for the budget and the saving.
+    from grounding import brand_in
+
+    assert brand_in(message) == merchant

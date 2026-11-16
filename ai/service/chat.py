@@ -37,7 +37,7 @@ from ollama_client import OllamaError, OllamaSettings
 from prompts import (ADVICE_DECLINED_TEXT, BARE_CHOICE_TEXT, CLARIFY_TEXT, DATE_SCHEMA, LIRA_ONLY_TEXT, INTENT_SCHEMA, OUT_OF_SCOPE_TEXT, build_clarify_messages, build_date_messages,
                      build_intent_messages, build_tool_messages)
 from dates import CustomerDay, DateReading, check_range, period_line, read_dates, with_span_replaced
-from grounding import category_in, check_arguments, mentions_period, unclear_amounts
+from grounding import brand_in, category_in, check_arguments, mentions_period, unclear_amounts
 from routing import DATE_FIELDS, ONE_OFF, PLANNING, Route, Router, group_of, hide_dates, is_spending_question, narrow, planning_of
 from suggestions import OUT_OF_SCOPE_SUGGESTIONS, AskedStore, OfferedStore, follow_ups, match, panel_questions, result_shape
 from tools import ToolArgumentsRejected, ToolGateway
@@ -349,6 +349,10 @@ class ChatService:
                 return self._ask(ask_period("", {}, message, original=message), [], token, deadline)
             # The model's own text is never shown here: it might promise a transfer it cannot make (K5-A).
             return _out_of_scope()
+        if len(calls) > 1 and {c.tool for c in calls} == {CATEGORY_DETAIL} and brand_in(shown) is not None:
+            # A brand's question the model asked the category detail of twice, once per period ("Netflix'e ne kadar ödedim?", S25 in
+            # the 16 Nov 2026 run): one question, so one call; the said period and the brand are put right below, as for one call.
+            calls = calls[:1]
         if len(calls) > 1:
             # Running only one would show half an answer as a whole one (K2-A); several tools come with CHAT-04.
             return ChatReply("clarification", CLARIFY_TEXT, calls, [])
@@ -377,6 +381,12 @@ class ChatService:
         if grounding.missing is not None:
             return self._ask(self._question_for(call, grounding.unsaid, schemas[call.tool], message), [], token, deadline)
         arguments = grounding.arguments
+        if call.tool == CATEGORY_DETAIL and MERCHANT_TOOL in schemas and (brand := brand_in(shown)) is not None:
+            # A brand is the merchant, not its category: the model took "Netflix'e ne kadar" for the subscriptions' detail, and the
+            # check let it pass because the brand is one of the category's words (16 Nov 2026 model run, S25/A10).
+            call = ToolCall(MERCHANT_TOOL, {})
+            # Without "period" when code read the dates: they are put in below, as for any call.
+            arguments = {"merchant": brand, **{k: v for k, v in arguments.items() if k == "period"}}
         if call.tool == ONE_OFF and "categoryCode" not in arguments and (category := category_in(shown)) is not None:
             # CHAT-09 (model run of PR2, W07): the category the user named and the model left out; without it all spending of the
             # period would be bought. Read from the words, as K13-A reads them.
@@ -500,6 +510,8 @@ class ChatService:
 
 # The period a follow-up is shown instead of the last call's date range (CHAT-08 K7-A): a name the model was measured with.
 MASKED_PERIOD = "ThisMonth"
+CATEGORY_DETAIL = "get_category_spending"
+MERCHANT_TOOL = "get_merchant_spending"
 
 DATE_UNSUPPORTED_TEXT = ("Bu soruyu belirli bir tarih ya da tarih aralığı için cevaplayamıyorum. Belirli tarihler için toplam harcamanıza, "
                          "kategorilere, işyerlerine ve en büyük harcamalarınıza bakabilirim; diğer sorularda bu ay, geçen ay gibi "
