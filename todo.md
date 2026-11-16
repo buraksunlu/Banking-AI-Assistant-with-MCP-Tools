@@ -200,7 +200,7 @@ Kaynak doğrulamasından sonra ve import'tan önce:
 
 ## 10. Database foundation kabulü
 
-- [ ] DB-01 — (19 Ekim 2026: hâlâ açık teknik borç.) Küçük xUnit entegrasyon test projesi kur. Gerçek PostgreSQL'de yalnızca testin sahip olduğu ayrı veritabanını kullansın; aktif demo DB'ye dokunmasın. (13 Ekim durumu: üç test projesi var ama seed edilmiş demo DB'yi kullanıyor; ayrı test DB'si hâlâ açık. KIND-04b'deki "yarım çift" dalının testi buna bağlı.)
+- [ ] DB-01 — (16 Kasım 2026: RT-01 canlıyı ayırdı; testler hâlâ demo DB'yi paylaşır, testin kendi DB'si açık.) (19 Ekim 2026: hâlâ açık teknik borç.) Küçük xUnit entegrasyon test projesi kur. Gerçek PostgreSQL'de yalnızca testin sahip olduğu ayrı veritabanını kullansın; aktif demo DB'ye dokunmasın. (13 Ekim durumu: üç test projesi var ama seed edilmiş demo DB'yi kullanıyor; ayrı test DB'si hâlâ açık. KIND-04b'deki "yarım çift" dalının testi buna bağlı.)
 - [ ] DB-02 — Tüm migration'ları boş test DB'sine uygula. Altı domain tablosu, anahtarlar, index'ler ve gerekli özel SQL nesneleri sıfırdan oluşmalı.
 - [ ] DB-03 — Önceki geçici constraint kontrollerini kalıcı testlere taşı. FK, unique, enum, null, uzunluk, amount, confidence ve para birimi uyumu kapsansın.
 - [ ] DB-04 — EF üzerinden entity yazma/okumayı doğrula. Private setter/backing field, nullable enum, UTC ve DateOnly değerleri doğru geri gelmeli.
@@ -533,8 +533,13 @@ MCP yine yalnız okur) R3-A (gün başına sabit tohum, işlem başına anahtar:
 migration değişmez) R6-A (model ölçümleri sabit DB'de, demo anında) R7-A (piyasa verisi simülatörde günde bir) R8-B (yenile + ekran açıkken 30 sn
 yoklama; gerekirse sonra SSE). Her madde kendi detaylı planıyla, kullanıcı onayından sonra.
 
-- [ ] RT-01 — Sabit ve canlı veritabanı ayrımı (DB-01'in yolu): `bankingai_demo` (bugünkü veri, testler, ölçümler, demo anı) ve
-  `bankingai_live` (gerçek saat). Kopyalama komutları ve ikinci bağlantı adresi onaylı plana bağlı.
+- [x] RT-01 — Sabit ve canlı veritabanı ayrımı (16 Kasım 2026, docs/database-design.md "RT-01"). Kararlar D1-A (`pg_dump | psql`) D2-A
+  (`bankingai_foundation` sabit kalır, yanına `bankingai_live`) D3-C (`.env` değişmeden, `scripts/run-live.sh` canlı adresi mevcut adresten
+  türetir; `BANKINGAI_LIVE_CONNECTION_STRING` varsa onu kullanır) D4-A (`tests/Shared/LiveDatabaseGuard`: test derlemesi yüklenirken adında
+  `live` geçen veritabanını reddeder). Kopya kullanıcının ikinci onayıyla: `bankingai` yönetici rolüyle açıldı (uygulama rolünde CREATEDB
+  yok), sahibi `bankingai_foundation`; iki DB birebir (1.826 işlem, 10 müşteri, 16 hesap, 1.485 piyasa, 12 migration, Ada 577.490,18, bakiye
+  toplamı 2.562.327,68), iki ayrı API'den Ada'nın hesapları aynı. Testler sabit DB'de: Data 185 → 191, diğerleri aynı; canlı adresle dört test
+  projesi de ilk anda durdu, koruma kaldırılınca 150 test çalışıp 41'i canlıya bağlanmaya kalktı. Sınır: canlı DB RT-02'ye kadar kopyadır.
 - [ ] RT-02 — Simülatör + yetiştirme (`BankingAI.Simulator` + CLI `simulate --until now`): personaların günlük ritmi (saat, hafta sonu, maaş
   günü), mevcut şemada; açılışta kaçırılan günleri yetiştirir. Çeşitliliğin ilk dilimi (R4-A).
 - [ ] RT-03 — Gerçek saate geçiş (canlıda `BANKINGAI_DEMO_NOW` yok) ve iPhone yenileme (sekmeye dönünce, ekran açıkken 30 sn).
@@ -802,7 +807,7 @@ Güncelleme: 16 Kasım 2026. Aşağıdaki "tamamlanan bloklar" ve test sayılar�
 
 - **Şimdi (15 Kasım 2026):** UX-01 cep asistanı — PR1 (açık tema, #81), PR2 (ana ekran paneli, #82), PR3 (kategori detayı backend'i, #83) ve
   PR4 (kart sözleşmesi, #84), PR5 (iPhone kartları, kayan sayfa, Basit/Detaylı, #85) PR6a (liste kartları + sözleşme, #88), PR6b (planlama kartları, #89) ve PR6c (zenginlik kartları; 16 Kasım 2026) yapıldı: UX-01 tamam. Model ölçümü 16 Kasım 2026'da yapıldı;
-  "Netflix'e ne kadar" gerilemesi aynı gün düzeltildi. Sıradaki: real time (14d, RT-01–06, 16 Kasım 2026 kararı), önce RT-01'in planı; INV-02 sonra. PR2 paneli ve PR5 simülatörde denenmedi.
+  "Netflix'e ne kadar" gerilemesi aynı gün düzeltildi. Sıradaki: real time (14d): RT-01 tamam (iki DB), sırada RT-02 simülatörün planı; INV-02 sonra. PR2 paneli ve PR5 simülatörde denenmedi.
 
 Tamamlanan bloklar: banking foundation (DOC-09; SYN-01–14, KIND-01–05), deterministik analytics (ANA-01–14,
 REC-01–03, ANA-20), API ve güvenlik (API-01a/01b, API-02–15, SEC-01a/01b, SEC-06), local AI (AI-01–07: model seçimi,

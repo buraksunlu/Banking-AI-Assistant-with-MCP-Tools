@@ -81,6 +81,12 @@ Gram altın (IMP-b): `GoldApiHistoryParser` (metin fiyat, `yyyy-MM-dd 00:00:00`,
 dikkat, >%25 yazılmaz), `GoldApiDownloader` (anahtar yalnız `x-api-key` başlığında; 401/403/429 tekrar yok, gövde/anahtar
 mesaja yazılmaz; boş/aralık dışı cevap kaydedilmez), `MarketPriceReader.SeriesAsync`. CLI bugünü (İstanbul) içe aktarmaz.
 
+## İki veritabanı (RT-01)
+
+`bankingai_foundation` sabit demo verisidir (seed'ler, testler, ölçümler), `bankingai_live` onun kopyasıdır (canlı akış). Seed ve CLI
+komutları `.env`'deki sabit DB'ye gider; canlıya yazacak komut (RT-02 simülatör) canlı adresle açıkça çalıştırılır. Migration iki DB'ye de
+uygulanır (her biri için SQL gösterilir, onay alınır).
+
 ## Migration komutları
 
 Migration:

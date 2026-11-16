@@ -18,6 +18,7 @@
     <Using Include="BankingAI.TestSupport" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../Shared/LiveDatabaseGuard.cs" Link="Shared/LiveDatabaseGuard.cs" />
     <Compile Include="../Shared/CommittedRowsLock.cs" Link="Shared/CommittedRowsLock.cs" />
     <Compile Include="../Shared/TestTokens.cs" Link="Shared/TestTokens.cs" />
     <Compile Include="../Shared/CapturedLogs.cs" Link="Shared/CapturedLogs.cs" />

@@ -13,6 +13,7 @@
     <ProjectReference Include="../../src/BankingAI.Application/BankingAI.Application.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="../Shared/LiveDatabaseGuard.cs" Link="Shared/LiveDatabaseGuard.cs" />
     <Compile Include="../Shared/CommittedRowsLock.cs" Link="Shared/CommittedRowsLock.cs" />
   </ItemGroup>
 </Project>

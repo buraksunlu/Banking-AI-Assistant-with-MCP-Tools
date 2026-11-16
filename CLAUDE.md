@@ -101,6 +101,9 @@ dotnet test tests/BankingAI.Application.Tests --filter "FullyQualifiedName~Merch
 dotnet build tests/BankingAI.Data.Tests --no-incremental                        # uyarı sayısı kontrolü
 ```
 
+İki veritabanı (RT-01): `.env`'deki `bankingai_foundation` sabit demo verisidir (testler, ölçümler); canlı `bankingai_live` yalnız
+`scripts/run-live.sh` ile açılır. Testler canlı DB'ye bağlanmaz (`tests/Shared/LiveDatabaseGuard`).
+
 API (yerel, http://localhost:5248; `GET /api/health`, OpenAPI `/openapi/v1.json`, Scalar `/scalar`, örnekler `api-examples.http`):
 
 ```sh
