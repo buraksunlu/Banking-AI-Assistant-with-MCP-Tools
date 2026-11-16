@@ -53,7 +53,8 @@ yok (MCP'den keşif); modelin listesinden `routing.hide_dates` beş dönem arac�
 Kartlar (UX-01 PR4, `ai/service/cards.py`): `cards_for(tool, arguments, result)` on araçta (özet, kategori dağılımı, kategori
 detayı, tek işyeri, karşılaştırma, aylık seri; PR6a: işyeri dağılımı, en büyük harcamalar, düzenli ve yaklaşan ödemeler) para birimi başına
 kart kurar (`_BUILDERS` `currencies` satırı başına; para birimi başına olmayan sonuç `_WHOLE_BUILDERS`, kurucu toplamlardan kartlarını kendisi
-kurar). Bloklar `bars`/`series`/`stats`/`list` (`Entry`); `Card.notes` kodun sabit cümleleri (kural, uyarı), `Headline.amount`/`currency`
+kurar). PR6b: bütçe (`_WHOLE_BUILDERS`, çubuklar bütçeye göre `_against`) ve tasarruf
+(`_BUILDERS`); eşleşmeyen işyerinde kart yok (`_matched`); `written` dolu cevapta `answer` o metin kalır, kart yanına eklenir (K5-B). Bloklar `bars`/`series`/`stats`/`list` (`Entry`); `Card.notes` kodun sabit cümleleri (kural, uyarı), `Headline.amount`/`currency`
 para olmayan başlıkta `None`. Kart cümlesinde yalnız kalemdeki sayılar (adet yazma); model kartın hiçbir alanını yazmaz. Yazılar `formatting.py`
 ile backend rakamlarından; Python'un ürettiği tek sayı çubuk boyu `share` (satır / kartın en büyük satırı, yalnız çizim). Satırlar kalemlerin
 sınırında (ilk 5); Basit ilk 3. `chat._checked_cards`: kartın bütün yazıları `check_answer` ile kalemlere karşı; tutmayan kart düşer +

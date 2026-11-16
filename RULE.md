@@ -1378,6 +1378,8 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Planlama kartları (UX-01 PR6b, 16 Kasım 2026; docs/local-ai.md "UX-01 PR6b"): bütçe (bugün ve ay sonu çubukları, bütçeyle dolu) ve
+  tasarruf (para birimi başına) kart alır (12 araç); kodun yazdığı cevap metni `answer`'da kalır (K5-B). Python 1442; cevap 29/29.
 - Liste kartları (UX-01 PR6a, 16 Kasım 2026; docs/local-ai.md "UX-01 PR6a", docs/ios.md "iOS-y"): işyeri dağılımı, en büyük harcamalar,
   düzenli ve yaklaşan ödemeler kart alır (10 araç). Sözleşme bir kez değişti: `list` bloğu (`entries`), kartın `notes`'u (kodun sabit
   cümleleri, her iki modda), `headline.amount`/`currency` isteğe bağlı (ikisi birden). Python 1433, Api 605, iOS 417; cevap doğruluğu 29/29.

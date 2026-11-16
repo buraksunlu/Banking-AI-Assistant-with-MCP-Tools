@@ -515,7 +515,9 @@ ayrıntı için **cevap modu**: kullanıcı basit cevap mı, detaylı/istatistik
     harcamalar, düzenli ve yaklaşan ödemeler; `list` bloğu, `notes`, isteğe bağlı başlık tutarı (Python + .NET + OpenAPI + iPhone). P1-A P2-A
     P3-A P4-A. Python 1433, Api 605, iOS 417; 9 kasıtlı bozma; cevap doğruluğu 29/29 (A09 kartlı, yeni A27–A29). Bilerek değişen eski
     testler: kart şekline `entries: []`/`notes: []` (`test_app`, .NET `MarketCard`), A09 `noCard` → `card`.
-  - [ ] PR6b — Planlama kartları (bütçe, tasarruf).
+  - [x] PR6b — Planlama kartları (16 Kasım 2026, docs/local-ai.md "UX-01 PR6b"): bütçe (iki çubuk K6-C, `BUDGET_RULE` notu) ve tasarruf
+    (para birimi başına, aylık seri, `SAVINGS_RULE`); `answer` kodun yazdığı metin kalır (K5-B). Python 1442; 6 kasıtlı bozma; cevap
+    doğruluğu 29/29 (A11–A15 kartlı). Yalnız Python; sözleşme PR6a'da.
   - [ ] PR6c — Zenginlik kartları (gelir payı, öneri, iki "ne olurdu") + son model ölçümü.
 
 ## 15. Local AI — önce hazır sonucu açıklama
@@ -775,8 +777,8 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 Güncelleme: 16 Kasım 2026. Aşağıdaki "tamamlanan bloklar" ve test sayıları 23 Ekim'in; sonrası `RULE.md` §29'da.
 
 - **Şimdi (15 Kasım 2026):** UX-01 cep asistanı — PR1 (açık tema, #81), PR2 (ana ekran paneli, #82), PR3 (kategori detayı backend'i, #83) ve
-  PR4 (kart sözleşmesi, #84), PR5 (iPhone kartları, kayan sayfa, Basit/Detaylı, #85) ve PR6a (liste kartları + sözleşme; 16 Kasım 2026) yapıldı. Model ölçümü 16 Kasım 2026'da yapıldı;
-  "Netflix'e ne kadar" gerilemesi aynı gün düzeltildi. Sıradaki: PR6b planlama kartları → PR6c zenginlik kartları; INV-02 sonra. PR2 paneli ve PR5 simülatörde denenmedi.
+  PR4 (kart sözleşmesi, #84), PR5 (iPhone kartları, kayan sayfa, Basit/Detaylı, #85) PR6a (liste kartları + sözleşme, #88) ve PR6b (planlama kartları; 16 Kasım 2026) yapıldı. Model ölçümü 16 Kasım 2026'da yapıldı;
+  "Netflix'e ne kadar" gerilemesi aynı gün düzeltildi. Sıradaki: PR6c zenginlik kartları → real time (RT-01–06, 16 Kasım 2026 kararı); INV-02 sonra. PR2 paneli ve PR5 simülatörde denenmedi.
 
 Tamamlanan bloklar: banking foundation (DOC-09; SYN-01–14, KIND-01–05), deterministik analytics (ANA-01–14,
 REC-01–03, ANA-20), API ve güvenlik (API-01a/01b, API-02–15, SEC-01a/01b, SEC-06), local AI (AI-01–07: model seçimi,

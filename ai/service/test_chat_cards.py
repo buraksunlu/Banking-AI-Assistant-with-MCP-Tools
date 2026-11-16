@@ -79,3 +79,17 @@ def test_a_category_without_a_panel_word_goes_the_usual_way():
     chat.answer("Bu ay diğer harcamam ne kadar?", TOKEN)
 
     assert len(selector.calls) == 1
+
+
+def test_a_budget_keeps_the_answer_code_wrote_and_carries_its_card():
+    # UX-01 PR6 K5-B: the budget's text was written by code (CHAT-10 PR3b), not the model; it stays the answer, the card goes with it.
+    from test_chat import BUDGET_RESULT
+
+    call = ToolCall("check_budget", {"amount": 3000, "currencyCode": "TRY"})
+    chat, _, _, explainer = service([call], gateway=FakeGateway(BUDGET_RESULT))
+
+    reply = chat.answer("Bu ay 3.000 TL bütçem var, ne durumdayım?", TOKEN)
+
+    assert reply.answer.startswith("Bu ay (1-10 Ekim 2026) 735,00 TL harcadınız (5 işlem);") and explainer.calls == []
+    assert [card.title for card in reply.cards] == ["Bütçe · 1-10 Ekim 2026"]
+    assert reply.cards[0].sentence == "Bu hızla bütçenin içinde kalır."
