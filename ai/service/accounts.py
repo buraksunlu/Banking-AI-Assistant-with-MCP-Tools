@@ -122,6 +122,8 @@ def code_arguments(tool: str, arguments: dict, message: str, previous: dict | No
     """The call's arguments with the figures code reads itself: a search's limit, a transfer's direction. Whatever the model wrote
     for them is dropped; without them in the words a follow-up keeps the last call's (``previous``, already only what may carry)."""
     previous = previous or {}
+    # A null the model wrote is no argument: the reply carries arguments as text, and "null" would reach the link as a name.
+    arguments = {k: v for k, v in arguments.items() if v is not None}
     if tool == SEARCH:
         kept = {k: v for k, v in arguments.items() if k not in LIMIT_FIELDS}
         bounds = amount_bounds(message)

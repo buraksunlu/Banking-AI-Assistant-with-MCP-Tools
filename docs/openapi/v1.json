@@ -6099,9 +6099,45 @@
               "null",
               "string"
             ]
+          },
+          "direction": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/TransactionDirection"
+              }
+            ]
+          },
+          "counterparty": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "minAmount": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "maxAmount": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "currencyCode": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
-        "description": "The transaction-list query behind a chat answer's link: what `GET /api/transactions` is asked so the list\nshows the rows the answer's figure was computed from. `From`/`To` are set only for `Custom`."
+        "description": "The transaction-list query behind a chat answer's link: what `GET /api/transactions` is asked so the list\nshows the rows the answer's figure was computed from. `From`/`To` are set only for `Custom`. ACC-01b PR2: a\ntransfer's direction and person and a search's amount limit (with its currency, never one without the other) are the same\nfilters the answer's tool ran with; null when the tool took none."
       },
       "TransactionPage": {
         "required": [

@@ -161,3 +161,11 @@ def test_a_counterparty_the_user_did_not_name_is_dropped_or_carried():
     carried = code_arguments(TRANSFERS, {"period": "ThisMonth", "counterparty": "Selin"}, "Peki bu ay?",
                              {"period": "LastMonth", "counterparty": "Selin"})
     assert carried == {"period": "ThisMonth", "counterparty": "Selin"}
+
+
+def test_an_argument_the_model_left_null_is_left_out():
+    # ACC-01b PR2: the 4b model wrote "merchant": null (A13 of the 16 Nov run); the reply carries arguments as text, so the .NET link
+    # would have searched for a merchant called "null" and shown an empty list next to the right figure.
+    assert code_arguments(SEARCH, {"period": "ThisMonth", "merchant": None, "categoryCode": None}, "Bu ay 500 liranın altındaki harcamalarım",
+                          None) == {"period": "ThisMonth", "maxAmount": 500, "currencyCode": "TRY"}
+    assert code_arguments(INCOME, {"period": "ThisMonth", "x": None}, "Bu ay gelirim", None) == {"period": "ThisMonth"}

@@ -70,6 +70,72 @@ public sealed class AssistantLinksTests
             expectedCategory, expectedMerchant), query);
     }
 
+    // ACC-01b PR2 (K7-A): the three list tools of ACC-01a link to the rows behind their totals, with the same filters.
+
+    [Fact]
+    public void Income_links_to_the_salaries_of_the_period()
+    {
+        var query = Single(Reply("get_income", ("period", "LastMonth")));
+
+        Assert.Equal(new TransactionLinkQuery(PeriodKind.LastMonth, null, null, TransactionKind.Salary, AccountType.Personal, null, null), query);
+    }
+
+    [Theory]
+    [InlineData("Sent", TransactionDirection.Debit)]
+    [InlineData("Received", TransactionDirection.Credit)]
+    [InlineData(null, null)]
+    public void Transfers_link_with_their_direction_and_person(string? direction, TransactionDirection? expected)
+    {
+        var arguments = new List<(string, string)> { ("period", "Last3Months"), ("counterparty", "Selin") };
+        if (direction is not null) arguments.Add(("direction", direction));
+
+        var query = Single(Reply("get_transfers", [.. arguments]));
+
+        Assert.Equal(new TransactionLinkQuery(PeriodKind.Last3Months, null, null, TransactionKind.Transfer, AccountType.Personal, null, null,
+            expected, "Selin"), query);
+    }
+
+    [Fact]
+    public void A_search_links_with_its_amount_limit_merchant_and_category()
+    {
+        var query = Single(Reply("search_transactions", ("period", "LastMonth"), ("minAmount", "2000"), ("maxAmount", "5000.5"),
+            ("currencyCode", "TRY"), ("merchant", "Migros Jet"), ("categoryCode", "GROCERY")));
+
+        Assert.Equal(new TransactionLinkQuery(PeriodKind.LastMonth, null, null, TransactionKind.Purchase, AccountType.Personal, "GROCERY",
+            "Migros Jet", MinAmount: 2000m, MaxAmount: 5000.5m, CurrencyCode: "TRY"), query);
+    }
+
+    [Theory]
+    [InlineData("direction", "Both")]          // not a direction of the tool
+    [InlineData("counterparty", "  ")]
+    [InlineData("minAmount", "2.000")]         // the JSON way only: a Turkish thousands dot is not 2
+    [InlineData("minAmount", "-5")]
+    [InlineData("minAmount", "1e3")]
+    [InlineData("currencyCode", "lira")]
+    public void A_list_argument_that_cannot_be_read_gives_no_link(string key, string value)
+    {
+        var tool = key is "direction" or "counterparty" ? "get_transfers" : "search_transactions";
+        var arguments = new List<(string, string)> { ("period", "LastMonth"), (key, value) };
+        if (key == "minAmount") arguments.Add(("currencyCode", "TRY"));
+        if (key == "currencyCode") arguments.Add(("minAmount", "100"));
+
+        Assert.Empty(AssistantLinks.For(Reply(tool, [.. arguments])));
+    }
+
+    [Fact]
+    public void An_amount_without_its_currency_gives_no_link()
+    {
+        // The search refuses an amount limit without a currency (currencies are never mixed); a wrong list is never shown.
+        Assert.Empty(AssistantLinks.For(Reply("search_transactions", ("period", "LastMonth"), ("minAmount", "2000"))));
+    }
+
+    [Fact]
+    public void The_balance_gets_no_link()
+    {
+        // Balances are not transactions: there is no list behind them.
+        Assert.Empty(AssistantLinks.For(Reply("get_accounts")));
+    }
+
     [Theory]
     [InlineData("compare_spending")]        // two periods: no single list
     [InlineData("get_monthly_trend")]

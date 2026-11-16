@@ -422,7 +422,7 @@ liste bağlantısı) K7-A (eski 121 vaka bozulmaz, yeni ≥ 14/16, cevap doğrul
   aracı (`Tools/AccountTools`: `get_accounts`, `search_transactions`, `get_income`, `get_transfers`; kişisel hesaplar, ≤ 10 satır);
   `IAccountReadService` ortak kurulumda; AI servisinde `accounts` grubu (yolsuz). Application 500 → 511, McpServer 216 → 222, Api 605 → 606,
   Python 1464; 8 kasıtlı bozma yakalandı (biri eklenen testle: kişisel hesap kapsamı).
-- [ ] ACC-01b — Asistan + iPhone: yönlendirme kuralları, mesajdan tutar/ad okuma, dört kart, öneriler, işlem bağlantısı, model ölçümü.
+- [x] ACC-01b — Asistan + iPhone: yönlendirme kuralları, mesajdan tutar/ad okuma, dört kart, öneriler, işlem bağlantısı, model ölçümü.
   Kararlar K1-B (iki PR) K2-C K3-A K4-B K5-B K6-C K7-A K8-A. **PR1 tamam (16 Kasım 2026, dal `acc-01b-chat`; docs/local-ai.md
   "ACC-01b PR1"):** `ai/service/accounts.py` (kurallar, tutar sınırı, yön, karşı taraf denetimi, "yattı mı" = bu ay), yönlendirme (hesap
   kuralları wealth'ten önce, arama planlamadan sonra; kapsam dışı yalnız istek), kalemler ve kartlar, öneriler; aynı ilk adlı iki kişi
@@ -430,6 +430,17 @@ liste bağlantısı) K7-A (eski 121 vaka bozulmaz, yeni ≥ 14/16, cevap doğrul
   (aynı kodla S33/F01 6/6 ↔ 0/6) → `routing.MEASURED_ORDER`. Python 1464 → 1597 modelsiz; ifade 1.762 (0 açık); araç seçimi 137/137
   (yeni 16/16), cevap doğruluğu 33/33 (yeni 4/4); 10 kasıtlı bozmanın hepsi yakalandı (biri eklenen testle). PR2: .NET bağlantısına
   yön/karşı taraf/tutar alanları + iPhone.
+  **PR2 tamam (16 Kasım 2026, dal `acc-01b-links-iphone`; docs/api.md "links", docs/ios.md "iOS-aa"):** `TransactionLinkQuery`'ye
+  `Direction`, `Counterparty`, `MinAmount`, `MaxAmount`, `CurrencyCode`; gelir/transfer/arama bağlantı alır, bakiye almaz; tutar JSON biçimi,
+  tutar ile para birimi birlikte. iPhone `LinkQuery` + `TransactionCriteria` + başlık satırı. Bulgu: model `"merchant": null` yazınca cevapta
+  "null" yazısı olarak gidiyor, bağlantı "null" adlı işyeri arıyordu → Python'da hesap araçlarının `null` argümanı düşer. Uçtan uca: bağlantı
+  listeleri cevap rakamlarıyla aynı (7 işlem 41.363,50; 85.000,00; 9.000,00). Api 606 → 622, iOS 426 → 435, Python 1597 → 1598; 9 kasıtlı
+  bozma yakalandı (ilk .NET turu bozuk ortamla geçersizdi, yeniden yapıldı). Simülatörde denenmedi.
+- [ ] CHAT-12 — Serbest yazılışlara dayanıklılık (16 Kasım 2026 kullanıcı sorusu; plan ACC-01b'den sonra, kullanıcı kararı "bitince getir").
+  Bulgu: kurallar kelime köküne baktığı için devrik cümlelerin çoğu geçiyor; kural tutmayan cümle ("elimde ne kadar para var", "hesapta kalan
+  para") yanlış gruba gidip harcama cevabı alabiliyor ve modelin niyet sorusu (`intent-v1`) hesaplar/gelir gruplarını tanımıyor. Önerilen
+  yol: gerçekçi yazılış seti ile ölçüm → niyet sorusu yeni grupları tanısın → emin olunmayınca seçenekli soru → kurallar yalnız ölçümün
+  gösterdiği yerde; embedding ve yazım hatası toleransı ölçüme göre sonra.
 
 ## 14. SwiftUI — çalışan endpoint üzerine küçük ekranlar
 

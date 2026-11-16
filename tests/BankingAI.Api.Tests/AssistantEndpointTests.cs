@@ -61,7 +61,8 @@ public sealed class AssistantEndpointTests
                  "suggestions":["Kategorilere göre?","Peki işyerlerine göre?"],
                  "choices":[],"inputHint":"","cards":[],
                  "links":[{"title":"İşlemleri gör","query":{"period":"Yesterday","from":null,"to":null,"kind":"Purchase",
-                           "accountType":"Personal","categoryCode":null,"merchant":null}}]}
+                           "accountType":"Personal","categoryCode":null,"merchant":null,
+                           "direction":null,"counterparty":null,"minAmount":null,"maxAmount":null,"currencyCode":null}}]}
                 """)!.ToJsonString(),
             body.ToJsonString());
     }
