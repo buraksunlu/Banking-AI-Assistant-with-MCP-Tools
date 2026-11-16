@@ -7,6 +7,7 @@ becomes a fact (AI-13): it comes from outside the bank and may carry an instruct
 
 from dataclasses import dataclass
 from datetime import date
+from decimal import Decimal
 
 from contracts import Fact
 from formatting import day, money, month, percent, period, price
@@ -74,6 +75,10 @@ def outcome_for(tool: str, arguments: dict, result: dict) -> ToolOutcome:
         "get_spending_advice": _advice,
         "what_if_one_off": _one_off,
         "what_if_monthly": _monthly,
+        "get_accounts": _accounts,
+        "search_transactions": lambda a, r: _listing("search_transactions", a, r),
+        "get_income": lambda a, r: _listing("get_income", a, r),
+        "get_transfers": lambda a, r: _listing("get_transfers", a, r),
     }
     return builders[tool](arguments, result)
 
@@ -602,6 +607,98 @@ def _closing(facts: list[Fact], rows: list[dict], empty_text: str) -> list[Fact]
 
 def _fact(label: str, text: str) -> Fact:
     return Fact(label=label, text=text)
+
+
+# ACC-01b: balances, the purchase search, income and transfers (the ACC-01a tools).
+NO_ACCOUNTS = "Hesabınız bulunmuyor."
+BUSINESS_APART = "İşletme hesapları kişisel toplama katılmaz."
+ACCOUNT_KINDS = {"Personal": "Kişisel hesaplar", "Business": "İşletme hesapları"}
+# What a total of the search is called, by tool and direction (money out and in are never one sum, ACC-01a K2-A).
+TOTAL_LABELS = {("search_transactions", "Debit"): "Toplam harcama", ("get_income", "Credit"): "Toplam gelir",
+                ("get_transfers", "Debit"): "Gönderilen", ("get_transfers", "Credit"): "Gelen"}
+DIRECTION_WORDS = {"Debit": "gönderilen", "Credit": "gelen"}
+_NOTHING = {"get_income": "hesaplarınıza maaş ya da gelir yatmadı.", "search_transactions": "bu tutar sınırına uyan harcama yok."}
+_NO_TRANSFER = {"Sent": "gönderdiğiniz bir transfer yok.", "Received": "size gelen bir transfer yok.", None: "transfer yok."}
+
+
+def _accounts(arguments: dict, result: dict) -> ToolOutcome:
+    accounts, totals = result["accounts"], result["totals"]
+    if not accounts:
+        return ToolOutcome([], ("answer", NO_ACCOUNTS))
+    facts = []
+    for a in accounts:
+        kind = ", işletme" if a["accountType"] == "Business" else ""
+        facts.append(_fact(f"{a['accountName']} ({a['shortNumber']}{kind})", money(a["balance"], a["currencyCode"])))
+    several = len({t["currencyCode"] for t in totals}) > 1
+    for t in totals:
+        suffix = f" ({t['currencyCode']})" if several else ""
+        facts.append(_fact(f"{ACCOUNT_KINDS[t['accountType']]} toplamı{suffix}", f"{money(t['balance'], t['currencyCode'])} ({t['count']} hesap)"))
+    if len({t["accountType"] for t in totals}) > 1:
+        facts.append(_fact("Not", BUSINESS_APART))
+    if several:
+        facts.append(_fact("Not", CURRENCIES_APART))
+    return ToolOutcome(facts)
+
+
+def limit_text(arguments: dict) -> str | None:
+    """The user's amount limit as the facts write it ("2.000,00 TL ve üstü"); None for a search without one."""
+    low, high, currency = arguments.get("minAmount"), arguments.get("maxAmount"), arguments.get("currencyCode") or "TRY"
+    if low is not None and high is not None:
+        return f"{money(Decimal(str(low)), currency)} – {money(Decimal(str(high)), currency)}"
+    if low is not None:
+        return f"{money(Decimal(str(low)), currency)} ve üstü"
+    if high is not None:
+        return f"{money(Decimal(str(high)), currency)} ve altı"
+    return None
+
+
+def _listing(tool: str, arguments: dict, result: dict) -> ToolOutcome:
+    """The facts of the three list tools (search, income, transfers): the totals of the whole result, the first five rows."""
+    person = result.get("counterpartyMatch")
+    if person is not None and person["status"] == "NotFound":
+        return ToolOutcome([], ("answer", f"‘{arguments['counterparty']}’ adında biriyle transferiniz bulunmuyor."))
+    if person is not None and person["status"] == "Ambiguous":
+        # The backend matches a first name; the masked names it offers cannot be typed back to tell two people apart.
+        names = ", ".join(person["candidates"])
+        return ToolOutcome([], ("answer", f"‘{arguments['counterparty']}’ birden fazla kişiyle eşleşti ({names}). Bu adla ayırt "
+                                          "edemiyorum; dönemin bütün transferlerine bakabilirim."))
+    unmatched = _unmatched(arguments, result.get("merchantMatch"))
+    if unmatched is not None:
+        return unmatched
+    period_fact = _period(result)
+    if not result["totals"]:
+        nothing = _NO_TRANSFER[arguments.get("direction")] if tool == "get_transfers" else _NOTHING[tool]
+        return ToolOutcome([], ("answer", f"{period_fact.text}: {nothing}"))
+    facts = [period_fact]
+    if person is not None:
+        facts.append(_fact("Kişi ya da hesap", person["name"]))
+    if (match := result.get("merchantMatch")) is not None:
+        facts += [_fact("İşyeri", match["merchant"]), *_spelling(arguments, match)]
+    if (limit := limit_text(arguments)) is not None:
+        facts.append(_fact("Tutar sınırı", limit))
+    several = len({t["currencyCode"] for t in result["totals"]}) > 1
+    for t in result["totals"]:
+        suffix = f" ({t['currencyCode']})" if several else ""
+        facts.append(_fact(f"{TOTAL_LABELS[(tool, t['direction'])]}{suffix}", f"{money(t['amount'], t['currencyCode'])} ({t['count']} işlem)"))
+    for rank, row in enumerate(result["items"][:LIST_LIMIT], start=1):
+        facts.append(_fact(f"{rank}. işlem", f"{money(row['amount'], row['currencyCode'])}; {row_party(tool, row)}; {_day(row['localDate'])}"))
+    hidden = result["totalCount"] - min(len(result["items"]), LIST_LIMIT)
+    if hidden > 0:
+        facts.append(_fact("Not", f"Bu dönemde {hidden} işlem daha var; ilk {LIST_LIMIT} işlem gösterildi."))
+    if several:
+        facts.append(_fact("Not", CURRENCIES_APART))
+    return ToolOutcome(facts)
+
+
+def row_party(tool: str, row: dict) -> str:
+    """Who a row is with, in the backend's own fields only; the raw bank text never (AI-13)."""
+    if tool == "get_income":
+        return f"maaş, {row['accountName']}"
+    if tool == "get_transfers":
+        own = " (kendi hesabınız)" if row["counterpartyIsOwnAccount"] else ""
+        return f"{DIRECTION_WORDS[row['direction']]}, {row['counterparty'] or UNCLASSIFIED}{own}"
+    where = row["merchant"] or UNCLASSIFIED
+    return f"{where} ({row['categoryDisplayName']})" if row["categoryDisplayName"] else where
 
 
 # Shared with the cards (UX-01 PR6c), so a card says a change, an asset and a risk in the facts' own words.

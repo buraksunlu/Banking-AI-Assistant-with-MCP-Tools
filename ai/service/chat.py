@@ -22,6 +22,7 @@ from typing import Protocol
 
 from langchain_ollama import ChatOllama
 
+from accounts import ACCOUNT_TOOLS, BALANCE, code_arguments, fallback_arguments, implied_this_month
 from answer_check import check_answer, has_advice, misnamed
 from clarification import (CHOICE_KINDS, MAX_REPLY_WORDS, Choice, Pending, PendingStore, ask_amount, ask_amount_again, ask_complete_month, ask_count, ask_currency,
                            ask_months, ask_months_again, months_out_of_range,
@@ -312,8 +313,12 @@ class ChatService:
         if reading.kind in ("invalid", "unreadable"):
             return self._ask(ask_period("", {}, message, note=_note(reading), original=_without(message, reading.span)), [], token, deadline)
         shown = with_span_replaced(message, reading.span, "bu ay") if reading.kind == "found" else message
+        if route.only is not None and implied_this_month(route.only, shown):
+            # ACC-01b K6-C: "Maaşım yattı mı?" asks whether it arrived this month; the model and the checks read it so.
+            shown = f"{shown} (bu ay)"
         context, carried = _mask_range(context)
-        direct = None
+        # ACC-01b K2-C: the balance takes no argument, so once the words chose it there is nothing to ask the model.
+        direct = ToolCall(BALANCE, {}) if route.only == BALANCE else None
         if route.undecided is not None:
             # CHAT-09 K18-B: with no scenario word the user's figures may still tell (a period: the one-off, an amount: the monthly
             # saving). Anything else is the monthly saving, whose amount is then asked (CHAT-10 PR3b D8-B, replacing K17-C's "one-off
@@ -338,7 +343,9 @@ class ChatService:
         if not calls and route.only is not None and any(t["function"]["name"] == route.only for t in listed):
             # CHAT-09 K13-A: the words chose the scenario and the model was shown it alone; choosing nothing there is the small
             # model's indecision, not an out-of-scope question. Its arguments are read from the words, and checked below as always.
-            arguments = chosen_scenario_arguments(route.only, shown)
+            # ACC-01b K2-C: the account tools the same way, their figures read by code (accounts.fallback_arguments).
+            read = fallback_arguments if route.only in ACCOUNT_TOOLS else chosen_scenario_arguments
+            arguments = read(route.only, shown)
             if arguments is None:
                 known = {"categoryCode": category} if (category := category_in(shown)) else {}
                 return self._ask(ask_period(route.only, known, message), [], token, deadline)
@@ -391,6 +398,11 @@ class ChatService:
             # CHAT-09 (model run of PR2, W07): the category the user named and the model left out; without it all spending of the
             # period would be bought. Read from the words, as K13-A reads them.
             arguments = {**arguments, "categoryCode": category}
+        if call.tool in ACCOUNT_TOOLS:
+            # ACC-01b K3-A, K4-B: a search's limit and a transfer's direction are read from the words, the person must be the user's;
+            # a follow-up of the same tool keeps what it may carry ("peki" for the user's own figures, CHAT-10 D12-A).
+            previous = carryable(message, context.arguments) if context is not None and context.tool == call.tool else None
+            arguments = code_arguments(call.tool, arguments, shown, previous)
         if reading.kind == "found":
             arguments = {**arguments, "period": "Custom", "from": reading.start.isoformat(), "to": reading.end.isoformat()}
         elif carried and takes_dates and arguments.get("period") == MASKED_PERIOD and not mentions_period(message):

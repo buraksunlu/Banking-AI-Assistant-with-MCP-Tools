@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from ollama_client import OllamaTimeout
-from routing import ACCOUNTS, GENERAL, GROUPS, PLANNING, WEALTH, Route, Router, group_of, hide_dates, narrow, planning_of
+from routing import ACCOUNTS, GENERAL, GROUPS, MEASURED_ORDER, PLANNING, WEALTH, Route, Router, group_of, hide_dates, narrow, planning_of
 
 # CHAT-01: the tools a turn shows the model. Decisions K1-C (word rules first, the model only when none matches), K2-C (two
 # groups: the nine tools of MCP-08 and the two planning tools; K2-B's three groups broke S15 and F01 on every run), K3-A (the
@@ -52,9 +52,36 @@ def test_word_rules_choose_the_groups(message, groups):
 
 
 @pytest.mark.parametrize("message", ["Deniz'e 100 TL transfer yap", "Anneme para gönder", "Hangi hisseye yatırım yapayım?",
-                                     "Kripto alayım mı?", "Bana bir fıkra anlat", "Bir şaka yap"])
+                                     "Kripto alayım mı?", "Bana bir fıkra anlat", "Bir şaka yap", "Selin'e para gönderir misin?",
+                                     "Havale yap", "EFT et"])
 def test_clear_out_of_scope_requests_need_no_model(message):
     assert route(message) == Route((), out_of_scope=True, source="rule")
+
+
+@pytest.mark.parametrize(("message", "only"), [
+    ("Bakiyem ne kadar?", "get_accounts"),
+    ("Hesabımda ne kadar para var?", "get_accounts"),
+    ("Maaşım yattı mı?", "get_income"),
+    ("Geçen ay kime para gönderdim?", "get_transfers"),          # the past: no longer the out-of-scope "para gönder"
+    ("Geçen ay transfer yaptım mı?", "get_transfers"),
+    ("Geçen ay havale ettiklerim", "get_transfers"),
+    ("Geçen ay 2.000 TL üstü harcamalarım", "search_transactions"),
+])
+def test_account_words_choose_the_account_tool_alone(message, only):
+    # ACC-01b K2-C: the words choose the tool; the model only fills in the period.
+    assert route(message) == Route((ACCOUNTS,), source="rule", only=only)
+
+
+@pytest.mark.parametrize(("message", "groups"), [
+    ("Geçen ay maaşımın ne kadarını harcadım?", (WEALTH,)),      # INC-03's income share, not the income list
+    ("Starbucks harcamamı 1.000 TL'den fazla azaltsam?", (PLANNING,)),  # a planning word wins over an amount limit
+])
+def test_the_account_rules_leave_the_older_groups_their_questions(message, groups):
+    assert route(message).groups == groups
+
+
+def test_a_follow_up_after_an_account_tool_stays_in_its_group():
+    assert route("Peki geçen ay?", "get_income") == Route((ACCOUNTS,), source="previous")
 
 
 @pytest.mark.parametrize(("message", "previous", "groups"), [
@@ -110,7 +137,7 @@ def test_the_groups_cover_the_twenty_published_tools_once_each():
 
 
 def test_the_account_tools_stay_out_of_the_other_groups():
-    # ACC-01a: published on the server, in no route until ACC-01b; without this row they would join every group.
+    # ACC-01a: published on the server in their own group; without this row they would join every group.
     assert GROUPS[ACCOUNTS] == ("get_accounts", "search_transactions", "get_income", "get_transfers")
     tools = [tool(name) for name in ("get_spending_summary", "check_budget", "get_income_share", *GROUPS[ACCOUNTS])]
     for group, shown in ((GENERAL, "get_spending_summary"), (PLANNING, "check_budget"), (WEALTH, "get_income_share")):
@@ -137,7 +164,25 @@ def test_narrowing_keeps_the_groups_tools_and_any_tool_the_table_does_not_know()
     names = [t["function"]["name"] for t in narrow(tools, Route((PLANNING,), source="rule"))]
 
     # A tool added on the server but not to the table is never hidden: it would silently become unreachable.
-    assert names == ["check_budget", "simulate_savings", "get_spending_overview"]
+    # ACC-01b: in the measured order (simulate_savings first), the unknown tool last.
+    assert names == ["simulate_savings", "check_budget", "get_spending_overview"]
+
+
+def test_the_model_sees_the_tools_in_the_table_s_order_whatever_the_server_s():
+    # ACC-01b finding: the MCP server lists its tools in an order that changes from build to build. With the same code and tools,
+    # S33 and F01 passed 6/6 in one order and 0/6 in another; the small model must not depend on the server's luck.
+    published = [tool("get_spending_overview")] + [tool(name) for name in sorted(GROUPS[GENERAL])]
+
+    names = [t["function"]["name"] for t in narrow(published, Route((GENERAL,), source="rule"))]
+
+    # The measured order, by hand: the general tools as the 16 Nov 2026 server listed them, an unknown tool last.
+    assert names == ["get_recurring_payments", "get_highest_transactions", "get_upcoming_payments", "get_merchant_spending",
+                     "get_category_spending", "compare_spending", "get_spending_summary", "get_category_breakdown",
+                     "get_monthly_trend", "get_merchant_breakdown", "get_spending_overview"]
+
+
+def test_the_measured_order_names_every_tool_of_the_table_once():
+    assert sorted(MEASURED_ORDER) == sorted(name for tools in GROUPS.values() for name in tools)
 
 
 def test_every_eval_case_finds_its_tool_by_the_rules_alone():

@@ -1295,3 +1295,47 @@ Gelir payı, harcama önerisi ve iki "ne olurdu" kart alır; on altı aracın he
 - **PR6'nın son ölçümü (K2-A, gerçek `qwen3.5:4b`, demo anı):** cevap doğruluğu **29/29** (25 vaka kart beklentisiyle), araç seçimi
   **121/121**, ifade örneklemi **125/127** (iki bildik açık: büyük harfli tasarruf, CHAT-11).
 
+
+## ACC-01b PR1 (16 Kasım 2026): bakiye, işlem arama, gelir ve transfer sohbette
+
+ACC-01a'nın dört aracı (`get_accounts`, `search_transactions`, `get_income`, `get_transfers`) artık sohbetten çalışıyor. Yalnız Python;
+MCP server ve .NET değişmedi (cevabın altındaki "İşlemleri gör" bağlantısı ve iPhone'daki yeni süzgeç alanları PR2). Kararlar K1-B
+(iki PR) K2-C K3-A K4-B K5-B K6-C K8-A; ölçüm eşiği K7-A (12g).
+
+- **Yönlendirme (K2-C, `accounts.tool_of`):** bakiye ("bakiyem", "hesabımda ne kadar", "param var mı"), gelir ("maaşım yattı", "gelirim",
+  "bursum") ve transfer ("gönderdim", "kimden geldi", "havale ettim", "transferlerim") kelimeleri wealth kurallarından önce bakılır; maaşın
+  yanında harcama/pay/yüzde/öneri/-seydim varsa INC-03'ün gelir payı kalır. Tutar sınırlı harcama ("2.000 TL üstü harcamalarım") planlama
+  kelimelerinden sonra bakılır ("1.000 TL'den fazla azaltsam" tasarruftur). Kelimeler aracı seçer (`Route.only`); bakiye argümansız olduğu için
+  model hiç çağrılmaz; model boş dönerse çağrıyı kod kurar (`fallback_arguments`, K13-A kalıbı).
+- **Kapsam dışı kuralı düzeltildi:** "para gönder", "transfer yap" kalıpları "gönderdim", "transfer yaptım", "havale ettim"i de yakalıyordu
+  (geçmiş zaman sorusuna "yapamam" cevabı). Artık yalnız istek biçimi (`_NOT_PAST`, kökten sonra t/d + i yok).
+- **Kullanıcının rakamları kodun (K3-A):** tutar sınırı ve yönü ("üstü/üzeri/fazla/aşan/en az" → en az; "altı/az/küçük/en fazla" → en
+  çok; "1.000 ile 5.000 TL arası" → ikisi), para birimi tutarın yanındaki (çıplak tutar TL). Mesajda sınırın kullandığından fazla tutar
+  varsa sınır okunmaz (hangisi olduğu tahmin olurdu); "son 7 günde"nin 7'si sayılmaz. Transfer yönü de kelimeden ("bana" = gelen);
+  ikisi ya da hiçbiri → iki yön. Modelin yazdığı sınır ve yön her zaman ezilir. Sınır kullanıcının rakamıdır: takipte yalnız "peki/ya" ile
+  taşınır (`FIGURE_ARGUMENTS`).
+- **Karşı taraf (K4-B):** adı model yazar; kullanıcının mesajında geçmiyorsa (ya da takipte son çağrınınki değilse) düşer, backend
+  (`CounterpartyMatcher`) kapalı kümeyle eşleştirir. Bulunamazsa sabit cevap. **Plandan sapma:** aynı ilk adlı iki kişi aday sorusu değil
+  sabit cevaptır ("birden fazla kişiyle eşleşti (Deniz K***, Deniz M***)…"), çünkü backend ilk adla eşleştiriyor ve maskeli ad geri
+  yazıldığında hiçbir kişiyle eşleşmez; soru sorup cevabı çalıştıramamak yanıltıcı olurdu. Demo verisinde böyle bir çift yok.
+- **Dönem (K6-C):** dönemsiz "yattı mı / geldi mi" bu aydır (mesaja "(bu ay)" eklenir; model ve denetim ikisi de onu okur); "kime para
+  gönderdim" gibi diğer dönemsiz sorular sorulur.
+- **Kalemler ve kartlar (K5-B):** bakiye: her hesap (ad, "•••• 001", işletme işareti) ve hesap türü + para birimi başına toplam; işletme ve
+  para birimleri ayrı kart, hiçbir zaman tek toplam. Arama/gelir/transfer: bütün sonucun toplamı (yön başına: gönderilen ve gelen ayrı kart,
+  mahsup yok), ilk 5 satır (kalemler ve kart aynı satırlar; Basit 3), fazlası için "N işlem daha var". Satırda yalnız backend alanları
+  (işyeri/kategori, maskeli karşı taraf, "kendi hesabınız", hesap adı); ham açıklama hiç. Boş sonuç dönemli sabit cevap. Kartlı cevapta model
+  açıklamaz.
+- **Öneriler (K8-A):** bakiye → bu ay harcama, bu ay maaş, geçen ay gönderilen; gelir → gelir payı, bakiye; transfer → öbür yön, bakiye;
+  arama → aynı dönemin kategorileri ve en büyükleri. Dört yeni tam soru ölçüm vakası.
+- **Bulgu, araç sırası:** modele gösterilen liste sunucunun sırasındaydı ve bu sıra derlemeden derlemeye değişiyor. Aynı kod ve araçlarla
+  S33 ("Bu yıl eczaneye ne kadar verdim?") ve F01 ("Peki geçen ay?") eski sırayla 6/6, yeni sırayla 0/6; tablonun kendi sırası ise S33 ve
+  Q07'yi bozdu (Q07'de model bozuk biçimli çağrı yazdı). `routing.narrow` artık 16 Kasım'a kadarki bütün ölçümlerin sırasını kullanır
+  (`MEASURED_ORDER`; eski `mcp_tools.json` sırası, ardından dört hesap aracı; bilinmeyen araç sonda). Sırayı doğrudan karşılaştıran 8 eski
+  test yeni sıraya göre güncellendi. Sıra değiştirilirse bütün araç seçim ölçümü yeniden çalıştırılır.
+- **Doğrulama:** Python 1464 → 1597 modelsiz; `mcp_tools.json` 20 araç (eski 16 birebir aynı); ifade ölçümüne dört niyet (bakiye, gelir,
+  transfer, arama), 1.762 ifade, 0 açık. 10 kasıtlı bozmanın hepsi yakalandı (biri eklenen testle: "peki" demeyen kısa takip sınırı
+  taşımamalı). Model ölçümü (`qwen3.5:4b`, demo anı, yeni kodla ayrı portta MCP 5259 + AI 8010): araç seçimi **137/137** (A01–A16 yeni),
+  cevap doğruluğu **33/33** (A30–A33: Murat 644.659,42 TL; maaş 85.000,00 TL; Hasan → Selin son 3 ay 3 × 3.000 = 9.000,00 TL; Murat
+  Eylül'de 2.000 TL ve üstü 7 harcama 41.363,50 TL). İfade örneklemi (`phrasing_eval.py`) çalıştırılmadı.
+- **Bilinen sınırlar:** kural tutmayan serbest yazılış ("elimde ne kadar para var", "hesapta kalan para") genel gruba düşer ve harcama
+  cevabı alabilir; modelin niyet sorusu (`intent-v1`) hesaplar/gelir gruplarını tanımıyor. Ayrı madde olarak önerildi (CHAT-12).

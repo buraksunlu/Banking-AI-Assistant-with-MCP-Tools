@@ -40,6 +40,11 @@ ROSE = "Geçen aya göre harcamam arttı mı?"
 TREND_6 = "Son 6 ayda harcamam aylara göre nasıl değişti?"
 SAVE_ADVISED = "Önerdiğin tutarı her ay biriktirseydim ne olurdu?"
 OTHER_DURATION = "Peki {months} ay biriktirseydim?"
+# ACC-01b K8-A: the everyday banking questions, each a measured case (A-cases of tool_selection_cases.json).
+BALANCE = "Bakiyem ne kadar?"
+SALARY_THIS_MONTH = "Bu ay maaşım yattı mı?"
+SENT_LAST_MONTH = "Geçen ay kime para gönderdim?"
+RECEIVED_LAST_MONTH = "Geçen ay kimden para geldi?"
 
 # CHAT-10 K3-B: the texts that say their period, as patterns. Each is measured for two periods and is a phrasing template for every
 # period it is offered with (P1-B); the value is the periods it may be offered with.
@@ -211,6 +216,15 @@ def _saving(a: dict) -> list[Suggestion]:
     return [_s(OTHER_DURATION.format(months=n), "what_if_monthly", **{**a, "months": n}) for n in others]
 
 
+def _transfers(a: dict) -> list[Suggestion]:
+    # The other way of last month's money, then the balance it left.
+    if a.get("direction") == "Sent":
+        other = _s(RECEIVED_LAST_MONTH, "get_transfers", period="LastMonth", direction="Received")
+    else:
+        other = _s(SENT_LAST_MONTH, "get_transfers", period="LastMonth", direction="Sent")
+    return [other, _s(BALANCE, "get_accounts")]
+
+
 # The candidates of each tool, best first (K1-C); the first three not asked and fitting the answer are offered.
 _TABLE = {
     "get_spending_summary": _summary,
@@ -236,6 +250,14 @@ _TABLE = {
     "get_spending_advice": _advice,
     "what_if_monthly": _saving,
     # No other cut is offered: a figure the user did not say would be the backend's suggestion (MCP-17/18).
+    # ACC-01b K8-A: what people ask next about their accounts; the income share follows the income list (INC-03).
+    "get_accounts": lambda a: [_s(THIS_MONTH, "get_spending_summary", period="ThisMonth"),
+                               _s(SALARY_THIS_MONTH, "get_income", period="ThisMonth"),
+                               _s(SENT_LAST_MONTH, "get_transfers", period="LastMonth", direction="Sent")],
+    "get_income": lambda a: [_in(INCOME_IN, "get_income_share", _named("LastMonth")), _s(BALANCE, "get_accounts")],
+    "get_transfers": _transfers,
+    "search_transactions": lambda a: [_in(CATEGORIES_IN, "get_category_breakdown", _period(a)),
+                                      _in(HIGHEST_IN, "get_highest_transactions", _period(a))],
     "simulate_savings": lambda a: [_s(TREND_6, "get_monthly_trend", months=6),
                                    _in(CATEGORIES_IN, "get_category_breakdown", _named("LastMonth"))],
 }

@@ -1378,6 +1378,11 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Temel bankacılık soruları sohbette (ACC-01b PR1, 16 Kasım 2026; docs/local-ai.md "ACC-01b PR1"): bakiye, tutar sınırlı arama, gelir ve
+  transfer kelime kurallarıyla (`ai/service/accounts.py`) kendi araçlarına gider; sınır, yön ve "yattı mı = bu ay" kodun; kalemler ve kartlar
+  (işletme ve para birimi ayrı). Kapsam dışı kuralı geçmiş zamanı ("gönderdim") artık reddetmiyor. Bulgu: modele gösterilen araç sırası
+  sunucunun derlemeye göre değişen sırasıydı ve isabeti oynatıyordu → sabit ölçülmüş sıra (`routing.MEASURED_ORDER`). Python 1597; araç
+  seçimi 137/137, cevap 33/33. PR2 (cevaptan işlem listesine bağlantı, iPhone) sırada.
 - Temel bankacılık araçları (ACC-01a, 16 Kasım 2026; docs/mcp.md "ACC-01a"): `get_accounts`, `search_transactions`, `get_income`,
   `get_transfers` (20 araç); işlem aramasında `totals` ve `counterparty`. Sohbete açılması ACC-01b'de.
 - Kart incelemesi (16 Kasım 2026, #95; docs/ios.md "iOS-z"): Basit/Detaylı yerine kartın altında "Tümünü göster (N)"; özet ve işyeri

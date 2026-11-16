@@ -15,6 +15,7 @@ import time
 from dataclasses import dataclass
 from typing import Protocol
 
+from accounts import SEARCH, tool_of as account_tool
 from answer_check import fold_rule, fold_turkish
 from ollama_client import OllamaError
 
@@ -30,8 +31,8 @@ GROUPS = {
     PLANNING: ("check_budget", "simulate_savings"),
     # INC-03 K3-A: income, advice and the what-if scenarios; reached by word rules only (K16-A: the model never picks this group).
     WEALTH: ("get_income_share", "get_spending_advice", "what_if_one_off", "what_if_monthly"),
-    # ACC-01a K5-A: balances, the transaction search, income and transfers. Listed before their word rules exist (ACC-01b) so the
-    # model is not shown four new tools in every group meanwhile: until then no route reaches this group.
+    # ACC-01a K5-A: balances, the transaction search, income and transfers; reached by word rules (ACC-01b K2-C, accounts.tool_of)
+    # and by a follow-up of one of them, never by the model's intent question.
     ACCOUNTS: ("get_accounts", "search_transactions", "get_income", "get_transfers"),
 }
 
@@ -39,8 +40,12 @@ GROUPS = {
 _MODEL_GROUPS = {"spending": GENERAL, "payments": GENERAL, "planning": PLANNING}
 
 # K5-B: only requests that are clearly not about the user's spending; a question about transfers is not one of them.
+# ACC-01b: only a request; "gönderdim", "transfer yaptım", "havale ettim" (t/d + i after the stem) ask what was sent, a get_transfers
+# question that this rule used to answer with the out-of-scope text.
+_NOT_PAST = r"(?![td]i)"
 _OUT_OF_SCOPE = re.compile(fold_rule(
-    r"\btransfer\s+(?:yap|et|gönder)|\bpara\s+gönder|\bhavale\s+(?:yap|et)|\beft\s+(?:yap|et)"
+    rf"\btransfer\s+(?:yap|et|gönder){_NOT_PAST}|\bpara\s+gönder{_NOT_PAST}|\bhavale\s+(?:yap|et){_NOT_PAST}"
+    rf"|\beft\s+(?:yap|et){_NOT_PAST}"
     r"|\bhisse|\byatirim\s+yap(?!sa[yd])|\bkripto|\bborsa|\bfikra|\bşaka"))
 
 # INC-03 K5-A: a request for advice or a forecast ("altın alayım mı", "dolar yükselir mi"). Answered with a fixed text and no model:
@@ -165,13 +170,26 @@ def _without_dates(tool: dict) -> dict:
     return {**tool, "function": {**function, "parameters": {**function["parameters"], "properties": shown}}}
 
 
+# ACC-01b finding: a fixed order, never the server's, which changes from build to build (the same code and tools passed S33 and F01
+# 6/6 in one order and 0/6 in another; the table's own order broke S33 and Q07 instead). This is the order every measurement up to
+# 16 Nov 2026 ran with (the server's then, and mcp_tools.json's), then the tools added since; a tool not here comes last.
+MEASURED_ORDER = (
+    "get_recurring_payments", "simulate_savings", "check_budget", "what_if_monthly", "get_highest_transactions",
+    "get_upcoming_payments", "get_merchant_spending", "what_if_one_off", "get_category_spending", "compare_spending",
+    "get_spending_summary", "get_category_breakdown", "get_monthly_trend", "get_income_share", "get_spending_advice",
+    "get_merchant_breakdown", *GROUPS[ACCOUNTS])
+_ORDER = {name: index for index, name in enumerate(MEASURED_ORDER)}
+
+
 def narrow(tools: list[dict], route: Route) -> list[dict]:
-    """The listed tools of the route's groups, in the server's order, plus every tool the table does not know; only the chosen
-    one when the words chose one (K5-D)."""
+    """The listed tools of the route's groups, in the measured order, plus every tool the table does not know (after them); only
+    the chosen one when the words chose one (K5-D)."""
     allowed = route.tools()
     if route.only is not None:
-        return [t for t in tools if t["function"]["name"] in allowed]
-    return [t for t in tools if t["function"]["name"] in allowed or group_of(t["function"]["name"]) is None]
+        kept = [t for t in tools if t["function"]["name"] in allowed]
+    else:
+        kept = [t for t in tools if t["function"]["name"] in allowed or group_of(t["function"]["name"]) is None]
+    return sorted(kept, key=lambda t: _ORDER.get(t["function"]["name"], len(_ORDER)))
 
 
 def scenario_of(folded: str) -> str | None:
@@ -209,6 +227,11 @@ class Router:
             return Route((), out_of_scope=True)
         if _ADVICE_REQUEST.search(folded):
             return Route((), out_of_scope=True, advice=True)
+        # ACC-01b K2-C: a balance, income or transfer question before the wealth words, which "maaş" and "gelir" are too; the
+        # income share keeps its own ("maaşımın ne kadarını harcadım", accounts._NOT_INCOME).
+        account = account_tool(folded)
+        if account is not None and account != SEARCH:
+            return Route((ACCOUNTS,), only=account)
         if _WEALTH_WORDS.search(folded):
             words = _scenario_words(folded)
             if words in ("both", "neither"):
@@ -216,6 +239,9 @@ class Router:
             return Route((WEALTH,), only=words)
         if _PLANNING_WORDS.search(folded):
             return Route((PLANNING,))
+        # A limit is a search only after the planning words: "1.000 TL'den fazla azaltsam" is a saving.
+        if account == SEARCH:
+            return Route((ACCOUNTS,), only=SEARCH)
         if _GENERAL_WORDS.search(folded):
             return Route((GENERAL,))
         # "Peki geçen ay?" says only what changed: it stays with the last call's tools (K6-A).

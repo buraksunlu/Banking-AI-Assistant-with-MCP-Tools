@@ -43,7 +43,8 @@ class ConversationStore:
 
 # CHAT-10 PR3b D12-A: the user's own figures (a budget, a cut) carry over only when the message says it follows up; a short new
 # question ("Bütçemi aşacak mıyım?") had silently reused the last budget.
-FIGURE_ARGUMENTS = ("amount", "currencyCode", "reductionPercent")
+# ACC-01b K3-A: a search's amount limit is the user's figure too.
+FIGURE_ARGUMENTS = ("amount", "currencyCode", "reductionPercent", "minAmount", "maxAmount")
 
 
 def opens_follow_up(message: str) -> bool:

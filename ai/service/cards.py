@@ -13,8 +13,8 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
-from facts import (BUDGET_RULE, GROUP_LABELS, NO_PRICE, RECURRING_RULE, SAVINGS_RULE, UNCLASSIFIED, UPCOMING_RULE, alternatives_line,
-                   asset_name, change_text, volatility_facts, when as _when)
+from facts import (ACCOUNT_KINDS, BUDGET_RULE, GROUP_LABELS, NO_PRICE, RECURRING_RULE, SAVINGS_RULE, UNCLASSIFIED, UPCOMING_RULE, alternatives_line,
+                   asset_name, change_text, limit_text, volatility_facts, when as _when)
 from formatting import day, money, month, percent, period
 
 logger = logging.getLogger(__name__)
@@ -430,7 +430,67 @@ _WHOLE_BUILDERS = {
     "check_budget": _budget,
     "what_if_one_off": _one_off,
     "what_if_monthly": _monthly,
+    "get_accounts": lambda a, r: _accounts(r),
+    "search_transactions": lambda a, r: _listing("search_transactions", a, r),
+    "get_income": lambda a, r: _listing("get_income", a, r),
+    "get_transfers": lambda a, r: _listing("get_transfers", a, r),
 }
+
+
+_ACCOUNT_OWNED = {"Personal": "Kişisel hesaplarınızda", "Business": "İşletme hesaplarınızda"}
+# ACC-01b K5-B: what each total of a list tool is called on its card, and how its sentence counts the rows.
+_LISTING_TITLES = {("get_income", "Credit"): "Gelir", ("get_transfers", "Debit"): "Gönderilen", ("get_transfers", "Credit"): "Gelen"}
+_LISTING_SENTENCES = {("search_transactions", "Debit"): "{count} harcama", ("get_income", "Credit"): "{count} gelir",
+                      ("get_transfers", "Debit"): "{count} transfer gönderdiniz", ("get_transfers", "Credit"): "{count} transfer geldi"}
+
+
+def _accounts(result: dict) -> list[Card]:
+    # ACC-01a K4-A: one card per account type and currency; the shop's money is never in the personal total.
+    totals = result["totals"]
+    several = len({t["currencyCode"] for t in totals}) > 1
+    cards = []
+    for t in totals:
+        currency, kind = t["currencyCode"], ACCOUNT_KINDS[t["accountType"]]
+        entries = [Entry(a["accountName"], a["shortNumber"], money(a["balance"], currency)) for a in result["accounts"]
+                   if a["accountType"] == t["accountType"] and a["currencyCode"] == currency]
+        total = money(t["balance"], currency)
+        cards.append(Card(f"{kind}{f' ({currency})' if several else ''}", _headline(t["balance"], currency), None,
+                          _list(entries[:SIMPLE_ROWS]), _list(entries[SIMPLE_ROWS:]), f"{_ACCOUNT_OWNED[t['accountType']]} toplam {total} var."))
+    return cards
+
+
+def _listing(tool: str, arguments: dict, result: dict) -> list[Card]:
+    # The facts' fixed replies (nobody, nothing found, several merchants) have no figure to show.
+    person, match = result.get("counterpartyMatch"), result.get("merchantMatch")
+    if (person is not None and person["status"] != "Matched") or (match is not None and match["status"] != "Matched"):
+        return []
+    label, totals = _label(result["period"]), result["totals"]
+    several = len({t["currencyCode"] for t in totals}) > 1
+    shown = result["items"][:FACT_ROWS]
+    cards = []
+    for t in totals:
+        currency, direction = t["currencyCode"], t["direction"]
+        if tool == "search_transactions":
+            name = f"{limit} harcamalar" if (limit := limit_text(arguments)) else "Harcamalar"
+            name = f"{match['merchant']} · {name}" if match else name
+        else:
+            name = _LISTING_TITLES[(tool, direction)] + (f" · {person['name']}" if person else "")
+        entries = [_listing_entry(tool, row) for row in shown if row["currencyCode"] == currency and row["direction"] == direction]
+        count = _LISTING_SENTENCES[(tool, direction)].format(count=t["count"])
+        cards.append(Card(f"{name} · {label}{f' ({currency})' if several else ''}", _headline(t["amount"], currency), None,
+                          _list(entries[:SIMPLE_ROWS]), _list(entries[SIMPLE_ROWS:]),
+                          f"{label}: {count}, toplam {money(t['amount'], currency)}."))
+    return cards
+
+
+def _listing_entry(tool: str, row: dict) -> Entry:
+    amount, when = money(row["amount"], row["currencyCode"]), _day(row["localDate"])
+    if tool == "get_income":
+        return Entry("Maaş", f"{row['accountName']} · {when}", amount)
+    if tool == "get_transfers":
+        detail = f"kendi hesabınız · {when}" if row["counterpartyIsOwnAccount"] else when
+        return Entry(row["counterparty"] or UNCLASSIFIED, detail, amount)
+    return Entry(row["merchant"] or UNCLASSIFIED, " · ".join(filter(None, [row["categoryDisplayName"], when])), amount)
 
 
 def _headline(amount: Decimal, currency: str) -> Headline:

@@ -121,6 +121,22 @@
     {"id": "C05", "message": "Bu ay yakıt harcamam ne kadar?", "expected": {"tool": "get_category_spending", "arguments": {"categoryCode": "FUEL", "period": "ThisMonth"}}},
     {"id": "C06", "message": "Geçen ay Migros Sanal Market'e ne kadar harcadım?", "expected": {"tool": "get_merchant_spending", "arguments": {"merchant": "Migros Sanal Market", "period": "LastMonth"}}},
     {"id": "C07", "message": "Markete ne kadar harcadım?", "expected": "clarify"},
-    {"id": "C08", "message": "Bu ay yeme içmeye ne kadar harcadım?", "expected": {"tool": "get_category_spending", "arguments": {"categoryCode": "FOOD", "period": "ThisMonth"}}}
+    {"id": "C08", "message": "Bu ay yeme içmeye ne kadar harcadım?", "expected": {"tool": "get_category_spending", "arguments": {"categoryCode": "FOOD", "period": "ThisMonth"}}},
+    {"id": "A01", "message": "Bakiyem ne kadar?", "expected": {"tool": "get_accounts", "arguments": {}}},
+    {"id": "A02", "message": "Hesabımda ne kadar para var?", "expected": {"tool": "get_accounts", "arguments": {}}},
+    {"id": "A03", "message": "Bu ay maaşım yattı mı?", "expected": {"tool": "get_income", "arguments": {"period": "ThisMonth"}}},
+    {"id": "A04", "message": "Maaşım yattı mı?", "expected": {"tool": "get_income", "arguments": {"period": "ThisMonth"}}},
+    {"id": "A05", "message": "Geçen ay maaşım ne kadar yattı?", "expected": {"tool": "get_income", "arguments": {"period": "LastMonth"}}},
+    {"id": "A06", "message": "Son 3 ayda gelirlerim neler?", "expected": {"tool": "get_income", "arguments": {"period": "Last3Months"}}},
+    {"id": "A07", "message": "Geçen ay kime para gönderdim?", "expected": {"tool": "get_transfers", "arguments": {"period": "LastMonth", "direction": "Sent"}}},
+    {"id": "A08", "message": "Geçen ay kimden para geldi?", "expected": {"tool": "get_transfers", "arguments": {"period": "LastMonth", "direction": "Received"}}},
+    {"id": "A09", "message": "Bu ayki transferlerim neler?", "expected": {"tool": "get_transfers", "arguments": {"period": "ThisMonth"}}},
+    {"id": "A10", "message": "Son 3 ayda Selin'e ne kadar gönderdim?", "expected": {"tool": "get_transfers", "arguments": {"period": "Last3Months", "direction": "Sent", "counterparty": "Selin"}}},
+    {"id": "A11", "message": "Kime para gönderdim?", "expected": "clarify"},
+    {"id": "A12", "message": "Geçen ay 2.000 TL üstü harcamalarım neler?", "expected": {"tool": "search_transactions", "arguments": {"period": "LastMonth", "minAmount": 2000, "currencyCode": "TRY"}}},
+    {"id": "A13", "message": "Bu ay 500 liranın altındaki harcamalarım", "expected": {"tool": "search_transactions", "arguments": {"period": "ThisMonth", "maxAmount": 500, "currencyCode": "TRY"}}},
+    {"id": "A14", "message": "Son 3 ayda 1.000 ile 5.000 TL arası harcamalarım", "expected": {"tool": "search_transactions", "arguments": {"period": "Last3Months", "minAmount": 1000, "maxAmount": 5000, "currencyCode": "TRY"}}},
+    {"id": "A15", "context": {"question": "Geçen ay 2.000 TL üstü harcamalarım neler?", "tool": "search_transactions", "arguments": {"period": "LastMonth", "minAmount": 2000, "currencyCode": "TRY"}}, "message": "Peki bu ay?", "expected": {"tool": "search_transactions", "arguments": {"period": "ThisMonth", "minAmount": 2000, "currencyCode": "TRY"}}},
+    {"id": "A16", "context": {"question": "Geçen ay maaşım ne kadar yattı?", "tool": "get_income", "arguments": {"period": "LastMonth"}}, "message": "Peki bu ay?", "expected": {"tool": "get_income", "arguments": {"period": "ThisMonth"}}}
   ]
 }
