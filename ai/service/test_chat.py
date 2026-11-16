@@ -1,4 +1,5 @@
 import os
+from dataclasses import replace
 from decimal import Decimal
 
 import pytest
@@ -124,9 +125,10 @@ def test_a_tool_call_is_run_and_explained():
 
     reply = chat.answer("Dün ne harcadım?", TOKEN)
 
-    assert reply == ChatReply("answer", ANSWER, [SUMMARY_YESTERDAY], YESTERDAY_FACTS,
-                              # CHAT-10 K2-B: one purchase yesterday, so it is not broken down; another day instead.
-                              ["Bugün toplam ne kadar harcadım?"])
+    # UX-01 PR4: the card of this answer is test_chat_cards' subject; here the rest of the reply.
+    assert replace(reply, cards=[]) == ChatReply("answer", ANSWER, [SUMMARY_YESTERDAY], YESTERDAY_FACTS,
+                                                 # CHAT-10 K2-B: one purchase yesterday, so it is not broken down; another day instead.
+                                                 ["Bugün toplam ne kadar harcadım?"])
     assert gateway.list_calls == [(TOKEN, 30.0)]
     # CHAT-01: the model is shown the general group only, not the planning tools the server lists too.
     assert selector.calls == [("Dün ne harcadım?", general_tools(), 30.0)]

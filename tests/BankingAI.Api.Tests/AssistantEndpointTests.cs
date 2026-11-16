@@ -59,7 +59,7 @@ public sealed class AssistantEndpointTests
                  "toolCalls":[{"tool":"get_spending_summary","arguments":{"period":"Yesterday"}}],
                  "facts":[{"label":"Toplam harcama","text":"145,00 TL"}],
                  "suggestions":["Kategorilere göre?","Peki işyerlerine göre?"],
-                 "choices":[],"inputHint":"",
+                 "choices":[],"inputHint":"","cards":[],
                  "links":[{"title":"İşlemleri gör","query":{"period":"Yesterday","from":null,"to":null,"kind":"Purchase",
                            "accountType":"Personal","categoryCode":null,"merchant":null}}]}
                 """)!.ToJsonString(),
@@ -269,6 +269,64 @@ public sealed class AssistantEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, status);
         Assert.Equal("Başka bir tutar yazın", body["inputHint"]!.GetValue<string>());
+    }
+
+    // ---- UX-01 PR4: answer cards
+
+    private const string MarketCard = """
+        {"title":"Market · Eylül 2026","headline":{"amount":18016.5,"currency":"TRY","text":"18.016,50 TL"},
+         "change":{"percent":50.84,"direction":"up","against":"Ağustos 2026","againstText":"11.944,50 TL","text":"%50,84 artış"},
+         "simple":[{"kind":"bars","rows":[{"label":"BİM","amount":6216.0,"text":"6.216,00 TL · %34,50","share":1.0,"direction":null}],
+                    "points":[],"items":[],"highlight":null}],
+         "detailed":[{"kind":"series","rows":[],"points":[{"label":"Eki","amount":5133.0,"text":"5.133,00 TL","share":0.28,"partial":true}],
+                      "items":[],"highlight":"Eyl"},
+                     {"kind":"stats","rows":[],"points":[],"items":[{"label":"İşlem","text":"8"}],"highlight":null}],
+         "sentence":"Market: önceki döneme göre 6.072,00 TL fazla."}
+        """;
+
+    private static string ReplyWithCards(params string[] cards) => $$"""
+        {"type":"answer","answer":"Eylülde markete 18.016,50 TL harcadınız.","toolCalls":[],"facts":[],"suggestions":[],"choices":[],
+         "inputHint":"","cards":[{{string.Join(",", cards)}}],"model":"m"}
+        """;
+
+    [Fact]
+    public async Task An_answers_cards_reach_the_client_as_written()
+    {
+        var (status, body) = await AskAsync(FakeAssistantService.Answering(ReplyWithCards(MarketCard)));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        // The API passes the card on unchanged: the phone draws it and never formats or computes a figure.
+        Assert.Equal(JsonNode.Parse(MarketCard)!.ToJsonString(), body["cards"]![0]!.ToJsonString());
+    }
+
+    [Fact]
+    public async Task A_reply_without_cards_has_none()
+    {
+        var (status, body) = await AskAsync(FakeAssistantService.Answering());
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Empty(body["cards"]!.AsArray());
+    }
+
+    public static TheoryData<string> BrokenCards => new(
+        MarketCard.Replace("\"kind\":\"bars\"", "\"kind\":\"pie\""),                      // a block the phone cannot draw
+        MarketCard.Replace("\"amount\":18016.5", "\"amount\":\"18016.50\""),                  // money as text
+        MarketCard.Replace("\"share\":1.0", "\"share\":1.5"),                                // a bar longer than the card
+        MarketCard.Replace("\"direction\":\"up\"", "\"direction\":\"sideways\""),           // an unknown direction
+        MarketCard.Replace("\"items\":[{\"label\":\"İşlem\",\"text\":\"8\"}]", "\"items\":[]"),     // a block without its rows
+        MarketCard.Replace("\"sentence\":\"Market: önceki döneme göre 6.072,00 TL fazla.\"", "\"sentence\":null"),
+        "42");
+
+    [Theory]
+    [MemberData(nameof(BrokenCards))]
+    public async Task A_broken_card_is_left_out_and_the_answer_still_reaches_the_client(string broken)
+    {
+        var (status, body) = await AskAsync(FakeAssistantService.Answering(ReplyWithCards(broken, MarketCard)));
+
+        // K2-A: a card is never a reason to fail the turn; only the broken one is missing.
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal("Eylülde markete 18.016,50 TL harcadınız.", body["answer"]!.GetValue<string>());
+        Assert.Equal(JsonNode.Parse(MarketCard)!.ToJsonString(), Assert.Single(body["cards"]!.AsArray())!.ToJsonString());
     }
 
     public static TheoryData<string> BrokenReplies => new(

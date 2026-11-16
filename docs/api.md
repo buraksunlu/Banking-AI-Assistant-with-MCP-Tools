@@ -830,6 +830,14 @@ iPhone ──Bearer──► POST /api/assistant/messages ── token → müş
   `inputHint` (CHAT-10 PR3b, her zaman var, çoğu zaman `""`): seçeneklerin altına konan "kendi cevabını yaz" satırının metni
   (bugün yalnız tutar sorularında: "Başka bir tutar yazın"). İstemci dokununca mesaj göndermez, yazı alanını açar. Eksik ya da
   `null` → 502.
+  `cards` (UX-01 PR4, her zaman var; altı araçta dolu: özet, kategori dağılımı, kategori detayı, tek işyeri, karşılaştırma, aylık seri):
+  cevabın kartları, para birimi başına bir kart. `{ title, headline: { amount, currency, text }, change: { percent, direction, against,
+  againstText, text } | null, simple: [blok], detailed: [blok], sentence }`; blok `{ kind: bars | series | stats, rows, points, items,
+  highlight }` (türün kullanmadığı iki liste boş). `rows`: `{ label, amount, text, share, direction }`, `points`: `{ label, amount, text,
+  share, partial }`, `items`: `{ label, text }`. `share` 0–1 çubuk boyudur, yazı olarak gösterilmez; `direction` `up`/`down`/`same`.
+  İstemci sayı biçimlendirmez ve hesaplamaz, `text`'leri aynen gösterir; `detailed` boşsa Basit/Detaylı anahtarı yoktur. Kartı AI
+  servisinin kodu kurar ve sayıları kalemlere karşı denetler; API okuyamadığı kartı (bilinmeyen tür, tırnaklı tutar, 0–1 dışı `share`,
+  boş blok, eksik alan) düşürür, cevap yine 200'dür. Model açıklaması (`answer`) şimdilik kartla birlikte gelir.
   `links` (CHAT-07, her zaman var, çoğu zaman boş): cevabın altındaki "İşlemleri gör" düğmeleri. Bağlantıyı **model değil .NET**
   kurar (`Api/Assistant/AssistantLinks`, kontrol edilmiş `toolCalls`'tan): `{ title, query: { period, from, to, kind, accountType,
   categoryCode, merchant } }`, `GET /api/transactions`'ın aynı rakamı veren sorgusudur. Özet, kategori, işyeri dağılımı, en büyük

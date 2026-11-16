@@ -1378,6 +1378,11 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Cevap kartları (UX-01 PR4, 15 Kasım 2026; docs/local-ai.md "Cevap kartları", docs/api.md `cards`): AI servisinin kodu altı araçta
+  (özet, kategori dağılımı, kategori detayı, tek işyeri, karşılaştırma, aylık seri) para birimi başına kart kurar (`ai/service/cards.py`),
+  her yazısı kalemlere karşı denetlenir; .NET `AssistantReply.Cards` taşır, bozuk kart düşer, cevap 200. Model açıklaması PR5'e kadar sürer.
+  K1-B K2-A K3-A K4-A K5-D K6-A K7-A K8-A. Testler: Application 500, Data 185, Api 600, McpServer 216, Python 1403 modelsiz; 16 kasıtlı bozma
+  yakalandı (biri eklenen testle). Model ölçümleri (PR3 araç seçimi, PR4 cevap doğruluğu) SSD takılınca.
 - Kategori detayı (UX-01 PR3, 15 Kasım 2026; docs/analytics.md, docs/api.md, docs/mcp.md, docs/local-ai.md "UX-01 PR3"):
   `CategorySpendingService` + `GET /api/analytics/category-spending` + 16. MCP aracı `get_category_spending` + sohbette genel grup, kalemler,
   öneri kalıbı "{dönem} {kategori} harcamam ne kadar?". Önceki dönem aynı pencere kendi birimiyle geri (`PeriodResolver.ResolvePrevious`).

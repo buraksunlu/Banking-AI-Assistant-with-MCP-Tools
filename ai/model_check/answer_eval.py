@@ -55,7 +55,22 @@ def problems(case: dict, reply: dict) -> list[str]:
     shown = " | ".join([reply["answer"], *(c["label"] for c in reply.get("choices", []))])
     found += [f"cevapta yok: {text}" for text in case.get("answer", []) if text not in shown]
     found += [f"olmamalı: {text}" for text in case.get("absent", []) if text in facts]
+    # UX-01 PR4: every text the cards show, as the phone shows it.
+    cards = " | ".join(text for card in reply.get("cards", []) for text in _texts(card))
+    found += [f"kartta yok: {text}" for text in case.get("card", []) if text not in cards]
+    if case.get("noCard") and reply.get("cards"):
+        found.append("kart olmamalı")
     return found
+
+
+def _texts(value) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return [t for item in value.values() for t in _texts(item)]
+    if isinstance(value, list):
+        return [t for item in value for t in _texts(item)]
+    return []
 
 
 def main() -> int:
