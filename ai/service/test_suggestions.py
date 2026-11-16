@@ -8,7 +8,7 @@ import pytest
 
 from conversation import is_follow_up
 from routing import GROUPS, Router, group_of
-from suggestions import (OUT_OF_SCOPE_SUGGESTIONS, PATTERNS, PERIOD_NAMES, AskedStore, OfferedStore, Shape, StarterQuestions,
+from suggestions import (BALANCE, RECEIVED_LAST_MONTH, SALARY_THIS_MONTH, SENT_LAST_MONTH, OUT_OF_SCOPE_SUGGESTIONS, PATTERNS, PERIOD_NAMES, AskedStore, OfferedStore, Shape, StarterQuestions,
                          Suggestion, follow_ups, match, panel_questions, result_shape)
 from test_mcp_gateway import _real_token, real
 from mcp_gateway import McpSettings, McpToolGateway
@@ -224,7 +224,8 @@ def test_the_shape_of_a_result_is_its_counts(tool, result, shape):
 
 
 def test_a_tool_the_table_does_not_know_gets_none():
-    assert follow_ups("get_accounts", {}) == []
+    # ACC-01b: get_accounts was this example until it got its row.
+    assert follow_ups("get_spending_overview", {}) == []
 
 
 def test_no_tool_gets_more_than_three():
@@ -290,7 +291,7 @@ def test_every_other_duration_offered_is_a_measured_follow_up():
 
 
 @pytest.mark.parametrize("text", [INCOME_LAST_MONTH, TOTAL_TM, TOTAL_LM, RECURRING, UPCOMING_7, ROSE, TREND_6, SAME_DAYS,
-                                  SAVE_ADVISED, SAVE_WHERE_LM])
+                                  SAVE_ADVISED, SAVE_WHERE_LM, BALANCE, SALARY_THIS_MONTH, SENT_LAST_MONTH, RECEIVED_LAST_MONTH])
 def test_every_full_question_offered_is_a_measured_case(text):
     # A full question is not read with the last call: it goes to the model like any other, so only measured ones are offered.
     # INV-03 PR2: the advised saving now ends in its duration question, which the case measures as "clarify:duration".
@@ -452,3 +453,16 @@ def test_the_panel_questions_are_this_months_category_pattern_for_every_category
     assert {(q.tool, q.arguments["period"]) for q in questions} == {("get_category_spending", "ThisMonth")}
     assert [q.arguments["categoryCode"] for q in questions] == [
         "GROCERY", "FOOD", "CLOTHING", "TRANSPORTATION", "ENTERTAINMENT", "SUBSCRIPTION", "TRAVEL", "FUEL", "BILLS", "HEALTH"]
+
+
+# ACC-01b K8-A: the account tools' follow-ups (values by hand).
+
+def test_the_account_tools_offer_the_next_everyday_question():
+    assert [x.text for x in follow_ups("get_accounts", {})] == [THIS_MONTH, "Bu ay maaşım yattı mı?", "Geçen ay kime para gönderdim?"]
+    assert [x.text for x in follow_ups("get_income", {"period": "LastMonth"})] == [INCOME_LAST_MONTH, "Bakiyem ne kadar?"]
+    assert [x.text for x in follow_ups("get_transfers", {"period": "LastMonth", "direction": "Sent"})] == [
+        "Geçen ay kimden para geldi?", "Bakiyem ne kadar?"]
+    assert [x.text for x in follow_ups("get_transfers", {"period": "LastMonth", "direction": "Received"})] == [
+        "Geçen ay kime para gönderdim?", "Bakiyem ne kadar?"]
+    assert [x.text for x in follow_ups("search_transactions", {"period": "LastMonth", "minAmount": 2000, "currencyCode": "TRY"})] == [
+        "Geçen ay kategorilere göre harcamam nasıl?", "Geçen ay en büyük harcamalarım neler?"]

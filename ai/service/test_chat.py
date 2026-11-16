@@ -634,7 +634,13 @@ def test_a_guessed_cut_is_asked_and_the_reply_completes_it():
 def general_tools():
     from routing import GENERAL, GROUPS, hide_dates
     # What the model is shown: the general group, without the date range of the period tools (CHAT-08).
-    return hide_dates([d for d in DEFINITIONS if d["function"]["name"] in GROUPS[GENERAL]])
+    # ACC-01b: in the measured order (routing.MEASURED_ORDER), not the server's.
+    return hide_dates(in_measured_order([d for d in DEFINITIONS if d["function"]["name"] in GROUPS[GENERAL]]))
+
+
+def in_measured_order(tools):
+    from routing import MEASURED_ORDER
+    return sorted(tools, key=lambda t: MEASURED_ORDER.index(t["function"]["name"]))
 
 
 def shown(selector, turn=0):
@@ -647,7 +653,7 @@ def test_a_budget_question_shows_only_the_planning_tools():
 
     chat.answer("Bu ay 3.000 TL bütçem var, ne durumdayım?", TOKEN)
 
-    assert shown(selector) == ["check_budget", "simulate_savings"]
+    assert shown(selector) == ["simulate_savings", "check_budget"]
 
 
 def test_a_clear_out_of_scope_request_runs_no_model_and_lists_no_tools():
@@ -667,7 +673,7 @@ def test_a_follow_up_without_words_of_its_own_keeps_the_last_calls_group():
     chat.answer("Bu ay 3.000 TL bütçem var, ne durumdayım?", TOKEN)
     chat.answer("Peki 4.000 TL olsa?", TOKEN)
 
-    assert shown(selector, 1) == ["check_budget", "simulate_savings"]
+    assert shown(selector, 1) == ["simulate_savings", "check_budget"]
     assert gateway.calls[1][:2] == ("check_budget", {"amount": 4000, "currencyCode": "TRY"})
 
 
@@ -719,7 +725,7 @@ def test_the_router_asks_its_classifier_only_without_a_matching_rule():
     chat.answer("Ayda sabit olarak neye para gidiyor?", TOKEN)
 
     assert classifier.calls == ["Ayda sabit olarak neye para gidiyor?"]
-    assert shown(selector, 1) == ["check_budget", "simulate_savings"]
+    assert shown(selector, 1) == ["simulate_savings", "check_budget"]
 
 
 def test_the_classifier_asks_for_one_group_in_a_fixed_shape():
@@ -892,7 +898,7 @@ def test_the_model_is_shown_no_dates_and_no_custom_period():
         assert "from" not in properties and "to" not in properties
         assert "Custom" not in properties.get("period", {}).get("enum", [])
     # Everything else the server published for the group is still there, descriptions word for word (they were measured as they are).
-    published = [d for d in DEFINITIONS if d["function"]["name"] in GROUPS[GENERAL]]
+    published = in_measured_order([d for d in DEFINITIONS if d["function"]["name"] in GROUPS[GENERAL]])
     assert [t["function"]["name"] for t in tools] == [t["function"]["name"] for t in published]
     assert [t["function"]["description"] for t in tools] == [t["function"]["description"] for t in published]
 

@@ -67,7 +67,7 @@ def test_the_income_share_is_run_and_explained():
     assert (reply.type, reply.answer, reply.tool_calls) == ("answer", ANSWER, [INCOME_SHARE])
     assert gateway.calls[0][:2] == ("get_income_share", {"period": "LastMonth"})
     # The wealth group only: not the nine spending tools.
-    assert [t["function"]["name"] for t in selector.calls[0][1]] == ["get_income_share", "get_spending_advice", "what_if_one_off", "what_if_monthly"]
+    assert [t["function"]["name"] for t in selector.calls[0][1]] == ["what_if_monthly", "what_if_one_off", "get_income_share", "get_spending_advice"]
 
 
 @pytest.mark.usefixtures("no_cards")

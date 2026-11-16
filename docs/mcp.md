@@ -288,5 +288,6 @@ Kullanıcının seçtiği 1. grup ("temel bankacılık soruları"); kararlar K1-
 Üç liste aracı en fazla `AccountTools.ListLimit` = 10 satır döner; `totalCount` ve `totals` bütün sonucu kapsar. Kişisel hesap kapsamı
 sohbet cevaplarının kapsamıdır (CHAT-07): Can'ın Ekim'i yalnız kişisel hesabına gelen 18.000'i gösterir, dükkânın giden bacağını değil.
 `IAccountReadService` artık `AddBankingCore`'da (salt okunur; yazma servisi yalnız API'de). AI servisinde dört araç `routing.GROUPS`'ta
-kendi `accounts` grubunda ve henüz hiçbir yol oraya gitmez (INC-03 PR1 kalıbı): kurallar, kartlar ve ölçüm ACC-01b'de.
+kendi `accounts` grubundadır; ACC-01b PR1'den beri kelime kurallarıyla (`ai/service/accounts.py`) ulaşılır, kalemler, kartlar ve ölçüm
+`docs/local-ai.md` "ACC-01b PR1" bölümünde. MCP server ACC-01b'de değişmedi.
 

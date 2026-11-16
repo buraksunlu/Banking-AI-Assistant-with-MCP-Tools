@@ -122,6 +122,17 @@ okuması süreleri önce çıkarır, `without_durations` "son N ay"ı dönem bı
 sabit metin, `inputHint`; sınır dışı/iki süre notla ya da yeniden sorulur), `routing.hide_dates` alanı modelden gizler. "Peki 6 ay?"
 (`wealth.monthly_follow_up`) ve sunulan öneri metinleri modelsiz çalışır; öneri tutarında da süre sorulur. Sınırlar sunucu şemasıyla
 testte karşılaştırılır (`mcp_tools.json`). Araç şeması değişince `phrasing_eval.py --refresh-tools`.
+**Hesaplar (ACC-01b PR1, `accounts.py`):** bakiye, gelir ve transfer kelimeleri (`tool_of`) wealth kurallarından **önce**, tutar sınırlı
+arama planlamadan sonra bakılır; kelimeler aracı seçer (`Route.only`, K2-C), bakiye modelsiz çalışır, model boş dönerse `fallback_arguments`.
+Tutar sınırı ("2.000 TL üstü", "arası", "en az") ve transfer yönü (`transfer_direction`, "bana" = gelen) kodun (`code_arguments`, K3-A);
+modelin yazdığı karşı taraf adı mesajda geçmiyorsa düşer (K4-B). Dönemsiz "yattı mı / geldi mi" bu aydır (`implied_this_month`, mesaja
+"(bu ay)" eklenir, K6-C); diğer eksik dönem sorulur. Kapsam dışı kuralı yalnız istek biçimidir (`_NOT_PAST`: "gönderdim", "transfer
+yaptım" transfer sorusudur). `minAmount`/`maxAmount` kullanıcının rakamıdır (`FIGURE_ARGUMENTS`, yalnız "peki/ya" ile taşınır). Kalemler
+`facts._accounts`/`_listing`, kartlar `cards._accounts`/`_listing` (satırlar aracın kendi sonucundan, ilk 5; işletme ve para birimi ayrı kart).
+Aynı adlı iki kişi aday sorusu değil sabit cevaptır (maskeli ad geri yazılıp eşleştirilemez).
+**Araç sırası (ACC-01b bulgusu):** modele gösterilen liste `routing.MEASURED_ORDER` sırasındadır, sunucunun sırası değil (derlemeye göre
+değişiyor ve 4b'nin isabetini oynatıyordu). Yeni araç bu tuple'a eklenir (`test_the_measured_order_names_every_tool_of_the_table_once`);
+sıra değişirse bütün araç seçim ölçümü yeniden çalıştırılır. Ölçüm her zaman yeni kodla açılmış ayrı porttaki MCP/AI servisiyle yapılır.
 
 MCP istemcisi (MCP-b, `ai/service/mcp_gateway.py`, `mcp` 2.3.0): `BANKINGAI_MCP_URL` (yoksa `http://127.0.0.1:5249/mcp`; yanlış biçimde
 servis açılmaz). Protokol `2026-07-28`'e sabit (el sıkışma/keşif isteği yok); her çağrı kendi kısa olay döngüsünde (`anyio.run`, sohbet

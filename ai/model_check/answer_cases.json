@@ -29,6 +29,10 @@
     {"id": "A26", "customer": "murat", "messages": ["Geçen ay markete ne kadar harcadım?"], "type": "answer", "tool": "get_category_spending", "facts": ["18.016,50 TL"], "answer": ["6.072,00"], "card": ["18.016,50 TL", "%50,84 artış", "BİM"]},
     {"id": "A27", "customer": "murat", "messages": ["Önümüzdeki 7 günde hangi ödemelerim var?"], "type": "answer", "tool": "get_upcoming_payments", "facts": ["229,99 TL"], "answer": ["229,99"], "card": ["229,99 TL", "Netflix", "12 Ekim 2026 · 2 gün sonra"]},
     {"id": "A28", "customer": "murat", "messages": ["Geçen ayki en büyük harcamalarım neler?"], "type": "answer", "tool": "get_highest_transactions", "facts": ["25.000,00 TL"], "answer": ["25.000,00"], "card": ["25.000,00 TL", "Faturalar · 15 Eylül 2026"]},
-    {"id": "A29", "customer": "zeynep", "messages": ["Geçen ay en çok hangi işyerine harcadım?"], "type": "answer", "tool": "get_merchant_breakdown", "facts": ["10.490,00 TL", "37,99 USD"], "answer": ["Ortak Ofis", "Adobe"], "card": ["10.490,00 TL", "37,99 USD", "(TRY)", "(USD)"]}
+    {"id": "A29", "customer": "zeynep", "messages": ["Geçen ay en çok hangi işyerine harcadım?"], "type": "answer", "tool": "get_merchant_breakdown", "facts": ["10.490,00 TL", "37,99 USD"], "answer": ["Ortak Ofis", "Adobe"], "card": ["10.490,00 TL", "37,99 USD", "(TRY)", "(USD)"]},
+    {"id": "A30", "customer": "murat", "messages": ["Bakiyem ne kadar?"], "type": "answer", "tool": "get_accounts", "facts": ["644.659,42 TL"], "answer": ["644.659,42"], "card": ["644.659,42 TL", "Murat aile TRY", "•••• 001"]},
+    {"id": "A31", "customer": "murat", "messages": ["Geçen ay maaşım ne kadar yattı?"], "type": "answer", "tool": "get_income", "facts": ["85.000,00 TL"], "answer": ["85.000,00"], "card": ["85.000,00 TL", "Maaş", "15 Eylül 2026"]},
+    {"id": "A32", "customer": "hasan", "messages": ["Son 3 ayda Selin'e ne kadar gönderdim?"], "type": "answer", "tool": "get_transfers", "facts": ["9.000,00 TL"], "answer": ["9.000,00"], "card": ["9.000,00 TL", "Selin K***"]},
+    {"id": "A33", "customer": "murat", "messages": ["Geçen ay 2.000 TL üstü harcamalarım neler?"], "type": "answer", "tool": "search_transactions", "facts": ["41.363,50 TL", "2.000,00 TL ve üstü"], "answer": ["41.363,50", "7 harcama"], "card": ["41.363,50 TL", "2.000,00 TL ve üstü harcamalar"]}
   ]
 }

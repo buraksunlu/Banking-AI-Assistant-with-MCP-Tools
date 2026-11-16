@@ -175,7 +175,7 @@ def test_a_budget_question_the_model_left_asks_the_budget():
 
     assert reply == ChatReply("clarification", AMOUNT_QUESTION, [], [], choices=AMOUNT_CHOICES, input_hint=AMOUNT_HINT)
     # The model was shown both planning tools, as before (K19-C: its list does not change).
-    assert names(selector.calls[0][1]) == ["check_budget", "simulate_savings"]
+    assert names(selector.calls[0][1]) == ["simulate_savings", "check_budget"]
     assert gateway.calls[0][:2] == ("check_budget", {"amount": 1500, "currencyCode": "TRY"})
 
 

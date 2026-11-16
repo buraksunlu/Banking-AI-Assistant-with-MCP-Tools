@@ -423,6 +423,13 @@ liste bağlantısı) K7-A (eski 121 vaka bozulmaz, yeni ≥ 14/16, cevap doğrul
   `IAccountReadService` ortak kurulumda; AI servisinde `accounts` grubu (yolsuz). Application 500 → 511, McpServer 216 → 222, Api 605 → 606,
   Python 1464; 8 kasıtlı bozma yakalandı (biri eklenen testle: kişisel hesap kapsamı).
 - [ ] ACC-01b — Asistan + iPhone: yönlendirme kuralları, mesajdan tutar/ad okuma, dört kart, öneriler, işlem bağlantısı, model ölçümü.
+  Kararlar K1-B (iki PR) K2-C K3-A K4-B K5-B K6-C K7-A K8-A. **PR1 tamam (16 Kasım 2026, dal `acc-01b-chat`; docs/local-ai.md
+  "ACC-01b PR1"):** `ai/service/accounts.py` (kurallar, tutar sınırı, yön, karşı taraf denetimi, "yattı mı" = bu ay), yönlendirme (hesap
+  kuralları wealth'ten önce, arama planlamadan sonra; kapsam dışı yalnız istek), kalemler ve kartlar, öneriler; aynı ilk adlı iki kişi
+  sabit cevap (plandan sapma, gerekçe belgede). Bulgu: araç sırası sunucudan geliyordu ve derlemeye göre değişip isabeti oynatıyordu
+  (aynı kodla S33/F01 6/6 ↔ 0/6) → `routing.MEASURED_ORDER`. Python 1464 → 1597 modelsiz; ifade 1.762 (0 açık); araç seçimi 137/137
+  (yeni 16/16), cevap doğruluğu 33/33 (yeni 4/4); 10 kasıtlı bozmanın hepsi yakalandı (biri eklenen testle). PR2: .NET bağlantısına
+  yön/karşı taraf/tutar alanları + iPhone.
 
 ## 14. SwiftUI — çalışan endpoint üzerine küçük ekranlar
 
