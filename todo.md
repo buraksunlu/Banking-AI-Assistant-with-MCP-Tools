@@ -492,7 +492,14 @@ ayrıntı için **cevap modu**: kullanıcı basit cevap mı, detaylı/istatistik
   açık; 15 kasıtlı bozma yakalandı. Bilerek değişen eski testler: OpenAPI operasyon sayısı 30 → 31, araç sayıları 15 → 16 (routing,
   phrasings), dönem aracı sayıları 6 → 7 ve 8 → 9 (keşif), gerçek sunucu araç listesi (eskimişti, 11 → 16). **Açık:** araç seçimi model
   ölçümü (harici SSD takılı değildi).
-- [ ] UX-01 PR4 — `cards` sözleşmesi (`ai/service/cards.py`, .NET, OpenAPI) ve ilk altı araç.
+- [x] UX-01 PR4 — `cards` sözleşmesi (`ai/service/cards.py`, .NET, OpenAPI) ve ilk altı araç (15 Kasım 2026, docs/local-ai.md "Cevap
+  kartları"). Altı araç kart alır (özet, kategori dağılımı, kategori detayı, tek işyeri, karşılaştırma, aylık seri), para birimi başına; model
+  kart yazmaz, kartın her yazısı kalemlere karşı denetlenir (K6-A). Kararlar K1-B (açıklama PR5'e kadar sürer) K2-A (.NET tipli, bozuk kart
+  düşer) K3-A (çubuk = satır / en büyük) K4-A (tek cümle kalıbı) K5-D (seride en yüksek/en düşük ay) K6-A K7-A (Basit ilk 3) K8-A
+  (sürücüler). Application 500, Data 185, Api 600, McpServer 216, Python 1403 modelsiz; ifade 1.562 / 0 açık; 16 kasıtlı bozma yakalandı.
+  Bilerek değişen eski testler: cevap şekli (`cards: []` eklendi; Python `test_app`, .NET `A_reply_reaches_the_client…`), özet turu
+  karşılaştırması kartsız yapıldı (`test_chat`), `AssistantReply` kurucusuna `Cards` (`AssistantLinksTests`). **Açık:** cevap doğruluğu
+  model ölçümü (A26 dahil 26 vaka) SSD takılınca.
 - [ ] UX-01 PR5 — iPhone kayan sayfa, kart şablonları, Basit/Detaylı; Asistan sekmesi aynı oturum.
 - [ ] UX-01 PR6 — Kalan dokuz aracın kartları ve ölçümler.
 
@@ -748,9 +755,9 @@ kullanıcı kararıyla daha sonra ayrı iş olarak planlanabilir.
 
 Güncelleme: 15 Kasım 2026. Aşağıdaki "tamamlanan bloklar" ve test sayıları 23 Ekim'in; sonrası `RULE.md` §29'da.
 
-- **Şimdi (15 Kasım 2026):** UX-01 cep asistanı — PR1 (açık tema, #81), PR2 (ana ekran paneli, #82) ve PR3 (kategori detayı backend'i, bu
-  dal) yapıldı. PR3'ün araç seçimi ölçümü harici SSD takılınca çalışacak. Sıradaki: PR4 kart sözleşmesi (`cards.py`, .NET, OpenAPI, ilk altı
-  araç) → PR5 iPhone kayan sayfa ve kartlar → PR6 kalan araçlar; INV-02 (yatırım özellik havuzu) sonra. PR2 paneli simülatörde denenmedi.
+- **Şimdi (15 Kasım 2026):** UX-01 cep asistanı — PR1 (açık tema, #81), PR2 (ana ekran paneli, #82), PR3 (kategori detayı backend'i, #83) ve
+  PR4 (kart sözleşmesi, bu dal) yapıldı. Model ölçümleri (PR3 araç seçimi, PR4 cevap doğruluğu) harici SSD takılınca. Sıradaki: PR5 iPhone
+  kayan sayfa, kart şablonları, Basit/Detaylı ve kart varken açıklamanın kalkması (PR4 K1-B) → PR6 kalan araçlar; INV-02 sonra. PR2 paneli simülatörde denenmedi.
 
 Tamamlanan bloklar: banking foundation (DOC-09; SYN-01–14, KIND-01–05), deterministik analytics (ANA-01–14,
 REC-01–03, ANA-20), API ve güvenlik (API-01a/01b, API-02–15, SEC-01a/01b, SEC-06), local AI (AI-01–07: model seçimi,

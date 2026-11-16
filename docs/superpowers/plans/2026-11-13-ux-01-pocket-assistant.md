@@ -229,6 +229,11 @@ Beyazda en düşük: cyan 3,10, yellow 3,27, orange 3,23; gri 3,92.
   alanlarını da tarar; kalıp cümle (K1-A) koddan, rakam yalnız sonuçtan; kart varken model açıklama yazmaz (K7-A).
 - **Testler:** her kurucu için Murat değerleri (PR3 tablosu), iki para birimi = iki kart, bilinmeyen araç = `[]`, denetim kartta
   uydurulmuş rakamı yakalar; `answer_eval` kart alanlarını da kontrol eder; kasıtlı bozma.
+- **Uygulandı (15 Kasım 2026, docs/local-ai.md "Cevap kartları"):** K1-B model açıklaması PR5'e kadar sürer (K7-A PR5'te açılır) · K2-A
+  .NET tipli kayıtlar, bozuk kart düşer · K3-A çubuk = satır / kartın en büyük satırı · K4-A araç başına tek cümle · K5-D aylık seride en
+  yüksek/en düşük tam ay · K6-A kart yazıları kalemlere karşı · K7-A Basit ilk 3 · K8-A sürücüler yönlü. Blok alanları: `bars.rows`
+  `{label, amount, text, share, direction}`, `series.points` `{label, amount, text, share, partial}` + `highlight`, `stats.items`
+  `{label, text}`; `actions` alanı yok (öneriler ve bağlantılar cevabın kendi alanlarında). Aylık seri başlığı "Aylık harcama · <dönem>".
 
 ## PR5 — iPhone kayan sayfa, kart şablonları, cevap modu (özet)
 

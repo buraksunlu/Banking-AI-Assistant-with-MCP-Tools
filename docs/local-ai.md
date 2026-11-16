@@ -1178,3 +1178,23 @@ açıklaması; eski ölçülmüş açıklamalar aynen kaldı).
   1.562 ifade, 0 açık. `mcp_tools.json` `--refresh-tools` ile 16 araç.
 - **Model ölçümü yapılmadı:** harici SSD takılı değildi, Ollama modeli yükleyemedi. Birleşmeden önce `tool_selection_eval.py` (121 vaka)
   çalıştırılmalı; eşik: eski vakalarda bozulan yok. Karışma çıkarsa K6-A (kategori dağılımı açıklamasına "tek kategori için değil") ayrıca sorulur.
+
+# Cevap kartları (UX-01 PR4, 15 Kasım 2026)
+
+Sohbet cevabı `cards` alanıyla gelir: altı araçta (özet, kategori dağılımı, kategori detayı, tek işyeri, karşılaştırma, aylık seri) AI
+servisinin **kodu** araç sonucundan kart kurar (`ai/service/cards.py`); model kartın hiçbir alanını yazmaz. Diğer dokuz araç PR6'ya kadar
+`[]`. Kararlar (15 Kasım 2026): K1-B (model açıklaması sürer; kart varken kalkması PR5'te, iPhone kartı çizince), K2-A (.NET tipli kayıtlar,
+bozuk kart düşer, cevap 200), K3-A (çubuk boyu = satır / kartın en büyük satırı, yalnız çizim), K4-A (araç başına tek cümle kalıbı, işarete
+göre), K5-D (aylık serinin Detaylı'sı en yüksek/en düşük tam ay; seçilir, hesaplanmaz), K6-A (kartın her yazısı kalemlere karşı; tutmayan
+kart düşer), K7-A (Basit'te ilk 3 satır), K8-A (karşılaştırmada değişimin büyüklüğüne göre sürücüler, yönlü).
+
+- **Kart:** `title` (konu · dönem; tam takvim ayı adıyla "Eylül 2026", diğer dönem günleriyle "1-10 Ekim 2026"; aylık seride kalemlerdeki
+  dönem yazısı), `headline`, `change` (yalnız önceki dönemi olan araçlar: kategori detayı, karşılaştırma; yön kelimeyle "%28,47 azalış",
+  eksi işareti yok), `simple`/`detailed` blokları (`bars`, `series`, `stats`), `sentence`. Birden çok para birimi = birden çok kart, başlıkta
+  "(TRY)". Satırlar kalemlerin sınırında (ilk 5 işyeri/sürücü), bu yüzden kartta kalemlerde olmayan rakam yok.
+- **JSON:** tutarlar JSON sayısı (`contracts.Amount`: Pydantic `Decimal`'i yazıya çeviriyordu; .NET katı sayı okur). İki ondalıklı tutar
+  float'ta tam taşınır; taşınmayan değer reddedilir.
+- **Doğrulama (modelsiz):** yeni kodla açılan MCP server'dan Murat'ın yedi çağrısı (özet, kategori, market Eylül ve Ekim, BİM, karşılaştırma,
+  6 ay) ve Zeynep'in iki para birimi gerçek sonuçla kart kurdu, hepsi sayı denetiminden geçti; rakamlar plandaki elle hesaplananlarla aynı.
+- **Ölçüm:** `answer_eval.py` vakaları `card` (kartta görünmesi gereken yazılar) ve `noCard` alır; 11 vakada (A01, A04–A09, A11, A16, A18,
+  yeni A26 Murat market). Model ölçümü yapılmadı (harici SSD takılı değildi): SSD takılınca PR3'ün araç seçimi ölçümüyle birlikte çalıştırılmalı.

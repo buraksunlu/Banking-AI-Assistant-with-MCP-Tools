@@ -50,6 +50,14 @@ bağlamla gider (`tool-selection-v2`), `check_arguments(…, previous)` son ça�
 yok (MCP'den keşif); modelin listesinden `routing.hide_dates` beş dönem aracının `from`/`to`'sunu ve `Custom` dönemini çıkarır (tarihi model seçmez, CHAT-08). Tarihi `dates.read_dates` kodla okur ("1-5 Eylül", "Eylül'de"; modelsiz): araç seçici tarih yerine "bu ay" görür, kod dönemi `Custom` + `from`/`to` ile ezer, cevabın başına `Dönem: …` satırı ekler; geçersiz/okunamayan tarih ve araç seçilemeyen harcama sorusu araçsız dönem sorusuna gider (`Pending.tool == ""`). Bütün tur tek süre; token yalnız MCP başlığına gider (testte modele gitmediği doğrulanır). Uçtan uca deneme için
 .NET API ve MCP server `BANKINGAI_DEMO_NOW=2026-10-10T12:00:00Z` ile açık olmalı. Tool seçimi ve açıklama aynı `explainer.stream_message`'ı kullanır.
 
+Kartlar (UX-01 PR4, `ai/service/cards.py`): `cards_for(tool, arguments, result)` altı araçta (özet, kategori dağılımı, kategori
+detayı, tek işyeri, karşılaştırma, aylık seri) para birimi başına kart kurar; model kartın hiçbir alanını yazmaz. Yazılar `formatting.py`
+ile backend rakamlarından; Python'un ürettiği tek sayı çubuk boyu `share` (satır / kartın en büyük satırı, yalnız çizim). Satırlar kalemlerin
+sınırında (ilk 5); Basit ilk 3. `chat._checked_cards`: kartın bütün yazıları `check_answer` ile kalemlere karşı; tutmayan kart düşer +
+log. Okunamayan sonuç `[]`, hata değil. Yeni araç kartı → `cards._BUILDERS` + `test_cards.py`'de elle değerler. Model açıklaması şimdilik
+sürer (PR4 K1-B; PR5'te kart varken kalkar). Tutar JSON'da sayıdır (`contracts.Amount`; float'a tam dönmeyen değer reddedilir).
+`answer_eval` vakaları `card` (kartta görünmesi gereken yazılar) ve `noCard` alır.
+
 Önerilen sorular (CHAT-06, `ai/service/suggestions.py`): açıklanmış cevabın `suggestions`'ı sabit `follow_ups` tablosundan (araç → 2–3 öneri,
 az önce çalışan çağrı önerilmez); `OfferedStore` bunları çağrılarıyla **yalnız bir sonraki mesaj** için (10 dk, `sha256(token)`) tutar ve
 aynı metin (harf katlanmış, sondaki ?.! yok) gelirse araç model seçmeden çalışır (bekleyen sorudan sonra bakılır). Kapsam dışı cevapta 3 sabit

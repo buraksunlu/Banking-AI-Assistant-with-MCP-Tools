@@ -22,7 +22,8 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
 from answer_check import AnswerRejected
-from contracts import (ChatRequest, ChatResponse, ChoiceOut, ExplanationRequest, ExplanationResponse, HealthResponse, SuggestionsResponse,
+from cards import Card
+from contracts import (BarOut, BlockOut, CardOut, ChangeOut, ChatRequest, ChatResponse, ChoiceOut, HeadlineOut, PointOut, StatOut, ExplanationRequest, ExplanationResponse, HealthResponse, SuggestionsResponse,
                        ToolCallOut)
 from chat import (ChatService, LangChainClarificationWriter, LangChainDateInterpreter, LangChainIntentClassifier,
                   LangChainToolSelector)
@@ -158,7 +159,7 @@ def create_app(
             tool_calls=[ToolCallOut(tool=c.tool, arguments={k: _as_text(v) for k, v in c.arguments.items()}) for c in reply.tool_calls],
             facts=reply.facts, suggestions=reply.suggestions,
             choices=[ChoiceOut(label=c.label, detail=c.detail) for c in reply.choices],
-            input_hint=reply.input_hint, model=request.app.state.settings.model)
+            input_hint=reply.input_hint, cards=[_card_out(c) for c in reply.cards], model=request.app.state.settings.model)
 
     @app.get("/v1/suggestions", response_model=SuggestionsResponse)
     def suggestions(
@@ -168,6 +169,17 @@ def create_app(
         return SuggestionsResponse(suggestions=starters.for_token(token))
 
     return app
+
+
+def _card_out(card: Card) -> CardOut:
+    """A card in the reply's shape: every block lists all three row kinds, the ones its kind does not use empty (UX-01 PR4 K2-A)."""
+    def block(b) -> BlockOut:
+        return BlockOut(kind=b.kind, rows=[BarOut(**vars(r)) for r in b.rows], points=[PointOut(**vars(p)) for p in b.points],
+                        items=[StatOut(**vars(i)) for i in b.items], highlight=b.highlight)
+
+    change = None if card.change is None else ChangeOut(**vars(card.change))
+    return CardOut(title=card.title, headline=HeadlineOut(**vars(card.headline)), change=change,
+                   simple=[block(b) for b in card.simple], detailed=[block(b) for b in card.detailed], sentence=card.sentence)
 
 
 def _as_text(value) -> str:

@@ -3225,6 +3225,51 @@
         },
         "description": "One asset's \"what if\": the buy and valuation days, the prices used, the units bought and their value today. Figures are null\nunless both prices are usable; `Status` is then the worse of the two. `Source` is the valuation price's source."
       },
+      "AssistantCard": {
+        "required": [
+          "title",
+          "headline",
+          "change",
+          "simple",
+          "detailed",
+          "sentence"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "headline": {
+            "$ref": "#/components/schemas/CardHeadline"
+          },
+          "change": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CardChange"
+              }
+            ]
+          },
+          "simple": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardBlock"
+            }
+          },
+          "detailed": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardBlock"
+            }
+          },
+          "sentence": {
+            "type": "string"
+          }
+        },
+        "description": "One answer card (UX-01 PR4), built by the AI service's code from the tool result, never by the model. `simple` is\nalways shown, `detailed` on request (empty when there is nothing more); one card per currency, never a total of two.\nThe phone draws it as it is: it formats no figure and computes none."
+      },
       "AssistantChoice": {
         "required": [
           "label",
@@ -3298,6 +3343,7 @@
           "suggestions",
           "choices",
           "inputHint",
+          "cards",
           "links"
         ],
         "type": "object",
@@ -3335,6 +3381,12 @@
           "inputHint": {
             "type": "string"
           },
+          "cards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssistantCard"
+            }
+          },
           "links": {
             "type": "array",
             "items": {
@@ -3342,7 +3394,7 @@
             }
           }
         },
-        "description": "Reply of `POST /api/assistant/messages`. The figures in `answer` come from `facts`, which the\nbackend computed; the model only chose the tool and wrote the sentence. `suggestions` are up to three questions\nto offer under the reply, from a fixed table (CHAT-06); sent back as written, one runs the call it stands for.\n`links` are the buttons under an answer that open the list of transactions behind its figure (CHAT-07); the\nbackend builds them from the checked tool calls and the AI service never sees them. `choices` are a question\nback's options as tappable rows (CHAT-10), empty in any other reply; the `answer` of a question then holds only\nthe question, not the options. `inputHint` is a last row inviting an answer of the user's own (\"Başka bir tutar\nyazın\"), which opens the keyboard instead of sending anything; empty when the options are all there is (CHAT-10 PR3b)."
+        "description": "Reply of `POST /api/assistant/messages`. The figures in `answer` come from `facts`, which the\nbackend computed; the model only chose the tool and wrote the sentence. `suggestions` are up to three questions\nto offer under the reply, from a fixed table (CHAT-06); sent back as written, one runs the call it stands for.\n`links` are the buttons under an answer that open the list of transactions behind its figure (CHAT-07); the\nbackend builds them from the checked tool calls and the AI service never sees them. `choices` are a question\nback's options as tappable rows (CHAT-10), empty in any other reply; the `answer` of a question then holds only\nthe question, not the options. `inputHint` is a last row inviting an answer of the user's own (\"Başka bir tutar\nyazın\"), which opens the keyboard instead of sending anything; empty when the options are all there is (CHAT-10 PR3b).\n`cards` are the answer drawn as cards (UX-01 PR4), empty for a tool without cards and for every other reply; a card the\nAPI cannot read is left out, never a reason to fail the reply."
       },
       "AssistantReplyType": {
         "enum": [
@@ -3534,6 +3586,178 @@
           }
         },
         "description": "The budget arithmetic for the running month. `DailyAverage` = spent / elapsed days (today included);\n`ProjectedMonthEnd` = spent × days in month / elapsed days (string BudgetCheckService.ProjectionMethod),\ncomputed from the exact ratio, not the rounded average. All amounts are rounded to two decimals, away from zero."
+      },
+      "CardBar": {
+        "required": [
+          "label",
+          "amount",
+          "text",
+          "share",
+          "direction"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "text": {
+            "type": "string"
+          },
+          "share": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "direction": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One row of a `bars` block: `share` is the bar's length from 0 to 1 and is never shown as text; `direction`\nis set only for a change (`up`, `down`)."
+      },
+      "CardBlock": {
+        "required": [
+          "kind",
+          "rows",
+          "points",
+          "items",
+          "highlight"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardBar"
+            }
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardPoint"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardStat"
+            }
+          },
+          "highlight": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "A part of a card. `kind` is `bars` (uses `rows`), `series` (uses `points` and the month label in\n`highlight`) or `stats` (uses `items`); the two lists its kind does not use are empty."
+      },
+      "CardChange": {
+        "required": [
+          "percent",
+          "direction",
+          "against",
+          "againstText",
+          "text"
+        ],
+        "type": "object",
+        "properties": {
+          "percent": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "decimal"
+          },
+          "direction": {
+            "type": "string"
+          },
+          "against": {
+            "type": "string"
+          },
+          "againstText": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "description": "The change against the period before: `direction` is `up`, `down` or `same`; `percent` is null when\nthat period had nothing to compare with."
+      },
+      "CardHeadline": {
+        "required": [
+          "amount",
+          "currency",
+          "text"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "description": "The big figure of an answer card, with its text as people read it (UX-01 PR4)."
+      },
+      "CardPoint": {
+        "required": [
+          "label",
+          "amount",
+          "text",
+          "share",
+          "partial"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "text": {
+            "type": "string"
+          },
+          "share": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "partial": {
+            "type": "boolean"
+          }
+        },
+        "description": "One month of a `series` block; `partial` marks the running month."
+      },
+      "CardStat": {
+        "required": [
+          "label",
+          "text"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        },
+        "description": "One cell of a `stats` block."
       },
       "CategoryBreakdown": {
         "required": [

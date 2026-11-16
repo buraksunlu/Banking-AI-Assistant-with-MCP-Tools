@@ -1,12 +1,15 @@
 import re
 import threading
 import time
+from dataclasses import replace
 from datetime import date
+from decimal import Decimal
 
 import pytest
 from fastapi.testclient import TestClient
 
 from answer_check import AnswerRejected
+from cards import Bar, Block, Card, Change, Headline, Point, Stat
 from app import create_app, get_chat_service, get_explainer, get_readiness, get_starter_questions, get_tools_ready
 from clarification import Choice
 from chat import ChatReply, ChatService, LangChainClarificationWriter, LangChainToolSelector, ToolCall
@@ -313,9 +316,37 @@ def test_chat_returns_the_reply_in_the_agreed_shape():
         "suggestions": [],
         "choices": [],
         "inputHint": "",
+        "cards": [],
         "model": "qwen3.5:4b",
     }
     assert fake.calls == [("Dün ne harcadım?", "abc")]
+
+
+def test_chat_returns_the_cards_with_amounts_as_json_numbers():
+    # UX-01 PR4: the .NET API reads money as JSON numbers only (JsonNumberHandling.Strict); every block lists all three row kinds.
+    card = Card("Market · Eylül 2026", Headline(Decimal("18016.50"), "TRY", "18.016,50 TL"),
+                Change(Decimal("50.84"), "up", "Ağustos 2026", "11.944,50 TL", "%50,84 artış"),
+                (Block("bars", rows=(Bar("BİM", Decimal("6216.00"), "6.216,00 TL · %34,50", Decimal("1.00")),)),),
+                (Block("series", points=(Point("Eki", Decimal("5133.00"), "5.133,00 TL", Decimal("0.28"), True),), highlight="Eyl"),
+                 Block("stats", items=(Stat("İşlem", "8"),))),
+                "Market: önceki döneme göre 6.072,00 TL fazla.")
+    reply = replace(CHAT_REPLY, cards=[card])
+
+    response = chat_client(FakeChat(reply)).post("/v1/chat", json={"message": "Markete?", **DAY}, headers={"Authorization": "Bearer abc"})
+
+    assert response.json()["cards"] == [{
+        "title": "Market · Eylül 2026",
+        "headline": {"amount": 18016.5, "currency": "TRY", "text": "18.016,50 TL"},
+        "change": {"percent": 50.84, "direction": "up", "against": "Ağustos 2026", "againstText": "11.944,50 TL", "text": "%50,84 artış"},
+        "simple": [{"kind": "bars", "rows": [{"label": "BİM", "amount": 6216.0, "text": "6.216,00 TL · %34,50", "share": 1.0,
+                                              "direction": None}], "points": [], "items": [], "highlight": None}],
+        "detailed": [{"kind": "series", "rows": [], "points": [{"label": "Eki", "amount": 5133.0, "text": "5.133,00 TL", "share": 0.28,
+                                                               "partial": True}], "items": [], "highlight": "Eyl"},
+                     {"kind": "stats", "rows": [], "points": [], "items": [{"label": "İşlem", "text": "8"}], "highlight": None}],
+        "sentence": "Market: önceki döneme göre 6.072,00 TL fazla.",
+    }]
+    # The text keeps its trailing zero; the number is the same value.
+    assert '"amount":18016.5' in response.text
 
 
 def test_chat_passes_the_customers_day_to_the_service():

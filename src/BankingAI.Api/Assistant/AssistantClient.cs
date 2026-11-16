@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using BankingAI.Application;
 using BankingAI.Application.Customers;
 
@@ -192,12 +193,38 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
                 reply.Suggestions.Select(s => s!).ToList(),
                 reply.Choices.Select(c => new AssistantChoice(c!.Label!, c.Detail!)).ToList(),
                 reply.InputHint,
+                Cards(reply.Cards),
                 // Built by the controller from the checked tool calls (CHAT-07), never read from the AI service.
                 []);
         }
 
         logger.LogWarning("AI service reply does not match the chat contract");
         throw new AssistantException(AssistantFailure.Failed, "The AI service reply does not match the chat contract.");
+    }
+
+    // UX-01 PR4 K2-A: each card is read on its own, so a broken one is left out and the answer still reaches the client. Money is
+    // a JSON number here too (Strict), unlike the Web defaults the rest of the reply is read with.
+    private List<AssistantCard> Cards(List<JsonElement>? cards)
+    {
+        var kept = new List<AssistantCard>();
+        foreach (var element in cards ?? [])
+        {
+            ChatCard? card;
+            try
+            {
+                card = element.Deserialize<ChatCard>(CardJson);
+            }
+            catch (JsonException)
+            {
+                card = null;
+            }
+
+            if (card?.ToCard() is { } valid)
+                kept.Add(valid);
+            else
+                logger.LogWarning("AI service card does not match the card contract and is left out");
+        }
+        return kept;
     }
 
     private AssistantSuggestions ParseSuggestions(string body)
@@ -242,7 +269,7 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
 
     private sealed record ChatResponse(
         string? Type, string? Answer, List<ChatToolCall?>? ToolCalls, List<ChatFact?>? Facts, List<string?>? Suggestions, List<ChatChoice?>? Choices,
-        string? InputHint, string? Model);
+        string? InputHint, List<JsonElement>? Cards, string? Model);
 
     private sealed record SuggestionsResponse(List<string?>? Suggestions);
 
@@ -251,4 +278,65 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
     private sealed record ChatFact(string? Label, string? Text);
 
     private sealed record ChatChoice(string? Label, string? Detail);
+
+    private static readonly JsonSerializerOptions CardJson = new(JsonSerializerOptions.Web) { NumberHandling = JsonNumberHandling.Strict };
+
+    private static readonly HashSet<string> Directions = ["up", "down", "same"];
+
+    // The card's wire format (ai/service/contracts.py CardOut); ToCard is null when anything the phone needs is missing or wrong.
+    private sealed record ChatCard(
+        string? Title, ChatHeadline? Headline, ChatChange? Change, List<ChatBlock?>? Simple, List<ChatBlock?>? Detailed, string? Sentence)
+    {
+        public AssistantCard? ToCard()
+        {
+            if (Title is null || Sentence is null || Headline is not { Amount: { } amount, Currency: { } currency, Text: { } text }
+                || Simple is null || Detailed is null)
+                return null;
+            CardChange? change = null;
+            if (Change is not null)
+            {
+                if (Change is not { Direction: { } direction, Against: { } against, AgainstText: { } againstText, Text: { } changeText }
+                    || !Directions.Contains(direction))
+                    return null;
+                change = new CardChange(Change.Percent, direction, against, againstText, changeText);
+            }
+            var simple = Simple.Select(b => b?.ToBlock()).ToList();
+            var detailed = Detailed.Select(b => b?.ToBlock()).ToList();
+            if (simple.Any(b => b is null) || detailed.Any(b => b is null))
+                return null;
+            return new AssistantCard(Title, new CardHeadline(amount, currency, text), change, simple!, detailed!, Sentence);
+        }
+    }
+
+    private sealed record ChatHeadline(decimal? Amount, string? Currency, string? Text);
+
+    private sealed record ChatChange(decimal? Percent, string? Direction, string? Against, string? AgainstText, string? Text);
+
+    private sealed record ChatBlock(string? Kind, List<ChatBar?>? Rows, List<ChatPoint?>? Points, List<ChatStat?>? Items, string? Highlight)
+    {
+        public CardBlock? ToBlock()
+        {
+            if (Rows is null || Points is null || Items is null)
+                return null;
+            var rows = Rows.Select(r => r is { Label: { } l, Amount: { } a, Text: { } t, Share: { } s } && IsShare(s)
+                                         && (r.Direction is null || Directions.Contains(r.Direction))
+                ? new CardBar(l, a, t, s, r.Direction) : null).ToList();
+            var points = Points.Select(p => p is { Label: { } l, Amount: { } a, Text: { } t, Share: { } s, Partial: { } partial } && IsShare(s)
+                ? new CardPoint(l, a, t, s, partial) : null).ToList();
+            var items = Items.Select(i => i is { Label: { } l, Text: { } t } ? new CardStat(l, t) : null).ToList();
+            if (rows.Any(r => r is null) || points.Any(p => p is null) || items.Any(i => i is null))
+                return null;
+            // The list its kind draws must have rows; a block of another kind is one the phone has no template for.
+            var used = Kind switch { "bars" => rows.Count, "series" => points.Count, "stats" => items.Count, _ => 0 };
+            return used == 0 ? null : new CardBlock(Kind!, rows!, points!, items!, Highlight);
+        }
+
+        private static bool IsShare(decimal share) => share is >= 0m and <= 1m;
+    }
+
+    private sealed record ChatBar(string? Label, decimal? Amount, string? Text, decimal? Share, string? Direction);
+
+    private sealed record ChatPoint(string? Label, decimal? Amount, string? Text, decimal? Share, bool? Partial);
+
+    private sealed record ChatStat(string? Label, string? Text);
 }

@@ -6,10 +6,11 @@ amounts, identifiers or a customer id (AI-09, AI-13).
 
 import re
 from datetime import date
+from decimal import Decimal
 from typing import Annotated
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, PlainSerializer
 
 from dates import CustomerDay
 
@@ -107,6 +108,84 @@ class ChoiceOut(BaseModel):
     detail: str
 
 
+def _json_number(value: Decimal) -> float:
+    # Pydantic writes a Decimal as JSON text, and the .NET API reads money as JSON numbers only (JsonNumberHandling.Strict). A
+    # backend amount has two decimals, so the float carries it exactly; one that would not survive is refused, never rounded.
+    number = float(value)
+    if Decimal(repr(number)) != value:
+        raise ValueError(f"{value} cannot be written as an exact JSON number.")
+    return number
+
+
+Amount = Annotated[Decimal, PlainSerializer(_json_number, return_type=float, when_used="json")]
+
+
+class HeadlineOut(BaseModel):
+    """The big figure of a card (UX-01 PR4)."""
+
+    amount: Amount
+    currency: str
+    text: str
+
+
+class ChangeOut(BaseModel):
+    """The change against the period before; ``percent`` is null when that period had nothing to compare with."""
+
+    percent: Amount | None
+    direction: str
+    against: str
+    against_text: str = Field(serialization_alias="againstText")
+    text: str
+
+
+class BarOut(BaseModel):
+    """A ``bars`` row; ``share`` is the bar's length (0-1) and is never shown as text."""
+
+    label: str
+    amount: Amount
+    text: str
+    share: Amount
+    direction: str | None
+
+
+class PointOut(BaseModel):
+    """A ``series`` month; ``partial`` marks the running month."""
+
+    label: str
+    amount: Amount
+    text: str
+    share: Amount
+    partial: bool
+
+
+class StatOut(BaseModel):
+    """A ``stats`` cell."""
+
+    label: str
+    text: str
+
+
+class BlockOut(BaseModel):
+    """A part of a card; the list its ``kind`` names is filled, the other two are empty."""
+
+    kind: str
+    rows: list[BarOut]
+    points: list[PointOut]
+    items: list[StatOut]
+    highlight: str | None
+
+
+class CardOut(BaseModel):
+    """One answer card, built by code from the tool result (UX-01 PR4); every figure is the backend's."""
+
+    title: str
+    headline: HeadlineOut
+    change: ChangeOut | None
+    simple: list[BlockOut]
+    detailed: list[BlockOut]
+    sentence: str
+
+
 class ChatResponse(BaseModel):
     """The reply of one chat turn; ``toolCalls`` and ``facts`` say what the answer is based on (AI-11, CHAT-07),
     ``suggestions`` are the questions to offer under it (CHAT-06), ``choices`` a question's options (CHAT-10 K4-A)."""
@@ -119,6 +198,8 @@ class ChatResponse(BaseModel):
     choices: list[ChoiceOut]
     # PR3b D6-A: a row inviting an answer of the user's own, which opens the keyboard; "" when the options are all there is.
     input_hint: str = Field(serialization_alias="inputHint")
+    # UX-01 PR4: the answer's cards, one per currency; empty for a tool without cards and for every reply that is not an answer.
+    cards: list[CardOut]
     model: str
 
 

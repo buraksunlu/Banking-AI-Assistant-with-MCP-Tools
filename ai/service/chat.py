@@ -22,11 +22,12 @@ from typing import Protocol
 
 from langchain_ollama import ChatOllama
 
-from answer_check import has_advice, misnamed
+from answer_check import check_answer, has_advice, misnamed
 from clarification import (CHOICE_KINDS, MAX_REPLY_WORDS, Choice, Pending, PendingStore, ask_amount, ask_amount_again, ask_complete_month, ask_count, ask_currency,
                            ask_months, ask_months_again, months_out_of_range,
                            ask_merchant, ask_percent, ask_period, ask_topic, check_question, choices, chosen_tool, input_hint,
                            is_bare_choice, resolve, template, wants_one_off)
+from cards import Card, card_texts, cards_for
 from contracts import Fact
 from conversation import ConversationStore, LastCall, is_follow_up
 from conversation import carried as carryable
@@ -67,6 +68,8 @@ class ChatReply:
     choices: list[Choice] = field(default_factory=list)
     # PR3b D6-A: the row under the choices that opens the keyboard ("Başka bir tutar yazın"); empty when there is none.
     input_hint: str = ""
+    # UX-01 PR4: the answer's cards (cards.py), each checked against the facts; empty in every other reply.
+    cards: list[Card] = field(default_factory=list)
 
 
 class ToolSelector(Protocol):
@@ -457,7 +460,8 @@ class ChatService:
         self.asked.remember(token, call.tool, call.arguments)
         suggestions = follow_ups(call.tool, call.arguments, asked, result_shape(call.tool, result))
         self.offered.put(token, suggestions)
-        return ChatReply("answer", answer, used, outcome.facts, [s.text for s in suggestions])
+        return ChatReply("answer", answer, used, outcome.facts, [s.text for s in suggestions],
+                         cards=_checked_cards(call, question, outcome.facts, result))
 
     @staticmethod
     def _question_for(call: ToolCall, unsaid: tuple[str, ...], schema: dict, message: str) -> Pending:
@@ -570,3 +574,16 @@ def _ask_figure(tool: str, arguments: dict, argument: str, later: tuple[str, ...
         return ask_months(tool, arguments, question, later=later, note=note)
     asker = {"amount": ask_amount, "currencyCode": ask_currency, "reductionPercent": ask_percent}[argument]
     return asker(tool, arguments, question, later=later)
+
+
+def _checked_cards(call: ToolCall, question: str, facts: list[Fact], result: dict) -> list[Card]:
+    """The cards of a result whose every figure is in the facts or the question (UX-01 PR4 K6-A): code built them from the same
+    result, so a figure missing from the facts is a bug of the card, and that card is left out rather than shown."""
+    kept = []
+    for card in cards_for(call.tool, call.arguments, result):
+        check = check_answer(question, facts, "\n".join(card_texts(card)))
+        if check.invented_numbers:
+            logger.warning("Card of %s left out: figures not in the facts %s", call.tool, check.invented_numbers)
+            continue
+        kept.append(card)
+    return kept
