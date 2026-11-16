@@ -444,7 +444,11 @@ liste bağlantısı) K7-A (eski 121 vaka bozulmaz, yeni ≥ 14/16, cevap doğrul
   Kararlar K1-B K2-D K3-B K4-A K5-A K6-B K7-B K8-A K9-A. **PR1 ölçüm (16 Kasım 2026, dal `chat-12a-measure`; docs/local-ai.md
   "CHAT-12 PR1"):** `free_phrasings.json` (80 cümle + kullanıcı cümleleri bölümü), `free_eval.py` (doğru / sordu / cevapsız / yanlış; modelsiz
   yanlış kapı), `free_baseline.json`. Bugün modelsiz 70/80 doğru, %12,5 yanlış; modelle 68 doğru, %6,2 yanlış (2 yanlış rakam). Bulgu: "2 binin
-  üstündeki" sınırı 2 TL okunuyor (PR3). Davranış değişmedi.
+  üstündeki" sınırı 2 TL okunuyor (PR3). Davranış değişmedi. Kullanıcı kendi cümlelerini yazmayacak (K2-D → K2-C).
+  **PR2 güvenlik ağı (16 Kasım 2026, dal `chat-12b-safety-net`; docs/local-ai.md "CHAT-12 PR2"):** "ne kadar" zayıf kelime (tek başına
+  modele gider), `intent-v2` (accounts + unclear), `unclear` → sabit konu sorusu (üç dokunulabilir grup), kredi/borç/faiz kapsam dışı (PR2'nin
+  yarattığı N75 gerilemesi). Python 1642; 7 kasıtlı bozma yakalandı; araç seçimi 137/137, cevap 33/33, serbest yazılış modelle 74/2/0/4 (%5,0
+  yanlış; PR1'de %6,2 ve 5 cevapsız). PR3: "binin" tutarı, "havale yap" yönü, "para attım", "aylık harcamam" → aylık seri.
 
 ## 14. SwiftUI — çalışan endpoint üzerine küçük ekranlar
 

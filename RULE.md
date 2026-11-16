@@ -1378,6 +1378,9 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Serbest yazılış güvenlik ağı (CHAT-12 PR2, 16 Kasım 2026; docs/local-ai.md "CHAT-12 PR2"): "ne kadar" tek başına karar vermez, model sorulur;
+  `intent-v2` hesaplar grubunu ve "emin değilim"i tanır, emin değilse dokunulabilir konu sorusu; kredi/borç/faiz kapsam dışı. Serbest yazılış
+  modelle %6,2 → %5,0 yanlış, cevapsız 5 → 0; araç seçimi 137/137, cevap 33/33. Python 1642.
 - Serbest yazılışların ölçümü (CHAT-12 PR1, 16 Kasım 2026; docs/local-ai.md "CHAT-12 PR1"): 80 gerçekçi cümle, dört sonuç (doğru / sordu /
   cevapsız / yanlış), modelsiz temel testle kilitli. Bugün modelsiz %12,5, modelle %6,2 yanlış; "2 binin üstü" 2 TL okunuyor. Davranış
   değişmedi; PR2 güvenlik ağı, PR3 kurallar.

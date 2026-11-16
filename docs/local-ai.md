@@ -1364,3 +1364,24 @@ davranışı değiştirmez; yalnız ölçer.
   sıradan bağımsız; çok kelimeli kalıplar ("nerede tasarruf", "2.000 TL üstü", "1-5 Eylül") karışınca kırılıyor.
 - **Sıradaki (PR2):** zayıf kelime ("ne kadar", "gitti") tek başına karar vermez, model sorulur; `intent-v2` hesaplar grubunu ve "emin
   değilim"i tanır; emin olunmazsa dokunulabilir konu sorusu. Eşik: eski 137 araç seçim vakası bozulmaz, yeni sette yanlış ≤ %5, doğru ≥ %80.
+- **Kullanıcı kararı (16 Kasım 2026):** kendi cümlelerini yazmayacak; K2-D yerine K2-C (elle 80 cümle + karıştırma), `burak` bölümü boş kalır.
+
+## CHAT-12 PR2 (16 Kasım 2026): güvenlik ağı
+
+- **Zayıf kelime (K4-A):** "ne kadar" genel kuraldan çıktı (`routing._WEAK_WORDS`, belge amaçlı); tek başına grup seçmez. Yalnız onu taşıyan
+  mesaj, takip değilse, kural tutmayan mesaj gibi modelin niyet sorusuna gider. Güçlü kelime (harca, verdim, ödedim, gitti…) yine modelsiz
+  karar verir. Model yoksa ya da cevap vermezse eski yol: genel grup (CHAT-01 K3-A); modelsiz ölçüm bu yüzden değişmedi.
+- **`intent-v2` (K3-B):** dört grup + `unclear`; `accounts` (bakiye, maaş/gelir yatması, gönderilen/gelen para) hesaplar grubunu açar (model
+  dört araçtan seçer), `unclear` → konu sorusu. Yatırım grubu yine yalnız kelime kuralıyla (INC-03 K16-A).
+- **Konu sorusu (K5-A, `clarification.ask_area`, tür `area`):** sabit metin "Sorunuzu tam anlayamadım. Hangi konuda yardımcı olayım?" (model
+  yazmaz), dokunulabilir üç satır: Harcamalarım / Hesabım ve para hareketlerim / Bütçe ve tasarruf. Dokunuş ya da kelimeleri grubu seçer,
+  özgün soru yalnız o grupla yeniden işlenir (`chat` `forced_group`). iPhone ve .NET değişmedi (mevcut `choices`).
+- **Gerileme ve düzeltme:** "ne kadar" modele gidince "kredi kartı borcum ne kadar" bakiyeye gitti (N75); kredi, borç ve faiz kapsam dışı
+  kuralına eklendi ("taksit" değil: "Okul Taksidi" bir işyeri). Mevcut ifade setinde bu kelimeler yoktu.
+- **Doğrulama:** Python 1614 → 1642 modelsiz; 7 kasıtlı bozmanın hepsi yakalandı. Model (`qwen3.5:4b`, demo anı, yeni kodla MCP 5259 + AI 8010):
+  araç seçimi **137/137** (ortalama 2,2 → 1,9 sn), cevap doğruluğu **33/33**, serbest yazılış **74 doğru, 2 sordu, 0 cevapsız, 4 yanlış
+  (%5,0)** (PR1'de 68/2/5/5). Düzelenler: "Hesapta kalan para ne kadar?", "kartımda ne kadar var", "hesap durumum nasıl", "hesaba ne kadar
+  para yattı", "Kazancım ne kadar bu ay" (önceden harcama toplamı veriyordu). Ölçümde model hiç `unclear` demedi; konu sorusu yalnız testlerde.
+  Soğuk modelin ilk vakası niyet sorusunun 5 sn sınırını aşabiliyor (o zaman genel grup).
+- **Kalan 4 yanlış (PR3):** "2 binin üstündeki" sınırı 2 TL (tutar okuyucu), "havale yaptıklarım" yönsüz, "kimlere para attım" işyeri dağılımı,
+  "son 6 ayda aylık harcamam" aylık seri yerine toplam (model).

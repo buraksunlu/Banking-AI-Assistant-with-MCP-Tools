@@ -37,7 +37,9 @@ GROUPS = {
 }
 
 # The model's answer (intent-v1 names three kinds of question); spending and payments share the general group.
-_MODEL_GROUPS = {"spending": GENERAL, "payments": GENERAL, "planning": PLANNING}
+_MODEL_GROUPS = {"spending": GENERAL, "payments": GENERAL, "planning": PLANNING, "accounts": ACCOUNTS}
+# CHAT-12 K3-B: the model's "unclear" is asked back as a topic question (K5-A), never sent to a group.
+UNCLEAR = "unclear"
 
 # K5-B: only requests that are clearly not about the user's spending; a question about transfers is not one of them.
 # ACC-01b: only a request; "gönderdim", "transfer yaptım", "havale ettim" (t/d + i after the stem) ask what was sent, a get_transfers
@@ -46,7 +48,10 @@ _NOT_PAST = r"(?![td]i)"
 _OUT_OF_SCOPE = re.compile(fold_rule(
     rf"\btransfer\s+(?:yap|et|gönder){_NOT_PAST}|\bpara\s+gönder{_NOT_PAST}|\bhavale\s+(?:yap|et){_NOT_PAST}"
     rf"|\beft\s+(?:yap|et){_NOT_PAST}"
-    r"|\bhisse|\byatirim\s+yap(?!sa[yd])|\bkripto|\bborsa|\bfikra|\bşaka"))
+    r"|\bhisse|\byatirim\s+yap(?!sa[yd])|\bkripto|\bborsa|\bfikra|\bşaka"
+    # CHAT-12 PR2: credit, debt and interest are no data here; "kredi kartı borcum ne kadar" reached the balance once "ne kadar"
+    # stopped being a spending word. Not "taksit": "Okul Taksidi" is a merchant.
+    r"|\bkredi|\bborç|\bfaiz"))
 
 # INC-03 K5-A: a request for advice or a forecast ("altın alayım mı", "dolar yükselir mi"). Answered with a fixed text and no model:
 # the backend computes the past, nobody here may say what to buy or what will happen. "yatirim yap…" is the out-of-scope rule's.
@@ -87,8 +92,12 @@ BUDGET, SAVING = "check_budget", "simulate_savings"
 # Spending and payment words: the general group without asking the model.
 _GENERAL_WORDS = re.compile(fold_rule(
     r"harca|\bnereye|kategori|işyer|karşilaştir|\b(?:aya|aylara|döneme)\s+göre|\baylara\b|\bdeğiş"
-    r"|\ben\s+(?:büyük|pahali|yüksek|çok)|\bverdim|\bödedim|\bgitti|alişveriş|\bmasraf|\bne\s+kadar"
+    r"|\ben\s+(?:büyük|pahali|yüksek|çok)|\bverdim|\bödedim|\bgitti|alişveriş|\bmasraf"
     r"|abonel|düzenli|yaklaşan|önümüzdeki|\böde(?:me|yece|necek)|\bödüyor|sabit\s+gider"))
+
+# CHAT-12 K4-A: "ne kadar" alone says nothing about what is meant ("elimde ne kadar para var" is a balance); it no longer sends a
+# message to the spending tools by itself. With it and no other rule, the model's intent question decides.
+_WEAK_WORDS = re.compile(fold_rule(r"\bne\s+kadar"))
 
 # CHAT-08 K6-C: words that make a message a question about spending; with them and no period, "which period?" is asked instead of
 # the out-of-scope reply (a "ne kadar" alone could be a balance question).
@@ -112,6 +121,8 @@ class Route:
     only: str | None = None
     # CHAT-09 K17-C: a what-if whose words name both scenarios or neither ("both", "neither"); the chat asks which one.
     undecided: str | None = None
+    # CHAT-12 K5-A: neither a rule nor the model could place the message; the chat asks its topic.
+    ask_area: bool = False
 
     def tools(self) -> frozenset[str]:
         """The names of the tools the model is shown: the one the words chose, or the groups' tools."""
@@ -247,6 +258,7 @@ class Router:
         # "Peki geçen ay?" says only what changed: it stays with the last call's tools (K6-A).
         if previous_tool is not None and (group := group_of(previous_tool)) is not None:
             return Route((group,), source="previous")
+        # CHAT-12 K4-A: a weak word alone ("ne kadar") goes to the model like a message without any rule.
         return self._ask(message, deadline)
 
     def _ask(self, message: str, deadline: float) -> Route:
@@ -255,6 +267,8 @@ class Router:
                 intent = self.classifier.classify(message, min(deadline, self.clock() + INTENT_SECONDS))
                 if intent in _MODEL_GROUPS:
                     return Route((_MODEL_GROUPS[intent],), source="model")
+                if intent == UNCLEAR:
+                    return Route((), source="model", ask_area=True)
             except OllamaError:
                 pass
         return Route((GENERAL,), source="fallback")

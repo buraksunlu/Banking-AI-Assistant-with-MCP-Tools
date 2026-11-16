@@ -53,7 +53,10 @@ def test_word_rules_choose_the_groups(message, groups):
 
 @pytest.mark.parametrize("message", ["Deniz'e 100 TL transfer yap", "Anneme para gönder", "Hangi hisseye yatırım yapayım?",
                                      "Kripto alayım mı?", "Bana bir fıkra anlat", "Bir şaka yap", "Selin'e para gönderir misin?",
-                                     "Havale yap", "EFT et"])
+                                     "Havale yap", "EFT et",
+                                     # CHAT-12 PR2: products the bank data here does not hold; with "ne kadar" no longer a spending
+                                     # word, the model sent "kredi kartı borcum ne kadar" to the balance (N75).
+                                     "kredi kartı borcum ne kadar", "Faiz oranı ne?", "kredi çekebilir miyim", "Borcum var mı?"])
 def test_clear_out_of_scope_requests_need_no_model(message):
     assert route(message) == Route((), out_of_scope=True, source="rule")
 
