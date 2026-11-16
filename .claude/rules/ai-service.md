@@ -21,6 +21,7 @@ ai/.venv/bin/python ai/model_check/answer_eval.py                   # cevap doğ
 ai/.venv/bin/python ai/model_check/phrasings.py                     # modelsiz ifade açıkları (CHAT-09; --typos yazım hatalarını da)
 ai/.venv/bin/python ai/model_check/phrasing_eval.py --pause 1       # modelli ifade örneklemi (MCP + Ollama + .env; --typos, --refresh-tools)
 ai/.venv/bin/python ai/model_check/question_eval.py --pause 1       # model yazımı seçim soruları (CHAT-09 PR3, clarify-v2; yalnız Ollama)
+ai/.venv/bin/python ai/model_check/free_eval.py                     # serbest yazılışlar, doğru/sordu/cevapsız/yanlış (CHAT-12; --model --pause 1, --shuffle, --write-baseline)
 python3 ai/service/ollama_client.py                                  # elle kontrol (BANKINGAI_LLM_MODEL gerekir)
 ai/.venv/bin/uvicorn --app-dir ai/service --factory app:create_app --host 127.0.0.1 --port 8000   # AI servisi (AI-03)
 ```

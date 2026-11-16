@@ -1339,3 +1339,28 @@ MCP server ve .NET değişmedi (cevabın altındaki "İşlemleri gör" bağlant�
   Eylül'de 2.000 TL ve üstü 7 harcama 41.363,50 TL). İfade örneklemi (`phrasing_eval.py`) çalıştırılmadı.
 - **Bilinen sınırlar:** kural tutmayan serbest yazılış ("elimde ne kadar para var", "hesapta kalan para") genel gruba düşer ve harcama
   cevabı alabilir; modelin niyet sorusu (`intent-v1`) hesaplar/gelir gruplarını tanımıyor. Ayrı madde olarak önerildi (CHAT-12).
+
+## CHAT-12 PR1 (16 Kasım 2026): serbest yazılışların ölçümü
+
+Kullanıcının sorusu: kurallar kalıp cümlelerle yazıldı, insanlar düzgün Türkçe yazmayabilir. Kararlar K1-B (üç PR: ölçüm → güvenlik ağı → kurallar)
+K2-D (elle 80 cümle + kelime sırası karıştırma + kullanıcının kendi cümleleri) K3-B K4-A K5-A K6-B K7-B K8-A K9-A (todo CHAT-12). Bu PR
+davranışı değiştirmez; yalnız ölçer.
+
+- **Ölçüt (K8-A):** her tur dört sonuçtan birine düşer: doğru, **sordu** (seçenekli geri soru: güvenli), **cevapsız** (cevaplanabilecek
+  soruya kapsam dışı metni: güvenli ama yararsız), **yanlış** (başka aracın rakamı: tehlikeli). Modelsiz çalışmada "hep doğru seçen"
+  sahte model, doğru araç listede yoksa hiçbir şey seçmez; gerçek model o yanlış listeden seçerdi, bu yüzden orada tur **yanlış kapı**
+  sayılır (`free_eval.bucket`, modele gösterilen listeyi `RecordingSelector` kaydeder).
+- **Set:** `ai/model_check/free_phrasings.json`, 80 cümle (devrik, eksik ek, konuşma dili, kısaltma, harfsiz, eş anlam, kapsam dışı), her
+  birinin beklenen sonucu elle; `burak` bölümü kullanıcının kurallara bakmadan yazdığı cümleler için. `free_baseline.json` her cümlenin
+  modelsiz sonucunu kilitler (`test_free_eval.py`: değişen her cümle temele yazılır, PR'da görünür).
+- **Bugün, modelsiz:** 70 doğru, 10 yanlış (%12,5). 7 yanlış kapı (eş anlam/konuşma dili: "elimde ne kadar para var", "Hesapta kalan para
+  ne kadar?", "kartımda ne kadar var", "hesap durumum nasıl", "Geçen ay hesaba ne kadar para yattı", "Kazancım ne kadar bu ay", "kimlere
+  para attım"); "havale yaptıklarım" yönsüz (kural "havale et"i biliyor); "nerelerde tasarruf ederim" öneri yerine tasarruf hesabı;
+  **"2 binin üstündeki harcamalarım" sınırı 2 TL okunuyor** (ekli "binin" tutar okuyucuda yok; PR3'ün ilk maddesi).
+- **Bugün, gerçek model** (`qwen3.5:4b`, `intent-v1`): 68 doğru, 2 sordu, 5 cevapsız, 5 yanlış (%6,2). Yanlış kapıdaki 7 cümlenin 5'inde
+  model harcama listesinden seçmedi (kapsam dışı metni), 2'sinde yanlış rakam verdi ("Kazancım ne kadar bu ay" → harcama toplamı, "kimlere
+  para attım" → işyeri dağılımı). Yeni: "son 6 ayda aylık harcamam" aylık seri yerine 6 aylık toplam.
+- **Kelime sırası karıştırma (yalnız rapor, `--shuffle`):** CHAT-09'un tek turlu 398 ifadesi karıştırılınca %9,8 yanlış. Tek kelimelik kökler
+  sıradan bağımsız; çok kelimeli kalıplar ("nerede tasarruf", "2.000 TL üstü", "1-5 Eylül") karışınca kırılıyor.
+- **Sıradaki (PR2):** zayıf kelime ("ne kadar", "gitti") tek başına karar vermez, model sorulur; `intent-v2` hesaplar grubunu ve "emin
+  değilim"i tanır; emin olunmazsa dokunulabilir konu sorusu. Eşik: eski 137 araç seçim vakası bozulmaz, yeni sette yanlış ≤ %5, doğru ≥ %80.

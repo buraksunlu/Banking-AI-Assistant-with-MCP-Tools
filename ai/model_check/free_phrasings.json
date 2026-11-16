@@ -1,0 +1,988 @@
+{
+ "description": "CHAT-12 PR1: sentences as people type them (word order, missing endings, spoken words, short forms, no Turkish letters, synonyms the rules do not list), each with the expected end of the turn by hand (demo day 10 Oct 2026). free_eval.py sorts each into right / asked / unanswered / wrong; 'burak' holds the user's own sentences, written without looking at the rules (K2-D).",
+ "cases": [
+  {
+   "id": "N01",
+   "text": "elimde ne kadar para var",
+   "kind": "eş anlam",
+   "expected": {
+    "tool": "get_accounts",
+    "arguments": {}
+   }
+  },
+  {
+   "id": "N02",
+   "text": "Hesapta kalan para ne kadar?",
+   "kind": "eş anlam",
+   "expected": {
+    "tool": "get_accounts",
+    "arguments": {}
+   }
+  },
+  {
+   "id": "N03",
+   "text": "hesabımda kaç lira var",
+   "kind": "eş anlam",
+   "expected": {
+    "tool": "get_accounts",
+    "arguments": {}
+   }
+  },
+  {
+   "id": "N04",
+   "text": "param ne kadar kaldı",
+   "kind": "devrik",
+   "expected": {
+    "tool": "get_accounts",
+    "arguments": {}
+   }
+  },
+  {
+   "id": "N05",
+   "text": "bakiye?",
+   "kind": "kısa",
+   "expected": {
+    "tool": "get_accounts",
+    "arguments": {}
+   }
+  },
+  {
+   "id": "N06",
+   "text": "Toplam ne kadar param var hesaplarda",
+   "kind": "devrik",
+   "expected": {
+    "tool": "get_accounts",
+    "arguments": {}
+   }
+  },
+  {
+   "id": "N07",
+   "text": "kartımda ne kadar var",
+   "kind": "eş anlam",
+   "expected": {
+    "tool": "get_accounts",
+    "arguments": {}
+   }
+  },
+  {
+   "id": "N08",
+   "text": "hesap durumum nasıl",
+   "kind": "eş anlam",
+   "expected": {
+    "tool": "get_accounts",
+    "arguments": {}
+   }
+  },
+  {
+   "id": "N09",
+   "text": "kaç param kaldı ya",
+   "kind": "konuşma",
+   "expected": {
+    "tool": "get_accounts",
+    "arguments": {}
+   }
+  },
+  {
+   "id": "N10",
+   "text": "dolar hesabımda ne var",
+   "kind": "eş anlam",
+   "expected": {
+    "tool": "get_accounts",
+    "arguments": {}
+   }
+  },
+  {
+   "id": "N11",
+   "text": "maaş yattı mı ya",
+   "kind": "konuşma",
+   "expected": {
+    "tool": "get_income",
+    "arguments": {
+     "period": "ThisMonth"
+    }
+   }
+  },
+  {
+   "id": "N12",
+   "text": "bu ay maas geldi mi",
+   "kind": "harfsiz",
+   "expected": {
+    "tool": "get_income",
+    "arguments": {
+     "period": "ThisMonth"
+    }
+   }
+  },
+  {
+   "id": "N13",
+   "text": "Eylülde ne kadar maaş aldım",
+   "kind": "eksik ek",
+   "expected": {
+    "tool": "get_income",
+    "arguments": {
+     "period": "Custom",
+     "from": "2026-09-01",
+     "to": "2026-09-30"
+    }
+   }
+  },
+  {
+   "id": "N14",
+   "text": "Geçen ay hesaba ne kadar para yattı",
+   "kind": "eş anlam",
+   "expected": [
+    {
+     "tool": "get_income",
+     "arguments": {
+      "period": "LastMonth"
+     }
+    },
+    {
+     "tool": "get_transfers",
+     "arguments": {
+      "direction": "Received",
+      "period": "LastMonth"
+     }
+    }
+   ]
+  },
+  {
+   "id": "N15",
+   "text": "emekli maaşım yatmış mı",
+   "kind": "eş anlam",
+   "expected": {
+    "tool": "get_income",
+    "arguments": {
+     "period": "ThisMonth"
+    }
+   }
+  },
+  {
+   "id": "N16",
+   "text": "gelirim geçen ay ne kadardı",
+   "kind": "devrik",
+   "expected": {
+    "tool": "get_income",
+    "arguments": {
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N17",
+   "text": "maaşım ne zaman yattı geçen ay",
+   "kind": "devrik",
+   "expected": {
+    "tool": "get_income",
+    "arguments": {
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N18",
+   "text": "Kazancım ne kadar bu ay",
+   "kind": "eş anlam",
+   "expected": {
+    "tool": "get_income",
+    "arguments": {
+     "period": "ThisMonth"
+    }
+   }
+  },
+  {
+   "id": "N19",
+   "text": "geçen ay kimlere para attım",
+   "kind": "konuşma",
+   "expected": {
+    "tool": "get_transfers",
+    "arguments": {
+     "direction": "Sent",
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N20",
+   "text": "Selin'e para gönderdim mi bu ay",
+   "kind": "devrik",
+   "expected": {
+    "tool": "get_transfers",
+    "arguments": {
+     "direction": "Sent",
+     "counterparty": "Selin",
+     "period": "ThisMonth"
+    }
+   }
+  },
+  {
+   "id": "N21",
+   "text": "bana kim para yolladı geçen ay",
+   "kind": "devrik",
+   "expected": {
+    "tool": "get_transfers",
+    "arguments": {
+     "direction": "Received",
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N22",
+   "text": "gelen paralar bu ay",
+   "kind": "kısa",
+   "expected": [
+    {
+     "tool": "get_transfers",
+     "arguments": {
+      "direction": "Received",
+      "period": "ThisMonth"
+     }
+    },
+    {
+     "tool": "get_income",
+     "arguments": {
+      "period": "ThisMonth"
+     }
+    }
+   ]
+  },
+  {
+   "id": "N23",
+   "text": "Hasan'dan gelen para ne kadar son 3 ayda",
+   "kind": "devrik",
+   "expected": {
+    "tool": "get_transfers",
+    "arguments": {
+     "direction": "Received",
+     "counterparty": "Hasan",
+     "period": "Last3Months"
+    }
+   }
+  },
+  {
+   "id": "N24",
+   "text": "havale yaptıklarım geçen ay",
+   "kind": "devrik",
+   "expected": {
+    "tool": "get_transfers",
+    "arguments": {
+     "direction": "Sent",
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N25",
+   "text": "eft geçen ay",
+   "kind": "kısa",
+   "expected": {
+    "tool": "get_transfers",
+    "arguments": {
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N26",
+   "text": "geçen ay kime ne kadar yolladım",
+   "kind": "konuşma",
+   "expected": {
+    "tool": "get_transfers",
+    "arguments": {
+     "direction": "Sent",
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N27",
+   "text": "para gönderdiğim kişiler bu ay",
+   "kind": "devrik",
+   "expected": {
+    "tool": "get_transfers",
+    "arguments": {
+     "direction": "Sent",
+     "period": "ThisMonth"
+    }
+   }
+  },
+  {
+   "id": "N28",
+   "text": "transferlerim geçen ay",
+   "kind": "kısa",
+   "expected": {
+    "tool": "get_transfers",
+    "arguments": {
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N29",
+   "text": "geçen ay 1000 liradan fazla ne harcadım",
+   "kind": "devrik",
+   "expected": {
+    "tool": "search_transactions",
+    "arguments": {
+     "minAmount": 1000,
+     "currencyCode": "TRY",
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N30",
+   "text": "Harcamalarım 2000 üstü geçen ay",
+   "kind": "devrik",
+   "expected": {
+    "tool": "search_transactions",
+    "arguments": {
+     "minAmount": 2000,
+     "currencyCode": "TRY",
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N31",
+   "text": "bu ay 500 tl altı harcamalar",
+   "kind": "kısa",
+   "expected": {
+    "tool": "search_transactions",
+    "arguments": {
+     "maxAmount": 500,
+     "currencyCode": "TRY",
+     "period": "ThisMonth"
+    }
+   }
+  },
+  {
+   "id": "N32",
+   "text": "geçen ay 5bin üstü harcamam var mı",
+   "kind": "kısaltma",
+   "expected": {
+    "tool": "search_transactions",
+    "arguments": {
+     "minAmount": 5000,
+     "currencyCode": "TRY",
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N33",
+   "text": "son 3 ayda bin liradan büyük alışverişlerim",
+   "kind": "eş anlam",
+   "expected": {
+    "tool": "search_transactions",
+    "arguments": {
+     "minAmount": 1000,
+     "currencyCode": "TRY",
+     "period": "Last3Months"
+    }
+   }
+  },
+  {
+   "id": "N34",
+   "text": "geçen ay 100 ile 300 tl arası harcamalarım",
+   "kind": "harfsiz",
+   "expected": {
+    "tool": "search_transactions",
+    "arguments": {
+     "minAmount": 100,
+     "maxAmount": 300,
+     "currencyCode": "TRY",
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N35",
+   "text": "geçen ay pahalı harcamalarım",
+   "kind": "eş anlam",
+   "expected": {
+    "tool": "get_highest_transactions",
+    "arguments": {
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N36",
+   "text": "2 binin üstündeki harcamalarım geçen ay",
+   "kind": "eksik ek",
+   "expected": {
+    "tool": "search_transactions",
+    "arguments": {
+     "minAmount": 2000,
+     "currencyCode": "TRY",
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N37",
+   "text": "geçen ay ne kadar gitti",
+   "kind": "konuşma",
+   "expected": {
+    "tool": "get_spending_summary",
+    "arguments": {
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N38",
+   "text": "bu ay kaç para harcadım ya",
+   "kind": "konuşma",
+   "expected": {
+    "tool": "get_spending_summary",
+    "arguments": {
+     "period": "ThisMonth"
+    }
+   }
+  },
+  {
+   "id": "N39",
+   "text": "dün ne kadar harcamışım",
+   "kind": "eş anlam",
+   "expected": {
+    "tool": "get_spending_summary",
+    "arguments": {
+     "period": "Yesterday"
+    }
+   }
+  },
+  {
+   "id": "N40",
+   "text": "harcamam bu hafta ne kadar",
+   "kind": "devrik",
+   "expected": {
+    "tool": "get_spending_summary",
+    "arguments": {
+     "period": "ThisWeek"
+    }
+   }
+  },
+  {
+   "id": "N41",
+   "text": "bu ay ne kadar para çıktı hesaptan",
+   "kind": "eş anlam",
+   "expected": {
+    "tool": "get_spending_summary",
+    "arguments": {
+     "period": "ThisMonth"
+    }
+   }
+  },
+  {
+   "id": "N42",
+   "text": "Geçen ay toplam masrafım",
+   "kind": "kısa",
+   "expected": {
+    "tool": "get_spending_summary",
+    "arguments": {
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N43",
+   "text": "bugün ne kadar harcadım acaba",
+   "kind": "konuşma",
+   "expected": {
+    "tool": "get_spending_summary",
+    "arguments": {
+     "period": "Today"
+    }
+   }
+  },
+  {
+   "id": "N44",
+   "text": "ne kadar harcadım",
+   "kind": "dönemsiz",
+   "expected": "clarify:period"
+  },
+  {
+   "id": "N45",
+   "text": "geçen ay en çok neye harcadım",
+   "kind": "konuşma",
+   "expected": [
+    {
+     "tool": "get_category_breakdown",
+     "arguments": {
+      "period": "LastMonth"
+     }
+    },
+    {
+     "tool": "get_merchant_breakdown",
+     "arguments": {
+      "period": "LastMonth"
+     }
+    }
+   ]
+  },
+  {
+   "id": "N46",
+   "text": "para nereye gidiyo bu ay",
+   "kind": "konuşma",
+   "expected": [
+    {
+     "tool": "get_category_breakdown",
+     "arguments": {
+      "period": "ThisMonth"
+     }
+    },
+    {
+     "tool": "get_merchant_breakdown",
+     "arguments": {
+      "period": "ThisMonth"
+     }
+    }
+   ]
+  },
+  {
+   "id": "N47",
+   "text": "bu ay markete ne kadar verdim",
+   "kind": "eş anlam",
+   "expected": {
+    "tool": "get_category_spending",
+    "arguments": {
+     "categoryCode": "GROCERY",
+     "period": "ThisMonth"
+    }
+   }
+  },
+  {
+   "id": "N48",
+   "text": "migrosa geçen ay ne kadar ödedim",
+   "kind": "eksik ek",
+   "expected": {
+    "tool": "get_merchant_spending",
+    "arguments": {
+     "merchant": "Migros",
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N49",
+   "text": "starbucksa bu ay kaç para gitti",
+   "kind": "eksik ek",
+   "expected": {
+    "tool": "get_merchant_spending",
+    "arguments": {
+     "merchant": "Starbucks",
+     "period": "ThisMonth"
+    }
+   }
+  },
+  {
+   "id": "N50",
+   "text": "en pahalı alışverişim geçen ay",
+   "kind": "devrik",
+   "expected": {
+    "tool": "get_highest_transactions",
+    "arguments": {
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N51",
+   "text": "geçen ayın en büyük harcaması ne",
+   "kind": "konuşma",
+   "expected": {
+    "tool": "get_highest_transactions",
+    "arguments": {
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N52",
+   "text": "yemeğe ne kadar harcıyorum bu ay",
+   "kind": "devrik",
+   "expected": {
+    "tool": "get_category_spending",
+    "arguments": {
+     "categoryCode": "FOOD",
+     "period": "ThisMonth"
+    }
+   }
+  },
+  {
+   "id": "N53",
+   "text": "benzine geçen ay ne kadar gitti",
+   "kind": "eş anlam",
+   "expected": {
+    "tool": "get_category_spending",
+    "arguments": {
+     "categoryCode": "FUEL",
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N54",
+   "text": "faturalarım geçen ay ne kadar tuttu",
+   "kind": "eş anlam",
+   "expected": {
+    "tool": "get_category_spending",
+    "arguments": {
+     "categoryCode": "BILLS",
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N55",
+   "text": "geçen aydan fazla mı harcıyorum",
+   "kind": "konuşma",
+   "expected": [
+    {
+     "tool": "compare_spending",
+     "arguments": {
+      "comparison": "MonthToDate"
+     }
+    },
+    {
+     "tool": "compare_spending",
+     "arguments": {
+      "comparison": "PreviousFullMonth"
+     }
+    }
+   ]
+  },
+  {
+   "id": "N56",
+   "text": "harcamam artmış mı",
+   "kind": "kısa",
+   "expected": [
+    {
+     "tool": "compare_spending",
+     "arguments": {
+      "comparison": "MonthToDate"
+     }
+    },
+    {
+     "tool": "compare_spending",
+     "arguments": {
+      "comparison": "PreviousFullMonth"
+     }
+    }
+   ]
+  },
+  {
+   "id": "N57",
+   "text": "son 6 ayda aylık harcamam",
+   "kind": "kısa",
+   "expected": {
+    "tool": "get_monthly_trend",
+    "arguments": {
+     "months": 6
+    }
+   }
+  },
+  {
+   "id": "N58",
+   "text": "aylara göre harcamalarım son 3 ay",
+   "kind": "devrik",
+   "expected": {
+    "tool": "get_monthly_trend",
+    "arguments": {
+     "months": 3
+    }
+   }
+  },
+  {
+   "id": "N59",
+   "text": "geçen ayla bu ayı kıyasla",
+   "kind": "eş anlam",
+   "expected": [
+    {
+     "tool": "compare_spending",
+     "arguments": {
+      "comparison": "MonthToDate"
+     }
+    },
+    {
+     "tool": "compare_spending",
+     "arguments": {
+      "comparison": "PreviousFullMonth"
+     }
+    }
+   ]
+  },
+  {
+   "id": "N60",
+   "text": "harcamalarım düşüyor mu",
+   "kind": "eş anlam",
+   "expected": [
+    {
+     "tool": "compare_spending",
+     "arguments": {
+      "comparison": "MonthToDate"
+     }
+    },
+    {
+     "tool": "compare_spending",
+     "arguments": {
+      "comparison": "PreviousFullMonth"
+     }
+    }
+   ]
+  },
+  {
+   "id": "N61",
+   "text": "aboneliklerim ne",
+   "kind": "kısa",
+   "expected": {
+    "tool": "get_recurring_payments",
+    "arguments": {}
+   }
+  },
+  {
+   "id": "N62",
+   "text": "her ay ödediğim şeyler",
+   "kind": "eş anlam",
+   "expected": {
+    "tool": "get_recurring_payments",
+    "arguments": {}
+   }
+  },
+  {
+   "id": "N63",
+   "text": "netflix ne kadar tutuyor her ay",
+   "kind": "devrik",
+   "expected": [
+    {
+     "tool": "get_recurring_payments",
+     "arguments": {}
+    },
+    "clarify:period"
+   ]
+  },
+  {
+   "id": "N64",
+   "text": "bu hafta ödemem var mı",
+   "kind": "konuşma",
+   "expected": [
+    {
+     "tool": "get_upcoming_payments",
+     "arguments": {}
+    },
+    {
+     "tool": "get_upcoming_payments",
+     "arguments": {
+      "days": 7
+     }
+    },
+    {
+     "tool": "get_upcoming_payments",
+     "arguments": {
+      "days": 30
+     }
+    }
+   ]
+  },
+  {
+   "id": "N65",
+   "text": "yaklaşan faturalar",
+   "kind": "kısa",
+   "expected": [
+    {
+     "tool": "get_upcoming_payments",
+     "arguments": {}
+    },
+    {
+     "tool": "get_upcoming_payments",
+     "arguments": {
+      "days": 30
+     }
+    }
+   ]
+  },
+  {
+   "id": "N66",
+   "text": "önümüzdeki günlerde ne ödeyeceğim",
+   "kind": "konuşma",
+   "expected": [
+    {
+     "tool": "get_upcoming_payments",
+     "arguments": {}
+    },
+    {
+     "tool": "get_upcoming_payments",
+     "arguments": {
+      "days": 30
+     }
+    }
+   ]
+  },
+  {
+   "id": "N67",
+   "text": "bu ay 5000 tl bütçem var aşar mıyım",
+   "kind": "harfsiz",
+   "expected": {
+    "tool": "check_budget",
+    "arguments": {
+     "amount": 5000,
+     "currencyCode": "TRY"
+    }
+   }
+  },
+  {
+   "id": "N68",
+   "text": "market harcamamı %20 azaltırsam",
+   "kind": "eksik ek",
+   "expected": [
+    {
+     "tool": "simulate_savings",
+     "arguments": {
+      "categoryCode": "GROCERY",
+      "reductionPercent": 20
+     }
+    },
+    {
+     "tool": "simulate_savings",
+     "arguments": {
+      "categoryCode": "GROCERY",
+      "reductionPercent": 20,
+      "months": 6
+     }
+    }
+   ]
+  },
+  {
+   "id": "N69",
+   "text": "maaşımın yüzde kaçını harcadım geçen ay",
+   "kind": "devrik",
+   "expected": {
+    "tool": "get_income_share",
+    "arguments": {
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N70",
+   "text": "nerelerde tasarruf ederim geçen ay",
+   "kind": "devrik",
+   "expected": {
+    "tool": "get_spending_advice",
+    "arguments": {
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N71",
+   "text": "geçen ay harcadıklarımla dolar alsaydım",
+   "kind": "devrik",
+   "expected": {
+    "tool": "what_if_one_off",
+    "arguments": {
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N72",
+   "text": "ayda 1000 tl altın biriktirseydim 6 ay",
+   "kind": "devrik",
+   "expected": {
+    "tool": "what_if_monthly",
+    "arguments": {
+     "amount": 1000,
+     "currencyCode": "TRY",
+     "months": 6
+    }
+   }
+  },
+  {
+   "id": "N73",
+   "text": "geçen ay gelirime göre çok mu harcadım",
+   "kind": "konuşma",
+   "expected": {
+    "tool": "get_income_share",
+    "arguments": {
+     "period": "LastMonth"
+    }
+   }
+  },
+  {
+   "id": "N74",
+   "text": "Selin'e 500 tl gönder",
+   "kind": "istek",
+   "expected": "out_of_scope"
+  },
+  {
+   "id": "N75",
+   "text": "kredi kartı borcum ne kadar",
+   "kind": "kapsam dışı",
+   "expected": [
+    "out_of_scope",
+    "clarify",
+    "unclear"
+   ]
+  },
+  {
+   "id": "N76",
+   "text": "faiz oranı ne",
+   "kind": "kapsam dışı",
+   "expected": [
+    "out_of_scope",
+    "clarify",
+    "unclear"
+   ]
+  },
+  {
+   "id": "N77",
+   "text": "hava nasıl",
+   "kind": "kapsam dışı",
+   "expected": [
+    "out_of_scope",
+    "clarify",
+    "unclear"
+   ]
+  },
+  {
+   "id": "N78",
+   "text": "dolar ne olur yarın",
+   "kind": "tavsiye",
+   "expected": [
+    "advice",
+    "out_of_scope",
+    "clarify",
+    "unclear"
+   ]
+  },
+  {
+   "id": "N79",
+   "text": "kredi çekebilir miyim",
+   "kind": "kapsam dışı",
+   "expected": [
+    "out_of_scope",
+    "clarify",
+    "unclear"
+   ]
+  },
+  {
+   "id": "N80",
+   "text": "hesap numaram ne",
+   "kind": "kapsam dışı",
+   "expected": [
+    {
+     "tool": "get_accounts",
+     "arguments": {}
+    },
+    "out_of_scope",
+    "clarify",
+    "unclear"
+   ]
+  }
+ ],
+ "burak": []
+}
