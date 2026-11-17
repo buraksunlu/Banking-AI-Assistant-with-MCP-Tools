@@ -13,6 +13,7 @@ from datetime import date
 from answer_check import fold_rule, fold_turkish
 from clarification import DURATION_LIMITS, MAXIMUM_MONTHS, MINIMUM_MONTHS
 from conversation import LastCall, opens_follow_up
+from spelling import WHAT_IF_ENDING
 from grounding import (amount_currency_in, amounts_in, category_in, json_number, mentions_amount, mentions_period, months_in,
                        period_in, periods_in, without_durations)
 
@@ -153,7 +154,7 @@ def advised_saving_call(message: str, previous: LastCall | None) -> tuple[str, d
     the words ("önerdiğin tutarı biriktirseydim"). "Bu tutarı" counts only right after an advice answer.
     """
     folded = fold_turkish(message)
-    if re.search(r"biriktir", folded) is None or re.search(r"(?:sa|se)ydi(?:m|k)\b", folded) is None:
+    if re.search(r"biriktir", folded) is None or re.search(WHAT_IF_ENDING, folded) is None:
         return None
     after_advice = previous is not None and previous.tool == "get_spending_advice"
     if re.search(fold_rule(r"\böner"), folded) or (after_advice and re.search(r"\b(?:bu|o)\s+tutar", folded)):

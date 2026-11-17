@@ -454,7 +454,7 @@ liste bağlantısı) K7-A (eski 121 vaka bozulmaz, yeni ≥ 14/16, cevap doğrul
   öneri, "aylık harca/ay ay/aylara göre" yalnız aylık seri (model boşsa sayıyı kod okur, yoksa sorar), altı bakiye/gelir eş anlamına kural.
   Python 1642 → 1705, ifade 1762 → 1844 (0 açık), 21 kasıtlı bozma yakalandı. Serbest yazılış modelsiz 70/10 → 80/0; modelle 79 doğru, 1 sordu,
   0 yanlış (%5,0 → %0); araç seçimi 143/144 (tek hata Ollama zaman aşımı, tek başına doğru; yeni 7/7), cevap 33/33. CHAT-12 tamam.
-- [ ] CHAT-13 — Yazım hatası toleransı (CHAT-12 PR3 K4-C; embedding yeniden değerlendirmesi K5-B burada). Ölçüm hazır: `phrasings.py --typos`
+- [x] CHAT-13 — Yazım hatası toleransı (CHAT-12 PR3 K4-C; embedding yeniden değerlendirmesi K5-B burada). Ölçüm hazır: `phrasings.py --typos`
   450 hatalı yazılışta 102 kırık (17 Kasım 2026). Yalnız tehlikeli sonuçlar ("yanlış": "Biriktirsydim ne olurdu?" → tasarruf hesabı, "Maşımın
   ne kadarını harcadım" → kapsam dışı) hedeflenir; "sordu" ve "cevapsız" güvenli sayılır. Kısa köklerde çakışma riski ("maaş"/"maş", "ay"/"al")
   önce ölçülür; embedding ancak kurallı yol yetmezse.
@@ -463,6 +463,11 @@ liste bağlantısı) K7-A (eski 121 vaka bozulmaz, yeni ≥ 14/16, cevap doğrul
   değiştirme, komşu tuş, çift harf), `phrasing_eval.py --typos-only`. Modelsiz 1800 hatalı yazılışta 33 yanlış / 202 cevapsız / 131 sordu; modelle
   116'da 92 doğru, 9 sordu, 4 cevapsız, 11 yanlış (%9,5). Python 1733, 12 kasıtlı bozma yakalandı. PR2 hedefi: modelle yanlış 11 → 0 (kapalı
   kelime listesi, "-saydım" eki, ay adı, kapı testi).
+  **PR2 düzeltme (17 Kasım 2026, dal `chat-13b-spelling`; docs/local-ai.md "CHAT-13 PR2"):** `spelling.py` (kapalı kök listesi, bir harf;
+  ilk harf hiç, son harf yalnız seçili köklerde; ay adı ve "ayırdım" tam kelime; "maaş" el listesi), ne olurdu eki toleransı, ay adı yalnız yazıldığı
+  gibi dönem, "her ay + harcama + sayılı dönem" aylık seri, `typo_gaps.json` kapı testi (128 gerekçeli açık). Kararlar K11-C K12-C K13-A K14-A.
+  Modelle hatalı yazılış yanlışı 11 → 1 (%9,5 → %0,9; kalan "ayırım" gerçek kelime, gerekçeli sınır); araç seçimi 144/144, serbest 0 yanlış,
+  cevap 33/33. Python 1810, 22 kasıtlı bozma yakalandı. Embedding (K9-B): ölçüme göre gerek yok, kapatma önerisi. CHAT-13 tamam.
 
 ## 14. SwiftUI — çalışan endpoint üzerine küçük ekranlar
 

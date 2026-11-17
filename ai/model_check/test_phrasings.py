@@ -10,7 +10,7 @@ import pytest
 
 from chat import ToolCall
 from conversation import LastCall
-from phrasings import (DAY, GAPS_FILE, KEY_NEIGHBOURS, TOOLS_FILE, TYPOS, Captured, OracleSelector, Outcome, ProbeGateway, Variant, expand,
+from phrasings import (DAY, GAPS_FILE, KEY_NEIGHBOURS, TOOLS_FILE, TYPO_GAPS_FILE, TYPOS, Captured, OracleSelector, Outcome, ProbeGateway, Variant, expand,
                        load_tools, matches, outcome_of, probe, run_variant, sample, turkish_lower, turkish_upper, transform)
 from prompts import ADVICE_DECLINED_TEXT, CLARIFY_TEXT, LIRA_ONLY_TEXT, OUT_OF_SCOPE_TEXT
 from chat import ChatReply, DATE_UNSUPPORTED_TEXT
@@ -262,6 +262,19 @@ def test_the_tool_snapshot_has_the_twenty_published_tools():
     names = [tool["function"]["name"] for tool in load_tools()]
     # ACC-01b: the four account tools of ACC-01a joined the snapshot.
     assert len(names) == 20 and "get_category_spending" in names and "get_transfers" in names and TOOLS_FILE.name == "mcp_tools.json"
+
+
+def test_every_typo_passes_or_is_a_known_typo_gap_with_a_reason():
+    # CHAT-13 K13-A: the typos gate too, against their own list; a new failure, or a listed one that passes again, breaks the test.
+    from phrasings import load
+
+    gaps = json.loads(TYPO_GAPS_FILE.read_text(encoding="utf-8"))["gaps"]
+    assert all(isinstance(reason, str) and reason.strip() for reason in gaps.values())
+    typos = [v for v in expand(load(), typos=True) if v.transform in TYPOS]
+    assert len(typos) >= 1500
+    failing = {v.id for v in typos if not matches(v.expected, run_variant(v))}
+    assert sorted(failing - gaps.keys()) == [], "new typo failures"
+    assert sorted(gaps.keys() - failing) == [], "fixed typo gaps still listed"
 
 
 def test_every_phrasing_passes_or_is_a_known_gap_with_a_reason():

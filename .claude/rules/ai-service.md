@@ -145,7 +145,15 @@ kazandım", "para yattı" gelir ("yatırdım" değil). "kimlere/kimlerden" ve "p
 model seçmezse ay sayısını kod okur (`routing.trend_months`, 1–12), yoksa sayı sorusu. Yazım hatası toleransı ayrı madde (CHAT-13).
 **Yüzde cevabı (CHAT-13 K7-A):** azaltma sorusunun kısa cevabında yüzde işareti/kelimesi yoksa para birimi, süre ya da ≥ 1.000 tutar yüzde
 değildir (`clarification.not_a_percent`); soru notla yeniden sorulur (`ask_percent_again`), araç çalışmaz. Yazım hatası ölçümü dört türdür
-(`phrasings.TYPOS`, yalnız rapor); modelle `phrasing_eval.py --typos-only --per-intent 4` (dört kova).
+(`phrasings.TYPOS`); modelle `phrasing_eval.py --typos-only --per-intent 4` (dört kova).
+**Yazım düzeltmesi (CHAT-13 PR2, `spelling.py`):** `ChatService.answer` mesajı ilk iş `correct()`'ten geçirir; turun tamamı (kurallar, okuyucular, model,
+kontroller) düzeltilmiş metni görür (K3-C). Yalnız kapalı listedeki köklere (`_STEM_WORDS`, kuralların aradığı kökler) ve ≥5 harfli ay adlarına
+(tam kelime) bir harf uzaklık düzeltilir: eksik, fazla, yanlış ya da yer değiştirmiş harf; ilk harf hiç, son harf yalnız `_LAST_LETTER_WORDS`'te
+("gelin"/"gelir" gibi). İki köke yakınsa tahmin yok; adlar, işyerleri ve rakamlar listede olmadığı için dokunulmaz (K14-A). "maaş" el listesiyle
+(K4-D). Yeni kural kelimesi eklenince kökü de `_STEM_WORDS`'e girer; `test_spelling.test_no_correctly_written_question_is_changed` ölçülen hiçbir
+düzgün sorunun değişmediğini denetler (çakışma bulunca `_KEPT_BEGINNINGS` ya da kökü çıkar). Ne olurdu eki tek yerde (`spelling.WHAT_IF_ENDING`,
+"alsadım", "alsaydm", "biriktireydim"); ay adı yalnız yazıldığı gibi dönemdir (`grounding._TIME`, "Eylüll'de" değil). Hatalı yazılışlar kapı
+testidir: kalanlar gerekçeli `model_check/typo_gaps.json` (iki yönlü; düzelen de listeden çıkmalı).
 **Araç sırası (ACC-01b bulgusu):** modele gösterilen liste `routing.MEASURED_ORDER` sırasındadır, sunucunun sırası değil (derlemeye göre
 değişiyor ve 4b'nin isabetini oynatıyordu). Yeni araç bu tuple'a eklenir (`test_the_measured_order_names_every_tool_of_the_table_once`);
 sıra değişirse bütün araç seçim ölçümü yeniden çalıştırılır. Ölçüm her zaman yeni kodla açılmış ayrı porttaki MCP/AI servisiyle yapılır.

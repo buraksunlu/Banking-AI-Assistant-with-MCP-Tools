@@ -34,6 +34,8 @@ from routing import DATE_FIELDS, Router  # noqa: E402
 HERE = Path(__file__).resolve().parent
 TEMPLATES_FILE = HERE / "phrasing_templates.json"
 GAPS_FILE = HERE / "phrasing_gaps.json"
+# CHAT-13 K13-A: the typos that fail today, each with its reason; test_phrasings.py checks both ways, like GAPS_FILE.
+TYPO_GAPS_FILE = HERE / "typo_gaps.json"
 # The tools as the MCP server publishes them, kept so the model-free test needs no server (phrasing_eval.py --refresh-tools).
 TOOLS_FILE = HERE / "mcp_tools.json"
 
