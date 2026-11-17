@@ -200,7 +200,7 @@ def test_every_eval_case_finds_its_tool_by_the_rules_alone():
         previous = case["context"]["tool"] if case.get("context") else None
         result = Router(None).route(case["message"], previous, 30.0)
         expected = case["expected"]
-        if expected in (None, "clarify"):
+        if expected in (None, "clarify", "other_person"):
             continue
         if expected == "clarify:duration":
             # INV-03 PR2: only the monthly saving asks a duration; the case must still be routed to it.

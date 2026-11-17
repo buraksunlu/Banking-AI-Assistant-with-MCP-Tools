@@ -1388,6 +1388,11 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Başka kişinin verisi (AI-12 kalanı, 17 Kasım 2026, `ai-12-other-person`; docs/local-ai.md "AI-12"): "Deniz'in bakiyesi", "annemin
+  hesabında", "diğer müşteriler", "CUST-5" ve "Peki Deniz'in?" araç ve model çağrılmadan ayrı sabit metinle reddediliyor (önce kullanıcının
+  kendi bakiyesi Deniz'inmiş gibi gösteriliyordu; sızıntı yoktu, araçlar yalnız token'ın müşterisini görür). Kendi transferleri ("Deniz'e
+  gönderdiğim", "Hasan'ın gönderdiği para") ve kendi tamlayanları ("hesabımın", "Ekim'in", "Netflix'in") eskisi gibi. Kararlar K1-B K2-B
+  K3-A K4-B. Araç seçimi 157/157 (scope 19/19), ifade örneklemi modelle 142/145 (yanlış ret yok; 3 hata AI-12 dışı); Python 1833 → 1873. AI-12 tamam.
 - Todo taraması ve README (FIN-01a, 17 Kasım 2026; kullanıcı kararı B: kapanış + kategorilendirme + işlem açıklaması): todo kodla
   doğrulandı; 11 madde kanıtla kapandı (MCP-03/04/06/11, REC-04, OC-10, IOS-02/03/09/10, EVAL-01), 2 tekrar birleşti (AI-16 → OPS-07,
   RT-06 → KIND-06), 5 maddeye kalan iş yazıldı, 52 isteğe bağlı madde satır içinde "ertelendi" (K1-B, K2-B); açık 106 → 93. "Şu anki

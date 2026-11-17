@@ -35,14 +35,14 @@ from conversation import carried as carryable
 from explainer import stream_message
 from facts import outcome_for
 from ollama_client import OllamaError, OllamaSettings
-from prompts import (ADVICE_DECLINED_TEXT, BARE_CHOICE_TEXT, CLARIFY_TEXT, DATE_SCHEMA, LIRA_ONLY_TEXT, INTENT_SCHEMA, OUT_OF_SCOPE_TEXT, build_clarify_messages, build_date_messages,
+from prompts import (ADVICE_DECLINED_TEXT, BARE_CHOICE_TEXT, CLARIFY_TEXT, DATE_SCHEMA, LIRA_ONLY_TEXT, INTENT_SCHEMA, OUT_OF_SCOPE_TEXT, OTHER_PERSON_TEXT, build_clarify_messages, build_date_messages,
                      build_intent_messages, build_tool_messages)
 from dates import CustomerDay, DateReading, check_range, period_line, read_dates, with_span_replaced
 from grounding import brand_in, category_in, check_arguments, mentions_period, unclear_amounts
 from spelling import correct
 from routing import (DATE_FIELDS, ONE_OFF, PLANNING, TREND, Route, Router, group_of, hide_dates, is_spending_question, narrow,
                      planning_of, trend_months)
-from suggestions import OUT_OF_SCOPE_SUGGESTIONS, AskedStore, OfferedStore, follow_ups, match, panel_questions, result_shape
+from suggestions import OTHER_PERSON_SUGGESTIONS, OUT_OF_SCOPE_SUGGESTIONS, AskedStore, OfferedStore, follow_ups, match, panel_questions, result_shape
 from tools import ToolArgumentsRejected, ToolGateway
 from wealth import (LIRA, MONTH_TOOLS, MONTHLY_TOOL, ONE_OFF_TOOL, WEALTH_TOOLS, advised_saving_call, carried_monthly, chosen_scenario_arguments,
                     has_complete_month, monthly_follow_up, needs_month_question, plan_monthly, scenario_by_figures)
@@ -322,6 +322,8 @@ class ChatService:
             return self._ask(ask_area(message), [], token, deadline)
         if route.out_of_scope:
             # A request to move money or to advise is answered before any tool or model is involved (CHAT-01 K5-B).
+            if route.other_person:
+                return _other_person()
             return _advice_declined() if route.advice else _out_of_scope()
 
         # "Had I saved the amount you advised": code chooses the call from the words, the model never picked it (INC-03 PR2, W12/W13).
@@ -635,6 +637,11 @@ def _advice_declined() -> ChatReply:
 def _lira_only() -> ChatReply:
     # K8-A: a monthly saving in another currency; no tool ran, so no figure is in it.
     return ChatReply("answer", LIRA_ONLY_TEXT, [], [], [])
+
+
+def _other_person() -> ChatReply:
+    # AI-12 K2-B: another person's data; the questions are the user's own balance, transfers and spending.
+    return ChatReply("outOfScope", OTHER_PERSON_TEXT, [], [], list(OTHER_PERSON_SUGGESTIONS))
 
 
 def _out_of_scope() -> ChatReply:

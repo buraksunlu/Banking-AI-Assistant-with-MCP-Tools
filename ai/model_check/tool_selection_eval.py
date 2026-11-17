@@ -94,6 +94,7 @@ def main() -> int:
     print("| Case | Result | Time (s) | Route | Outcome |")
     print("|---|---|---|---|---|")
     passed, total_time = 0, 0.0
+    by_category: dict[str, list[bool]] = {}
     for case in data["cases"]:
         time.sleep(args.pause)
         started = time.monotonic()
@@ -105,6 +106,8 @@ def main() -> int:
         except OllamaError as error:
             outcome, ok = Outcome(f"{type(error).__name__}: {error}"), False
         passed += ok
+        if "category" in case:
+            by_category.setdefault(case["category"], []).append(ok)
         seconds = time.monotonic() - started
         total_time += seconds
         route = router.last
@@ -113,6 +116,9 @@ def main() -> int:
         got = f"{outcome.tool}({json.dumps(outcome.arguments, ensure_ascii=False)})" if outcome.kind == "call" else outcome.kind
         print(f"| {case['id']} | {'pass' if ok else 'FAIL'} | {seconds:.1f} | {where} | {got} |")
     print(f"\n**{passed}/{len(data['cases'])}**, average {total_time / len(data['cases']):.1f} s per case")
+    # AI-12 K4-B: what must not be answered, and its controls, on a line of their own.
+    for category, results in sorted(by_category.items()):
+        print(f"{category}: {sum(results)}/{len(results)}")
     return 0 if passed == len(data["cases"]) else 1
 
 

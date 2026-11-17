@@ -44,6 +44,8 @@ OTHER_DURATION = "Peki {months} ay biriktirseydim?"
 BALANCE = "Bakiyem ne kadar?"
 SALARY_THIS_MONTH = "Bu ay maaşım yattı mı?"
 SENT_LAST_MONTH = "Geçen ay kime para gönderdim?"
+# AI-12 K2-B: under the refusal of another person's data, the user's own balance, transfers and spending.
+OTHER_PERSON_SUGGESTIONS = (BALANCE, SENT_LAST_MONTH, THIS_MONTH)
 RECEIVED_LAST_MONTH = "Geçen ay kimden para geldi?"
 
 # CHAT-10 K3-B: the texts that say their period, as patterns. Each is measured for two periods and is a phrasing template for every

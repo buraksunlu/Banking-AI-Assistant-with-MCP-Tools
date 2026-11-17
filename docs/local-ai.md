@@ -1517,3 +1517,34 @@ Kararlar: K1-A, K2-B, K3-C, K4-C, K5-C. Testler `ai/service/test_sim_findings.py
   yakalandı (Python 16, .NET 1, iOS 1). İlk turda iki bozma kaçtı: ay sorusunun sabit metin kaldığı ve "nerelere" kuralı sınanmıyordu; ikisine test eklendi.
 - **Ölçüm notu (OPS):** 16 GB makinede model 12 GB'a çıkıyor. Ölçümler iOS simülatörü ve paralel test koşuları kapalıyken, tek tek çalıştırılmalı.
   İlk deneme hafıza dolduğu için yarıda kaldı.
+
+## AI-12: başka kişinin verisi (17 Kasım 2026)
+
+Araçlar yalnız token'ın müşterisini gördüğü için veri sızmıyordu, ama cevap yanıltıcıydı: "Deniz'in bakiyesi ne kadar?" kullanıcının kendi
+bakiyesini ("Kişisel hesaplar: 644.659,42 TL") Deniz'inmiş gibi gösteriyordu. Artık bu sorular araç ve model çağrılmadan sabit metinle reddediliyor.
+Kararlar K1-B, K2-B, K3-A, K4-B. Testler `ai/service/test_other_person.py`.
+
+- **Kural (K1-B, `routing.about_someone_else`):** üç durum. (1) Tamlayan durumunda bir kişi ve ardından en fazla üç kelime içinde onun verisi:
+  "Deniz'in bakiyesi", "annemin hesabında", "eşimin geçen ayki harcamaları". Kişi bir adın kesme işaretli tamlayanı (iki klavyenin kesmesi de)
+  ya da bir kişi sözcüğüdür ("anne", "eş", "müşteri", "başka"…). Veri sözcüğü üçüncü tekil ekiyle olmalı ("harcamaları"; "harcamalarım" değil).
+  (2) Açık başka müşteri: "diğer/tüm/başka müşteri/kullanıcı", "CUST-5". (3) Tek başına ad içeren takip sorusu: "Peki Deniz'in?", "Ya annemin?";
+  son çağrıyla okunursa yine kullanıcının bakiyesi görünürdü. Kural, kapsam dışı kuralından sonra, tavsiye kuralından önce çalışır.
+- **Açık kalanlar:** kullanıcının kendi transferleri ("Deniz'e ne kadar gönderdim?", "Hasan'ın gönderdiği para", "Annemden gelen para") ve kendi
+  tamlayanları ("Maaşımın ne kadarını", "Hesabımın bakiyesi"). Ay, gün, yıl ve kodun bildiği markalar kişi sayılmaz ("Ekim'in", "2025'in",
+  "Netflix'in"). Veri sözcüğü kişiye ait değilse ("Deniz'in doğum günü için harcamalarım") soru kullanıcınındır.
+- **Metin ve öneriler (K2-B, K3-A):** `OTHER_PERSON_TEXT` nedenini ve açık yolu söyler; altında "Bakiyem ne kadar?", "Geçen ay kime para
+  gönderdim?", "Bu ay ne kadar harcadım?". Cevap tipi `outOfScope` kalır (.NET ve iPhone sözleşmesi değişmedi).
+- **Ölçüm (K4-B):** `tool_selection_cases.json`'da `"category": "scope"`: yapılmaması gerekenler (eski null vakaları + X01–X10 `other_person`) ve
+  kontrolleri (X11–X13: kendi transferleri ve bakiyesi). `tool_selection_eval.py` kategoriyi ayrı satırda yazar; `phrasings.outcome_of` ret
+  metnini `other_person` sayar.
+- **Bilinen sınır:** yalnız Netflix ve Spotify kod için marka (`grounding._BRANDS`); müşterinin öteki işyerleri yönlendiricinin görmediği veridir.
+  "Starbucks'ın harcamaları" ret alır (başka rakam verilmez); olağan yazılışlar ("Starbucks harcamalarım", "Starbucks'a harcadıklarım") etkilenmez.
+
+| Ölçüm | Önce | Sonra |
+|---|---|---|
+| Araç seçimi | 144/144 | **157/157** (scope 19/19) |
+| İfade örneklemi, modelle (145, seed 9) | — | **142/145**, `other_person` yanlış ret 0 |
+
+- **Örneklemin üç hatası AI-12 dışı** (reddedilmeyen mesajın yolu değişmedi): "MARKET HARCAMAMI YÜZDE 30…" modelde kategori düştü (dalgalanma);
+  "Ayda 5 bin 6 ay…" bilinen CHAT-11; "hasan'dan para geldi mi" karşı taraf küçük harfle döndü, ölçüm harf duyarlı karşılaştırıyor.
+- **Doğrulama:** Python 1833 → 1873 modelsiz (`pytest ai -k "not real"`). .NET, iPhone ve sözleşme değişmedi.

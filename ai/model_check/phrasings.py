@@ -28,7 +28,7 @@ from chat import DATE_UNSUPPORTED_TEXT, ChatReply, ChatService, ToolCall  # noqa
 from conversation import LastCall  # noqa: E402
 from dates import CustomerDay  # noqa: E402
 from ollama_client import OllamaSettings  # noqa: E402
-from prompts import ADVICE_DECLINED_TEXT, CLARIFY_TEXT, LIRA_ONLY_TEXT, OUT_OF_SCOPE_TEXT  # noqa: E402
+from prompts import ADVICE_DECLINED_TEXT, CLARIFY_TEXT, LIRA_ONLY_TEXT, OTHER_PERSON_TEXT, OUT_OF_SCOPE_TEXT  # noqa: E402
 from routing import DATE_FIELDS, Router  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
@@ -240,7 +240,8 @@ def outcome_of(reply, asked: str | None = None) -> Outcome:
             return Outcome("unclear")
         return Outcome(f"clarify:{asked}" if asked else "clarify")
     if reply.type == "outOfScope":
-        kinds = {ADVICE_DECLINED_TEXT: "advice", DATE_UNSUPPORTED_TEXT: "date_unsupported", OUT_OF_SCOPE_TEXT: "out_of_scope"}
+        kinds = {ADVICE_DECLINED_TEXT: "advice", DATE_UNSUPPORTED_TEXT: "date_unsupported", OUT_OF_SCOPE_TEXT: "out_of_scope",
+                 OTHER_PERSON_TEXT: "other_person"}
         return Outcome(kinds.get(reply.answer, "out_of_scope"))
     return Outcome("lira_only" if reply.answer == LIRA_ONLY_TEXT else "answer")
 
