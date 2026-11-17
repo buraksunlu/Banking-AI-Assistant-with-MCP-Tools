@@ -1479,6 +1479,8 @@ kökler listede yok + elle korunan başlangıçlar), K13-A (1800 hatalı yazıl�
 
 - **Kalan tek yanlış (gerekçeli sınır):** "10k TL ayırım, ne kadar kaldı?" — "ayırım" gerçek bir kelime (K12-C), dokunulmuyor; model bu ayın toplamını
   seçiyor. Modelsiz kalan 6 yanlış: kişi adları (K14-A), "Hesabım para yattı mı" (gerçek kelime), "havalee/yağtıklarım" (yönsüz liste).
-- **Embedding (K9-B):** ölçümde hatalı yazılış yanlışı %0,9 (bir gerekçeli sınır), cevapsız 4/116 → gerek görülmedi, kapatma önerisi.
+- **Embedding (K9-B):** ölçümde hatalı yazılış yanlışı %0,9 (bir gerekçeli sınır), cevapsız 4/116 → gerek görülmedi; kullanıcı onayıyla kapatıldı
+  (17 Kasım 2026). Kalan açıklar (ek hataları, listede olmayan kelimeler, adlar) benzerlik aramasının çözeceği türden değil; yeni model bellek
+  baskısını artırırdı (OPS-07).
 - **Doğrulama:** Python 1733 → 1810 modelsiz; 22 kasıtlı bozmanın hepsi yakalandı (ilk turda üçü kaçtı: belirsizlik, 4 harf sınırı ve sayılı dönem
   koşulunu sınayan cümleler eklendi; kapı testinin kendisini kapatan bozma yerine listenin iki yönü bozuldu).
