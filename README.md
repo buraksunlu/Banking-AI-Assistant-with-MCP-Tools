@@ -24,19 +24,26 @@ scripts/demo.sh stop
 
 Önkoşullar: `.env` dolu, `ai/.venv` kurulu, harici SSD takılı (Ollama modeli). Sonra iPhone simülatöründen giriş yapılır.
 
-## Durum (19 Ekim 2026)
+## Durum (17 Kasım 2026)
 
 | Katman | Durum |
 | --- | --- |
-| Veritabanı + synthetic demo veri | Tamam: 6 domain tablosu + giriş tablosu, 12 migration, 3 elle hesaplanmış demo müşterisi (7 hesap, 116 işlem) + 6 gerçekçi persona (9 hesap, 1 yıl, 1.710 işlem; SYN-15) |
-| Deterministik analytics | Tamam: özet, kategori, merchant, arama, en yüksek işlemler, dönem karşılaştırması, aylık seri, düzenli ödemeler |
-| HTTP API | Tamam: giriş/JWT, hesaplar, işlemler, analytics endpoint'leri, ortak hata cevabı, OpenAPI + Scalar |
-| Local AI (FastAPI + LangChain + Qwen) | Sohbet uçtan uca çalışıyor: iPhone → .NET `POST /api/assistant/messages` → AI servisi (model araç seçer, kod rakamı yazar, model açıklar, cevap kontrol edilir) ([docs/local-ai.md](docs/local-ai.md)) |
-| MCP | Çalışıyor: salt okunur `BankingAI.McpServer`, 9 araç (harcama özeti, kategori, işyeri, en büyük harcamalar, karşılaştırma, aylık seri, düzenli ve yaklaşan ödemeler); AI servisi araçları oradan keşfedip çalıştırıyor ([docs/mcp.md](docs/mcp.md)) |
-| SwiftUI | Başladı: giriş ekranı ve oturum (Keychain) hazır, simülatörde gerçek API'yle çalışıyor ([docs/ios.md](docs/ios.md)); sohbet ekranı sırada |
-| Market verisi (USDTRY/EURTRY/gram altın) | Ayrı kol; altın kaynağı dış yanıt bekliyor, import yok |
+| Veritabanı + synthetic demo veri | Tamam: 6 domain tablosu + giriş tablosu, 12 migration; 3 elle hesaplanmış demo müşterisi (Ada, Deniz, Ege; 116 işlem) + 6 gerçekçi persona (Selin, Murat, Zeynep, Hasan, Elif, Can; 1 yıl, 1.710 işlem). Sabit demo DB'si testler ve ölçümler için, ayrı canlı DB `scripts/run-live.sh` ile ([docs/synthetic-seed.md](docs/synthetic-seed.md)) |
+| Deterministik analytics | Tamam: özet, kategori ve işyeri dağılımı, arama, en büyük işlemler, dönem karşılaştırması, aylık seri, düzenli ve yaklaşan ödemeler, bütçe kontrolü, tasarruf simülasyonu, gelire göre harcama payı, seçici tasarruf önerisi ([docs/analytics.md](docs/analytics.md)) |
+| "Ne olurdu" hesapları | Tamam: geçmiş harcama ya da aylık birikim USD, EUR veya gram altın olsaydı (TCMB döviz alış, gram altın = ons × USDTRY; iki yıl, 1.485 günlük fiyat) |
+| HTTP API | Tamam: giriş/JWT, hesaplar, işlemler (imleçli sayfalama), analytics, sohbet kapısı, ortak hata cevabı, OpenAPI + Scalar ([docs/api.md](docs/api.md)) |
+| Local AI (FastAPI + LangChain + Qwen) | Tamam: serbest Türkçe soru → kelime kuralları ve model niyeti ayırır, model araç seçer, kod rakamı ve cevap kartını yazar; belirsizlikte geri soru, takip soruları, tarih ifadeleri, yazım hatası toleransı ([docs/local-ai.md](docs/local-ai.md)) |
+| MCP | Tamam: salt okunur `BankingAI.McpServer`, 20 araç (harcama, ödemeler, planlama, gelir, ne olurdu, hesaplar ve işlem arama); AI servisi araçları oradan keşfedip çalıştırır ([docs/mcp.md](docs/mcp.md)) |
+| SwiftUI | Tamam: giriş (Keychain), ana panel, hesaplar ve hesap detayı, işlemler, kategori ve aylık grafikler, sohbet (cevap kartları, seçenekler, işlem listesine bağlantı), profil ([docs/ios.md](docs/ios.md)) |
 
-Ayrıntılı iş planı ve sıradaki adım [todo.md](todo.md), kalıcı kurallar [RULE.md](RULE.md) içindedir.
+**Testler (17 Kasım 2026, hepsi geçti):** .NET Data 223, Application 511, Api 624, McpServer 222; Python 1833 modelsiz; iOS 438 test durumu.
+**Son model ölçümü (`qwen3.5:4b`):** araç seçimi 144/144, serbest yazılış (80) 0 yanlış, hatalı yazılış (116) 0 yanlış, cevap doğruluğu 33/33.
+
+**Bilinen sınırlar:** kategoriler yalnız seed'den gelir (kural + model ile kategorilendirme CAT-01–08 açık); tek bir işlemi açıklama
+(EXP-01/02) yok; real time simülatörün yalnız gün planı ve yetiştirme motoru var (RT-02a), sürekli çalışma açık; iade/iptal yok; Docker
+imajı ve CI yok; ölçümlerde model 16 GB Mac'te 12 GB'a çıkar (simülatör ve paralel testler kapalı çalıştırın).
+
+Ayrıntılı iş planı ve bitiş yolu [todo.md](todo.md) ("Şu anki sonraki adım"), kalıcı kurallar [RULE.md](RULE.md) içindedir.
 
 ## Projeler
 
@@ -55,8 +62,12 @@ Bütün projeler `BankingAI.slnx` içindedir:
 | `tests/BankingAI.Api.Tests` | HTTP integration testleri (`WebApplicationFactory`) |
 | `tests/BankingAI.McpServer.Tests` | MCP server testleri: araç keşfi, rakamlar, token, argümanlar (gerçek C# MCP istemcisiyle) |
 | `ios/BankingAI` | SwiftUI iPhone uygulaması (Xcode projesi + Swift Testing testleri; [docs/ios.md](docs/ios.md)) |
+| `ai/service` | Python AI servisi (FastAPI + LangChain + Ollama): sohbet akışı, MCP istemcisi, kurallar, cevap kartları |
+| `ai/model_check` | Gerçek modelle ölçümler: araç seçimi, serbest ve hatalı yazılış, cevap doğruluğu |
 
 ```text
+iPhone (SwiftUI) ─► BankingAI.Api ─► ai/service (FastAPI, Qwen) ─► BankingAI.McpServer (salt okunur araçlar)
+
 BankingAI.Api ───────┐
 BankingAI.McpServer ─┴► BankingAI.Hosting ─► BankingAI.Application ─► BankingAI.Data ─► PostgreSQL
 BankingAI.Cli ───────────────────────────────────────────────────────► BankingAI.Data
@@ -117,6 +128,11 @@ dotnet run --project src/BankingAI.Cli -- seed transactions categorization-bound
 dotnet run --project src/BankingAI.Cli -- seed transactions recent-spending
 dotnet run --project src/BankingAI.Cli -- seed transactions demo-coverage
 dotnet run --project src/BankingAI.Cli -- seed transactions pairs
+dotnet run --project src/BankingAI.Cli -- seed transactions realistic
+dotnet run --project src/BankingAI.Cli -- market download tcmb --from 2024-11-09 --to 2026-11-09
+dotnet run --project src/BankingAI.Cli -- market download goldapi --from 2024-11-09 --to 2026-11-09
+dotnet run --project src/BankingAI.Cli -- market import tcmb --from 2024-11-09 --to 2026-11-09
+dotnet run --project src/BankingAI.Cli -- market import gold --from 2024-11-09 --to 2026-11-09
 ```
 
 - `migrate` yalnız şemayı uygular; migration dosyası üretmez, seed çalıştırmaz. API açılışında migration
@@ -125,7 +141,12 @@ dotnet run --project src/BankingAI.Cli -- seed transactions pairs
 - Demo karakterleri: Ada (kahve, abonelik, bilinmeyen bir işlem), Deniz (market artışı, faturalar ve
   "Kahve Durağı – Kadıköy" Business dükkân hesabı), Ege (ulaşım ve seyahat). Ayrıntılar ve elle hesaplanmış
   beklenen rakamlar [docs/synthetic-seed.md](docs/synthetic-seed.md) içindedir.
-- `show` ilk 10 müşteriyi gösterir. Tek komutluk `seed synthetic` ve market fiyatı `import` komutu henüz yoktur.
+- `realistic` altı persona için bir yıllık işlemi yazar (Selin öğrenci, Murat aile, Zeynep serbest çalışan, Hasan emekli,
+  Elif Berlin'de, Can dükkân sahibi); `seed customers` ve `seed accounts`'tan sonra çalışır.
+- `market download` fiyatları dış kaynaktan indirir, `market import` DB'ye yazar (IMP-b'de kullanılan iki yıl).
+- `show` ilk 10 müşteriyi gösterir. Tek komutluk `seed synthetic` yoktur.
+- Canlı DB (RT-01): `scripts/run-live.sh` servisleri ayrı `bankingai_live` veritabanına bağlar; `simulate catch-up` canlı veriyi
+  bugüne kadar yetiştirir (`scripts/live-cli.sh`). Testler canlı DB'ye bağlanmaz.
 
 Demo kullanıcıların şifresini belirlemek için (şifre gizli ve iki kez sorulur, ekrana veya loga yazılmaz).
 Kullanıcı ilk kez oluşturulurken müşteri kimliği verilir: Ada `10000000-0000-0000-0000-000000000001`,
@@ -166,7 +187,7 @@ curl -s "localhost:5248/api/analytics/spending-summary?period=ThisMonth" -H "Aut
 | `GET /api/accounts`, `GET /api/accounts/{id}` | Müşterinin hesapları; başkasının hesabı = olmayan hesap (404) | API-05, API-06 |
 | `POST /api/accounts` | Yeni şahsi hesap (bakiye 0, numara `ACC-n`); 201 | API-07 |
 | `GET /api/accounts/{accountId}/transactions` | Hesabın işlemleri, sayfalı; varsayılan son 3 ay | API-09 |
-| `GET /api/transactions` | Bütün hesaplarda arama: tür, yön, kategori, merchant, tutar aralığı | ANA-09, ANA-11 |
+| `GET /api/transactions` | Bütün hesaplarda arama: tür, yön, karşı taraf, kategori, merchant, tutar aralığı; imleçli sayfalama | ANA-09, ANA-11, API-17 |
 | `GET /api/transactions/{id}` | Tek işlem | API-10 |
 | `POST /api/accounts/{accountId}/transactions` | Sentetik Purchase/Salary; atomik bakiye; yetersiz bakiye 409; `Idempotency-Key` zorunlu | API-11, API-12 |
 | `GET /api/analytics/spending-summary`, `category-breakdown`, `merchant-breakdown`, `merchant-spending` | Harcama özeti, kategori ve merchant dağılımı, tek merchant | ANA-09 |
@@ -174,7 +195,10 @@ curl -s "localhost:5248/api/analytics/spending-summary?period=ThisMonth" -H "Aut
 | `GET /api/analytics/highest-transactions`, `recurring-payments`, `upcoming-payments` | En büyük işlemler, düzenli ve yaklaşan ödemeler | ANA-09, ANA-12 |
 | `GET /api/analytics/budget-check`, `savings-simulation` | Bütçe durumu ve ay sonu tahmini; "%N azaltsam" | ANA-13, ANA-14 |
 | `GET /api/analytics/merchants`, `merchant-group-spending` | Merchant listesi (kapalı küme) ve "kahveye ne kadar?" | ANA-10 |
-| `POST /api/assistant/messages`, `GET /api/assistant/status` | Sohbet asistanı: serbest Türkçe soru → cevap + kullanılan sorgu + rakamlar; asistan hazır mı (AI servisi ve Ollama açık olmalı; müşteri başına dakikada 10 mesaj) | AI-14b, AI-07 |
+| `GET /api/analytics/category-spending` | Tek kategori: önceki dönemle fark, işyerleri | UX-01 |
+| `GET /api/analytics/income-share`, `spending-advice` | Gelirin ne kadarı harcandı; seçici tasarruf önerisi | INC-01, INC-02 |
+| `GET /api/analytics/what-if/one-off`, `what-if/monthly` | Harcama ya da aylık birikim USD/EUR/gram altın olsaydı | INV-01 |
+| `POST /api/assistant/messages`, `GET /api/assistant/status`, `GET /api/assistant/suggestions` | Sohbet asistanı: serbest Türkçe soru → cevap kartı + rakamlar + işlem listesine bağlantı; asistan hazır mı; önerilen sorular (AI servisi ve Ollama açık olmalı; müşteri başına dakikada 10 mesaj) | AI-14b, AI-07, CHAT-06 |
 
 JSON kuralları: enum'lar yazıyla ve tam adla, para JSON sayısı (`577490.18`; tırnaklı tutar 400), yazma isteğinde
 tanınmayan alan 400. Her hata ProblemDetails biçimindedir: Türkçe `title`, makine kodu `code` (ör. `validation_failed`,
@@ -190,7 +214,14 @@ dotnet test tests/BankingAI.Data.Tests --filter "Category!=PostgreSQL"  # DB'siz
 
 PostgreSQL testleri seed edilmiş demo veritabanını kullanır ve `.env` yüklenmiş olmalıdır. Testler demo
 verisini değiştirmez: ya kendi DB transaction'ında rollback yapar ya da geçici kayıt açıp siler. Beklenen
-değerler seeder'dan türetilmez, elle hesaplanmış fixture'lardır. Güncel test sayıları `todo.md` içindedir.
+değerler seeder'dan türetilmez, elle hesaplanmış fixture'lardır. Güncel test sayıları "Durum" bölümünde ve `todo.md` içindedir.
+
+iPhone testleri (simülatör):
+
+```sh
+xcodebuild -project ios/BankingAI/BankingAI.xcodeproj -scheme BankingAI \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.5' test
+```
 
 AI servisi ve model ölçümü (Python 3.14; ayrıntı [docs/local-ai.md](docs/local-ai.md)):
 
@@ -198,6 +229,9 @@ AI servisi ve model ölçümü (Python 3.14; ayrıntı [docs/local-ai.md](docs/l
 /opt/homebrew/bin/python3.14 -m venv ai/.venv                         # bir kez
 ai/.venv/bin/python -m pip install -r ai/requirements.txt             # sabit sürümler
 ai/.venv/bin/python -m pytest ai                                      # bütün Python testleri (Ollama kapalıysa gerçek-Ollama testleri atlanır)
+ai/.venv/bin/python -m pytest ai -k "not real"                        # modelsiz: modeli belleğe yüklemez
+ai/.venv/bin/python ai/model_check/tool_selection_eval.py --pause 1   # araç seçimi (144 vaka; MCP server ve .env gerekir)
+ai/.venv/bin/python ai/model_check/answer_eval.py                     # cevap doğruluğu (33 vaka; AI servisi de açık olmalı)
 python3 ai/model_check/run.py --model qwen3.5:4b --model qwen3.5:9b   # modelleri karşılaştır (Ollama açık olmalı)
 ai/.venv/bin/python ai/model_check/explanation_eval.py              # açıklama prompt'unu 10 vakada değerlendir
 python3 ai/service/ollama_client.py                                  # elle kontrol: Ollama ve model hazır mı?
@@ -226,7 +260,8 @@ MarketAsset 1 ── N DailyMarketPrice
   dükkân alışverişi aynı `PairId`'yi taşıyan iki kayıttır. Kategori yalnız Purchase'ta bulunur;
   kategorisiz işlem "Sınıflandırılmamış"tır ve `OTHER` ("Diğer") ile birleştirilmez.
 - **CustomerCredential:** giriş bilgisi; şifre saklanmaz, yalnız `PasswordHasher` özeti tutulur.
-- **MarketAsset / DailyMarketPrice:** USDTRY, EURTRY, GRAM_GOLD_TRY tanımlı; fiyat kaydı henüz yok.
+- **MarketAsset / DailyMarketPrice:** USDTRY, EURTRY, GRAM_GOLD_TRY; iki yıllık günlük fiyat (1.485 satır, günde tek değer,
+  alış/satış ayrımı yok). Yalnız "ne olurdu" hesapları kullanır.
 
 İşlem satırı doğrudan `db.Add` ile eklenmez. `Writing/TransactionWriter` (tek kayıt; seed'ler ve API) ve
 `Writing/PairedTransactionWriter` (iki kayıt) işlemi ve bakiye değişimini aynı DB transaction'ında yazar.
@@ -268,13 +303,14 @@ dotnet tool run dotnet-ef migrations add <Name> --project src/BankingAI.Data --s
 
 ## Yol haritası
 
-1. ~~API~~ tamam (16 Ekim 2026).
-2. Local AI: Qwen model seçimi (tamam: `qwen3.5:4b`), Ollama bağlantısı, FastAPI + LangChain; önce backend sonucunu Türkçe açıklama.
-3. Read-only MCP tool'ları; Qwen tool seçer, argümanlar backend'de yeniden doğrulanır.
-   Genişletmeler (13 Ekim 2026): yeni soru tipleri (kavramsal merchant, tutar filtresi, yaklaşan ödemeler,
-   bütçe kontrolü, tasarruf simülasyonu) ve güvenilir cevap katmanı (sayı doğrulayıcı + şablon cevap,
-   "nasıl hesaplandı" açıklaması, kapsam koruması, veri minimizasyonu); todo bölüm 12b ve 15b.
-4. SwiftUI uygulaması, güvenilirlik/güvenlik/değerlendirme, Docker, gözlemlenebilirlik, demo.
-5. Paralel: USDTRY/EURTRY/gram altın kaynağı ve historical import (yalnız opportunity-cost bunu bekler).
+Bitiş yolu (17 Kasım 2026 kullanıcı kararı B; sıra ve maddeler [todo.md](todo.md) "Şu anki sonraki adım"):
 
-Her adımda önce plan yapılır, kullanıcı onaylar, sonra yalnız seçilen küçük kapsam uygulanır.
+1. ~~Todo taraması ve README~~ (17 Kasım 2026).
+2. Güvenlik kanıtı: müşteri izolasyonu uçtan uca, prompt injection, modelin yazma/SQL yaptıramaması, secret/log taraması.
+3. Veritabanı kabulü ve sıfırdan kurulum (boş DB'ye bütün migration'lar, seed, import).
+4. Kategorilendirme: önce kural, çözülemezse yerel Qwen; eşik ölçülerek.
+5. Tek bir işlemi açıklama.
+6. Değerlendirme raporları, mimari ve ER diyagramı, demo ve son kabul review'ü.
+
+Sonraki aşamaya ertelenenler (real time simülatör, yeni analizler, kalıcı bütçe, içgörü kartları, Docker/CI) todo'da
+"ertelendi" diye işaretlidir. Her adımda önce plan yapılır, kullanıcı onaylar, sonra yalnız seçilen küçük kapsam uygulanır.

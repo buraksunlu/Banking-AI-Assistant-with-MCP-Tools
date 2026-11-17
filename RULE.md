@@ -1384,10 +1384,15 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   kullanıcıyla netleşir; açıkça istenen varlık korunur. Eksik veride kazanan uydurulmaz.
 
 ==================================================
-29. MEVCUT PROJE DURUMU — 15 KASIM 2026
+29. MEVCUT PROJE DURUMU — 17 KASIM 2026
 ==================================================
 
 COMPLETED
+- Todo taraması ve README (FIN-01a, 17 Kasım 2026; kullanıcı kararı B: kapanış + kategorilendirme + işlem açıklaması): todo kodla
+  doğrulandı; 11 madde kanıtla kapandı (MCP-03/04/06/11, REC-04, OC-10, IOS-02/03/09/10, EVAL-01), 2 tekrar birleşti (AI-16 → OPS-07,
+  RT-06 → KIND-06), 5 maddeye kalan iş yazıldı, 52 isteğe bağlı madde satır içinde "ertelendi" (K1-B, K2-B); açık 106 → 93. "Şu anki
+  sonraki adım" bitiş yoluna göre yeniden yazıldı. README durumu, 20 araç, uçlar, persona/market/canlı DB komutları ve bilinen sınırlar
+  (K3-B). Testler: Data 223, Application 511, Api 624, McpServer 222, Python 1833, iOS 438. Sırada güvenlik kanıtı (SEC).
 - Serbest yazılış kuralları (CHAT-12 PR3, 17 Kasım 2026; docs/local-ai.md "CHAT-12 PR3"): kalan yanlışların kök nedenleri kapandı ("binin"
   tutarı, "havale yaptıklarım" ve "para attım" yönü, "kimlere", "nerelerde tasarruf", "aylık harcamam" yalnız aylık seri, altı bakiye/gelir eş
   anlamı kurallı). Serbest yazılış modelle %5,0 → %0 yanlış (modelsiz 80/80); araç seçimi 143/144 (zaman aşımı, tek başına doğru), cevap 33/33.
