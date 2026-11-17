@@ -22,6 +22,7 @@ ai/.venv/bin/python ai/model_check/phrasings.py                     # modelsiz i
 ai/.venv/bin/python ai/model_check/phrasing_eval.py --pause 1       # modelli ifade örneklemi (MCP + Ollama + .env; --typos, --refresh-tools)
 ai/.venv/bin/python ai/model_check/question_eval.py --pause 1       # model yazımı seçim soruları (CHAT-09 PR3, clarify-v2; yalnız Ollama)
 ai/.venv/bin/python ai/model_check/free_eval.py                     # serbest yazılışlar, doğru/sordu/cevapsız/yanlış (CHAT-12; --model --pause 1, --shuffle, --write-baseline)
+ai/.venv/bin/python ai/model_check/phrasing_eval.py --typos-only --per-intent 4 --pause 1   # hatalı yazılışlar modelle, dört kova (CHAT-13)
 python3 ai/service/ollama_client.py                                  # elle kontrol (BANKINGAI_LLM_MODEL gerekir)
 ai/.venv/bin/uvicorn --app-dir ai/service --factory app:create_app --host 127.0.0.1 --port 8000   # AI servisi (AI-03)
 ```
@@ -142,6 +143,9 @@ kazandım", "para yattı" gelir ("yatırdım" değil). "kimlere/kimlerden" ve "p
 "havale yaptıklarım" = gönderilen; "Hasan para attı mı" yönsüz, K2-A); "para at / atar mısın / atayım" kapsam dışı isteği. "aylık harca",
 "ay ay", "aylara göre" modele yalnız aylık seriyi gösterir (`routing._TREND_WORDS`, planlama/zenginlikten sonra; "her ay" ve "aya göre" değil);
 model seçmezse ay sayısını kod okur (`routing.trend_months`, 1–12), yoksa sayı sorusu. Yazım hatası toleransı ayrı madde (CHAT-13).
+**Yüzde cevabı (CHAT-13 K7-A):** azaltma sorusunun kısa cevabında yüzde işareti/kelimesi yoksa para birimi, süre ya da ≥ 1.000 tutar yüzde
+değildir (`clarification.not_a_percent`); soru notla yeniden sorulur (`ask_percent_again`), araç çalışmaz. Yazım hatası ölçümü dört türdür
+(`phrasings.TYPOS`, yalnız rapor); modelle `phrasing_eval.py --typos-only --per-intent 4` (dört kova).
 **Araç sırası (ACC-01b bulgusu):** modele gösterilen liste `routing.MEASURED_ORDER` sırasındadır, sunucunun sırası değil (derlemeye göre
 değişiyor ve 4b'nin isabetini oynatıyordu). Yeni araç bu tuple'a eklenir (`test_the_measured_order_names_every_tool_of_the_table_once`);
 sıra değişirse bütün araç seçim ölçümü yeniden çalıştırılır. Ölçüm her zaman yeni kodla açılmış ayrı porttaki MCP/AI servisiyle yapılır.

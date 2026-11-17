@@ -1422,3 +1422,27 @@ yeniden tartılır). Testler `ai/service/test_free_rules.py`.
   PR2 ile aynı genel grup). Cevap doğruluğu **33/33**.
 - **Yazım hatası (K4-C):** `phrasings.py --typos` raporu 450 hatalı yazılışta 102 kırık (PR3 öncesi 429'da 92; yeni kalıpların hatalıları da
   eklendi). Bazıları yanlış rakam ("Biriktirsydim ne olurdu?" tasarruf hesabına gidiyor) → CHAT-13.
+
+## CHAT-13 PR1: yazım hatası ölçümü ve yüzde cevabı (17 Kasım 2026)
+
+CHAT-13'ün kararları: K1-B (yanlış ve cevapsız hedef, sayı PR1'in model ölçümünden), K2-B (kapalı kelime listesiyle düzeltme), K3-C (turun tamamı
+düzeltilmiş metni görür), K4-D (≥5 harf, 1 harf fark + yalnız "maaş"), K5-A ("-saydım" ekine toleranslı kalıp), K6-A (sessiz), K7-A (yüzde cevabı bu
+PR'da), K8-C (yeni hata türleri + PR2'de kapı testi), K9-B (embedding PR2 ölçümünden sonra), K10-A (hatalı yazılışta yanlış 0). PR1 düzeltmeye
+dokunmaz: yazım hatasından bağımsız bulunan yanlış rakamı kapatır ve PR2'nin hedefini ölçer.
+
+- **Yüzde cevabı (K7-A):** azaltma sorusuna ("Ne kadar azaltmayı düşünüyorsunuz?") verilen tutar ya da süre yüzde sayılıyordu: "5 bin lira" %5,
+  "1.000" %1, "2 yıl" %2 azaltma hesaplıyordu (yazım hatası olmadan da). `clarification.not_a_percent`: kısa cevapta yüzde işareti/kelimesi yoksa ve
+  para birimi, süre ya da 1.000 ve üstü bir tutar varsa yüzde değildir; soru notla yeniden sorulur ("Bunu yüzde olarak okuyamadım. Ne kadar
+  azaltmayı düşünüyorsunuz?", `ask_percent_again`), araç çalışmaz. "%10 6 ay boyunca" gibi açık yüzde yine okunur; 100'ü aşan sayı eskisi gibi.
+- **Yeni hata türleri (K8-C, yalnız rapor):** `phrasings.TYPOS` = harf eksik (`typo`, eski metinler aynen), komşu iki harf yer değiştirmiş
+  (`typo_swap`), Türkçe Q klavyede yandaki tuş (`typo_key`), harf iki kez (`typo_double`); ilk harfe dokunulmaz. Modelsiz rapor 450 → 1800 hatalı
+  yazılış: **33 yanlış, 202 cevapsız, 131 sordu** (yalnız eski türde 9 / 59 / 33). Yeni bulgular: "Eylüll'de transferlerim" bu ayı alıyor (ay adı
+  kontrolü "eylül" önekini dönem sayıyor, model "bu ay" yazıyor); "Seiln'e ne kadar gönderdim" kişisiz liste; "havalee ettiklerim" yönsüz.
+- **Model ölçümü (K1-D):** `phrasing_eval.py --typos-only --per-intent 4` (116 hatalı yazılış, 29 niyet, seed 9; `qwen3.5:4b`, yeni kodla MCP 5259,
+  demo anı, `--pause 1`): **92 doğru, 9 sordu, 4 cevapsız, 11 yanlış (%9,5)**; hatasız yazılışta %0. Model cevapsızların çoğunu kurtarıyor
+  (modelsiz cevapsızın 4'e inmesi), ama yanlış oranı yüksek. 11 yanlışın 4'ü modelsiz raporda görünmüyordu: "harcama" kökü bozulunca aylık seri
+  kuralı tutmuyor ("aylık harrcamam", "her ay ne kadar harcaıdm" → 6 aylık toplam) ve "Starbucks hracamamı %20 azaltsam" işyerini kaybediyor.
+  Diğerleri kategori kaybı ("Maret", "eğlnece"), "hatcadım" (gelir payı yerine gelir), "alsadım" (ne olurdu yerine kategori), "kzaancım"
+  (gelir yerine harcama), "haarcamalarım" (tutar sınırı yerine en büyükler). → PR2'nin hedefi: hatalı yazılışta modelle yanlış 11 → 0.
+- **Doğrulama:** Python 1705 → 1733 modelsiz; 12 kasıtlı bozmanın hepsi yakalandı (eski türün metinlerini sabitleyen test ilk turda yoktu, eklendi).
+  Kapı ifadeleri (1844) ve serbest yazılış temeli değişmedi.

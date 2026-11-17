@@ -50,6 +50,11 @@ _COLLOQUIAL = (("ne olurdu", "nolurdu"), ("Ne olurdu", "Nolurdu"), ("ne yaptım"
                ("ne yapardım", "napardım"))
 # A typo is made in a word at least this long: short words ("ay", "dün") lose their meaning with one letter less.
 _TYPO_MIN = 6
+# CHAT-13 K8-C: four kinds of typo, all report-only: a letter left out (the first kind, its texts unchanged), two neighbours
+# swapped, a key beside the right one on the Turkish Q keyboard, a letter typed twice.
+TYPOS = ("typo", "typo_swap", "typo_key", "typo_double")
+_KEY_ROWS = ("qwertyuıopğü", "asdfghjklşi", "zxcvbnmöç")
+KEY_NEIGHBOURS = {key: row[max(i - 1, 0):i] + row[i + 1:i + 2] for row in _KEY_ROWS for i, key in enumerate(row)}
 
 
 @dataclass(frozen=True)
@@ -110,22 +115,41 @@ def transform(name: str, text: str, seed: str) -> str:
         for written, spoken in _COLLOQUIAL:
             text = text.replace(written, spoken)
         return text
-    if name == "typo":
-        return _typo(text, seed)
+    if name in TYPOS:
+        return _typo(text, seed, name)
     return text
 
 
-def _typo(text: str, seed: str) -> str:
+def _typo(text: str, seed: str, kind: str = "typo") -> str:
     words = text.split(" ")
     long = [i for i, word in enumerate(words) if len(word) >= _TYPO_MIN]
     if not long:
         return text
-    # hashlib, not hash(): Python salts str hashes per process, and the same typo must come back on every run.
-    digest = int(hashlib.sha256(seed.encode()).hexdigest(), 16)
+    # hashlib, not hash(): Python salts str hashes per process, and the same typo must come back on every run. The first kind
+    # keeps its seed, so the texts reported before CHAT-13 stay the same.
+    digest = int(hashlib.sha256((seed if kind == "typo" else f"{seed}:{kind}").encode()).hexdigest(), 16)
     index = long[digest % len(long)]
     word = words[index]
+    # Never the first letter: people rarely mistype it, and it is what a reader recognises the word by.
     position = 1 + (digest // len(long)) % (len(word) - 1)
-    words[index] = word[:position] + word[position + 1:]
+    if kind == "typo":
+        words[index] = word[:position] + word[position + 1:]
+    elif kind == "typo_double":
+        words[index] = word[:position + 1] + word[position:]
+    elif kind == "typo_swap":
+        # The letter and the one before it; two equal letters would change nothing, so the next pair that differs is taken.
+        pairs = [p for p in range(2, len(word)) if word[p] != word[p - 1] and word[p].isalpha() and word[p - 1].isalpha()]
+        if not pairs:
+            return text
+        p = min(pairs, key=lambda q: (q - position) % len(word))
+        words[index] = word[:p - 1] + word[p] + word[p - 1] + word[p + 1:]
+    else:
+        keyed = [p for p in range(1, len(word)) if word[p] in KEY_NEIGHBOURS]
+        if not keyed:
+            return text
+        p = min(keyed, key=lambda q: (q - position) % len(word))
+        neighbours = KEY_NEIGHBOURS[word[p]]
+        words[index] = word[:p] + neighbours[digest % len(neighbours)] + word[p + 1:]
     return " ".join(words)
 
 
@@ -163,17 +187,17 @@ def expand(data: dict, typos: bool = False) -> list[Variant]:
 
 
 def _transformed(base: str, intent: str, item: dict, turns: tuple[str, ...], expected, typos: bool) -> list[Variant]:
-    names = TRANSFORMS + (("typo",) if typos else ())
+    names = TRANSFORMS + (TYPOS if typos else ())
     seen, result = set(), []
     for name in names:
-        if name == "typo":
-            written = (transform("typo", turns[0], base), *turns[1:])
+        if name in TYPOS:
+            written = (transform(name, turns[0], base), *turns[1:])
         else:
             written = tuple(transform(name, turn, base) for turn in turns)
         if written in seen:
             continue
         seen.add(written)
-        result.append(Variant(f"{base}.{name}", intent, item["id"], written[0], expected, item.get("oracle"), name, name != "typo",
+        result.append(Variant(f"{base}.{name}", intent, item["id"], written[0], expected, item.get("oracle"), name, name not in TYPOS,
                               item.get("context"), written))
     return result
 

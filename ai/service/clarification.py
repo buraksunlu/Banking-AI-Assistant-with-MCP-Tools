@@ -175,6 +175,23 @@ def ask_months(tool: str, arguments: dict, question: str, later: tuple[str, ...]
                    later=later, note=note)
 
 
+# CHAT-13 K7-A: the note of a cut question asked again because the reply was an amount or a duration.
+PERCENT_UNREAD = "Bunu yüzde olarak okuyamadım."
+
+
+def not_a_percent(pending: Pending, reply: str) -> bool:
+    """True for a short reply to the cut question that writes an amount ("5 bin lira", "1.000", "500 TL") or a duration ("2 yıl")
+    and no percent ("%20", "yüzde 20", "yarısı"): its first digit is no cut (CHAT-13 K7-A; "5 bin lira" ran a 5 % cut)."""
+    if pending.kind != "percent" or len(reply.split()) > MAX_REPLY_WORDS or percent_in(reply) is not None:
+        return False
+    return currency_in(reply) is not None or bool(months_in(reply)) or any(amount >= 1000 for amount in amounts_in(reply))
+
+
+def ask_percent_again(pending: Pending) -> Pending:
+    """The same cut question once more, saying the reply was not read as a percent (K7-A)."""
+    return replace(pending, note=PERCENT_UNREAD)
+
+
 def ask_months_again(pending: Pending) -> Pending:
     """The same duration question once more, with the limits a reply was outside of (K6-A)."""
     return replace(pending, note=DURATION_LIMITS)
@@ -287,7 +304,7 @@ def template(pending: Pending) -> str:
     if pending.kind == "amount":
         return f"{note}Bütçeniz ne kadar?"
     if pending.kind == "percent":
-        return "Ne kadar azaltmayı düşünüyorsunuz?"
+        return f"{note}Ne kadar azaltmayı düşünüyorsunuz?"
     if pending.kind == "duration":
         return f"{note}Kaç ay boyunca biriktirirdiniz?"
     if pending.kind == "area":
@@ -366,8 +383,8 @@ def _value(pending: Pending, reply: str) -> str | int | float | None:
         months = duration_of(reply)
         return months if months is not None and pending.minimum <= months <= pending.maximum else None
     if pending.kind == "percent":
-        # A bare "20" is the cut itself: the examples are not numbered.
-        cut = percent_in(reply) or count_in(reply)
+        # A bare "20" is the cut itself: the examples are not numbered. An amount or a duration is none (K7-A).
+        cut = percent_in(reply) or (None if not_a_percent(pending, reply) else count_in(reply))
         return cut if cut is not None and pending.minimum <= cut <= pending.maximum else None
     choice = _choice_number(reply)
     if choice is not None:

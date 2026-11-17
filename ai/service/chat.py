@@ -25,8 +25,8 @@ from langchain_ollama import ChatOllama
 from accounts import ACCOUNT_TOOLS, BALANCE, code_arguments, fallback_arguments, implied_this_month
 from answer_check import check_answer, has_advice, misnamed
 from clarification import (CHOICE_KINDS, MAX_REPLY_WORDS, Choice, Pending, PendingStore, ask_amount, ask_amount_again, ask_area, ask_complete_month, ask_count, ask_currency,
-                           ask_months, ask_months_again, months_out_of_range,
-                           ask_merchant, ask_percent, ask_period, ask_topic, check_question, choices, chosen_tool, input_hint,
+                           ask_months, ask_months_again, months_out_of_range, not_a_percent,
+                           ask_merchant, ask_percent, ask_percent_again, ask_period, ask_topic, check_question, choices, chosen_tool, input_hint,
                            is_bare_choice, resolve, template, wants_one_off)
 from cards import Card, card_texts, cards_for
 from contracts import Fact
@@ -269,6 +269,9 @@ class ChatService:
             if arguments is None and waiting.kind == "amount" and len(message.split()) <= MAX_REPLY_WORDS and unclear_amounts(message):
                 # CHAT-10 K9-C: "5x" is no amount the code can read; asked again instead of taken as a new question or as 5.
                 return self._ask(ask_amount_again(waiting, message), [], token, deadline)
+            if arguments is None and not_a_percent(waiting, message):
+                # CHAT-13 K7-A: "5 bin lira" under the cut question ran a 5 % cut; asked again, not taken as a new question or as 5.
+                return self._ask(ask_percent_again(waiting), [], token, deadline)
             if arguments is None and months_out_of_range(waiting, message):
                 # INV-03 K6-A: "1 ay", "2 yıl" are durations the backend cannot run; asked again with the limits, not a new question.
                 return self._ask(ask_months_again(waiting), [], token, deadline)
