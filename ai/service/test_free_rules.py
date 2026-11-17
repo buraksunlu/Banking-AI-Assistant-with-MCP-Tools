@@ -107,7 +107,9 @@ def test_nerelerde_tasarruf_is_the_advice(message):
 
 @pytest.mark.parametrize("message", ["son 6 ayda aylık harcamam", "aylara göre harcamalarım son 3 ay", "ay ay harcamalarım",
                                      "Aylık harcamalarım nasıl?",
-                                     "Harcamam aylara göre nasıl değişti?"])
+                                     "Harcamam aylara göre nasıl değişti?",
+                                     # CHAT-13 PR2 model run: "her ay" with spending and a counted period is a series of months.
+                                     "Son 6 aydır her ay ne kadar harcadım?", "son 3 ayda her ay ne kadar harcamışım"])
 def test_the_trend_words_show_only_the_trend(message):
     assert route(message) == Route((GENERAL,), only=TREND)
 
@@ -115,6 +117,10 @@ def test_the_trend_words_show_only_the_trend(message):
 @pytest.mark.parametrize("message, expected", [
     # N62: "her ay" is the recurring payments' words, not a series of months (no rule; the model's intent question places it).
     ("her ay ödediğim şeyler", Route((GENERAL,), source="fallback")),
+    # Without a counted period "her ay" stays as it was: a payment, or a period to be asked.
+    ("Her ay ne kadar harcıyorum?", Route((GENERAL,), source="fallback")),
+    ("Her ay ne kadar harcadım?", Route((GENERAL,))),
+    ("Netflix'e her ay ne kadar ödüyorum?", Route((GENERAL,))),
     # A what-if, a budget and a saving keep their own words.
     ("Aylık harcamam kadar altın alsaydım", Route((WEALTH,), undecided="both")),
     ("Aylık harcamamı %20 azaltırsam", Route((PLANNING,))),

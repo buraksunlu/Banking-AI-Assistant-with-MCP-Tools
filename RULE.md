@@ -937,6 +937,9 @@ Her önemli geliştirme sonunda mevcut proje durumunu takip et.
 Şunları güncel tut:
 
 COMPLETED
+- Yazım düzeltmesi (CHAT-13 PR2, 17 Kasım 2026; docs/local-ai.md "CHAT-13 PR2"): mesaj, kuralların aradığı köklerin kapalı listesine bir harf
+  uzaklıkta düzeltilir (adlar, rakamlar, gerçek kelimeler değil); ne olurdu eki toleranslı, ay adı yalnız yazıldığı gibi dönem. Modelle hatalı
+  yazılışta yanlış %9,5 → %0,9; araç seçimi 144/144, serbest yazılış 0 yanlış, cevap 33/33. Python 1810. CHAT-13 tamam; embedding gerekmedi.
 - Yazım hatası ölçümü ve yüzde cevabı (CHAT-13 PR1, 17 Kasım 2026; docs/local-ai.md "CHAT-13 PR1"): azaltma sorusuna verilen tutar ya da süre
   yüzde sayılmıyor ("5 bin lira" %5 azaltma hesaplıyordu), yeniden soruluyor. Dört hata türüyle ölçüm: modelle hatalı yazılışta %9,5 yanlış
   (hatasızda %0); PR2 kapalı kelime listesiyle düzeltme. Python 1733.

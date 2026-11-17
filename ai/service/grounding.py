@@ -20,7 +20,10 @@ _TIME = re.compile(fold_rule(
     r"|\bay(?:da|in|i|dan|ki|a)?\b"                 # ay, ayın, ayda, ayki; not "aylık" or "aylara" (no period in them)
     r"|\b(?:yil|sene)"                              # yıl, yılın, sene, senenin
     r"|\b\d+\s*gün|\bgünlük"                        # 30 gün, son 7 günde
-    r"|\b(?:ocak|şubat|mart\b|marti|nisan|mayis|haziran|temmuz|ağustos|eylül|ekim|kasim|aralik)"  # month names, "mart" not "market"
+    # Month names as written, with the endings they take ("Eylül'de", "ekimdeki", "ocağın"); CHAT-13 K11-B: not a longer word that
+    # starts like one ("Eylüll'de" was this month's question to the check, the date reader could not read it). "mart" not "market".
+    r"|\b(?:ocak|ocağ|şubat|mart|nisan|mayis|haziran|temmuz|ağustos|eylül|ekim|kasim|aralik|aralığ)"
+    r"(?:['’]?(?:[dt][ae](?:ki|n)?|n?[ıiuü]n(?:d[ae](?:ki)?)?|[ıiuü]|[ae]|ki))?\b"
 ))
 
 _NUMBER_WORDS = {fold_rule(word): number for word, number in {

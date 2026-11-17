@@ -1446,3 +1446,39 @@ dokunmaz: yazım hatasından bağımsız bulunan yanlış rakamı kapatır ve PR
   (gelir yerine harcama), "haarcamalarım" (tutar sınırı yerine en büyükler). → PR2'nin hedefi: hatalı yazılışta modelle yanlış 11 → 0.
 - **Doğrulama:** Python 1705 → 1733 modelsiz; 12 kasıtlı bozmanın hepsi yakalandı (eski türün metinlerini sabitleyen test ilk turda yoktu, eklendi).
   Kapı ifadeleri (1844) ve serbest yazılış temeli değişmedi.
+
+## CHAT-13 PR2: kapalı kelime listesiyle yazım düzeltmesi (17 Kasım 2026)
+
+Kararlar (CHAT-13 planı + PR2): K2-B, K3-C, K4-D, K5-A, K6-A, K8-C, K10-A; K11-C (ay adı tam kelime + kontrol yalnız yazıldığı gibi), K12-C (çakışan
+kökler listede yok + elle korunan başlangıçlar), K13-A (1800 hatalı yazılışın hepsi kapı testinde), K14-A (adlar düzeltilmez).
+
+- **`ai/service/spelling.py`:** `ChatService.answer` mesajı ilk iş `correct()`'ten geçirir; turun tamamı düzeltilmiş metni görür.
+  - Kökler (`_STEM_WORDS`, kuralların aradığı ~35 kök): kelimenin başı bir harf uzaksa (eksik, fazla, yanlış ya da yer değiştirmiş harf) kök yazılır,
+    ek olduğu gibi kalır ("hacamalarım" → "harcamalarım"). İlk harf hiç ("parça" ≠ "harca"); son harf yalnız `_LAST_LETTER_WORDS`'te ("gelin"/"gelir",
+    "azaldı"/"azalt", "kazanır"/"kazanc" çakışmaları yüzünden). İki köke yakınsa tahmin yok ("neerde").
+  - Tam kelimeler: ≥5 harfli ay adları ("Eylüll'de", "Eyül'de") ve bütçe fiili ("ayıırdım"; kök olarak "ayırd" "ayında"yı "ayırda" yapıyordu).
+  - "maaş" el listesiyle ("Maşım"); 5 harften kısa kelimelere, adlara, işyerlerine ve rakamlara dokunulmaz.
+  - Korunma testi `test_no_correctly_written_question_is_changed`: ölçülen hiçbir düzgün soru değişmez. Yazarken üç çakışma yakaladı ("nereye" →
+    "nerede", "önerdiğin" → "öneriğin", "ayında" → "ayırda"); çözüm `_KEPT_BEGINNINGS` ya da kökü çıkarmak.
+- **Ne olurdu eki (K5-A):** `spelling.WHAT_IF_ENDING` (routing, accounts, wealth ortak): "alsadım", "alsaydm", "biriktirsydim", "alsaydmı",
+  "biriktirseydi", "biriktireydim". "s"den sonra sesli harf ya da "y" şart: ilk sürüm "harcsdım"ı ne olurdu sanıyordu (rapor yakaladı).
+- **Ay adı kontrolü (K11-B):** `grounding._TIME` ay adını yalnız yazıldığı gibi ve bilinen ekleriyle dönem sayar; "Eylüll'de" bu ayın sorusuydu.
+  Yan kazanç: "martta", "ocağın", "aralığın" artık dönem (önce sayılmıyordu).
+- **Model ölçümünün bulduğu iki kural açığı:** "Son 6 aydır her ay ne kadar harcadım?" hatasız yazılışta da 6 aylık toplam alıyordu → "her ay" +
+  harcama + sayılı dönem aylık seri (`routing._EVERY_MONTH`; sayısız "her ay" eskisi gibi). "ayırdım" listede yoktu → tam kelime.
+- **Kapı testi (K13-A):** `typo_gaps.json` 128 gerekçeli açık (iki yönlü): 67 listede olmayan kelime ("yükselir", "mantıklı", "altındaki"),
+  39 ek hatası ("gönderrdim", "Kartımdaa"), 15 kısa kelime ("maaım", "burs"), 4 kısa kökün son harfi, 3 kişi adı.
+
+| Ölçüm | PR1 | PR2 |
+|---|---|---|
+| Hatalı yazılış, modelsiz (1800) | 33 yanlış · 202 cevapsız · 131 sordu | **6 yanlış** · 93 cevapsız · 29 sordu (128 açık; 6 yanlışın 3'ü kişi adı) |
+| Hatalı yazılış, modelle (116, seed 9) | 92 doğru · 9 sordu · 4 cevapsız · **11 yanlış (%9,5)** | 105 doğru · 6 sordu · 4 cevapsız · **1 yanlış (%0,9)** |
+| Araç seçimi | 143/144 | **144/144** |
+| Serbest yazılış (80) | 79 / 1 / 0 / 0 | 79 / 1 / 0 / **0** |
+| Cevap doğruluğu | 33/33 | **33/33** (son iki küçük kural değişikliğinden önce koşuldu; vakalarda "her ay" yok) |
+
+- **Kalan tek yanlış (gerekçeli sınır):** "10k TL ayırım, ne kadar kaldı?" — "ayırım" gerçek bir kelime (K12-C), dokunulmuyor; model bu ayın toplamını
+  seçiyor. Modelsiz kalan 6 yanlış: kişi adları (K14-A), "Hesabım para yattı mı" (gerçek kelime), "havalee/yağtıklarım" (yönsüz liste).
+- **Embedding (K9-B):** ölçümde hatalı yazılış yanlışı %0,9 (bir gerekçeli sınır), cevapsız 4/116 → gerek görülmedi, kapatma önerisi.
+- **Doğrulama:** Python 1733 → 1810 modelsiz; 22 kasıtlı bozmanın hepsi yakalandı (ilk turda üçü kaçtı: belirsizlik, 4 harf sınırı ve sayılı dönem
+  koşulunu sınayan cümleler eklendi; kapı testinin kendisini kapatan bozma yerine listenin iki yönü bozuldu).

@@ -18,6 +18,7 @@ from typing import Protocol
 from accounts import SEARCH, tool_of as account_tool
 from answer_check import fold_rule, fold_turkish
 from grounding import months_in
+from spelling import WHAT_IF_ENDING
 from ollama_client import OllamaError
 
 GENERAL, PLANNING, WEALTH, ACCOUNTS = "general", "planning", "wealth", "accounts"
@@ -69,12 +70,13 @@ _ADVICE_REQUEST = re.compile(fold_rule(
 _WEALTH_WORDS = re.compile(fold_rule(
     # CHAT-12 PR3: "nerelerde", "nelerde" too (N70 was asked a cut in percent).
     r"\bmaaş|\bgelir|\bn(?:erede|ereden|elerden|erelerde|elerde)\s+tasarruf|\btasarruf\s+öneri"
-    r"|(?:sa|se)ydi(?:m|k)\b|\b(?:dolar|euro|altin)\s+(?:olarak|cinsinden)"))
+    rf"|{WHAT_IF_ENDING}|\b(?:dolar|euro|altin)\s+(?:olarak|cinsinden)"))
 
 # CHAT-09 K5-D: inside the wealth group, a what-if ("-seydim/-saydım", "X olarak") whose words name one scenario is shown only that
 # scenario's tool: spending words mean last period's spending bought at once, "ayda/her ay/aylık" a monthly saving. Both or neither
 # leaves the group as it is. The 4b model sent "Geçen ayki harcamalarımı biriktirseydim" to the monthly saving.
-_WHAT_IF = re.compile(fold_rule(r"(?:sa|se)ydi(?:m|k)\b|\b(?:dolar|euro|altin)\s+(?:olarak|cinsinden)"))
+# CHAT-13 K5-A: the ending with its typos (spelling.WHAT_IF_ENDING).
+_WHAT_IF = re.compile(fold_rule(rf"{WHAT_IF_ENDING}|\b(?:dolar|euro|altin)\s+(?:olarak|cinsinden)"))
 _ONE_OFF_WORDS = re.compile(fold_rule(r"harca|\bmasraf|\bgider"))
 _MONTHLY_WORDS = re.compile(fold_rule(r"\bayda\b|\bher\s+ay\b|\baylık|\bdüzenli"))
 # CHAT-09 PR3: "son 3 ayda", "bir ayda" are a period, not "per month"; found when a one-off scenario test reached the monthly tool.
@@ -105,6 +107,9 @@ _GENERAL_WORDS = re.compile(fold_rule(
 # şeyler" is the recurring payments (N62). After the planning and wealth words, which "aylık" may stand beside.
 # Not "aya göre" either: "geçen aya göre" compares two periods.
 _TREND_WORDS = re.compile(fold_rule(r"\baylık\s+harca|\bay\s+ay\b|\baylara\s+göre"))
+# CHAT-13 PR2 model run: "Son 6 aydır her ay ne kadar harcadım?" got the six months' total. "her ay" is a series only beside
+# spending and a counted period (trend_months); alone it stays the payments' ("her ay ödediğim şeyler", N62).
+_EVERY_MONTH = re.compile(fold_rule(r"\bher\s+ay\b.*\bharca|\bharca.*\bher\s+ay\b"))
 TREND = "get_monthly_trend"
 TREND_MONTHS = range(1, 13)
 
@@ -273,7 +278,7 @@ class Router:
         # A limit is a search only after the planning words: "1.000 TL'den fazla azaltsam" is a saving.
         if account == SEARCH:
             return Route((ACCOUNTS,), only=SEARCH)
-        if _TREND_WORDS.search(folded):
+        if _TREND_WORDS.search(folded) or (_EVERY_MONTH.search(folded) and trend_months(message) is not None):
             return Route((GENERAL,), only=TREND)
         if _GENERAL_WORDS.search(folded):
             return Route((GENERAL,))

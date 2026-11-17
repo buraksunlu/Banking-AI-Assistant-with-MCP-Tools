@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 
 from answer_check import fold_rule, fold_turkish
+from spelling import WHAT_IF_ENDING
 from grounding import amounts_in, currency_in, json_number, mentions_period, period_in
 
 BALANCE, SEARCH, INCOME, TRANSFERS = "get_accounts", "search_transactions", "get_income", "get_transfers"
@@ -32,7 +33,7 @@ _BALANCE = re.compile(fold_rule(
 # CHAT-12 PR3 K1-C: "kazancım", "ne kadar kazandım" and money that came in (N14, N18); "para yatırdım" (deposited) is none.
 _INCOME = re.compile(fold_rule(r"\b(?:maaş|burs|gelir|emekli\s+aylığ)|\bkazanc|\bkazandı[mğ]|\bpara\s+yat(?:tı|mış|an)\b"))
 _NOT_INCOME = re.compile(fold_rule(
-    r"harca|\bpay|yüzde|\boran|göre|tasarruf|öneri|biriktir|(?:sa|se)ydi(?:m|k)\b|olarak|cinsinden|bütçe|\bgitti|kalan"))
+    rf"harca|\bpay|yüzde|\boran|göre|tasarruf|öneri|biriktir|{WHAT_IF_ENDING}|olarak|cinsinden|bütçe|\bgitti|kalan"))
 # Only what was sent or received; a request to send ("para gönder", "transfer yap") is the router's out-of-scope rule.
 # CHAT-12 PR3 K2-A: "kimlere/kimlerden" and the spoken "para attım / atan" (N19); "para at" as a request is the router's.
 _TRANSFER = re.compile(fold_rule(

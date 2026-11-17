@@ -39,6 +39,7 @@ from prompts import (ADVICE_DECLINED_TEXT, BARE_CHOICE_TEXT, CLARIFY_TEXT, DATE_
                      build_intent_messages, build_tool_messages)
 from dates import CustomerDay, DateReading, check_range, period_line, read_dates, with_span_replaced
 from grounding import brand_in, category_in, check_arguments, mentions_period, unclear_amounts
+from spelling import correct
 from routing import (DATE_FIELDS, ONE_OFF, PLANNING, TREND, Route, Router, group_of, hide_dates, is_spending_question, narrow,
                      planning_of, trend_months)
 from suggestions import OUT_OF_SCOPE_SUGGESTIONS, AskedStore, OfferedStore, follow_ups, match, panel_questions, result_shape
@@ -216,6 +217,8 @@ class ChatService:
         """The reply to ``message`` for the user whose token is given; ``day`` is the customer's today and time zone (CHAT-08)."""
         # A reply to the question asked last time completes that call: no listing, no selection (K3-A). Anything else is a
         # new question, and the old one is dropped either way (K5-A).
+        # CHAT-13 K3-C: the whole turn reads the message with its typos of listed words put right (rules, code's readers, model, checks).
+        message = correct(message)
         waiting = self.waiting.take(token)
         # Like the waiting question, an offer lasts for one message: whatever comes next, it is gone.
         offered = self.offered.take(token)
