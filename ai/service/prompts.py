@@ -82,6 +82,11 @@ OUT_OF_SCOPE_TEXT = ("Bu konuda yardımcı olamıyorum. Harcamalarınızla ilgil
 ADVICE_DECLINED_TEXT = ("Ne alacağınızı ya da fiyatların nereye gideceğini söyleyemem; yatırım tavsiyesi vermiyorum. Geçmiş "
                         "fiyatlarla “ne olurdu” hesabı yapabilirim, örneğin: “Geçen ay eğlence harcamamı altın alsaydım ne "
                         "olurdu?” ya da “Ayda 1.000 TL biriktirseydim ne olurdu?”")
+# AI-12 K2-B: a question about another person's or customer's data. The tools only see the token's customer, so an answer would show
+# the user's own figures as someone else's; the text says why and names the way that is open (the user's own transfers).
+OTHER_PERSON_TEXT = ("Yalnız sizin hesaplarınızın bilgisini gösterebilirim; başka bir kişinin ya da müşterinin bakiyesini, "
+                     "harcamasını veya gelirini göremem. Bir kişiyle aranızdaki para hareketlerini sorabilirsiniz, örneğin: "
+                     "“Geçen ay kime para gönderdim?”")
 LIRA_ONLY_TEXT = ("Birikim hesabı yalnız TL tutarlarla yapılır; varlık fiyatları TL cinsindendir ve para birimleri çevrilmez. "
                   "Örneğin: “Ayda 1.000 TL biriktirseydim ne olurdu?”")
 # CHAT-10 K10-D: a bare "1" with no question waiting answers nothing; sent to the model it became a new question in the INC-04 trial.

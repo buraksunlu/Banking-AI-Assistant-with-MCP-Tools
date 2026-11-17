@@ -17,7 +17,9 @@ from typing import Protocol
 
 from accounts import SEARCH, tool_of as account_tool
 from answer_check import fold_rule, fold_turkish
-from grounding import months_in
+from dates import WEEKDAYS
+from formatting import MONTH_NAMES
+from grounding import brand_in, months_in
 from spelling import WHAT_IF_ENDING
 from ollama_client import OllamaError
 
@@ -57,6 +59,49 @@ _OUT_OF_SCOPE = re.compile(fold_rule(
     # CHAT-12 PR2: credit, debt and interest are no data here; "kredi kartı borcum ne kadar" reached the balance once "ne kadar"
     # stopped being a spending word. Not "taksit": "Okul Taksidi" is a merchant.
     r"|\bkredi|\bborç|\bfaiz"))
+
+# AI-12 K1-B: another person's or customer's data. The tools only ever see the token's customer, so "Deniz'in bakiyesi" used to show the
+# user's own balance as Deniz's. A person in the genitive: a name with an apostrophe (either keyboard's) or a word for a person
+# ("annemin", "eşimin", "müşterinin", "başkasının"); "-ım/-im" before the genitive is the user's relative, "hesabımın" is no person.
+_PERSON_WORDS = (r"anne|baba|eş|kardeş|abla|abi|ağabey|oğl|kız|arkadaş|sevgili|dede|nine|teyze|amca|dayı|hala|yeğen|patron|komşu"
+                 r"|müşteri|kullanıcı|kişi|insan|başka")
+_PERSON_GENITIVE = re.compile(fold_rule(rf"\b(?:{_PERSON_WORDS})(?:ler|lar)?(?:[ıiuü]?m|s[ıi])?n?[ıiuü]n\b"))
+_NAME_GENITIVE = re.compile(r"\b(\w+)['’]n?[iu]n\b")
+# A data word of theirs: the third person's ending ("bakiyesi", "hesabında", "harcamalarını"), never the user's ("harcamalarım").
+_THEIR_DATA = re.compile(fold_rule(
+    r"\s+(?:\S+\s+){0,3}?(?:bakiye(?:si|leri)|hesab[ıi]|hesaplar[ıi]|hesap\s+numaras[ıi]|harcamas[ıi]|harcamalar[ıi]|maaş[ıi]"
+    r"|gelir(?:i|leri)|işlem(?:i|leri)|kart[ıi]|kartlar[ıi]|paras[ıi]|paralar[ıi]|birikim(?:i|leri))"
+    r"(?:n[ıi]|n[dt]a(?:ki)?|n[dt]an|yla|na)?\b"))
+# "Diğer müşteriler", "tüm kullanıcılar", a customer number: other customers whatever the rest says.
+_OTHER_CUSTOMERS = re.compile(fold_rule(r"\b(?:başka|diğer|tüm|bütün)\s+(?:bir\s+)?(?:müşteri|kullanıcı)|\bcust-?\d"))
+# "Peki Deniz'in?" after a balance: read with the last call it would show the user's balance again.
+_BARE_FOLLOW_UP = re.compile(r"^(?:peki|ya|bir de|ve)?\s*(\S+)\s*(?:ne(?:\s+kadar)?)?\s*[?.!]*$")
+# A month, a day, a year or a merchant in the genitive is no person ("Ekim'in harcamaları", "Migros'un payı").
+_NOT_PEOPLE = frozenset(fold_turkish(word) for word in (*MONTH_NAMES, *WEEKDAYS))
+
+
+def _is_person(word: str) -> bool:
+    """True when ``word`` (folded) is a person in the genitive."""
+    if _PERSON_GENITIVE.fullmatch(word):
+        return True
+    name = _NAME_GENITIVE.fullmatch(word)
+    return (name is not None and not name.group(1).isdigit() and name.group(1) not in _NOT_PEOPLE
+            and brand_in(name.group(1)) is None)
+
+
+def about_someone_else(folded: str) -> bool:
+    """True when the message asks for another person's or customer's data (AI-12 K1-B); the user's own transfers to or from a person
+    ("Deniz'e gönderdiğim", "Hasan'ın gönderdiği para") are not."""
+    if _OTHER_CUSTOMERS.search(folded):
+        return True
+    bare = _BARE_FOLLOW_UP.match(folded.strip())
+    if bare is not None and _is_person(bare.group(1).rstrip("?.,!")):
+        return True
+    for word in re.finditer(r"\S+", folded):
+        if _is_person(word.group().rstrip("?.,!")) and _THEIR_DATA.match(folded, word.end()):
+            return True
+    return False
+
 
 # INC-03 K5-A: a request for advice or a forecast ("altın alayım mı", "dolar yükselir mi"). Answered with a fixed text and no model:
 # the backend computes the past, nobody here may say what to buy or what will happen. "yatirim yap…" is the out-of-scope rule's.
@@ -141,6 +186,8 @@ class Route:
     undecided: str | None = None
     # CHAT-12 K5-A: neither a rule nor the model could place the message; the chat asks its topic.
     ask_area: bool = False
+    # AI-12 K1-B: an out-of-scope route that asked about another person's or customer's data gets its own fixed text.
+    other_person: bool = False
 
     def tools(self) -> frozenset[str]:
         """The names of the tools the model is shown: the one the words chose, or the groups' tools."""
@@ -261,6 +308,8 @@ class Router:
         folded = fold_turkish(message)
         if _OUT_OF_SCOPE.search(folded):
             return Route((), out_of_scope=True)
+        if about_someone_else(folded):
+            return Route((), out_of_scope=True, other_person=True)
         if _ADVICE_REQUEST.search(folded):
             return Route((), out_of_scope=True, advice=True)
         # ACC-01b K2-C: a balance, income or transfer question before the wealth words, which "maaş" and "gelir" are too; the
