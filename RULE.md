@@ -1378,6 +1378,10 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Serbest yazılış kuralları (CHAT-12 PR3, 17 Kasım 2026; docs/local-ai.md "CHAT-12 PR3"): kalan yanlışların kök nedenleri kapandı ("binin"
+  tutarı, "havale yaptıklarım" ve "para attım" yönü, "kimlere", "nerelerde tasarruf", "aylık harcamam" yalnız aylık seri, altı bakiye/gelir eş
+  anlamı kurallı). Serbest yazılış modelle %5,0 → %0 yanlış (modelsiz 80/80); araç seçimi 143/144 (zaman aşımı, tek başına doğru), cevap 33/33.
+  Python 1705. CHAT-12 tamam; yazım hatası toleransı CHAT-13.
 - Serbest yazılış güvenlik ağı (CHAT-12 PR2, 16 Kasım 2026; docs/local-ai.md "CHAT-12 PR2"): "ne kadar" tek başına karar vermez, model sorulur;
   `intent-v2` hesaplar grubunu ve "emin değilim"i tanır, emin değilse dokunulabilir konu sorusu; kredi/borç/faiz kapsam dışı. Serbest yazılış
   modelle %6,2 → %5,0 yanlış, cevapsız 5 → 0; araç seçimi 137/137, cevap 33/33. Python 1642.

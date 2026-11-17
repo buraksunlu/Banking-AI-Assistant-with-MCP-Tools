@@ -436,7 +436,7 @@ liste bağlantısı) K7-A (eski 121 vaka bozulmaz, yeni ≥ 14/16, cevap doğrul
   "null" yazısı olarak gidiyor, bağlantı "null" adlı işyeri arıyordu → Python'da hesap araçlarının `null` argümanı düşer. Uçtan uca: bağlantı
   listeleri cevap rakamlarıyla aynı (7 işlem 41.363,50; 85.000,00; 9.000,00). Api 606 → 622, iOS 426 → 435, Python 1597 → 1598; 9 kasıtlı
   bozma yakalandı (ilk .NET turu bozuk ortamla geçersizdi, yeniden yapıldı). Simülatörde denenmedi.
-- [ ] CHAT-12 — Serbest yazılışlara dayanıklılık (16 Kasım 2026 kullanıcı sorusu; plan ACC-01b'den sonra, kullanıcı kararı "bitince getir").
+- [x] CHAT-12 — Serbest yazılışlara dayanıklılık (16 Kasım 2026 kullanıcı sorusu; plan ACC-01b'den sonra, kullanıcı kararı "bitince getir").
   Bulgu: kurallar kelime köküne baktığı için devrik cümlelerin çoğu geçiyor; kural tutmayan cümle ("elimde ne kadar para var", "hesapta kalan
   para") yanlış gruba gidip harcama cevabı alabiliyor ve modelin niyet sorusu (`intent-v1`) hesaplar/gelir gruplarını tanımıyor. Önerilen
   yol: gerçekçi yazılış seti ile ölçüm → niyet sorusu yeni grupları tanısın → emin olunmayınca seçenekli soru → kurallar yalnız ölçümün
@@ -449,6 +449,15 @@ liste bağlantısı) K7-A (eski 121 vaka bozulmaz, yeni ≥ 14/16, cevap doğrul
   modele gider), `intent-v2` (accounts + unclear), `unclear` → sabit konu sorusu (üç dokunulabilir grup), kredi/borç/faiz kapsam dışı (PR2'nin
   yarattığı N75 gerilemesi). Python 1642; 7 kasıtlı bozma yakalandı; araç seçimi 137/137, cevap 33/33, serbest yazılış modelle 74/2/0/4 (%5,0
   yanlış; PR1'de %6,2 ve 5 cevapsız). PR3: "binin" tutarı, "havale yap" yönü, "para attım", "aylık harcamam" → aylık seri.
+  **PR3 kurallar (17 Kasım 2026, dal `chat-12c-rules`; docs/local-ai.md "CHAT-12 PR3"):** kararlar K1-C K2-A K3-A K4-C K5-B. "binin/milyonun"
+  tutarı, "havale yaptıklarım" ve birinci tekil "para attım" gönderilen, "kimlere/kimlerden", "para at" isteği kapsam dışı, "nerelerde tasarruf"
+  öneri, "aylık harca/ay ay/aylara göre" yalnız aylık seri (model boşsa sayıyı kod okur, yoksa sorar), altı bakiye/gelir eş anlamına kural.
+  Python 1642 → 1705, ifade 1762 → 1844 (0 açık), 21 kasıtlı bozma yakalandı. Serbest yazılış modelsiz 70/10 → 80/0; modelle 79 doğru, 1 sordu,
+  0 yanlış (%5,0 → %0); araç seçimi 143/144 (tek hata Ollama zaman aşımı, tek başına doğru; yeni 7/7), cevap 33/33. CHAT-12 tamam.
+- [ ] CHAT-13 — Yazım hatası toleransı (CHAT-12 PR3 K4-C; embedding yeniden değerlendirmesi K5-B burada). Ölçüm hazır: `phrasings.py --typos`
+  450 hatalı yazılışta 102 kırık (17 Kasım 2026). Yalnız tehlikeli sonuçlar ("yanlış": "Biriktirsydim ne olurdu?" → tasarruf hesabı, "Maşımın
+  ne kadarını harcadım" → kapsam dışı) hedeflenir; "sordu" ve "cevapsız" güvenli sayılır. Kısa köklerde çakışma riski ("maaş"/"maş", "ay"/"al")
+  önce ölçülür; embedding ancak kurallı yol yetmezse.
 
 ## 14. SwiftUI — çalışan endpoint üzerine küçük ekranlar
 

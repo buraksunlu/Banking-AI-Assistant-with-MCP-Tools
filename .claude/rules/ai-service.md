@@ -136,6 +136,12 @@ modelin niyet sorusuna (`intent-v2`: spending/payments/planning/accounts/unclear
 (`clarification.ask_area`, tür `area`, değerleri router grupları); dokunuş `chat`'te `forced_group` ile özgün soruyu o grupla yeniden işler.
 Kredi/borç/faiz kapsam dışı kuralındadır. Serbest yazılış ölçümü `free_eval.py` (doğru/sordu/cevapsız/yanlış; modelsiz temel
 `free_baseline.json` testle kilitli, modelli sonuç belgede); niyet prompt'u ya da kurallar değişince `--model` önce/sonra.
+**Serbest yazılış kuralları (CHAT-12 PR3, `test_free_rules.py`):** tutar okuyucu "binin/milyonun/milyondan" eklerini tanır ("-a" değil: "bina");
+"elimde/kartımda/hesapta ne kadar (para) var|kaldı", "kalan para", "hesap durumu" bakiye (bütçe kelimesiyle değil); "kazanç", "ne kadar
+kazandım", "para yattı" gelir ("yatırdım" değil). "kimlere/kimlerden" ve "para attım/atan" transfer; yön yalnız birinci tekilden ("attım",
+"havale yaptıklarım" = gönderilen; "Hasan para attı mı" yönsüz, K2-A); "para at / atar mısın / atayım" kapsam dışı isteği. "aylık harca",
+"ay ay", "aylara göre" modele yalnız aylık seriyi gösterir (`routing._TREND_WORDS`, planlama/zenginlikten sonra; "her ay" ve "aya göre" değil);
+model seçmezse ay sayısını kod okur (`routing.trend_months`, 1–12), yoksa sayı sorusu. Yazım hatası toleransı ayrı madde (CHAT-13).
 **Araç sırası (ACC-01b bulgusu):** modele gösterilen liste `routing.MEASURED_ORDER` sırasındadır, sunucunun sırası değil (derlemeye göre
 değişiyor ve 4b'nin isabetini oynatıyordu). Yeni araç bu tuple'a eklenir (`test_the_measured_order_names_every_tool_of_the_table_once`);
 sıra değişirse bütün araç seçim ölçümü yeniden çalıştırılır. Ölçüm her zaman yeni kodla açılmış ayrı porttaki MCP/AI servisiyle yapılır.

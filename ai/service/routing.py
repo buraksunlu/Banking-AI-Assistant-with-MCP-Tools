@@ -17,6 +17,7 @@ from typing import Protocol
 
 from accounts import SEARCH, tool_of as account_tool
 from answer_check import fold_rule, fold_turkish
+from grounding import months_in
 from ollama_client import OllamaError
 
 GENERAL, PLANNING, WEALTH, ACCOUNTS = "general", "planning", "wealth", "accounts"
@@ -48,6 +49,9 @@ _NOT_PAST = r"(?![td]i)"
 _OUT_OF_SCOPE = re.compile(fold_rule(
     rf"\btransfer\s+(?:yap|et|gönder){_NOT_PAST}|\bpara\s+gönder{_NOT_PAST}|\bhavale\s+(?:yap|et){_NOT_PAST}"
     rf"|\beft\s+(?:yap|et){_NOT_PAST}"
+    # CHAT-12 PR3 K2-A: the spoken "para at" as a request ("para at", "atar mısın", "atabilir misin", "atayım"); "attım" and "atan"
+    # ask what was sent (accounts).
+    r"|\bpara\s+at(?:\b|ar\s+mı|abil|ayım|sana)"
     r"|\bhisse|\byatirim\s+yap(?!sa[yd])|\bkripto|\bborsa|\bfikra|\bşaka"
     # CHAT-12 PR2: credit, debt and interest are no data here; "kredi kartı borcum ne kadar" reached the balance once "ne kadar"
     # stopped being a spending word. Not "taksit": "Okul Taksidi" is a merchant.
@@ -63,7 +67,8 @@ _ADVICE_REQUEST = re.compile(fold_rule(
 # which they contain too ("maaşımın ne kadarını harcadım", "tasarruf", "biriktirseydim"); only -seydim/-saydım and "X olarak"
 # make a saving a what-if, "biriktiririm" stays planning.
 _WEALTH_WORDS = re.compile(fold_rule(
-    r"\bmaaş|\bgelir|\bn(?:erede|ereden|elerden)\s+tasarruf|\btasarruf\s+öneri"
+    # CHAT-12 PR3: "nerelerde", "nelerde" too (N70 was asked a cut in percent).
+    r"\bmaaş|\bgelir|\bn(?:erede|ereden|elerden|erelerde|elerde)\s+tasarruf|\btasarruf\s+öneri"
     r"|(?:sa|se)ydi(?:m|k)\b|\b(?:dolar|euro|altin)\s+(?:olarak|cinsinden)"))
 
 # CHAT-09 K5-D: inside the wealth group, a what-if ("-seydim/-saydım", "X olarak") whose words name one scenario is shown only that
@@ -94,6 +99,14 @@ _GENERAL_WORDS = re.compile(fold_rule(
     r"harca|\bnereye|kategori|işyer|karşilaştir|\b(?:aya|aylara|döneme)\s+göre|\baylara\b|\bdeğiş"
     r"|\ben\s+(?:büyük|pahali|yüksek|çok)|\bverdim|\bödedim|\bgitti|alişveriş|\bmasraf"
     r"|abonel|düzenli|yaklaşan|önümüzdeki|\böde(?:me|yece|necek)|\bödüyor|sabit\s+gider"))
+
+# CHAT-12 PR3 K3-A: a series of months ("aylık harcamam", "ay ay", "aylara göre") shows the model the trend alone; among the ten
+# general tools the 4b model answered "son 6 ayda aylık harcamam" with the six months' total (N57). Not "her ay": "her ay ödediğim
+# şeyler" is the recurring payments (N62). After the planning and wealth words, which "aylık" may stand beside.
+# Not "aya göre" either: "geçen aya göre" compares two periods.
+_TREND_WORDS = re.compile(fold_rule(r"\baylık\s+harca|\bay\s+ay\b|\baylara\s+göre"))
+TREND = "get_monthly_trend"
+TREND_MONTHS = range(1, 13)
 
 # CHAT-12 K4-A: "ne kadar" alone says nothing about what is meant ("elimde ne kadar para var" is a balance); it no longer sends a
 # message to the spending tools by itself. With it and no other rule, the model's intent question decides.
@@ -218,6 +231,13 @@ def _scenario_words(folded: str) -> str | None:
     return ("both" if monthly else ONE_OFF) if one_off else MONTHLY if monthly else "neither"
 
 
+def trend_months(message: str) -> int | None:
+    """The monthly trend's count the user wrote ("son 6 ayda" → 6, "son bir yıl" → 12); None for none, several or one past the
+    tool's limit, which is then asked rather than guessed (K3-A)."""
+    found = months_in(message)
+    return found[0] if len(found) == 1 and found[0] in TREND_MONTHS else None
+
+
 def planning_of(message: str) -> str | None:
     """The planning tool the words of a message name (K19-C); None when they name both or neither."""
     folded = fold_turkish(message)
@@ -253,6 +273,8 @@ class Router:
         # A limit is a search only after the planning words: "1.000 TL'den fazla azaltsam" is a saving.
         if account == SEARCH:
             return Route((ACCOUNTS,), only=SEARCH)
+        if _TREND_WORDS.search(folded):
+            return Route((GENERAL,), only=TREND)
         if _GENERAL_WORDS.search(folded):
             return Route((GENERAL,))
         # "Peki geçen ay?" says only what changed: it stays with the last call's tools (K6-A).
