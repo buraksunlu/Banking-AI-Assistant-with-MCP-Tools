@@ -79,9 +79,10 @@ def test_the_advice_card_is_the_groups_against_the_income_and_the_backends_advic
 
     assert (card.title, card.headline.text) == ("Harcama önerisi · Eylül 2026", "7.228,49 TL")
     assert card.simple == (Block("bars", rows=(
-        Bar("Temel harcama", D("4435.00"), "4.435,00 TL · gelirin %55,44", D("1.00")),
-        Bar("İsteğe bağlı harcama", D("2313.49"), "2.313,49 TL · gelirin %28,92", D("0.52")),
-        Bar("Diğer ve sınıflandırılmamış harcama", D("480.00"), "480,00 TL · gelirin %6,00", D("0.11")))),)
+        # Simulator trial 17 Nov 2026 (K3-C): short labels, the amount alone on the row and its share of the income under it.
+        Bar("Temel", D("4435.00"), "4.435,00 TL", D("1.00"), detail="gelirin %55,44"),
+        Bar("İsteğe bağlı", D("2313.49"), "2.313,49 TL", D("0.52"), detail="gelirin %28,92"),
+        Bar("Diğer", D("480.00"), "480,00 TL", D("0.11"), detail="gelirin %6,00"))),)
     # K18-C: the backend's own sentence, as written; always shown (P3-A).
     assert (card.sentence, card.notes) == ("İsteğe bağlı harcama gelirin %28,92 kadarı.", (ADVICE_MESSAGE,))
 
@@ -91,7 +92,7 @@ def test_no_advice_says_why_in_its_note_and_no_salary_has_no_card():
     can = {**SELIN_ADVICE, "currencies": [{**SELIN_ADVICE["currencies"][0], "reason": "NoIncome", "incomeBase": None}]}
 
     assert cards_for("get_spending_advice", LAST_MONTH, calm)[0].notes == (
-        "Yok: isteğe bağlı harcama gelirin %30 sınırının altında ve hiçbir kategori olağan ayından belirgin ölçüde sapmadı.",)
+        "Öneri yok: isteğe bağlı harcamanız gelirin %30 sınırının altında ve hiçbir kategori olağan ayından belirgin ölçüde sapmadı.",)
     assert cards_for("get_spending_advice", LAST_MONTH, can) == []
 
 

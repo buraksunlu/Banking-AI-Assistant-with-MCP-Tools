@@ -4,7 +4,6 @@
   "advice.t1.period0.typo": "A word no rule's stem covers ('ayırdım', 'yükselir', 'mantıklı', 'altındaki'); left to the model's intent question.",
   "advice.t2.period0.typo_swap": "A word no rule's stem covers ('ayırdım', 'yükselir', 'mantıklı', 'altındaki'); left to the model's intent question.",
   "advice.t2.period1.typo": "A word no rule's stem covers ('ayırdım', 'yükselir', 'mantıklı', 'altındaki'); left to the model's intent question.",
-  "advice.t5.typo": "A word no rule's stem covers ('ayırdım', 'yükselir', 'mantıklı', 'altındaki'); left to the model's intent question.",
   "advice_refusal.t1.typo": "A word no rule's stem covers ('ayırdım', 'yükselir', 'mantıklı', 'altındaki'); left to the model's intent question.",
   "advice_refusal.t1.typo_double": "A word no rule's stem covers ('ayırdım', 'yükselir', 'mantıklı', 'altındaki'); left to the model's intent question.",
   "advice_refusal.t1.typo_key": "A word no rule's stem covers ('ayırdım', 'yükselir', 'mantıklı', 'altındaki'); left to the model's intent question.",

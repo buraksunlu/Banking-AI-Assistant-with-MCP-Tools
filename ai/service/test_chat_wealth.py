@@ -90,7 +90,8 @@ def test_a_period_that_is_not_a_complete_month_is_asked_and_the_tool_does_not_ru
     reply = chat.answer(message, TOKEN, DAY)
 
     assert reply.type == "clarification" and gateway.calls == []
-    assert "tamamlanmış bir ay" in reply.answer and "Ağustos" in reply.answer and reply.choices == rows("geçen ay (Eylül)")
+    assert reply.answer == "Hangi ay için bakayım? Bu analiz yalnız tamamlanmış aylar için yapılabiliyor."
+    assert reply.choices == rows("Eylül 2026", "Ağustos 2026", "Temmuz 2026") and reply.input_hint == "Başka bir ay yazın"
 
 
 def test_the_reply_last_month_completes_the_question():
@@ -123,7 +124,7 @@ def test_a_named_month_runs_only_when_it_is_whole_and_over(message, ran):
     if ran:
         assert gateway.calls[0][1] == {"period": "Custom", "from": "2026-09-01", "to": "2026-09-30"}
     else:
-        assert "tamamlanmış bir ay" in reply.answer
+        assert "tamamlanmış aylar" in reply.answer
 
 
 def test_a_follow_up_without_a_period_keeps_the_last_calls_month():

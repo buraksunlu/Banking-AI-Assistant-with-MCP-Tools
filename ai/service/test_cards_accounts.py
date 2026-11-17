@@ -19,7 +19,8 @@ def test_the_balance_card_is_the_total_and_each_account():
 
     assert (card.title, card.headline, card.change) == ("Kişisel hesaplar", Headline(D("644659.42"), "TRY", "644.659,42 TL"), None)
     assert card.simple == (Block("list", entries=(Entry("Murat aile TRY", "•••• 001", "644.659,42 TL"),)),)
-    assert (card.detailed, card.sentence) == ((), "Kişisel hesaplarınızda toplam 644.659,42 TL var.")
+    # Simulator trial 17 Nov 2026 (K1-A): no sentence; it repeated the figure above it.
+    assert (card.detailed, card.sentence) == ((), "")
 
 
 def test_business_accounts_are_a_card_of_their_own():
@@ -28,7 +29,7 @@ def test_business_accounts_are_a_card_of_their_own():
     assert (personal.title, personal.headline.text) == ("Kişisel hesaplar", "72.743,21 TL")
     assert (business.title, business.headline.text) == ("İşletme hesapları", "19.720,00 TL")
     assert business.simple == (Block("list", entries=(Entry("Can Kırtasiye – Moda", "•••• 001", "19.720,00 TL"),)),)
-    assert business.sentence == "İşletme hesaplarınızda toplam 19.720,00 TL var."
+    assert business.sentence == ""
 
 
 def test_two_currencies_are_two_cards():

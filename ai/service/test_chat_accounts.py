@@ -58,7 +58,7 @@ def test_the_balance_needs_no_model():
     # get_accounts takes no argument: the words chose it, so there is nothing for the model to fill in.
     assert selector.calls == [] and explainer.calls == []
     assert gateway.calls[0][:2] == ("get_accounts", {})
-    assert (reply.type, reply.answer, reply.tool_calls) == ("answer", "Kişisel hesaplarınızda toplam 644.659,42 TL var.",
+    assert (reply.type, reply.answer, reply.tool_calls) == ("answer", "Kişisel hesaplar: 644.659,42 TL",
                                                             [ToolCall("get_accounts", {})])
     assert [c.title for c in reply.cards] == ["Kişisel hesaplar"]
     assert reply.suggestions == ["Bu ay ne kadar harcadım?", "Bu ay maaşım yattı mı?", "Geçen ay kime para gönderdim?"]

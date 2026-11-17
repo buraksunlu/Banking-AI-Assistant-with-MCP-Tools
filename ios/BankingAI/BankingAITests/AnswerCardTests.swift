@@ -81,6 +81,19 @@ struct AnswerCardTests {
         #expect(read.answer == "Market: önceki döneme göre 6.072,00 TL fazla.")
     }
 
+    // Simulator trial 17 Nov 2026: the balance card has no sentence (K1-A), the advice rows a second line under the amount (K3-C).
+    @Test func aCardWithoutASentenceShowsNone() {
+        #expect(!CardDisplay.showsSentence("", withTransactions: false))
+    }
+
+    @Test func aBarRowCarriesItsSecondLineAndAnOlderServicesHasAnEmptyOne() throws {
+        let advice = marketCard.replacingOccurrences(of: #""text":"6.216,00 TL","share":1.0,"direction":null}"#,
+                                                     with: #""text":"6.216,00 TL","share":1.0,"direction":null,"detail":"gelirin %60,31"}"#)
+        let rows = try decoded(reply(cards: advice)).cards[0].simple[0].rows
+        #expect(rows[0].detail == "gelirin %60,31")
+        #expect(rows[1].detail == "")
+    }
+
     @Test func aReplyWithoutCardsHasNone() throws {
         #expect(try decoded(reply(cards: nil)).cards.isEmpty)
     }
@@ -200,8 +213,8 @@ struct AnswerCardTests {
     }
 
     @Test func theSentenceGivesWayToTheTransactions() {
-        #expect(CardDisplay.showsSentence(withTransactions: false))
-        #expect(!CardDisplay.showsSentence(withTransactions: true))
+        #expect(CardDisplay.showsSentence("Toplam 145,00 TL.", withTransactions: false))
+        #expect(!CardDisplay.showsSentence("Toplam 145,00 TL.", withTransactions: true))
     }
 
     // MARK: The home panel's questions (K1-C)

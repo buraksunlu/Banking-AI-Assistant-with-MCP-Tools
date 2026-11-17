@@ -33,10 +33,15 @@ _SHORT_WORDS = (("maşım", "maaşım"), ("maşımı", "maaşımı"), ("maşım�
 # them only there: "gelin"/"gelir", "azaldı"/"azalt", "kazanır"/"kazanc", "giyin"/"giyim".
 _LAST_LETTER_WORDS = ("bakiye", "market", "transfer", "havale", "gönder", "tasarruf", "biriktir", "fatura",
                       # "harcsdım", "bütçrmi": keys beside the last letter; the only word one letter from "harca" there is "harcı", a stem.
-                      "harca", "bütçe")
+                      "harca", "bütçe",
+                      # "nerelerd": without its last letter the longest match was "nerel", one letter from "nerede" ("nerederd").
+                      "nerelerde")
 # K12-C: words of their own that one of the edits would turn into a stem ("havalimanı" is no "havale", "nereye" no "nerede"). Found
 # by test_no_correctly_written_question_is_changed; "öneri" left the list for the same reason ("önerdiğin" became "öneriğin").
 _KEPT_BEGINNINGS = ("havalı", "havalim", "nereye", "ayırım")
+# Whole words of their own whose beginning is one letter from a stem (simulator trial 17 Nov 2026: "nerelere" became "nerelerde",
+# the model then wrote "son 3 ay" for "Peki nerelere harcadım bunu"). Whole, so "nerelerd" is still put right.
+_KEPT_WORD_LIST = ("nereler", "nerelere", "nereleri", "nerelerin", "nereli", "nereden")
 
 STEMS = tuple(fold_rule(word) for word in _STEM_WORDS)
 MONTHS = tuple(fold_rule(word) for word in _MONTH_WORDS)
@@ -44,6 +49,7 @@ WHOLE = MONTHS + tuple(fold_rule(word) for word in _WHOLE_VERBS)
 _SHORT = {fold_rule(typed): fold_rule(meant) for typed, meant in _SHORT_WORDS}
 _LAST_LETTER = frozenset(fold_rule(word) for word in _LAST_LETTER_WORDS)
 _KEPT = tuple(fold_rule(word) for word in _KEPT_BEGINNINGS)
+_KEPT_WORDS = frozenset(fold_rule(word) for word in _KEPT_WORD_LIST)
 # The listed words as they are written, for a user who typed Turkish letters.
 _TURKISH = {fold_rule(word): word for word in (*_STEM_WORDS, *_MONTH_WORDS, *_WHOLE_VERBS, *(meant for _, meant in _SHORT_WORDS))}
 MIN_LENGTH = 5
@@ -101,7 +107,7 @@ def _corrected(word: str) -> str:
         return _cased(_WHOLE_TYPOS[folded], word)
     if len(folded) < MIN_LENGTH:
         return word
-    if folded.startswith(STEMS) or folded in WHOLE or folded.startswith(_KEPT):
+    if folded.startswith(STEMS) or folded in WHOLE or folded.startswith(_KEPT) or folded in _KEPT_WORDS:
         return word
     # The longest misspelt beginning wins ("harrca…" before "harr…"); the ending is kept as typed ("…malarım").
     for length in range(min(len(folded), _LONGEST), 2, -1):

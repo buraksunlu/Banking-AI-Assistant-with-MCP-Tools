@@ -468,6 +468,13 @@ liste bağlantısı) K7-A (eski 121 vaka bozulmaz, yeni ≥ 14/16, cevap doğrul
   gibi dönem, "her ay + harcama + sayılı dönem" aylık seri, `typo_gaps.json` kapı testi (128 gerekçeli açık). Kararlar K11-C K12-C K13-A K14-A.
   Modelle hatalı yazılış yanlışı 11 → 1 (%9,5 → %0,9; kalan "ayırım" gerçek kelime, gerekçeli sınır); araç seçimi 144/144, serbest 0 yanlış,
   cevap 33/33. Python 1810, 22 kasıtlı bozma yakalandı. Embedding (K9-B): ölçüme göre gerek yok, kapatıldı (kullanıcı onayı, 17 Kasım 2026). CHAT-13 tamam.
+- [x] Simülatör bulguları (CHAT-13 sonrası deneme, 17 Kasım 2026, dal `fix/chat-sim-findings`; docs/local-ai.md "Simülatör bulguları"):
+  beş bulgu, anlama hataları gerçek modelle yeniden üretildi. Kararlar K1-A (bakiye kartında rakamı tekrarlayan cümle yok), K2-B (tamamlanmış ay
+  sorusu: son üç tam ay satır + "Başka bir ay yazın"), K3-C (öneri kartı: kısa etiket, tutar, altında "gelirin %…"; "Öneri yok: …" notu), K4-C
+  (modelin tahmin ettiği kategori → toplam harcama; bilinmeyen argümana "Kaç aylık bakayım?" sorulmaz), K5-C (bekleyen soruya dönemli kısa cevap
+  özgün soruyla okunur; soru sorulduysa eski çağrı takip bağlamı olmaz). "nerelere" genel harcama kelimesi ve yazım düzelticisinde korunur.
+  Ölçüm: araç seçimi 144/144, serbest yazılış 78 doğru · 2 sordu · 0 yanlış (N56 tek başına 5/5 doğru, model dalgalanması), hatalı yazılış 106 · 6 ·
+  4 · **0 yanlış**, cevap 33/33. Python 1810 → 1833, Api 624, iOS 435 → 438; 18 kasıtlı bozma yakalandı (Python 16, .NET 1, iOS 1).
 
 ## 14. SwiftUI — çalışan endpoint üzerine küçük ekranlar
 

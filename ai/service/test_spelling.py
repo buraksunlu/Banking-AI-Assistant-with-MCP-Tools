@@ -48,6 +48,9 @@ def test_one_letter_off_a_listed_word_is_read_as_it(typed, read):
     "Yola ne kadar harcadım?",
     # "ayında" is two letters from "ayırdım", "ayırım" a word of its own.
     "Eylül ayında ne harcadım?", "Ayırım yapmadan harcamalarım",
+    # Simulator trial 17 Nov 2026: common words the measured questions did not have, checked here once and for all.
+    "Peki nerelere harcadım bunu", "Nereler pahalı?", "Nereli bu işyeri?", "Kasadan para çektim", "Harcı ödedim",
+    "Gelince bakarım", "Nerelerin faturası?",
 ])
 def test_these_are_left_as_they_are(text):
     assert correct(text) == text

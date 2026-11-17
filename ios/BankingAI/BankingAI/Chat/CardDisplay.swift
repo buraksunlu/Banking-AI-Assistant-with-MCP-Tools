@@ -37,9 +37,10 @@ enum CardDisplay {
         total > previewRows ? "Tümünü göster (\(total))" : nil
     }
 
-    /// The code's sentence repeats the headline; the transactions say more, so it gives way to them.
-    static func showsSentence(withTransactions: Bool) -> Bool {
-        !withTransactions
+    /// The code's sentence repeats the headline; the transactions say more, so it gives way to them. A card without one (the
+    /// balance, simulator trial 17 Nov 2026) shows none, not an empty line.
+    static func showsSentence(_ sentence: String, withTransactions: Bool) -> Bool {
+        !withTransactions && !sentence.isEmpty
     }
 
     /// The AI service's share as a part of the bar, kept between empty and full.

@@ -39,6 +39,8 @@ PERCENT_EXAMPLES = (10, 25, 50)
 AMOUNT_EXAMPLES = (1000, 5000, 10000)
 # PR3b D6-A: an amount question also invites one of the user's own; the app draws it as a row that opens the keyboard.
 AMOUNT_HINT = "Başka bir tutar yazın"
+MONTH_HINT = "Başka bir ay yazın"
+WHOLE_MONTH_QUESTION = "Hangi ay için bakayım? Bu analiz yalnız tamamlanmış aylar için yapılabiliyor."
 # CHAT-09 K19-C: the two planning calculations, as the user is offered them. (K17-C's "one-off or monthly?" question was dropped
 # in CHAT-10 PR3b D8-B: an undecided "what if" is the monthly saving.)
 CHOICE_KINDS = ("topic", "area")
@@ -110,12 +112,15 @@ class Pending:
     note: str = ""
     # INC-03 K15-A: words added after the question ("or write a month's name").
     hint: str = ""
+    # Simulator trial 17 Nov 2026 (K2-B): the question for one whole, finished month, with the last three as rows.
+    whole_month: bool = False
 
     @property
     def model_worded(self) -> bool:
         """True when the model may word the question (CHAT-03 K4-B); a figure question is always the fixed text."""
         # CHAT-12 K5-A: the topic question is the fixed text; the model's wording would be a guess about what it could not place.
-        return self.kind in ("period", "count", "merchant", *CHOICE_KINDS) and self.kind != "area" and not self.note
+        return (self.kind in ("period", "count", "merchant", *CHOICE_KINDS) and self.kind != "area" and not self.note
+                and not self.whole_month)
 
 
 def ask_period(tool: str, arguments: dict, question: str, note: str = "", original: str = "") -> Pending:
@@ -126,12 +131,17 @@ def ask_period(tool: str, arguments: dict, question: str, note: str = "", origin
 
 
 def ask_complete_month(tool: str, arguments: dict, question: str, today=None) -> Pending:
-    """The question for a tool that takes one whole, finished calendar month (INC-03 K15-A): last month, named, or another month's name."""
+    """The question for a tool that takes one whole, finished calendar month (INC-03 K15-A): the last three complete months as rows
+    and a row to write another (K2-B; one row "geçen ay (Eylül)" read as an odd single choice in the simulator trial). A tapped month
+    is its label, read by the date reader like a written one; only last month has a period name (its value)."""
     rest = {k: v for k, v in arguments.items() if k not in ("period", "from", "to")}
-    label = "geçen ay" if today is None else f"geçen ay ({MONTH_NAMES[(today.month - 2) % 12]})"
-    return Pending(tool, rest, "period", "period", (Option(label, "LastMonth"),), question,
-                   note="Bu analiz yalnız tamamlanmış bir ay için yapılır.",
-                   hint="Ya da bir ayın adını yazabilirsiniz, örneğin Ağustos.")
+    if today is None:
+        options = (Option("geçen ay", "LastMonth"),)
+    else:
+        months = [((today.year * 12 + today.month - 1 - back) // 12, (today.month - 1 - back) % 12) for back in range(1, 4)]
+        options = tuple(Option(f"{MONTH_NAMES[m]} {y}", "LastMonth" if back == 0 else "")
+                        for back, (y, m) in enumerate(months))
+    return Pending(tool, rest, "period", "period", options, question, whole_month=True)
 
 
 def ask_count(tool: str, arguments: dict, argument: str, minimum: int, maximum: int, question: str) -> Pending:
@@ -232,12 +242,23 @@ def ask_area(question: str) -> Pending:
 
 def input_hint(pending: Pending) -> str:
     """The row that invites an answer of the user's own (PR3b D6-A); empty for a question whose options are all there is."""
+    if pending.whole_month:
+        return MONTH_HINT
     return {"amount": AMOUNT_HINT, "duration": DURATION_HINT}.get(pending.kind, "")
 
 
 def choices(pending: Pending) -> list[Choice]:
     """The options the app shows as rows under the question (CHAT-10 K4-A); every question has them, examples too (P1-D)."""
     return [Choice(o.label, o.detail) for o in pending.options]
+
+
+def month_of_choice(pending: Pending, reply: str) -> str | None:
+    """The month a bare number names under the whole-month question ("2" → "Ağustos 2026"), for the date reader; None otherwise.
+    Only last month has a period name, so the others are read as written (K2-B)."""
+    number = _choice_number(reply) if pending.whole_month else None
+    if number is None or not 1 <= number <= len(pending.options) or pending.options[number - 1].value:
+        return None
+    return pending.options[number - 1].label
 
 
 def chosen_tool(pending: Pending, reply: str) -> str | None:
@@ -298,6 +319,8 @@ def template(pending: Pending) -> str:
     note = f"{pending.note} " if pending.note else ""
     if pending.kind == "count":
         return "Kaç aylık bakayım?"
+    if pending.whole_month:
+        return WHOLE_MONTH_QUESTION
     if pending.kind == "amount" and pending.tool == MONTHLY_SAVING:
         # CHAT-09 K6-B: the question says the currency, so a bare "5000" answers it whole.
         return f"{note}Ayda kaç TL biriktirirdiniz?"
@@ -388,7 +411,8 @@ def _value(pending: Pending, reply: str) -> str | int | float | None:
         return cut if cut is not None and pending.minimum <= cut <= pending.maximum else None
     choice = _choice_number(reply)
     if choice is not None:
-        return pending.options[choice - 1].value if 1 <= choice <= len(pending.options) else None
+        # A month row without a period name has no value; the chat reads its label instead (month_of_choice).
+        return (pending.options[choice - 1].value or None) if 1 <= choice <= len(pending.options) else None
     if pending.kind == "period":
         return period_in(reply)
     if pending.kind == "currency":

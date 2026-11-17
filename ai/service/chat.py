@@ -27,7 +27,7 @@ from answer_check import check_answer, has_advice, misnamed
 from clarification import (CHOICE_KINDS, MAX_REPLY_WORDS, Choice, Pending, PendingStore, ask_amount, ask_amount_again, ask_area, ask_complete_month, ask_count, ask_currency,
                            ask_months, ask_months_again, months_out_of_range, not_a_percent,
                            ask_merchant, ask_percent, ask_percent_again, ask_period, ask_topic, check_question, choices, chosen_tool, input_hint,
-                           is_bare_choice, resolve, template, wants_one_off)
+                           is_bare_choice, month_of_choice, resolve, template, wants_one_off)
 from cards import Card, card_texts, cards_for
 from contracts import Fact
 from conversation import ConversationStore, LastCall, is_follow_up
@@ -260,6 +260,8 @@ class ChatService:
             if phrase is not None:
                 message, completed = f"{waiting.original} ({phrase})", True
         elif waiting is not None:
+            # K2-B: "2" under the whole-month question is the month on that row, read like the name the row shows.
+            message = month_of_choice(waiting, message) or message
             if waiting.kind == "period" and day is not None:
                 reading = self._read(message, day, deadline)
                 if reading.kind in ("invalid", "unreadable") and _is_reply(message, reading):
@@ -285,6 +287,10 @@ class ChatService:
                 if later:
                     return self._ask(_ask_figure(waiting.tool, arguments, later[0], later[1:], question), [], token, deadline)
                 return self._run(ToolCall(waiting.tool, arguments), question, token, deadline, day)
+            if waiting.kind in ("count", "period") and len(message.split()) <= MAX_REPLY_WORDS and mentions_period(message):
+                # K5-A (simulator trial): "Geçen mart ayında" under "Kaç aylık bakayım?" answers the question it was asked for, with
+                # another kind of period; read with that question, not as a follow-up of an older call (it became the income share).
+                message, completed = f"{waiting.question} ({message})", True
 
         # The text of an offered follow-up stands for the call it was built from (CHAT-06 K3-C): code chose the tool, so the
         # model is not asked again; the MCP server still checks the arguments. The home panel's questions are known the same way,
@@ -303,7 +309,8 @@ class ChatService:
         # Only a short or "peki…" message is read with the last call (K4-B); a full question stands on its own, as before.
         # The follow-up itself is what is explained and kept: a growing chain of questions led both the model (back to an
         # older merchant) and the explanation ("geçen ay" for this month) astray in the live trial.
-        context = self.history.recall(token) if not completed and is_follow_up(message) else None
+        # K5-B (simulator trial): after a question was asked, an older call is no context; the last turn was the question.
+        context = self.history.recall(token) if not completed and waiting is None and is_follow_up(message) else None
         if forced is not None:
             route = Route((group_of(forced),), only=forced)
         elif forced_group is not None:
@@ -409,10 +416,18 @@ class ChatService:
 
         # A period or count the user did not say is the model's guess: asked back, the tool does not run (K1-C, K2-A). With a date
         # read by code the period is code's own (below): the "bu ay" put in the date's place is no period the user named (CHAT-09 K12-A).
+        if call.tool == CATEGORY_DETAIL and SUMMARY_TOOL in schemas and category_in(shown) is None and brand_in(shown) is None:
+            # K4-C (simulator trial): "Mart ayında alışverişe ne kadar harcadım" got GROCERY from the model; no category the user named
+            # means all of the spending, so the total answers it (the check used to ask "Kaç aylık bakayım?" for the category).
+            call = ToolCall(SUMMARY_TOOL, {k: v for k, v in call.arguments.items() if k != "categoryCode"})
         checked = {k: v for k, v in call.arguments.items() if not (reading.kind == "found" and k == "period")}
         grounding = check_arguments(checked, schemas[call.tool], shown, carryable(message, context.arguments) if context else None)
         if grounding.missing is not None:
-            return self._ask(self._question_for(call, grounding.unsaid, schemas[call.tool], message), [], token, deadline)
+            pending = self._question_for(call, grounding.unsaid, schemas[call.tool], message)
+            if pending is None:
+                # K4-C: an argument that is no count, period or figure has no question of its own; never "Kaç aylık bakayım?".
+                return ChatReply("clarification", CLARIFY_TEXT, calls, [])
+            return self._ask(pending, [], token, deadline)
         arguments = grounding.arguments
         if call.tool == CATEGORY_DETAIL and MERCHANT_TOOL in schemas and (brand := brand_in(shown)) is not None:
             # A brand is the merchant, not its category: the model took "Netflix'e ne kadar" for the subscriptions' detail, and the
@@ -490,7 +505,8 @@ class ChatService:
             answer = outcome.written
         elif cards:
             # UX-01 PR5 K2-A: the phone draws the card; its sentence, already checked against the facts, is the whole text.
-            answer = "\n".join(card.sentence for card in cards)
+            # K1-A: a card without a sentence (the balance) still gives the reply a text, from its title and figure.
+            answer = "\n".join(card.sentence or f"{card.title}: {card.headline.text}" for card in cards)
         else:
             answer = self.explainer.explain(outcome.question or question, outcome.facts, deadline=deadline)
         if outcome.written is None and not cards and call.tool in WEALTH_TOOLS and (has_advice(answer) or misnamed(answer, outcome.named_values)):
@@ -517,7 +533,7 @@ class ChatService:
                          cards=cards)
 
     @staticmethod
-    def _question_for(call: ToolCall, unsaid: tuple[str, ...], schema: dict, message: str) -> Pending:
+    def _question_for(call: ToolCall, unsaid: tuple[str, ...], schema: dict, message: str) -> Pending | None:
         argument, later = unsaid[0], unsaid[1:]
         # Every guessed value is left out of the stored call, so none of them runs once the user has answered.
         known = {k: v for k, v in call.arguments.items() if k not in unsaid}
@@ -526,6 +542,8 @@ class ChatService:
         if argument in ("amount", "currencyCode", "reductionPercent"):
             return _ask_figure(call.tool, known, argument, later, message)
         rule = schema.get("properties", {}).get(argument, {})
+        if "integer" not in (rule.get("type") if isinstance(rule.get("type"), list) else [rule.get("type")]):
+            return None
         return ask_count(call.tool, known, argument, rule.get("minimum", 1), rule.get("maximum", 12), message)
 
     def _ask(self, pending: Pending, used: list[ToolCall], token: str, deadline: float) -> ChatReply:
@@ -550,6 +568,7 @@ class ChatService:
 MASKED_PERIOD = "ThisMonth"
 CATEGORY_DETAIL = "get_category_spending"
 MERCHANT_TOOL = "get_merchant_spending"
+SUMMARY_TOOL = "get_spending_summary"
 
 DATE_UNSUPPORTED_TEXT = ("Bu soruyu belirli bir tarih ya da tarih aralığı için cevaplayamıyorum. Belirli tarihler için toplam harcamanıza, "
                          "kategorilere, işyerlerine ve en büyük harcamalarınıza bakabilirim; diğer sorularda bu ay, geçen ay gibi "

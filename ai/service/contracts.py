@@ -146,6 +146,8 @@ class BarOut(BaseModel):
     text: str
     share: Amount
     direction: str | None
+    # Simulator trial 17 Nov 2026 (K3-C): a smaller second line under the amount ("gelirin %60,31"); empty when there is none.
+    detail: str = ""
 
 
 class PointOut(BaseModel):

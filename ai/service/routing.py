@@ -98,7 +98,7 @@ BUDGET, SAVING = "check_budget", "simulate_savings"
 
 # Spending and payment words: the general group without asking the model.
 _GENERAL_WORDS = re.compile(fold_rule(
-    r"harca|\bnereye|kategori|işyer|karşilaştir|\b(?:aya|aylara|döneme)\s+göre|\baylara\b|\bdeğiş"
+    r"harca|\bnere(?:ye|lere)\b|kategori|işyer|karşilaştir|\b(?:aya|aylara|döneme)\s+göre|\baylara\b|\bdeğiş"
     r"|\ben\s+(?:büyük|pahali|yüksek|çok)|\bverdim|\bödedim|\bgitti|alişveriş|\bmasraf"
     r"|abonel|düzenli|yaklaşan|önümüzdeki|\böde(?:me|yece|necek)|\bödüyor|sabit\s+gider"))
 

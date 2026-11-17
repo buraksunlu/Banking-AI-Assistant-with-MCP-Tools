@@ -277,7 +277,7 @@ public sealed class AssistantEndpointTests
     private const string MarketCard = """
         {"title":"Market · Eylül 2026","headline":{"amount":18016.5,"currency":"TRY","text":"18.016,50 TL"},
          "change":{"percent":50.84,"direction":"up","against":"Ağustos 2026","againstText":"11.944,50 TL","text":"%50,84 artış"},
-         "simple":[{"kind":"bars","rows":[{"label":"BİM","amount":6216.0,"text":"6.216,00 TL · %34,50","share":1.0,"direction":null}],
+         "simple":[{"kind":"bars","rows":[{"label":"BİM","amount":6216.0,"text":"6.216,00 TL · %34,50","share":1.0,"direction":null,"detail":""}],
                     "points":[],"items":[],"highlight":null,"entries":[]}],
          "detailed":[{"kind":"series","rows":[],"points":[{"label":"Eki","amount":5133.0,"text":"5.133,00 TL","share":0.28,"partial":true}],
                       "items":[],"highlight":"Eyl","entries":[]},
@@ -315,6 +315,33 @@ public sealed class AssistantEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, status);
         Assert.Equal(JsonNode.Parse(ListCard)!.ToJsonString(), body["cards"]![0]!.ToJsonString());
+    }
+
+    // Simulator trial 17 Nov 2026 (K3-C): a bar row's second line ("gelirin %60,31") under its amount.
+    private const string AdviceCard = """
+        {"title":"Harcama önerisi · Eylül 2026","headline":{"amount":53388.39,"currency":"TRY","text":"53.388,39 TL"},"change":null,
+         "simple":[{"kind":"bars","rows":[{"label":"Temel","amount":51265.9,"text":"51.265,90 TL","share":1.0,"direction":null,
+                                           "detail":"gelirin %60,31"}],"points":[],"items":[],"highlight":null,"entries":[]}],
+         "detailed":[],"sentence":"İsteğe bağlı harcama gelirin %1,03 kadarı.","notes":[]}
+        """;
+
+    [Fact]
+    public async Task A_bar_rows_second_line_reaches_the_client_as_written()
+    {
+        var (status, body) = await AskAsync(FakeAssistantService.Answering(ReplyWithCards(AdviceCard)));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(JsonNode.Parse(AdviceCard)!.ToJsonString(), body["cards"]![0]!.ToJsonString());
+    }
+
+    [Fact]
+    public async Task An_older_services_bar_row_without_a_second_line_has_an_empty_one()
+    {
+        var older = MarketCard.Replace(",\"detail\":\"\"", "");
+        var (status, body) = await AskAsync(FakeAssistantService.Answering(ReplyWithCards(older)));
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal("", body["cards"]![0]!["simple"]![0]!["rows"]![0]!["detail"]!.GetValue<string>());
     }
 
     [Fact]

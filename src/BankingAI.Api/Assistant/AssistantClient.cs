@@ -328,7 +328,8 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
                 return null;
             var rows = Rows.Select(r => r is { Label: { } l, Amount: { } a, Text: { } t, Share: { } s } && IsShare(s)
                                          && (r.Direction is null || Directions.Contains(r.Direction))
-                ? new CardBar(l, a, t, s, r.Direction) : null).ToList();
+                // An older AI service sends no second line: an empty one, so the phone draws the row as before.
+                ? new CardBar(l, a, t, s, r.Direction, r.Detail ?? "") : null).ToList();
             var points = Points.Select(p => p is { Label: { } l, Amount: { } a, Text: { } t, Share: { } s, Partial: { } partial } && IsShare(s)
                 ? new CardPoint(l, a, t, s, partial) : null).ToList();
             var items = Items.Select(i => i is { Label: { } l, Text: { } t } ? new CardStat(l, t) : null).ToList();
@@ -349,7 +350,7 @@ public sealed class AssistantClient(HttpClient http, AssistantSettings settings,
         private static bool IsShare(decimal share) => share is >= 0m and <= 1m;
     }
 
-    private sealed record ChatBar(string? Label, decimal? Amount, string? Text, decimal? Share, string? Direction);
+    private sealed record ChatBar(string? Label, decimal? Amount, string? Text, decimal? Share, string? Direction, string? Detail);
 
     private sealed record ChatPoint(string? Label, decimal? Amount, string? Text, decimal? Share, bool? Partial);
 

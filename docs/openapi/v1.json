@@ -3607,7 +3607,8 @@
           "amount",
           "text",
           "share",
-          "direction"
+          "direction",
+          "detail"
         ],
         "type": "object",
         "properties": {
@@ -3630,9 +3631,12 @@
               "null",
               "string"
             ]
+          },
+          "detail": {
+            "type": "string"
           }
         },
-        "description": "One row of a `bars` block: `share` is the bar's length from 0 to 1 and is never shown as text; `direction`\nis set only for a change (`up`, `down`)."
+        "description": "One row of a `bars` block: `share` is the bar's length from 0 to 1 and is never shown as text; `direction`\nis set only for a change (`up`, `down`); `detail` is a smaller second line under the amount (\"gelirin %60,31\"),\nempty when there is none."
       },
       "CardBlock": {
         "required": [

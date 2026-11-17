@@ -339,7 +339,7 @@ def test_chat_returns_the_cards_with_amounts_as_json_numbers():
         "headline": {"amount": 18016.5, "currency": "TRY", "text": "18.016,50 TL"},
         "change": {"percent": 50.84, "direction": "up", "against": "Ağustos 2026", "againstText": "11.944,50 TL", "text": "%50,84 artış"},
         "simple": [{"kind": "bars", "rows": [{"label": "BİM", "amount": 6216.0, "text": "6.216,00 TL · %34,50", "share": 1.0,
-                                              "direction": None}], "points": [], "items": [], "highlight": None, "entries": []}],
+                                              "direction": None, "detail": ""}], "points": [], "items": [], "highlight": None, "entries": []}],
         "detailed": [{"kind": "series", "rows": [], "points": [{"label": "Eki", "amount": 5133.0, "text": "5.133,00 TL", "share": 0.28,
                                                                "partial": True}], "items": [], "highlight": "Eyl", "entries": []},
                      {"kind": "stats", "rows": [], "points": [], "items": [{"label": "İşlem", "text": "8"}], "highlight": None,

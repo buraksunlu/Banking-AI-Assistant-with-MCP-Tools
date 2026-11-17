@@ -1484,3 +1484,36 @@ kökler listede yok + elle korunan başlangıçlar), K13-A (1800 hatalı yazıl�
   baskısını artırırdı (OPS-07).
 - **Doğrulama:** Python 1733 → 1810 modelsiz; 22 kasıtlı bozmanın hepsi yakalandı (ilk turda üçü kaçtı: belirsizlik, 4 harf sınırı ve sayılı dönem
   koşulunu sınayan cümleler eklendi; kapı testinin kendisini kapatan bozma yerine listenin iki yönü bozuldu).
+
+## Simülatör bulguları: CHAT-13 sonrası deneme (17 Kasım 2026)
+
+Simülatörde altı ekran görüntüsü, beş ayrı sorun. Anlama hataları (4, 4b, 5) gerçek modelle yeniden üretildi, sonra düzeltildi.
+Kararlar: K1-A, K2-B, K3-C, K4-C, K5-C. Testler `ai/service/test_sim_findings.py` dosyasında.
+
+- **Bakiye kartı (K1-A):** "Kişisel hesaplarınızda toplam … var." cümlesi, üstündeki büyük rakamı tekrarlıyordu; kaldırıldı. Kart cümlesizse
+  sohbet cevabının metni "başlık: rakam" olur. iPhone boş cümleyi göstermez.
+- **Tamamlanmış ay sorusu (K2-B):** gelir payı ve tasarruf önerisi için tek satır ("geçen ay (Eylül)") vardı, yerine son üç tam ay geldi ("Eylül 2026",
+  "Ağustos 2026", "Temmuz 2026") ve "Başka bir ay yazın" satırı. Soru metni sabit: "Hangi ay için bakayım? Bu analiz yalnız tamamlanmış aylar için
+  yapılabiliyor." (modele yazdırılmaz). Satır numarasıyla verilen cevap ("2") o satırdaki ay adı olarak okunur (`clarification.month_of_choice`).
+- **Öneri kartı (K3-C):** satır etiketleri kısa ("Temel", "İsteğe bağlı", "Diğer"); tutar tek başına, "gelirin %60,31" altında küçük ikinci satır
+  (kart sözleşmesine `detail` alanı: Python `contracts`, .NET `AssistantReply`, iOS `APIModels`). Not artık "Öneri yok: …" diye başlar.
+- **Tahmin edilen kategori (K4-C):** model "Mart ayında alışverişe ne kadar harcadım" sorusuna GROCERY yazıyordu. Kullanıcı bir kategori ya da işyeri
+  söylemediyse soru toplam harcama sayılır (`get_spending_summary`). Ayrıca `_question_for` yalnız tamsayı argümanlar için ay sayısı sorar; bilinmeyen
+  argümanda sabit "anlayamadım" cevabı verilir, "Kaç aylık bakayım?" sorulmaz.
+- **Bekleyen soruya uymayan cevap (K5-C):** "Geçen mart ayında" cevabı "Kaç aylık bakayım?" sorusundan sonra takip sorusu sayılıyor ve bir önceki çağrıya
+  (tasarruf önerisi) bağlanıyordu; sonuç gelir payı oldu. Düzeltmede iki parça var. A: ay sayısı ya da dönem sorusuna verilen, dönem içeren kısa cevap
+  özgün soruyla birlikte okunur. B: bekleyen bir soru varken eski çağrı takip bağlamı olarak kullanılmaz.
+- **"nerelere":** yazım düzelticisi "nerelere"yi "nerelerde"ye çeviriyordu, model de "son 3 ay" uyduruyordu. Çözüm: `spelling._KEPT_WORD_LIST` ile tam
+  kelime korunur, "nerelerd" yine düzeltilir. Genel harcama kuralı (`routing._GENERAL_WORDS`) artık "nerelere"yi de tanır.
+
+| Ölçüm | CHAT-13 PR2 | Bu düzeltme |
+|---|---|---|
+| Araç seçimi | 144/144 | **144/144** |
+| Serbest yazılış (80) | 79 / 1 / 0 / 0 | 78 / 2 / 0 / **0** (yeni "sordu" N56; tek başına 5/5 doğru, model dalgalanması) |
+| Hatalı yazılış, modelle (116) | 105 / 6 / 4 / 1 | 106 / 6 / 4 / **0** |
+| Cevap doğruluğu | 33/33 | **33/33** |
+
+- **Doğrulama:** Python 1810 → 1833 modelsiz, Api 624 (OpenAPI kopyası `detail` ile yenilendi), iOS 435 → 438 test durumu. 18 kasıtlı bozmanın hepsi
+  yakalandı (Python 16, .NET 1, iOS 1). İlk turda iki bozma kaçtı: ay sorusunun sabit metin kaldığı ve "nerelere" kuralı sınanmıyordu; ikisine test eklendi.
+- **Ölçüm notu (OPS):** 16 GB makinede model 12 GB'a çıkıyor. Ölçümler iOS simülatörü ve paralel test koşuları kapalıyken, tek tek çalıştırılmalı.
+  İlk deneme hafıza dolduğu için yarıda kaldı.
