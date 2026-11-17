@@ -467,7 +467,7 @@ liste bağlantısı) K7-A (eski 121 vaka bozulmaz, yeni ≥ 14/16, cevap doğrul
   ilk harf hiç, son harf yalnız seçili köklerde; ay adı ve "ayırdım" tam kelime; "maaş" el listesi), ne olurdu eki toleransı, ay adı yalnız yazıldığı
   gibi dönem, "her ay + harcama + sayılı dönem" aylık seri, `typo_gaps.json` kapı testi (128 gerekçeli açık). Kararlar K11-C K12-C K13-A K14-A.
   Modelle hatalı yazılış yanlışı 11 → 1 (%9,5 → %0,9; kalan "ayırım" gerçek kelime, gerekçeli sınır); araç seçimi 144/144, serbest 0 yanlış,
-  cevap 33/33. Python 1810, 22 kasıtlı bozma yakalandı. Embedding (K9-B): ölçüme göre gerek yok, kapatma önerisi. CHAT-13 tamam.
+  cevap 33/33. Python 1810, 22 kasıtlı bozma yakalandı. Embedding (K9-B): ölçüme göre gerek yok, kapatıldı (kullanıcı onayı, 17 Kasım 2026). CHAT-13 tamam.
 
 ## 14. SwiftUI — çalışan endpoint üzerine küçük ekranlar
 
