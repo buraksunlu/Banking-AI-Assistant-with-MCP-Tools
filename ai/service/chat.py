@@ -39,7 +39,8 @@ from prompts import (ADVICE_DECLINED_TEXT, BARE_CHOICE_TEXT, CLARIFY_TEXT, DATE_
                      build_intent_messages, build_tool_messages)
 from dates import CustomerDay, DateReading, check_range, period_line, read_dates, with_span_replaced
 from grounding import brand_in, category_in, check_arguments, mentions_period, unclear_amounts
-from routing import DATE_FIELDS, ONE_OFF, PLANNING, Route, Router, group_of, hide_dates, is_spending_question, narrow, planning_of
+from routing import (DATE_FIELDS, ONE_OFF, PLANNING, TREND, Route, Router, group_of, hide_dates, is_spending_question, narrow,
+                     planning_of, trend_months)
 from suggestions import OUT_OF_SCOPE_SUGGESTIONS, AskedStore, OfferedStore, follow_ups, match, panel_questions, result_shape
 from tools import ToolArgumentsRejected, ToolGateway
 from wealth import (LIRA, MONTH_TOOLS, MONTHLY_TOOL, ONE_OFF_TOOL, WEALTH_TOOLS, advised_saving_call, carried_monthly, chosen_scenario_arguments,
@@ -355,8 +356,16 @@ class ChatService:
             # CHAT-09 K13-A: the words chose the scenario and the model was shown it alone; choosing nothing there is the small
             # model's indecision, not an out-of-scope question. Its arguments are read from the words, and checked below as always.
             # ACC-01b K2-C: the account tools the same way, their figures read by code (accounts.fallback_arguments).
-            read = fallback_arguments if route.only in ACCOUNT_TOOLS else chosen_scenario_arguments
-            arguments = read(route.only, shown)
+            if route.only == TREND:
+                # CHAT-12 PR3 K3-A: the count the user wrote ("son 6 ayda"), asked like any count when there is none; the check below
+                # does not ask a required count that is missing, it would run the tool without one.
+                if (months := trend_months(shown)) is None:
+                    schema = next(t["function"].get("parameters", {}) for t in listed if t["function"]["name"] == TREND)
+                    return self._ask(self._question_for(ToolCall(TREND, {}), ("months",), schema, message), [], token, deadline)
+                arguments = {"months": months}
+            else:
+                read = fallback_arguments if route.only in ACCOUNT_TOOLS else chosen_scenario_arguments
+                arguments = read(route.only, shown)
             if arguments is None:
                 known = {"categoryCode": category} if (category := category_in(shown)) else {}
                 return self._ask(ask_period(route.only, known, message), [], token, deadline)

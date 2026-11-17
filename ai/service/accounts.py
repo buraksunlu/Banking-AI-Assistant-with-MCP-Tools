@@ -19,18 +19,25 @@ ACCOUNT_TOOLS = (BALANCE, SEARCH, INCOME, TRANSFERS)
 LIRA = "TRY"
 LIMIT_FIELDS = ("minAmount", "maxAmount", "currencyCode")
 
-# Spending, a payment or a transfer next to "hesabım" is about what happened on the account, not its balance.
-_NOT_BALANCE = re.compile(fold_rule(r"harca|ödeme|\bödedi|işlem|gönder|transfer|havale|maaş|gelir"))
+# Spending, a payment or a transfer next to "hesabım" is about what happened on the account, not its balance; so is what is left
+# of a budget ("bütçemden kalan para").
+_NOT_BALANCE = re.compile(fold_rule(r"harca|ödeme|\bödedi|işlem|gönder|transfer|havale|maaş|gelir|bütçe"))
 _BALANCE = re.compile(fold_rule(
     r"bakiye|\bhesab(?:ım|ımda|ımdaki)\b|\bhesaplar(?:ım|ımda|ımdaki|ımı)\b|\bne\s+kadar\s+param\b"
-    r"|\bparam\s+(?:var|kaldı|ne\s+kadar)"))
+    r"|\bparam\s+(?:var|kaldı|ne\s+kadar)"
+    # CHAT-12 PR3 K1-C: phrasings only the model's intent question placed (N01, N02, N07, N08); a cold model past its 5 s sent
+    # them to the spending tools.
+    r"|\b(?:elimde|kartımda|kartta|hesapta)\s+ne\s+kadar\s+(?:param?\s+)?(?:var|kaldı)|\bkalan\s+param?\b|\bhesap\s+durum"))
 # INC-03 keeps the income share and the what-ifs: a salary beside spending, a share or a saving is theirs, not this list's.
-_INCOME = re.compile(fold_rule(r"\b(?:maaş|burs|gelir|emekli\s+aylığ)"))
+# CHAT-12 PR3 K1-C: "kazancım", "ne kadar kazandım" and money that came in (N14, N18); "para yatırdım" (deposited) is none.
+_INCOME = re.compile(fold_rule(r"\b(?:maaş|burs|gelir|emekli\s+aylığ)|\bkazanc|\bkazandı[mğ]|\bpara\s+yat(?:tı|mış|an)\b"))
 _NOT_INCOME = re.compile(fold_rule(
     r"harca|\bpay|yüzde|\boran|göre|tasarruf|öneri|biriktir|(?:sa|se)ydi(?:m|k)\b|olarak|cinsinden|bütçe|\bgitti|kalan"))
 # Only what was sent or received; a request to send ("para gönder", "transfer yap") is the router's out-of-scope rule.
+# CHAT-12 PR3 K2-A: "kimlere/kimlerden" and the spoken "para attım / atan" (N19); "para at" as a request is the router's.
 _TRANSFER = re.compile(fold_rule(
-    r"\btransfer|\bhavale|\beft\b|\bgönderd|\bgönderil|\byollad|\bkimden\b|\bkime\b|\bpara\s+gel|\b(?:gelen|giden)\s+(?:para|transfer)"))
+    r"\btransfer|\bhavale|\beft\b|\bgönderd|\bgönderil|\byollad|\bkimden\b|\bkime\b|\bpara\s+gel|\b(?:gelen|giden)\s+(?:para|transfer)"
+    r"|\bkimler(?:e|den)\b|\bpara\s+at(?:tı|mış|an\b)"))
 _SPENDING = re.compile(fold_rule(r"harca|alışveriş|işlem|ödeme|masraf"))
 
 # An amount as people write it ("2.000", "5 bin", "2k", "bin"), its currency and the ending glued to it ("TL'den", "liranın").
@@ -45,9 +52,12 @@ _BELOW = re.compile(rf"({_AMOUNT})\s+(?:{_MAXIMUM_SIDE})\b")
 # A period's count is no amount ("son 7 günde 500 TL üstü" has one amount).
 _PERIOD_COUNT = re.compile(fold_rule(r"\bson\s+\d+\s+(?:gün|hafta|ay|yıl|sene)\w*"))
 
-_RECEIVED = re.compile(fold_rule(r"\bkimden\b|\bgel(?:di|en|miş|ecek)|\baldı[mğ]"))
-_SENT = re.compile(fold_rule(r"\bkime\b|\bgönder|\byolla|\bhavale\s+et|\bgiden|\beft\s+yap"))
-# "Hasan bana para gönderdi mi?" is money received, whatever the verb.
+_RECEIVED = re.compile(fold_rule(r"\bkimden\b|\bkimlerden\b|\bgel(?:di|en|miş|ecek)|\baldı[mğ]"))
+# CHAT-12 PR3: "havale yaptıklarım" (N24) and "para attım" in the first person only (K2-A): "Hasan para attı mı" says no direction.
+_SENT = re.compile(fold_rule(
+    r"\bkime\b|\bkimlere\b|\bgönder|\byolla|\bhavale\s+et|\bgiden|\beft\s+yap"
+    r"|\b(?:havale|transfer)\s+yaptı(?:m|ğ|k)|\bat(?:tım|tığım|tıklarım|mışım)\b"))
+# "Hasan bana para gönderdi mi?" (and "bana para atan") is money received, whatever the verb.
 _TO_ME = re.compile(r"\bbana\b")
 _ARRIVED = re.compile(fold_rule(r"\b(?:yattı|yatmış|geldi|gelmiş)\s*mı\b"))
 

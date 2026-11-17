@@ -31,7 +31,9 @@ _NUMBER_WORDS = {fold_rule(word): number for word, number in {
 _NUMBER = r"\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+(?:,\d+)?"
 # "5 bin", "1,5 bin", "bin" alone and, CHAT-10 K9-C, glued or with the endings people add ("5bin", "5 binlik"), "5 milyon" and
 # "5k" (the "5k" of the INC-04 trial was read as 5). Written-out amounts ("bin beş yüz") are a documented limit (K3-A). Folded text.
-_SCALED = re.compile(rf"(?:({_NUMBER})\s*)?(?<![a-z])(bin|milyon)(?:lik|luk|e|i|de|den)?(?![a-z])|({_NUMBER})\s?(k)(?![a-z])")
+# CHAT-12 PR3: also "binin", "milyonun", "milyondan" ("2 binin üstündeki" was a 2 lira limit, N36); not "-a", which makes "bina".
+_SCALED = re.compile(
+    rf"(?:({_NUMBER})\s*)?(?<![a-z])(bin|milyon)(?:lik|luk|in|un|e|i|de|da|den|dan)?(?![a-z])|({_NUMBER})\s?(k)(?![a-z])")
 _SCALES = {"bin": 1000, "milyon": 1_000_000, "k": 1000}
 # What may follow a number with no space and still leave it an amount: a currency code, a unit above, or "-lik" ("5000lik bütçe").
 _GLUED = re.compile(rf"({_NUMBER})([a-z]+)")

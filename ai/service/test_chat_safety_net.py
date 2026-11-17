@@ -35,7 +35,8 @@ def route(message, answer="spending", previous=None):
 
 # --- K4-A: a weak word alone asks the model -----------------------------------------------------------------------------------
 
-@pytest.mark.parametrize("message", ["Hesapta kalan para ne kadar?", "elimde ne kadar para var", "kartımda ne kadar var",
+# CHAT-12 PR3 gave "elimde/kartımda ne kadar var" and "kalan para" their balance rule; these still have none.
+@pytest.mark.parametrize("message", ["cüzdanımda ne kadar var", "ne kadar var acaba", "Ziraat'te ne kadar duruyor",
                                      "Migros'a ne kadar?"])
 def test_ne_kadar_alone_asks_the_model(message):
     result, classifier = route(message, answer="accounts")
@@ -56,7 +57,7 @@ def test_a_follow_up_with_ne_kadar_keeps_the_last_calls_group():
 
 def test_without_a_model_the_weak_word_keeps_the_old_way():
     # The model is down or absent (tests, CHAT-01 K3-A): the general group, as before PR2.
-    assert Router(None).route("Hesapta kalan para ne kadar?", None, 30.0) == Route((GENERAL,), source="fallback")
+    assert Router(None).route("cüzdanımda ne kadar var", None, 30.0) == Route((GENERAL,), source="fallback")
 
 
 # --- K3-B: intent-v2 ----------------------------------------------------------------------------------------------------------
@@ -69,17 +70,17 @@ def test_intent_v2_knows_the_account_questions_and_unclear():
 
 
 def test_the_model_s_accounts_answer_shows_the_account_tools():
-    assert route("hesap durumum nasıl", answer="accounts")[0] == Route((ACCOUNTS,), source="model")
+    assert route("durumum nasıl", answer="accounts")[0] == Route((ACCOUNTS,), source="model")
 
 
 def test_unclear_asks_the_topic():
-    assert route("hesap durumum nasıl", answer="unclear")[0] == Route((), source="model", ask_area=True)
+    assert route("durumum nasıl", answer="unclear")[0] == Route((), source="model", ask_area=True)
 
 
 # --- K5-A: the topic question -------------------------------------------------------------------------------------------------
 
 def test_the_topic_question_is_fixed_and_its_rows_name_three_groups():
-    pending = ask_area("hesap durumum nasıl")
+    pending = ask_area("durumum nasıl")
     assert (template(pending), pending.model_worded) == (AREA_TEXT, False)
     assert [(c.label, c.detail) for c in choices(pending)] == [
         ("Harcamalarım", "toplam harcama, kategoriler, işyerleri ve ödemeler"),
@@ -104,11 +105,11 @@ def test_an_unclear_message_is_asked_and_the_tap_reruns_it_with_that_group():
     chat, selector, gateway, _ = service([], gateway=AccountGateway([MURAT_ACCOUNTS]), turns=[[ToolCall("get_accounts", {})]])
     chat.router = Router(FakeClassifier("unclear"), clock=lambda: 0.0)
 
-    asked = chat.answer("hesap durumum nasıl", TOKEN, DAY)
+    asked = chat.answer("durumum nasıl", TOKEN, DAY)
     reply = chat.answer("Hesabım ve para hareketlerim", TOKEN, DAY)
 
     assert (asked.type, asked.answer, [c.label for c in asked.choices]) == (
         "clarification", AREA_TEXT, ["Harcamalarım", "Hesabım ve para hareketlerim", "Bütçe ve tasarruf"])
-    assert selector.calls[0][0] == "hesap durumum nasıl (Hesabım ve para hareketlerim)"
+    assert selector.calls[0][0] == "durumum nasıl (Hesabım ve para hareketlerim)"
     assert [t["function"]["name"] for t in selector.calls[0][1]] == ["get_accounts", "search_transactions", "get_income", "get_transfers"]
     assert (reply.type, gateway.calls[0][:2]) == ("answer", ("get_accounts", {}))

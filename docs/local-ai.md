@@ -1385,3 +1385,40 @@ davranışı değiştirmez; yalnız ölçer.
   Soğuk modelin ilk vakası niyet sorusunun 5 sn sınırını aşabiliyor (o zaman genel grup).
 - **Kalan 4 yanlış (PR3):** "2 binin üstündeki" sınırı 2 TL (tutar okuyucu), "havale yaptıklarım" yönsüz, "kimlere para attım" işyeri dağılımı,
   "son 6 ayda aylık harcamam" aylık seri yerine toplam (model).
+
+## CHAT-12 PR3: serbest yazılış kuralları (17 Kasım 2026)
+
+PR2'den sonra modelle 4, modelsiz ölçümde 10 cümle başka aracın rakamını alıyordu. Her birinin kök nedeni kodda bulundu ve kapatıldı. Kararlar
+K1-C (her yanlışa kural; yalnız modelin niyet sorusuyla doğru giden altı bakiye/gelir cümlesi de, çünkü soğuk modelde 5 sn sınırı aşılınca genel
+gruba düşüyorlardı), K2-A ("para at-" transfer, yön yalnız birinci tekilden, istek biçimi kapsam dışı), K3-A (aylık seri kelimeleri modele yalnız
+o aracı gösterir, ay sayısını model yazar, seçmezse kod okur), K4-C (yazım hatası toleransı ayrı madde, CHAT-13), K5-B (embedding CHAT-13'te
+yeniden tartılır). Testler `ai/service/test_free_rules.py`.
+
+| Cümle | Önce | Neden | Şimdi |
+|---|---|---|---|
+| N36 "2 binin üstündeki harcamalarım geçen ay" | `minAmount: 2` | `grounding._SCALED` "binin" ekini bilmiyordu | 2.000 TL ("binin/milyonun/milyondan"; "-a" değil, "bina" tutar olmasın) |
+| N24 "havale yaptıklarım geçen ay" | yönsüz | `_SENT` yalnız "havale et" | Gönderilen ("havale/transfer yaptım/yaptığım/yaptıklarım") |
+| N19 "geçen ay kimlere para attım" | kapsam dışı / işyeri dağılımı | "kimlere" `\bkime\b`'ye uymuyor, "para at-" yok | transfer, Gönderilen; "Hasan para attı mı" yönsüz, "bana para atan" gelen |
+| "Selin'e para at" | (kural yok) | istek biçimi | kapsam dışı ("atar mısın", "atabilir misin", "atayım") |
+| N57 "son 6 ayda aylık harcamam" | modelle 6 aylık toplam | genel grupta 10 araç | `_TREND_WORDS` ("aylık harca", "ay ay", "aylara göre") → yalnız `get_monthly_trend`; "her ay" (N62) ve "geçen aya göre" değil |
+| N70 "nerelerde tasarruf ederim geçen ay" | tasarruf hesabı, yüzde soruldu | `_WEALTH_WORDS` "nerede" | tasarruf önerisi ("nerelerde/nelerde") |
+| N01, N02, N07, N08 (elimde/kartımda/hesapta ne kadar, kalan para, hesap durumu) | modelsiz yanlış kapı | kural yok | bakiye kuralı; bütçe kelimesiyle değil ("bütçemden kalan para" planlama) |
+| N14, N18 (hesaba para yattı, kazancım) | modelsiz yanlış kapı | kural yok | gelir kuralı ("kazanç", "kazandım", "para yattı/yatmış"); "yatırdım" değil |
+
+- **Aylık seri:** kelimeler seriyi seçince model yalnız `get_monthly_trend`'i görür. Model boş dönerse kod ay sayısını kullanıcının sözünden okur
+  (`routing.trend_months`: "son 6 ayda" 6, "son bir yılda" 12; 1–12 dışı ya da hiç yoksa) ve yoksa bugünkü sayı sorusu ("Kaç aylık bakayım?")
+  sorulur. Bulgu: kontrol (`check_arguments`) eksik zorunlu sayıyı sormuyor, aracı sayısız çalıştırırdı; soru bu yüzden açıkça kodda.
+- **Bilinçli değişen eski testler:** `test_chat_safety_net` "ne kadar tek başına modele gider" örnekleri ("elimde ne kadar para var", "kartımda
+  ne kadar var", "Hesapta kalan para", "hesap durumum nasıl") artık kurallı; yerlerine kural tutmayan cümleler kondu ("cüzdanımda ne kadar
+  var", "durumum nasıl"). `test_routing` "Harcamam aylara göre nasıl değişti?" artık yalnız aylık seri (yerine "geçen aya göre" genel kalır).
+  `test_free_eval` örnek cümlesi aynı nedenle değişti. `free_baseline.json` 10 cümle "yanlış" → "doğru".
+- **Doğrulama:** Python 1642 → 1705 modelsiz; ifade seti 1762 → 1844 (0 açık; yeni kalıplar `phrasing_templates.json`'da); 21 kasıtlı bozmanın
+  hepsi yakalandı (ilk turda iki "kimlere/kimlerden" bozması kaçtı: test cümleleri başka kelimeyle de eşleşiyordu, yalnız o kelimeye dayanan
+  cümleler eklendi). Serbest yazılış modelsiz **70/10 → 80 doğru, 0 yanlış**.
+- **Model ölçümü** (`qwen3.5:4b`, demo anı, yeni kodla MCP 5259 + AI 8010, `--pause 1`; sonunda `ollama stop`): araç seçimi **143/144** (yeni
+  P01–P07 7/7). Tek hata V01 Ollama'nın 30 sn zaman aşımı, yanlış araç değil: koşu boyunca Mac yavaştı (S01 dahil birçok vaka 18 sn, ortalama
+  4,3 sn; PR2'de 1,9), V01 tek başına yeniden koşulunca 4,1 sn'de doğru (S01 2,5 sn). Serbest yazılış modelle **79 doğru, 1 sordu, 0 cevapsız,
+  0 yanlış (%0)** (PR2'de 74/2/0/4, %5,0); "sordu" N60 "harcamalarım düşüyor mu" (model aylık seriyi seçti, uydurduğu ay sayısı soruldu; rota
+  PR2 ile aynı genel grup). Cevap doğruluğu **33/33**.
+- **Yazım hatası (K4-C):** `phrasings.py --typos` raporu 450 hatalı yazılışta 102 kırık (PR3 öncesi 429'da 92; yeni kalıpların hatalıları da
+  eklendi). Bazıları yanlış rakam ("Biriktirsydim ne olurdu?" tasarruf hesabına gidiyor) → CHAT-13.

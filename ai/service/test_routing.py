@@ -35,7 +35,8 @@ def route(message, previous=None, classifier=None):
     ("Faturalara ne kadar harcadım?", (GENERAL,)),
     ("Son 3 ayda Starbucks'a ne kadar verdim?", (GENERAL,)),
     ("Geçen aya göre nasılım?", (GENERAL,)),
-    ("Harcamam aylara göre nasıl değişti?", (GENERAL,)),
+    # "aylara göre" shows the trend alone since CHAT-12 PR3 (test_free_rules); "geçen aya göre" compares and is no series.
+    ("Harcamam geçen aya göre nasıl değişti?", (GENERAL,)),
     ("Transferlerim harcamaya dahil mi?", (GENERAL,)),          # a question about transfers, not a request
     ("Aboneliklerim neler?", (GENERAL,)),                      # payment words keep the model's classifier out of it
     ("Önümüzdeki 7 günde hangi ödemelerim var?", (GENERAL,)),

@@ -52,7 +52,8 @@ def test_a_case_runs_through_the_chat_service_itself_and_records_the_tools_shown
     # The balance needs no model (ACC-01b K2-C): the call is made by code, the model was shown nothing.
     assert (outcome, shown) == (Outcome("call", "get_accounts", {}), [])
 
-    outcome, shown = run_case("elimde ne kadar para var", CALL)
+    # A phrasing no rule knows goes to the general group without a model (CHAT-12 PR3 gave "elimde ne kadar para var" its rule).
+    outcome, shown = run_case("cüzdanımda ne kadar var", CALL)
     assert outcome.kind == "out_of_scope" and "get_accounts" not in shown[0]
 
 
