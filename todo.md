@@ -458,6 +458,11 @@ liste bağlantısı) K7-A (eski 121 vaka bozulmaz, yeni ≥ 14/16, cevap doğrul
   450 hatalı yazılışta 102 kırık (17 Kasım 2026). Yalnız tehlikeli sonuçlar ("yanlış": "Biriktirsydim ne olurdu?" → tasarruf hesabı, "Maşımın
   ne kadarını harcadım" → kapsam dışı) hedeflenir; "sordu" ve "cevapsız" güvenli sayılır. Kısa köklerde çakışma riski ("maaş"/"maş", "ay"/"al")
   önce ölçülür; embedding ancak kurallı yol yetmezse.
+  Kararlar K1-B K2-B K3-C K4-D K5-A K6-A K7-A K8-C K9-B K10-A. **PR1 ölçüm + yüzde cevabı (17 Kasım 2026, dal `chat-13a-measure-percent`;
+  docs/local-ai.md "CHAT-13 PR1"):** azaltma sorusuna tutar/süre cevabı ("5 bin lira" → %5) artık yeniden soruluyor; dört hata türü (eksik, yer
+  değiştirme, komşu tuş, çift harf), `phrasing_eval.py --typos-only`. Modelsiz 1800 hatalı yazılışta 33 yanlış / 202 cevapsız / 131 sordu; modelle
+  116'da 92 doğru, 9 sordu, 4 cevapsız, 11 yanlış (%9,5). Python 1733, 12 kasıtlı bozma yakalandı. PR2 hedefi: modelle yanlış 11 → 0 (kapalı
+  kelime listesi, "-saydım" eki, ay adı, kapı testi).
 
 ## 14. SwiftUI — çalışan endpoint üzerine küçük ekranlar
 

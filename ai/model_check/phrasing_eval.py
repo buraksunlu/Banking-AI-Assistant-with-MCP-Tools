@@ -3,6 +3,7 @@
 
 Usage (from the repository root, Ollama and the .NET MCP server running, .env loaded):
     ai/.venv/bin/python ai/model_check/phrasing_eval.py [--per-intent 5] [--seed 9] [--pause 1] [--typos]
+    ai/.venv/bin/python ai/model_check/phrasing_eval.py --typos-only [--per-intent 4]  # typos alone, right/asked/unanswered/wrong
     ai/.venv/bin/python ai/model_check/phrasing_eval.py --refresh-tools     # rewrite mcp_tools.json from the server, then stop
 
 The model-free test (test_phrasings.py) answers "does the code let the right answer through?"; this answers "does the model
@@ -28,6 +29,7 @@ from mcp_gateway import McpSettings, McpToolGateway  # noqa: E402
 from ollama_client import OllamaError, OllamaSettings  # noqa: E402
 from phrasings import GAPS_FILE, TOOLS_FILE, Outcome, expand, load, load_tools, matches, run_variant, sample  # noqa: E402
 from routing import Router  # noqa: E402
+from free_eval import BUCKETS, LABELS, bucket, summary  # noqa: E402
 from tool_selection_eval import demo_token  # noqa: E402
 
 
@@ -38,6 +40,8 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=9, help="the sample's seed (default 9)")
     parser.add_argument("--pause", type=float, default=0.0, help="seconds to wait before each phrasing")
     parser.add_argument("--typos", action="store_true", help="add one report-only typo phrasing per intent")
+    parser.add_argument("--typos-only", action="store_true",
+                        help="CHAT-13 K1-D: only typos (all four kinds), --per-intent of each intent, in CHAT-12's four buckets")
     parser.add_argument("--refresh-tools", action="store_true", help="write the published tools to mcp_tools.json and stop")
     args = parser.parse_args()
 
@@ -59,10 +63,16 @@ def main() -> int:
     interpreter = chat.LangChainDateInterpreter(settings)
     gaps = json.loads(GAPS_FILE.read_text(encoding="utf-8"))["gaps"]
 
-    variants = expand(load(), typos=args.typos)
-    chosen = sample(variants, args.per_intent, args.seed)
+    variants = expand(load(), typos=args.typos or args.typos_only)
+    if args.typos_only:
+        chosen = sample(variants, args.per_intent, args.seed, gating=False)
+    else:
+        chosen = sample(variants, args.per_intent, args.seed)
     if args.typos:
         chosen += sample(variants, 1, args.seed, gating=False)
+    # The model-free outcome of each typo, so the report shows which ones the model itself rescued.
+    modelless = {v.id: matches(v.expected, run_variant(v)) for v in chosen} if args.typos_only else {}
+    buckets = []
 
     print(f"## Phrasing eval: {model}, prompt {prompts.TOOL_PROMPT_VERSION}, intent {prompts.INTENT_PROMPT_VERSION}, "
           f"{len(chosen)} phrasings (seed {args.seed})\n")
@@ -87,9 +97,21 @@ def main() -> int:
                 table[key][1] += 1
         result = "pass" if ok else ("gap" if variant.id in gaps else "FAIL")
         result += "" if variant.gating else " (typo)"
+        if args.typos_only:
+            # The model ran, so a tool the model was not shown is no wrong answer of its own (modelless=False).
+            buckets.append((variant.transform, bucket(variant.expected, outcome, [], modelless=False)))
+            result = f"{LABELS[buckets[-1][1]]}{'' if modelless[variant.id] else ' (modelsiz kırık)'}"
         got = f"{outcome.tool}({json.dumps(outcome.arguments, ensure_ascii=False)})" if outcome.kind == "call" else outcome.kind
         print(f"| {variant.id} | {result} | {seconds:.1f} | {' / '.join(variant.turns)} | {got} |")
 
+    if args.typos_only:
+        counts = summary([b for _, b in buckets])
+        print(f"\n**{' · '.join(f'{LABELS[k]} {counts[k]}' for k in BUCKETS)}** of {counts['total']}; wrong {counts['wrongShare']} %, "
+              f"average {total_time / len(chosen):.1f} s per phrasing\n")
+        print("| Typo | " + " | ".join(LABELS[k] for k in BUCKETS) + " |\n|---|---|---|---|---|")
+        for kind in dict.fromkeys(k for k, _ in buckets):
+            print(f"| {kind} | " + " | ".join(str(sum(1 for t, b in buckets if t == kind and b == k)) for k in BUCKETS) + " |")
+        return 0
     gating = sum(v.gating for v in chosen)
     print(f"\n**{passed}/{gating}** gating, average {total_time / len(chosen):.1f} s per phrasing\n")
     for title, table in (("Intent", by_intent), ("Transformation", by_transform)):

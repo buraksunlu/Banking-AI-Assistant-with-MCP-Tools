@@ -10,7 +10,7 @@ import pytest
 
 from chat import ToolCall
 from conversation import LastCall
-from phrasings import (DAY, GAPS_FILE, TOOLS_FILE, Captured, OracleSelector, Outcome, ProbeGateway, Variant, expand,
+from phrasings import (DAY, GAPS_FILE, KEY_NEIGHBOURS, TOOLS_FILE, TYPOS, Captured, OracleSelector, Outcome, ProbeGateway, Variant, expand,
                        load_tools, matches, outcome_of, probe, run_variant, sample, turkish_lower, turkish_upper, transform)
 from prompts import ADVICE_DECLINED_TEXT, CLARIFY_TEXT, LIRA_ONLY_TEXT, OUT_OF_SCOPE_TEXT
 from chat import ChatReply, DATE_UNSUPPORTED_TEXT
@@ -53,6 +53,38 @@ def test_a_typo_drops_one_letter_of_a_long_word_and_the_same_seed_drops_the_same
     assert once.split()[:2] == ["Geçen", "ay"]                     # short words keep their letters
 
 
+# CHAT-13 K8-C: a dropped letter is not the only typo people make; the measurement had tuned to one kind.
+SENTENCE = "Geçen ay harcamalarımı biriktirseydim"
+
+
+@pytest.mark.parametrize("name", TYPOS)
+def test_every_typo_kind_changes_one_long_word_and_the_same_seed_changes_the_same_one(name):
+    once, again = transform(name, SENTENCE, "a"), transform(name, SENTENCE, "a")
+    assert once == again and once != SENTENCE
+    changed = [(old, new) for old, new in zip(SENTENCE.split(), once.split()) if old != new]
+    assert len(changed) == 1 and len(changed[0][0]) >= 6
+    assert once.split()[:2] == ["Geçen", "ay"]
+
+
+def test_the_first_kind_writes_the_texts_it_wrote_before_chat_13():
+    # The typo report of 16-17 Nov 2026 is compared with later runs; the new kinds must not move the old texts.
+    assert transform("typo", SENTENCE, "a") == "Geçen ay harcamalarımı biriktirsedim"
+
+
+def test_each_typo_kind_is_the_mistake_it_names():
+    def changed(name):
+        return next((old, new) for old, new in zip(SENTENCE.split(), transform(name, SENTENCE, "a").split()) if old != new)
+
+    old, new = changed("typo_swap")
+    assert sorted(old) == sorted(new) and [i for i in range(len(old)) if old[i] != new[i]] in ([i, i + 1] for i in range(len(old)))
+    old, new = changed("typo_double")
+    assert len(new) == len(old) + 1 and any(new[:i] + new[i + 1:] == old and new[i] == new[i - 1] for i in range(1, len(new)))
+    old, new = changed("typo_key")
+    assert len(new) == len(old)
+    (was, now), = [(a, b) for a, b in zip(old, new) if a != b]
+    assert now in KEY_NEIGHBOURS[was]
+
+
 def test_turkish_case_keeps_the_dotted_and_dotless_i_apart():
     assert turkish_upper("ılık iş") == "ILIK İŞ"
     assert turkish_lower("ILIK İŞ") == "ılık iş"
@@ -86,9 +118,9 @@ def test_every_phrasing_gets_each_transformation_once_and_identical_texts_are_no
 
 
 def test_typos_are_only_made_when_asked_and_never_gate():
-    assert all(v.transform != "typo" for v in expand(DATA))
-    typos = [v for v in expand(DATA, typos=True) if v.transform == "typo"]
-    assert typos and all(not v.gating for v in typos)
+    assert all(v.transform not in TYPOS for v in expand(DATA))
+    typos = [v for v in expand(DATA, typos=True) if v.transform in TYPOS]
+    assert {v.transform for v in typos} == set(TYPOS) and all(not v.gating for v in typos)
     assert all(v.gating for v in expand(DATA))
 
 
@@ -106,7 +138,7 @@ def test_a_sample_takes_the_same_phrasings_every_time_and_at_most_the_given_numb
     assert max(sum(v.intent == intent for v in first) for intent in {v.intent for v in first}) <= 2
     assert all(v.gating for v in first)
     typos = sample(expand(DATA, typos=True), 1, seed=7, gating=False)
-    assert typos and all(v.transform == "typo" for v in typos)
+    assert typos and all(v.transform in TYPOS for v in typos)
 
 
 # --- Outcome of a turn -------------------------------------------------------------------------------------------------------

@@ -937,6 +937,9 @@ Her önemli geliştirme sonunda mevcut proje durumunu takip et.
 Şunları güncel tut:
 
 COMPLETED
+- Yazım hatası ölçümü ve yüzde cevabı (CHAT-13 PR1, 17 Kasım 2026; docs/local-ai.md "CHAT-13 PR1"): azaltma sorusuna verilen tutar ya da süre
+  yüzde sayılmıyor ("5 bin lira" %5 azaltma hesaplıyordu), yeniden soruluyor. Dört hata türüyle ölçüm: modelle hatalı yazılışta %9,5 yanlış
+  (hatasızda %0); PR2 kapalı kelime listesiyle düzeltme. Python 1733.
 - bitmiş feature'lar
 - Belirli tarih ve aralık CHAT-08, PR2 kalıplar + akış (23 Ekim 2026, dal `chat-08-dates-read`; docs/local-ai.md "Tarihli sorular"):
   `dates.read_dates` (modelsiz; tek gün, aralık, ay, tam `gg.aa.yyyy`; yıl yoksa en yakın geçmiş; geçersiz/okunamayan ayrı), araç seçici tarih
