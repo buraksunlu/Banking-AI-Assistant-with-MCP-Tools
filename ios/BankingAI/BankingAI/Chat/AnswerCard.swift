@@ -41,7 +41,7 @@ struct AnswerCard: View {
             if let transactions {
                 CardTransactions(link: transactions, list: list)
             }
-            if CardDisplay.showsSentence(withTransactions: transactions != nil) {
+            if CardDisplay.showsSentence(card.sentence, withTransactions: transactions != nil) {
                 Text(card.sentence)
                     .font(Typography.body)
                     .foregroundStyle(Palette.primaryText.color)
@@ -166,18 +166,26 @@ private struct BarsBlock: View {
                             .font(Typography.body)
                             .foregroundStyle(Palette.primaryText.color)
                         if !textSize.isAccessibilitySize { Spacer(minLength: Layout.small) }
-                        HStack(spacing: Layout.tight) {
-                            if let direction = row.direction, let symbol = CardDisplay.symbol(direction) {
-                                Image(systemName: symbol).font(.caption).accessibilityHidden(true)
+                        VStack(alignment: textSize.isAccessibilitySize ? .leading : .trailing, spacing: 0) {
+                            HStack(spacing: Layout.tight) {
+                                if let direction = row.direction, let symbol = CardDisplay.symbol(direction) {
+                                    Image(systemName: symbol).font(.caption).accessibilityHidden(true)
+                                }
+                                Text(row.text).font(Typography.body.monospacedDigit())
                             }
-                            Text(row.text).font(Typography.body.monospacedDigit())
+                            .foregroundStyle(Palette.primaryText.color)
+                            // Simulator trial 17 Nov 2026: the share of the income on its own line; on the amount's line the row broke.
+                            if !row.detail.isEmpty {
+                                Text(row.detail)
+                                    .font(Typography.caption.monospacedDigit())
+                                    .foregroundStyle(Palette.secondaryText.color)
+                            }
                         }
-                        .foregroundStyle(Palette.primaryText.color)
                     }
                     ShareBar(fraction: CardDisplay.fraction(row.share), color: Palette.accent.color)
                 }
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("\(row.label), \(row.text)")
+                .accessibilityLabel(row.detail.isEmpty ? "\(row.label), \(row.text)" : "\(row.label), \(row.text), \(row.detail)")
             }
         }
     }

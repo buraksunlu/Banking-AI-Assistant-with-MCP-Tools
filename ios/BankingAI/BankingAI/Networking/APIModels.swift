@@ -161,6 +161,27 @@ struct CardBar: Decodable, Equatable, Hashable {
     let text: String
     let share: Double
     let direction: CardDirection?
+    /// A smaller second line under the amount ("gelirin %60,31"; simulator trial 17 Nov 2026); empty from an older API.
+    let detail: String
+
+    private enum Keys: String, CodingKey { case label, text, share, direction, detail }
+
+    init(label: String, text: String, share: Double, direction: CardDirection?, detail: String = "") {
+        self.label = label
+        self.text = text
+        self.share = share
+        self.direction = direction
+        self.detail = detail
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: Keys.self)
+        label = try values.decode(String.self, forKey: .label)
+        text = try values.decode(String.self, forKey: .text)
+        share = try values.decode(Double.self, forKey: .share)
+        direction = try values.decodeIfPresent(CardDirection.self, forKey: .direction)
+        detail = try values.decodeIfPresent(String.self, forKey: .detail) ?? ""
+    }
 }
 
 /// A month of a series; `partial` is the running month, drawn apart from the whole ones.

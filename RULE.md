@@ -937,6 +937,10 @@ Her önemli geliştirme sonunda mevcut proje durumunu takip et.
 Şunları güncel tut:
 
 COMPLETED
+- Simülatör bulguları (17 Kasım 2026, `fix/chat-sim-findings`; docs/local-ai.md "Simülatör bulguları"): bakiye kartında cümle yok; tamamlanmış ay
+  sorusu son üç tam ayı satır olarak gösterir; öneri kartında oran tutarın altında ayrı satır (`detail`); modelin tahmin ettiği kategori toplam
+  harcamaya döner, bilinmeyen argümana ay sayısı sorulmaz; bekleyen soruya dönemli kısa cevap özgün soruyla okunur, soru sonrası eski çağrı bağlam
+  olmaz; "nerelere" korunur. Ölçüm 144/144, serbest 0 yanlış, hatalı yazılış 0 yanlış, cevap 33/33. Python 1833, Api 624, iOS 438.
 - Yazım düzeltmesi (CHAT-13 PR2, 17 Kasım 2026; docs/local-ai.md "CHAT-13 PR2"): mesaj, kuralların aradığı köklerin kapalı listesine bir harf
   uzaklıkta düzeltilir (adlar, rakamlar, gerçek kelimeler değil); ne olurdu eki toleranslı, ay adı yalnız yazıldığı gibi dönem. Modelle hatalı
   yazılışta yanlış %9,5 → %0,9; araç seçimi 144/144, serbest yazılış 0 yanlış, cevap 33/33. Python 1810. CHAT-13 tamam; embedding kullanıcı onayıyla kapatıldı (gerekmedi).

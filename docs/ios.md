@@ -908,3 +908,9 @@ gönderir; tutar API'nin okuduğu biçimde (`NSDecimalNumber.stringValue`: "2000
 ("Gönderilen transferler" / "Gelen transferler"), kişiyi ve tutar sınırını ("2.000,00 TL ve üstü", `Money` ile) söyler; telefon hesap
 yapmaz. Testler: iOS 426 → 435 test durumu (`ChatLinkTests`); 4 kasıtlı bozma yakalandı (yön gönderilmez, tutar yuvarlanır, başlıkta kişi
 yok, en az tutar geçmez). Simülatörde denenmedi.
+
+## iOS-ab: cümlesiz kart ve satırın ikinci metni (simülatör bulguları; 17 Kasım 2026)
+
+`AnswerBar` artık isteğe bağlı bir `detail` alanı okur (yoksa boş). `CardDisplay` bu alanı tutarın altında küçük ikinci satır olarak gösterir; öneri
+kartında "gelirin %60,31" burada durur, dar ekranda satır kırılmaz. Cümlesi boş gelen kart (bakiye) alt cümle göstermez. Testler: iOS 435 → 438
+test durumu (`AnswerCardTests`); 1 kasıtlı bozma yakalandı.

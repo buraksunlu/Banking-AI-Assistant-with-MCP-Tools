@@ -336,7 +336,9 @@ def test_every_question_offers_its_options_as_choices():
     # PR3b D7-A (simulator trial, 12 Nov 2026): one set of examples for every amount question.
     assert [c.label for c in choices(AMOUNT)] == ["1.000 TL", "5.000 TL", "10.000 TL"]
     assert [c.label for c in choices(MONTHLY)] == ["1.000 TL", "5.000 TL", "10.000 TL"]
-    assert [c.label for c in choices(LAST_MONTH)] == ["geçen ay (Ekim)"]
+    # Simulator trial 17 Nov 2026 (K2-B): the last three complete months, and a row to write another one.
+    assert [c.label for c in choices(LAST_MONTH)] == ["Ekim 2026", "Eylül 2026", "Ağustos 2026"]
+    assert input_hint(LAST_MONTH) == "Başka bir ay yazın"
     # INV-03 K4-A: a saving's duration, said the way people say it (not "son 3 ay", which is a period).
     assert [c.label for c in choices(DURATION)] == ["3 ay", "6 ay", "12 ay"]
 
@@ -348,8 +350,9 @@ def test_only_the_two_calculations_carry_a_detail():
     assert all(c.detail == "" for p in (PERIOD, MONTHS, CITY, CURRENCY, PERCENT, AMOUNT) for c in choices(p))
 
 
-@pytest.mark.parametrize("pending", [PERIOD, MONTHS, CITY, CURRENCY, PERCENT, AMOUNT, MONTHLY, LAST_MONTH, DURATION],
-                         ids=["period", "count", "merchant", "currency", "percent", "amount", "monthly", "complete-month", "duration"])
+# The whole-month rows ("Eylül 2026") are read by the chat's date reader like a written month (test_sim_findings), not here.
+@pytest.mark.parametrize("pending", [PERIOD, MONTHS, CITY, CURRENCY, PERCENT, AMOUNT, MONTHLY, DURATION],
+                         ids=["period", "count", "merchant", "currency", "percent", "amount", "monthly", "duration"])
 def test_tapping_a_choice_sends_its_label_and_the_code_reads_it_as_that_option(pending):
     # K6-A: the app sends the label as written; each one must complete the call with the option's own value.
     for option, choice in zip(pending.options, choices(pending), strict=True):
@@ -371,7 +374,9 @@ def test_only_an_amount_question_invites_an_amount_of_ones_own():
     # PR3b D6-A: the app draws this as the card's last row, which opens the keyboard instead of sending anything.
     assert input_hint(AMOUNT) == input_hint(MONTHLY) == "Başka bir tutar yazın"
     assert input_hint(DURATION) == "Başka bir süre yazın (2–22 ay)"
-    assert all(input_hint(p) == "" for p in (PERIOD, MONTHS, CITY, CURRENCY, PERCENT, LAST_MONTH, TOPIC))
+    assert all(input_hint(p) == "" for p in (PERIOD, MONTHS, CITY, CURRENCY, PERCENT, TOPIC))
+    # Simulator trial 17 Nov 2026 (K2-B): the whole-month question invites a month of one's own.
+    assert input_hint(LAST_MONTH) == "Başka bir ay yazın"
 
 
 @pytest.mark.parametrize("pending", [TOPIC], ids=["topic"])

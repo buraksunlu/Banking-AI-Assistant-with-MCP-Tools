@@ -9,11 +9,11 @@ no card, never an error: the text answer still stands.
 
 import calendar
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from decimal import ROUND_HALF_UP, Decimal
 
-from facts import (ACCOUNT_KINDS, BUDGET_RULE, GROUP_LABELS, NO_PRICE, RECURRING_RULE, SAVINGS_RULE, UNCLASSIFIED, UPCOMING_RULE, alternatives_line,
+from facts import (ACCOUNT_KINDS, BUDGET_RULE, NO_PRICE, RECURRING_RULE, SAVINGS_RULE, UNCLASSIFIED, UPCOMING_RULE, alternatives_line,
                    asset_name, change_text, limit_text, volatility_facts, when as _when)
 from formatting import day, money, month, percent, period
 
@@ -54,6 +54,8 @@ class Bar:
     text: str
     share: Decimal
     direction: str | None = None
+    # Simulator trial 17 Nov 2026 (K3-C): a second, smaller line under the amount ("gelirin %60,31"); the row broke with both on it.
+    detail: str = ""
 
 
 @dataclass(frozen=True)
@@ -136,7 +138,7 @@ def card_texts(card: Card) -> list[str]:
     if card.change is not None:
         texts += [card.change.against, card.change.against_text, card.change.text]
     for block in (*card.simple, *card.detailed):
-        texts += [t for bar in block.rows for t in (bar.label, bar.text)]
+        texts += [t for bar in block.rows for t in (bar.label, bar.text, bar.detail)]
         texts += [t for point in block.points for t in (point.label, point.text)]
         texts += [t for stat in block.items for t in (stat.label, stat.text)]
         texts += [t for entry in block.entries for t in (entry.label, entry.detail, entry.text)]
@@ -357,17 +359,22 @@ def _income(arguments: dict, result: dict, row: dict, suffix: str) -> Card:
                 f"Gelirinizin {share} kadarını harcadınız.")
 
 
+# K3-C (simulator trial): the advice card's row labels; the facts keep the long ones (facts.GROUP_LABELS) for the explanation.
+_GROUP_SHORT = {"Essential": "Temel", "Discretionary": "İsteğe bağlı", "Unknown": "Diğer"}
+
+
 def _advice(arguments: dict, result: dict, row: dict, suffix: str) -> Card:
     currency, groups = row["currencyCode"], row["groups"]
-    bars = _bars([(GROUP_LABELS[g["group"]], g["amount"], f"{money(g['amount'], currency)} · gelirin {percent(g['incomeShare'])}", None)
-                  for g in groups])
+    # K3-C (simulator trial): short labels; the share of the income on its own line under the amount.
+    bars = [replace(bar, detail=f"gelirin {percent(g['incomeShare'])}")
+            for bar, g in zip(_bars([(_GROUP_SHORT[g["group"]], g["amount"], money(g["amount"], currency), None) for g in groups]), groups)]
     free = next((g for g in groups if g["group"] == "Discretionary"), None)
     sentence = (f"İsteğe bağlı harcama gelirin {percent(free['incomeShare'])} kadarı." if free
                 else f"Toplam harcama {money(row['totalSpent'], currency)}.")
     # K18-C: the backend's own sentences as written, or why there is none; P3-A: always shown.
     limit = result["thresholds"]["discretionaryLimitPercent"]
     notes = tuple(a["message"] for a in row["advice"]) or (
-        f"Yok: isteğe bağlı harcama gelirin %{limit} sınırının altında ve hiçbir kategori olağan ayından belirgin ölçüde sapmadı.",)
+        f"Öneri yok: isteğe bağlı harcamanız gelirin %{limit} sınırının altında ve hiçbir kategori olağan ayından belirgin ölçüde sapmadı.",)
     return Card(f"Harcama önerisi · {_label(result['period'])}{suffix}", _headline(row["totalSpent"], currency), None, _part(bars), (),
                 sentence, notes)
 
@@ -437,7 +444,6 @@ _WHOLE_BUILDERS = {
 }
 
 
-_ACCOUNT_OWNED = {"Personal": "Kişisel hesaplarınızda", "Business": "İşletme hesaplarınızda"}
 # ACC-01b K5-B: what each total of a list tool is called on its card, and how its sentence counts the rows.
 _LISTING_TITLES = {("get_income", "Credit"): "Gelir", ("get_transfers", "Debit"): "Gönderilen", ("get_transfers", "Credit"): "Gelen"}
 _LISTING_SENTENCES = {("search_transactions", "Debit"): "{count} harcama", ("get_income", "Credit"): "{count} gelir",
@@ -453,9 +459,9 @@ def _accounts(result: dict) -> list[Card]:
         currency, kind = t["currencyCode"], ACCOUNT_KINDS[t["accountType"]]
         entries = [Entry(a["accountName"], a["shortNumber"], money(a["balance"], currency)) for a in result["accounts"]
                    if a["accountType"] == t["accountType"] and a["currencyCode"] == currency]
-        total = money(t["balance"], currency)
         cards.append(Card(f"{kind}{f' ({currency})' if several else ''}", _headline(t["balance"], currency), None,
-                          _list(entries[:SIMPLE_ROWS]), _list(entries[SIMPLE_ROWS:]), f"{_ACCOUNT_OWNED[t['accountType']]} toplam {total} var."))
+                          # K1-A (simulator trial): no sentence; it only repeated the figure above it.
+                          _list(entries[:SIMPLE_ROWS]), _list(entries[SIMPLE_ROWS:]), ""))
     return cards
 
 

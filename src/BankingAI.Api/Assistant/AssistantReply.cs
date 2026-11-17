@@ -50,9 +50,10 @@ public sealed record CardChange(decimal? Percent, string Direction, string Again
 
 /// <summary>
 /// One row of a <c>bars</c> block: <c>share</c> is the bar's length from 0 to 1 and is never shown as text; <c>direction</c>
-/// is set only for a change (<c>up</c>, <c>down</c>).
+/// is set only for a change (<c>up</c>, <c>down</c>); <c>detail</c> is a smaller second line under the amount ("gelirin %60,31"),
+/// empty when there is none.
 /// </summary>
-public sealed record CardBar(string Label, decimal Amount, string Text, decimal Share, string? Direction);
+public sealed record CardBar(string Label, decimal Amount, string Text, decimal Share, string? Direction, string Detail);
 
 /// <summary>One month of a <c>series</c> block; <c>partial</c> marks the running month.</summary>
 public sealed record CardPoint(string Label, decimal Amount, string Text, decimal Share, bool Partial);
