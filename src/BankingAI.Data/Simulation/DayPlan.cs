@@ -16,7 +16,7 @@ namespace BankingAI.Data.Simulation;
 /// or monthly habit of the fixed year ("one or two market visits a week") becomes the daily chance with the same average.
 /// Ada, Deniz and Ege, the hand-computed demo customers, are not part of it (S1-A).
 /// </remarks>
-public static class DayPlan
+public static partial class DayPlan
 {
     private static readonly TimeZoneInfo Berlin = TimeZoneInfo.FindSystemTimeZoneById("Europe/Berlin");
     private static readonly TimeSpan Istanbul = TimeSpan.FromHours(3);
@@ -54,6 +54,7 @@ public static class DayPlan
         plan.HasanDay();
         plan.ElifDay();
         plan.CanDay();
+        plan.MuratExtras();
         return plan.Ordered();
     }
 
@@ -68,7 +69,7 @@ public static class DayPlan
         return [.. result.OrderBy(p => p.At).ThenBy(p => p.Kind == TransactionKind.Purchase ? 1 : 0)];
     }
 
-    private sealed class Builder(DateOnly day)
+    private sealed partial class Builder(DateOnly day)
     {
         private readonly List<PlannedTransaction> _plan = [];
         private readonly bool _weekday = day.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday);
@@ -125,17 +126,28 @@ public static class DayPlan
                 Buy(Murat, Power[day.Month - 1], "TRY", "ELEKTRIK FATURA TAHSILATI", "Elektrik Faturası", Bills, At(9, 30), "murat-power");
             });
             OnDay(22, () => Buy(Murat, 380m, "TRY", "SU FATURA TAHSILATI", "Su Faturası", Bills, At(9, 0), "murat-water"));
+            MuratCalendar(42500m);
+            MuratHabits(Rng(Murat));
+        }
+
+        // The yearly events of Murat's calendar; the bonus is the year's own.
+        private void MuratCalendar(decimal bonus)
+        {
             // RT-05a calendar: the republic-day holiday, the paediatrician, Black Friday, the bonus and the presents, the half-term
             // holiday booked in January (a travel month far above the usual one), school shopping at Can's shop.
             OnDate(10, 20, () => Buy(Murat, 14800m, "TRY", "OTEL REZERVASYONU", "Otel", Travel, At(21, 14), "murat-holiday"));
             OnDate(11, 10, () => Buy(Murat, 1400m, "TRY", "COCUK DOKTORU MUAYENE", "Çocuk Doktoru", Health, At(17, 42), "murat-doctor"));
             if (IsBlackFriday)
                 Buy(Murat, 21999m, "TRY", "TEKNOSA ONLINE SIPARIS", "Teknosa", Other, At(10, 12), "murat-black-friday");
-            OnDate(12, 15, () => Income(Murat, 42500m, "TRY", "İkramiye ödemesi", At(9, 0), "murat-bonus"));
+            OnDate(12, 15, () => Income(Murat, bonus, "TRY", "İkramiye ödemesi", At(9, 0), "murat-bonus"));
             OnDate(12, 27, () => Buy(Murat, 1850m, "TRY", "POS OYUNCAKCI ATASEHIR", "Oyuncakçı", Entertainment, At(16, 27), "murat-presents"));
             OnDate(1, 10, () => Buy(Murat, 26000m, "TRY", "OTEL REZERVASYONU", "Otel", Travel, At(20, 51), "murat-half-term"));
             OnDate(9, 8, () => ShopBuy(Murat, 2500m, At(18, 33), "murat-school"));
-            var rng = Rng(Murat);
+        }
+
+        // Murat's everyday habits; the draws keep their order, so a day already written to the live database is planned again unchanged.
+        private void MuratHabits(Random rng)
+        {
             // One or two market visits a week at four chains: 1,5 a week.
             for (var visit = 0; visit < 2; visit++)
             {

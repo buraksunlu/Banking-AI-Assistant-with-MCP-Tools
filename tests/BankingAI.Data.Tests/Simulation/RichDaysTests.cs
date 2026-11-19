@@ -34,8 +34,9 @@ public class RichDaysTests
 
         // T4-A: there is no electronics category; the television is "Diğer".
         Assert.Equal((Murat, 21999m, Other), Select(Assert.Single(plan, p => p.Merchant == "Teknosa")));
-        Assert.Equal((ZeynepTry, 4850m, Clothing), Select(Assert.Single(plan, p => p.Merchant == "Zara")));
-        Assert.DoesNotContain(week, p => p.Merchant is "Teknosa" or "Zara");
+        Assert.Equal((ZeynepTry, 4850m, Clothing), Select(Assert.Single(plan, p => p.Merchant == "Zara" && p.AccountId == ZeynepTry)));
+        // DEMO-01: Murat's own Zara habit may fall in any week; the Black Friday order is Zeynep's.
+        Assert.DoesNotContain(week, p => p.Merchant == "Teknosa" || (p.Merchant == "Zara" && p.AccountId == ZeynepTry));
     }
 
     [Fact]
@@ -114,7 +115,7 @@ public class RichDaysTests
         var window = DayPlan.Between(SyntheticTransactionSeeder.RealisticCutoff, new DateTimeOffset(2026, 11, 16, 9, 0, 0, TimeSpan.Zero));
 
         Assert.Equal(14800m, Assert.Single(window, p => p.Merchant == "Otel").Amount);
-        Assert.Equal((Selin, 750m, Entertainment), Select(Assert.Single(window, p => p.Merchant == "Biletix")));
+        Assert.Equal((Selin, 750m, Entertainment), Select(Assert.Single(window, p => p.Merchant == "Biletix" && p.AccountId == Selin)));
         Assert.Equal((Murat, 1400m, Health), Select(Assert.Single(window, p => p.Merchant == "Çocuk Doktoru")));
         var project = Assert.Single(window, p => p.AccountId == ZeynepUsd && p.Kind == TransactionKind.Salary && p.At.Month == 11 && p.At.Day == 5);
         Assert.Equal((2400m, "USD"), (project.Amount, project.Currency));
