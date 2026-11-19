@@ -926,6 +926,8 @@ test durumu (`AnswerCardTests`); 1 kasıtlı bozma yakalandı.
 - İşlem detayı (`TransactionDetailView(item:insight:)`): `GET /api/transactions/{id}/insight`; rutin etiketi, rutin olmayan isteğe bağlı
   TL harcamada "Bu harcama yatırılsaydı" kartı, değilse backend'in notu ("Rutin ödeme", "Temel harcama", "Karşılaştırmak için erken" …).
   Döküm satırları detayı açık hedefle açar (sohbet yığınında `TransactionItem` hedefi tanımlı değil); Profil yığınındaki detay da insight alır.
+- Simülatör bulgusu (19 Kasım 2026): az sonuçlu cevapta (≤ 5 işlem) kart işlemleri kendi içinde gösterir ve "İşlemleri gör" çıkmaz;
+  bu yüzden kart içindeki satırlar da (`CardTransactions`) aynı detayı insight'la açar ("28 Ekim'de Trendyol" → yatırım kartı).
 - Telefon toplama/yüzde yapmaz; bilinmeyen `reason` çözümleme hatasıdır (tahmin edilmez). Testler `BreakdownTests` (iOS 438 → 454 test
   durumu); kasıtlı bozmalar: etiket, fark işareti, `periodTooLong` dalı yakalandı; `minAmount` koşulu tek başına yakalanmaz (backend tutar
   sınırını hep para birimiyle gönderir, `currencyCode` koşulu aynı bağlantıyı zaten düz listeye bırakır).

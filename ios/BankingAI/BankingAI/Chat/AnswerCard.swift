@@ -86,8 +86,8 @@ private struct MoreLine: View {
     }
 }
 
-/// The answer's transactions inside its card (Bulgu 1): the first page of the link's own search, its first five rows, and the
-/// whole list when there are more. The rows and the count are the backend's; the phone adds nothing up.
+/// The answer's transactions inside its card (Bulgu 1): the first page of the link's own search, its first five rows (each opens
+/// its detail), and the whole list when there are more. The rows and the count are the backend's; the phone adds nothing up.
 private struct CardTransactions: View {
     let link: AssistantLink
     let list: (AssistantLink) -> TransactionHistoryViewModel
@@ -115,8 +115,16 @@ private struct CardTransactions: View {
             } else {
                 ForEach(Array(model.items.prefix(CardDisplay.previewRows))) { item in
                     HairlineDivider()
-                    TransactionRow(item: item)
-                        .padding(.vertical, Layout.small)
+                    // A short answer shows its rows here and has no "see all" link, so the row itself opens the detail
+                    // and its investment comparison (DEMO-02 simulator finding).
+                    NavigationLink {
+                        TransactionDetailView(item: item, insight: insight(item))
+                    } label: {
+                        TransactionRow(item: item)
+                            .padding(.vertical, Layout.small)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
                 if let title = CardDisplay.allTransactionsTitle(total: model.totalCount) {
                     HairlineDivider()
