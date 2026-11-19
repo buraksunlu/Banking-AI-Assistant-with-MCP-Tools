@@ -33,4 +33,18 @@ public class LiveSimulatorTests
 
         LiveSimulator.EnsureLive(db);
     }
+
+    // DEMO-01: the catch-up writes Murat's history before the fixed year too, and still nothing after the moment asked for.
+    [Fact]
+    public void The_catch_up_plan_starts_with_murats_history()
+    {
+        var until = new DateTimeOffset(2026, 11, 19, 21, 0, 0, TimeSpan.Zero);
+
+        var plan = LiveSimulator.PlanUntil(until);
+
+        Assert.Equal(new DateTimeOffset(2024, 5, 15, 6, 0, 0, TimeSpan.Zero), plan[0].At);
+        Assert.True(plan[^1].At <= until);
+        Assert.Contains(plan, p => p.At > Seeding.SyntheticTransactionSeeder.RealisticCutoff);
+        Assert.Equal(plan.Count, plan.Select(p => p.Id).Distinct().Count());
+    }
 }

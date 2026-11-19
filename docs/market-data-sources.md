@@ -319,3 +319,10 @@ Elle hesap ve DB aynı: 2024-11-11 = 2.920,95013324; 2025-03-28 = 3.735,14067798
 
 Sınırlar: değer referanstır, kuyumcu alış/satış fiyatı değildir; gold-api günü UTC, TCMB günü İstanbul; gold-api özel
 sağlayıcıdır (ücretsiz plan, saatte 10 geçmiş isteği) ve anahtar gerektirir; güncelleme elle.
+
+### DEMO-01: canlı veritabanında uzatılmış aralık (19 Kasım 2026)
+
+Yalnız `bankingai_live`: TCMB 2024-05-01 … 2024-11-10 ve 2026-11-07 … 2026-11-18 indirildi, gold-api tek parça 2024-05-01 … 2026-11-18 (884 gün;
+gold-api istenen bitişin ertesi gününü de döndürüyor, indirici aralık dışı günü reddettiği için iki parçalı istek kaydedilmedi). İçe aktarma
+canlıya: TCMB eklenen 276 / değişmeyen 990, altın eklenen 138 / değişmeyen 495, çelişki 0. Canlı 1.899 satır (2024-05-02 … 2026-11-18);
+sabit veritabanı 1.485 satırda kaldı.

@@ -1388,6 +1388,10 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Murat demo verisi (DEMO-01, 19 Kasım 2026, `demo-01-murat-data`; docs/synthetic-seed.md "DEMO-01"): yalnız canlıda 15 Mayıs 2024 – bugün,
+  taksit/abonelik/rutin dışı/transfer/belirli gün; sabit DB ve fixture'lar değişmedi; canlıya yazılmış gün planı altın dosyayla kilitli.
+  1.796 işlem yazıldı (Murat 2.053, 8 rutin ödeme, Ekim 2026'ya 2 öneri); fiyatlar canlıda Mayıs 2024'ten. Sıradaki DEMO-02 (rutin / rutin
+  olmayan + öneri), DEMO-03 (ana ekran yaklaşan rutin ödemeler). Data 225, Application 534.
 - Müşteri izolasyonu (SEC-02, 19 Kasım 2026, `sec-02-isolation`; docs/security.md "SEC-02"): API ve MCP'de tek izolasyon seti. API: hesap/işlem
   kimliği alan her uç route tablosundan bulunur; başka müşterinin kimliği olmayan kimlikle birebir aynı 404 (traceId hariç), yazma ters
   kurulu (geçici müşteri). MCP: 20 aracın hepsi iki token'la, diğer müşterinin izi yok; rakamlı araçlarda iki personanın cevabı farklı.

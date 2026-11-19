@@ -414,3 +414,28 @@ Bulgu: ilk tasarımda Murat'ın devreden bakiyesi (10.000) ilk maaşa kadar yetm
 30.000; tanım testi "yazım sırasında hiçbir hesap eksiye düşmez" bunu yakaladı. Sınırlar: hâlâ sentetik; iade/iptal yok (KIND-06); serbest
 çalışan geliri ayrı bir gelir türü olmadığı için `Salary`; Elif'in TRY hesabının parası `OpeningFunding` (döviz bozdurma modeli yok);
 testler ve demo aynı veritabanında (DB-01); üretici ya da hikâye değişirse kimlikler çelişir, seed hata verir (sürüm atlamak gerekir).
+
+## DEMO-01 Murat, yalnız canlı veritabanı (19 Kasım 2026)
+
+Sunumun demo kişisi Murat (kullanıcı kararı). Tasarım `docs/superpowers/specs/2026-11-19-murat-demo-data-design.md`, plan
+`docs/superpowers/plans/2026-11-19-murat-demo-data.md`. Sabit veritabanı, seed ve fixture'lar **değişmedi** (yaklaşım A); ek veri yalnız
+`simulate catch-up` ile canlıya yazılır (`src/BankingAI.Data/Simulation/DayPlan.Murat.cs`, `LiveSimulator.PlanUntil`).
+
+- Katmanlar: sabit yıl (1 Ekim 2025 – 10 Ekim 2026, aynen) + **taban** (15 Mayıs 2024 – 30 Eylül 2025: maaş 68.000 → 2025'te 76.000,
+  ikramiye 15 Aralık 2024 34.000, kira 8.000 Eylül 2025'e kadar, internet 299,90, Netflix 149,99 / 199,99, su, mevsimlik doğalgaz/elektrik,
+  takvim olayları, alışkanlıklar) + **ek** (her gün 15 Mayıs 2024'ten): taksitler MediaMarkt 6 × 3.000 (Haz–Kas 2024, bitmiş), Apple Store
+  12 × 4.250 (Haz 2026'dan), IKEA 9 × 2.800 (Ağu 2026'dan), açıklama `… TAKSIT nn/NN`; abonelikler Spotify Aile 99,99 → 119,99, iCloud
+  39,99, MACFit 1.250 (2025'ten), Turkcell 450, Disney+ 134,99 (Mart 2025'te iptal); rutin dışı Trendyol, Hepsiburada, Zara, D&R, Biletix,
+  Getir, İspark, BiTaksi, eczane, Simit Sarayı; yaz tatilleri (10 Ağustos 2024 32.000, 2025 38.000); Ekim 2026 artışı (konser 2.800, Zara
+  4.200, Trendyol 3.600, PlayStation 2.100); 5 Eylül 2026 okul alışverişi; Can'a her ayın 1'i 2.500 (2025'ten), Selin'den 3 Kasım 2026 3.000.
+- Ek kendi rastgele üreticisini kullanır; canlıya yazılmış gün planı satırları `tests/BankingAI.Data.Tests/Simulation/day-plan-golden.txt`
+  ile kilitli (değişen satır testi kırar; yazıcı aynı kimlik + farklı içeriği reddederdi).
+- Kabul testleri `tests/BankingAI.Application.Tests/Demo/MuratStoryTests.cs` (DB'siz, 23): bakiye hiçbir anda eksi değil (en düşük 7.720),
+  Ekim 2025 devri 164.614; 19 Kasım 2026'da düzenli ödeme kuralı 8 kalem (Apple Store, IKEA, MACFit, Turkcell, Su, Netflix, Spotify, iCloud;
+  aylık 9.519,97), MediaMarkt / Disney+ / zamlı internet değil; Ekim 2026 isteğe bağlı ≥ 27.200.
+- Canlıya yazım (19 Kasım 2026): 1.796 yeni işlem, 0 atlanan, tekrar çalıştırma 0; Murat 2.053 işlem (15 Mayıs 2024 – bugün), bakiye
+  619.417,00 = gelen − giden. Canlı API ile: Ekim 2026'ya iki öneri (Seyahat 14.800 ilk kez; isteğe bağlı 38.883,47 = gelirin %45,75'i),
+  "harcamasaydım" 75.344,37 → dolar 77.510, euro 75.274, altın 70.024 (eksi fark örneği), önerilen 3.022,76 × 12 ay; 5 Eylül'de 6 işlem;
+  Kasım'da Can'a 2.500 giden, Selin'den 3.000 gelen. Yedek: `~/bankingai-live-2026-11-19.dump` (repo dışı, `pg_dump -Fc`).
+- Sınırlar: Murat'ın şifresi yerel `.env`'de değil (kullanıcı bilir); taksit bilgisi yalnız açıklama metninde (kolon yok); kira tutarı
+  hikâye bakiyesine göre seçildi (gerçek İstanbul kirasından düşük).
