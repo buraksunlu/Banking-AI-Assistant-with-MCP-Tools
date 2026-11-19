@@ -26,6 +26,13 @@ enum Skeleton {
     static let pace = CurrencyComparison(currencyCode: "TRY", currentAmount: 1_000, currentCount: 1, previousAmount: 1_000,
                                          change: 100, percentageChange: 10)
 
+    /// The upcoming payments card while it loads (DEMO-03): as many rows as the card shows, neutral words and no real figure.
+    static let upcoming: [UpcomingPayment] = (1...UpcomingDisplay.previewRows).map { index in
+        UpcomingPayment(merchant: "Ödeme \(index)", categoryCode: nil, accountName: "Hesap", currencyCode: "TRY",
+                        estimatedDate: "2026-01-0\(index)", estimatedAmount: 100, daysUntil: index, isOverdue: false,
+                        routine: .recurring, installment: nil)
+    }
+
     /// The income card while it loads: half the bar in three parts and no advice, a shape and not a figure.
     static let incomeShare = CurrencyAdvice(
         currencyCode: "TRY", totalSpent: 100, incomeBase: 200, spentShare: 50,

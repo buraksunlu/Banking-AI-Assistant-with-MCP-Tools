@@ -1388,6 +1388,8 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Yaklaşan ödemeler kartı (DEMO-03, 19 Kasım 2026, `demo-03-upcoming-card`; docs/ios.md "iOS-ad", docs/analytics.md ANA-12): ana ekranın
+  üçüncü kartı gelir payı yerine; düzenli/yaklaşan ödeme kalemleri `routine` + `installment` taşır, bitmiş taksit planı yaklaşan değil. iOS 463.
 - Rutin / rutin olmayan döküm, iPhone (DEMO-02 PR2, 19 Kasım 2026, `demo-02b-breakdown-iphone`; docs/ios.md "iOS-ac"): harcama bağlantısı
   dökümü açar (iki grup, etiketler, yatırım kartı, öneriler), uzun dönem düz liste; işlem detayında insight; sohbet kartındaki satırlar da
   detayı açar. iOS 454. #113: harcama olmayan araçların dönem sorusu "harca-/masraf" diyemez (sabit metne düşer).

@@ -13,6 +13,7 @@ struct MainTabView: View {
     /// The home panel's own categories, always this month; the analysis tab's ring has its own period choice.
     @State private var homeCategories: CategoryBreakdownViewModel
     @State private var income: IncomeShareViewModel
+    @State private var upcoming: UpcomingPaymentsViewModel
     @State private var category: CategoryBreakdownViewModel
     @State private var monthly: MonthlyTrendViewModel
     @State private var chat: ChatViewModel
@@ -27,6 +28,7 @@ struct MainTabView: View {
         _pace = State(initialValue: MonthPaceViewModel(api: api))
         _homeCategories = State(initialValue: CategoryBreakdownViewModel(api: api))
         _income = State(initialValue: IncomeShareViewModel(api: api))
+        _upcoming = State(initialValue: UpcomingPaymentsViewModel(api: api))
         _category = State(initialValue: CategoryBreakdownViewModel(api: api))
         _monthly = State(initialValue: MonthlyTrendViewModel(api: api))
         _chat = State(initialValue: ChatViewModel(api: api))
@@ -34,7 +36,7 @@ struct MainTabView: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            HomeView(model: home, pace: pace, categories: homeCategories, income: income, show: show, ask: ask)
+            HomeView(model: home, pace: pace, categories: homeCategories, upcoming: upcoming, show: show, ask: ask)
                 .tabItem { label(.home) }
                 .tag(AppTab.home)
             NavigationStack {

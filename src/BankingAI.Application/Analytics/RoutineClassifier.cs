@@ -35,6 +35,18 @@ public static partial class RoutineClassifier
         return match.Success ? (int.Parse(match.Groups[1].Value), int.Parse(match.Groups[2].Value)) : null;
     }
 
+    /// <summary>An installment as the statement writes it: "03/12".</summary>
+    public static string InstallmentText(int number, int count) => $"{number:D2}/{count:D2}";
+
+    /// <summary>The installment after a paid one ("03/12" → "04/12"); null when the paid one was the last (DEMO-03).</summary>
+    public static string? NextInstallment(string paid)
+    {
+        ArgumentNullException.ThrowIfNull(paid);
+        var parts = paid.Split('/');
+        var (number, count) = (int.Parse(parts[0]), int.Parse(parts[1]));
+        return number >= count ? null : InstallmentText(number + 1, count);
+    }
+
     /// <summary>The purchase's routine reason, or null when it is non-routine.</summary>
     /// <param name="rawDescription">The bank's statement text.</param>
     /// <param name="categoryCode">The purchase's category code; null when unclassified.</param>

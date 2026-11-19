@@ -64,23 +64,6 @@ extension HomeDisplay {
         let part = min(max(percentage / 100, 0), 1)
         return NSDecimalNumber(decimal: part).doubleValue
     }
-
-    /// "Gelir payı · Eylül" from the income model's "Eylül 2026": the year is left to the card below.
-    static func incomeTitle(_ month: String?) -> String {
-        guard let name = month?.split(separator: " ").first else { return "Gelir payı" }
-        return "Gelir payı · \(name)"
-    }
-
-    /// The backend's share of income, or the INC-04 sentence when there is no salary to share against (K4-B).
-    static func incomeGlance(_ currency: CurrencyAdvice) -> String {
-        guard let share = currency.spentShare else { return IncomeShareDisplay.headline(currency) }
-        return AnalyticsDisplay.percentText(share)
-    }
-
-    /// "Nerede kısarım?" only makes sense against an income (K4-B).
-    static func offersAdvice(_ currency: CurrencyAdvice) -> Bool {
-        currency.spentShare != nil
-    }
 }
 
 /// The home panel's questions (UX-01 PR5 K1-C): a category row sends this month's category pattern of the AI service, which runs

@@ -403,6 +403,10 @@ merchant; toplam para birimi başına `EstimatedAmount` toplamı; ödeme yoksa i
 Sınırlar: yalnız aylık kalıp tanınır (yıllık abonelik, düzensiz fatura, 3 ödemesi olmayan yeni abonelik görünmez);
 tutar tahmini yaklaşan bir fiyat değişikliğini bilemez.
 
+DEMO-03 (19 Kasım 2026): `RecurringPaymentService` her grubun son ödemesinin açıklamasından `Routine` ve `Installment`'ı (son
+ödenen, `RoutineClassifier`) yazar; `UpcomingPaymentService` sıradakini (`RoutineClassifier.NextInstallment`, "03/12" → "04/12") verir ve
+son taksiti ödenmiş planı düşürür (düzenli ödeme kuralı onu 35 gün daha görür). Test: Ada'ya geçici üç IKEA taksiti (geri alınır).
+
 ## ANA-13 — Bütçe kontrolü (`BudgetCheckService`, 16 Ekim 2026)
 
 Bütçe kullanıcının sorusundan argüman olarak gelir ve **saklanmaz** (tablo yok). Harcanan tutar mevcut analizlerden

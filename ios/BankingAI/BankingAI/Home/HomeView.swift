@@ -1,13 +1,13 @@
 import SwiftUI
 
-/// The home tab (UX-01 PR2, H2): the header and the "bu ay" panel — this month's pace, where the money went and last month
-/// against income. Each card has its own REST answer and none needs the assistant, so the panel stays full when the model is
+/// The home tab (UX-01 PR2, H2): the header and the "bu ay" panel — this month's pace, where the money went and the payments
+/// of the next 30 days (DEMO-03, in place of last month against income, which stays on the analysis tab). Each card has its own REST answer and none needs the assistant, so the panel stays full when the model is
 /// down. The accounts and transactions moved to the profile tab (K6-A); the cards' links switch to the analysis tab.
 struct HomeView: View {
     let model: HomeViewModel
     let pace: MonthPaceViewModel
     let categories: CategoryBreakdownViewModel
-    let income: IncomeShareViewModel
+    let upcoming: UpcomingPaymentsViewModel
     /// Switches the tab bar to another tab.
     let show: (AppTab) -> Void
     /// Opens the assistant sheet: with a panel row's question, or empty from the "Kılavuz'a sor…" field (UX-01 PR5).
@@ -30,7 +30,7 @@ struct HomeView: View {
                             .accessibilityHint("Harcama analizini açar")
                         }
                         WhereItWentCard(model: categories, showAll: { show(.analysis) }, ask: { ask($0) })
-                        IncomeGlanceCard(model: income) { show(.analysis) }
+                        UpcomingPaymentsCard(model: upcoming)
                     }
                 }
                 .padding(.horizontal, Layout.regular)
@@ -43,8 +43,8 @@ struct HomeView: View {
             .refreshable {
                 async let paceLoaded: Void = pace.load()
                 async let categoriesLoaded: Void = categories.load()
-                async let incomeLoaded: Void = income.load()
-                _ = await (paceLoaded, categoriesLoaded, incomeLoaded)
+                async let upcomingLoaded: Void = upcoming.load()
+                _ = await (paceLoaded, categoriesLoaded, upcomingLoaded)
             }
             .navigationTitle(AppTab.home.title)
             .toolbar(.hidden, for: .navigationBar)

@@ -11,11 +11,12 @@ public sealed record RecurringPaymentQuery(Guid CustomerId, Guid? AccountId = nu
 
 /// <summary>
 /// One recurring payment. The category comes from the group's latest payment;
-/// <c>Pattern</c> explains why it counts as recurring.
+/// <c>Pattern</c> explains why it counts as recurring. <c>Routine</c> (Subscription / Bill / Installment / Recurring) and
+/// <c>Installment</c> (the latest paid one, "03/12"; null if not numbered) come from the latest statement (DEMO-03).
 /// </summary>
 public sealed record RecurringPayment(
     string Merchant, string? CategoryCode, string CategoryDisplayName, string AccountName, string CurrencyCode,
-    RecurringPattern Pattern);
+    RecurringPattern Pattern, RoutineReason Routine, string? Installment);
 
 /// <summary>
 /// Sum of the latest amounts: what the customer currently pays per month in one currency.
@@ -59,7 +60,7 @@ public sealed class RecurringPaymentService(BankingDbContext db, PeriodResolver 
                 from c in categories.DefaultIfEmpty()
                 select new
                 {
-                    t.AccountId, a.AccountName, t.CurrencyCode, Merchant = t.NormalizedMerchant!, t.OccurredAt, t.Amount,
+                    t.AccountId, a.AccountName, t.CurrencyCode, Merchant = t.NormalizedMerchant!, t.OccurredAt, t.Amount, t.RawDescription,
                     CategoryCode = (string?)c!.Code, CategoryName = (string?)c!.DisplayName
                 })
             .ToListAsync(cancellationToken);
@@ -77,8 +78,12 @@ public sealed class RecurringPaymentService(BankingDbContext db, PeriodResolver 
                 if (pattern is null)
                     return null;
                 var latest = g.MaxBy(r => r.OccurredAt)!;
+                // DEMO-03: the latest statement says whether this is a numbered installment, and which one was paid last.
+                var installment = RoutineClassifier.Installment(latest.RawDescription);
                 return new RecurringPayment(g.Key.Merchant, latest.CategoryCode, latest.CategoryName ?? AnalyticsLabels.Unclassified,
-                    latest.AccountName, g.Key.CurrencyCode, pattern);
+                    latest.AccountName, g.Key.CurrencyCode, pattern,
+                    RoutineClassifier.Classify(latest.RawDescription, latest.CategoryCode, recurring: true)!.Value,
+                    installment is { } paid ? RoutineClassifier.InstallmentText(paid.Number, paid.Count) : null);
             })
             .OfType<RecurringPayment>() // keeps only the groups the detector accepted (drops the nulls)
             .OrderByDescending(p => p.Pattern.LatestAmount)

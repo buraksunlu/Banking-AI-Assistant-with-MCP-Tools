@@ -144,6 +144,59 @@ public sealed class UpcomingPaymentServiceTests
         Assert.Equal(229.99m + 99.99m + 105.00m, Assert.Single(result.Totals).EstimatedTotal);
     }
 
+    // DEMO-03: three temporary monthly installments on Ada's account (rolled back), 25 July – 25 September.
+    private static async Task<UpcomingPayments> WithInstallmentsAsync(int count)
+    {
+        Assert.False(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BANKINGAI_CONNECTION_STRING")),
+            "PostgreSQL testi için önce .env ortam değişkenlerini yükleyin.");
+        await using var db = new BankingDbContext();
+        await using var scope = await db.Database.BeginTransactionAsync();
+        var number = 0;
+        foreach (var date in new[] { "2026-07-25", "2026-08-25", "2026-09-25" })
+        {
+            var raw = $"IKEA TAKSIT {++number:D2}/{count:D2}";
+            await db.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO "Transactions" ("Id", "AccountId", "Amount", "Direction", "Kind", "CurrencyCode", "RawDescription", "NormalizedMerchant", "OccurredAt", "CreatedAt")
+                VALUES ({Guid.NewGuid()}, {AdaTryAccount}, {2800.00m}, 1, 1, 'TRY', {raw}, 'IKEA', {DateTimeOffset.Parse(date + "T09:00:00Z")}, now())
+                """);
+        }
+        var periods = new PeriodResolver(new FixedTimeProvider(DemoNowUtc));
+        var result = await new UpcomingPaymentService(new RecurringPaymentService(db, periods)).GetAsync(new(Ada));
+        await scope.RollbackAsync();
+        return result;
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task A_subscription_says_so_and_has_no_installment()
+    {
+        var result = await GetAsync(new(Ada));
+
+        Assert.Equal(new (string, RoutineReason, string?)[] { ("Netflix", RoutineReason.Subscription, null), ("Spotify", RoutineReason.Subscription, null) },
+            result.Payments.Select(p => (p.Merchant, p.Routine, p.Installment)).ToArray());
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task An_installment_names_the_next_one_to_pay()
+    {
+        var ikea = Assert.Single((await WithInstallmentsAsync(9)).Payments, p => p.Merchant == "IKEA");
+
+        // 01–03/09 paid in July–September, so 25 October brings the fourth (DEMO-03 K1-B).
+        Assert.Equal((RoutineReason.Installment, "04/09", new DateOnly(2026, 10, 25), 2800.00m),
+            (ikea.Routine, ikea.Installment, ikea.EstimatedDate, ikea.EstimatedAmount));
+    }
+
+    [Fact]
+    [Trait("Category", "PostgreSQL")]
+    public async Task An_installment_plan_whose_last_one_is_paid_is_not_upcoming()
+    {
+        var result = await WithInstallmentsAsync(3);
+
+        Assert.DoesNotContain(result.Payments, p => p.Merchant == "IKEA");
+        Assert.Equal(229.99m + 99.99m, Assert.Single(result.Totals).EstimatedTotal);
+    }
+
     [Fact]
     [Trait("Category", "PostgreSQL")]
     public async Task One_personal_account_can_be_chosen()

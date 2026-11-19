@@ -67,30 +67,6 @@ private let muratCategories = """
 }
 """
 
-private let muratAdvice = """
-{
-  "period": { "kind": "LastMonth", "startDate": "2026-09-01", "endDate": "2026-09-30" },
-  "currencies": [ {
-    "currencyCode": "TRY", "totalSpent": 53388.39, "incomeBase": 85000.00, "spentShare": 62.81,
-    "groups": [ { "group": "Essential", "amount": 52515.90, "incomeShare": 61.78 },
-                { "group": "Discretionary", "amount": 872.49, "incomeShare": 1.03 },
-                { "group": "Unknown", "amount": 0.00, "incomeShare": 0.00 } ],
-    "advice": [], "reason": "NoRuleMatched" } ]
-}
-"""
-
-private let canAdvice = """
-{
-  "period": { "kind": "LastMonth", "startDate": "2026-09-01", "endDate": "2026-09-30" },
-  "currencies": [ {
-    "currencyCode": "TRY", "totalSpent": 15037.99, "incomeBase": null, "spentShare": null,
-    "groups": [ { "group": "Essential", "amount": 12000.00, "incomeShare": null },
-                { "group": "Discretionary", "amount": 3037.99, "incomeShare": null },
-                { "group": "Unknown", "amount": 0.00, "incomeShare": null } ],
-    "advice": [], "reason": "NoIncome" } ]
-}
-"""
-
 private func paces(_ state: ListState<CurrencyComparison>) -> [CurrencyComparison] {
     if case .loaded(let currencies) = state { return currencies }
     return []
@@ -98,10 +74,6 @@ private func paces(_ state: ListState<CurrencyComparison>) -> [CurrencyCompariso
 
 private func comparison(_ body: String) throws -> CurrencyComparison {
     try #require(try JSONDecoder().decode(PeriodComparison.self, from: Data(body.utf8)).currencies.first)
-}
-
-private func advice(_ body: String) throws -> CurrencyAdvice {
-    try #require(try JSONDecoder().decode(SpendingAdvice.self, from: Data(body.utf8)).currencies.first)
 }
 
 // Card 1: "Bu ay harcama · N gün" from `period-comparison?comparison=MonthToDate` (K7-A: it replaced the spending summary).
@@ -235,24 +207,9 @@ struct HomePanelDisplayTests {
         #expect(HomeDisplay.barFraction(Decimal(150)) == 1)
         #expect(HomeDisplay.barFraction(Decimal(-5)) == 0)
     }
-
-    // K3-D / K4-B: the short income card writes the backend's share; without salary it says why and offers no advice.
-    @Test func theIncomeGlanceWritesTheShareOrTheReason() throws {
-        let murat = try advice(muratAdvice)
-        #expect(HomeDisplay.incomeGlance(murat) == "%62,81")
-        #expect(HomeDisplay.offersAdvice(murat))
-        let can = try advice(canAdvice)
-        #expect(HomeDisplay.incomeGlance(can) == "Maaş geliri görünmediği için gelir payı hesaplanamıyor.")
-        #expect(!HomeDisplay.offersAdvice(can))
-    }
-
-    @Test func theIncomeTitleNamesTheBackendsMonth() {
-        #expect(HomeDisplay.incomeTitle("Eylül 2026") == "Gelir payı · Eylül")
-        #expect(HomeDisplay.incomeTitle(nil) == "Gelir payı")
-    }
 }
 
-// The panel's three cards do not depend on each other nor on the assistant (review focus 5).
+// The panel's three cards (DEMO-03: the third is the upcoming payments) do not depend on each other nor on the assistant (review focus 5).
 @MainActor
 struct HomePanelIndependenceTests {
     private static func server(failing failedPath: String) -> TestApp {
@@ -262,36 +219,36 @@ struct HomePanelIndependenceTests {
             switch path {
             case "/api/analytics/period-comparison": return json(200, muratPace)
             case "/api/analytics/category-breakdown": return json(200, muratCategories)
-            case "/api/analytics/spending-advice": return json(200, muratAdvice)
+            case "/api/analytics/upcoming-payments": return json(200, muratUpcoming)
             default: return problem(503, "assistant_unavailable", "Kılavuz şu anda kullanılamıyor.")
             }
         }
     }
 
     @Test(arguments: ["/api/analytics/period-comparison", "/api/analytics/category-breakdown",
-                      "/api/analytics/spending-advice", "/api/assistant/messages"])
+                      "/api/analytics/upcoming-payments", "/api/assistant/messages"])
     func oneFailingAnswerLeavesTheOtherCardsFull(failedPath: String) async {
         let app = Self.server(failing: failedPath)
         let pace = MonthPaceViewModel(api: app.api)
         let categories = CategoryBreakdownViewModel(api: app.api)
-        let income = IncomeShareViewModel(api: app.api)
+        let upcoming = UpcomingPaymentsViewModel(api: app.api)
 
         async let paceLoaded: Void = pace.load()
         async let categoriesLoaded: Void = categories.load()
-        async let incomeLoaded: Void = income.load()
-        _ = await (paceLoaded, categoriesLoaded, incomeLoaded)
+        async let upcomingLoaded: Void = upcoming.load()
+        _ = await (paceLoaded, categoriesLoaded, upcomingLoaded)
 
         let message = "Beklenmeyen bir hata oluştu."
         // Exactly the card whose answer failed shows the error; the other two are full.
         #expect((pace.state == .failed(message)) == failedPath.hasSuffix("period-comparison"))
         #expect((categories.state == .failed(message)) == failedPath.hasSuffix("category-breakdown"))
-        #expect((income.state == .failed(message)) == failedPath.hasSuffix("spending-advice"))
+        #expect((upcoming.state == .failed(message)) == failedPath.hasSuffix("upcoming-payments"))
         if !failedPath.hasSuffix("period-comparison") { #expect(paces(pace.state).count == 1) }
         if !failedPath.hasSuffix("category-breakdown") {
             if case .loaded = categories.state {} else { Issue.record("the category card is not full") }
         }
-        if !failedPath.hasSuffix("spending-advice") {
-            if case .loaded = income.state {} else { Issue.record("the income card is not full") }
+        if !failedPath.hasSuffix("upcoming-payments") {
+            if case .loaded = upcoming.state {} else { Issue.record("the upcoming payments card is not full") }
         }
         // The panel never asks the assistant: it stays full when the model is down.
         #expect(!app.requests.contains { $0.path.hasPrefix("/api/assistant") })
@@ -304,3 +261,13 @@ struct HomePanelIndependenceTests {
         #expect(app.requests.map(\.query) == ["period=ThisMonth"])
     }
 }
+
+// DEMO-03: one upcoming payment is enough for the independence test; the card's own figures are in UpcomingPaymentsTests.
+private let muratUpcoming = """
+{"from":"2026-11-19","to":"2026-12-19","payments":[{"merchant":"Netflix","categoryCode":"SUBSCRIPTION",
+ "categoryDisplayName":"Abonelik","accountName":"Murat aile TRY","currencyCode":"TRY","estimatedDate":"2026-12-12",
+ "estimatedAmount":229.99,"daysUntil":23,"isOverdue":false,"pattern":{"occurrenceCount":6,"latestAmount":229.99,
+ "minAmount":229.99,"maxAmount":229.99,"firstDate":"2026-06-12","lastDate":"2026-11-12","minIntervalDays":30,
+ "maxIntervalDays":31,"nextExpectedDate":"2026-12-12"},"routine":"Subscription","installment":null}],
+ "totals":[{"currencyCode":"TRY","estimatedTotal":229.99}]}
+"""
