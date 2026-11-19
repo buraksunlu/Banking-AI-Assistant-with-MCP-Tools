@@ -937,6 +937,8 @@ Her önemli geliştirme sonunda mevcut proje durumunu takip et.
 Şunları güncel tut:
 
 COMPLETED
+- Etkileşimli sunum (DEMO-04 PR2, 19 Kasım 2026, `demo-04b-presentation`): `scripts/present.sh` → `presentation/server.py` (127.0.0.1:7300,
+  yalnız kendi kökeni, `{"ask"}`/`{"tab"}` → `simctl openurl`) + `presentation/index.html` (16 slayt). Servisler `run-live.sh` ile ayrı açılır.
 - Sunum kumandası, iPhone (DEMO-04 PR1, 19 Kasım 2026, `fin-demo-presentation-link`; docs/ios.md "iOS-ae"): yalnız DEBUG derlemede
   `compass://ask?q=…` soruyu yazılmış gibi gönderir, `compass://tab/<ad>` sekmeyi açar; bilinmeyen bağlantı yok sayılır. iOS 478.
 - Simülatör bulguları (17 Kasım 2026, `fix/chat-sim-findings`; docs/local-ai.md "Simülatör bulguları"): bakiye kartında cümle yok; tamamlanmış ay
