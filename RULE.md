@@ -937,6 +937,8 @@ Her önemli geliştirme sonunda mevcut proje durumunu takip et.
 Şunları güncel tut:
 
 COMPLETED
+- Sunum turu (DEMO-04 PR3, 19 Kasım 2026, `demo-04c-presentation-tour`): `presentation/index.html` 22 slayt; 20 araç haritası, gösterilen
+  araç sayacı, canlı boru hattı, `O` slayt haritası; animasyonlar "Hareketi azalt"ta kapalı. Yardımcı ve uygulama değişmedi.
 - Etkileşimli sunum (DEMO-04 PR2, 19 Kasım 2026, `demo-04b-presentation`): `scripts/present.sh` → `presentation/server.py` (127.0.0.1:7300,
   yalnız kendi kökeni, `{"ask"}`/`{"tab"}` → `simctl openurl`) + `presentation/index.html` (16 slayt). Servisler `run-live.sh` ile ayrı açılır.
 - Sunum kumandası, iPhone (DEMO-04 PR1, 19 Kasım 2026, `fin-demo-presentation-link`; docs/ios.md "iOS-ae"): yalnız DEBUG derlemede

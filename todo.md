@@ -898,6 +898,10 @@ kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir.
   adım yanan akış, konuşmacı notu `N`) + `presentation/server.py` (yalnız 127.0.0.1:7300, yalnız kendi sayfasının kökeni, iki komut,
   kabuksuz `xcrun simctl openurl booted`, soru loglanmaz; 10 test, 4 kasıtlı bozma yakalandı) + `scripts/present.sh` (simülatör sola,
   Safari sağa). Slaytlardaki ölçüm ve test sayıları README'den; canlı rakam slayta yazılmadı (cevap simülatörde gelir).
+  PR3 (19 Kasım 2026, kullanıcı isteği "daha canlı, bütün özellikler"): 22 slayt, koyu sahne + hareketli ışık, bölüm bölüm beliren içerik,
+  canlı boru hattı (her soruda iPhone→API→AI→MCP→DB şeridi; 2. slaytta adım adım günlük), 20 aracın 7 aileli haritası (dokununca örnek
+  soru), "gösterilen araç" sayacı (N/20), yazım düzeltme ve sayı kontrolü canlandırmaları, `O` slayt haritası. 43 örnek sorunun hepsi
+  ölçüm vakalarından ya da öneri tablosundan; modelsiz yönlendirmeyle denetlendi. Bulgu (ayrı iş): `spelling.correct` "harcdım"ı "harcım" yapıyor.
 - [ ] FIN-10 — Kullanıcıyla son kabul review'ü yap. Açık maddeleri yapılmış işaretleme; ertelenen işleri gerekçesiyle ayır.
 
 ## Kapsam dışında kalanlar
