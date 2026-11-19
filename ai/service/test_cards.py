@@ -81,7 +81,8 @@ def test_the_category_card_shows_three_categories_simply_and_the_rest_in_detail(
         Bar("Yakıt", D("3867.00"), "3.867,00 TL · %7,24", D("0.14")))),)
     assert [r.label for r in card.detailed[0].rows] == ["Yeme & İçme", "Diğer", "Eğlence", "Abonelik"]
     assert card.detailed[0].rows[-1] == Bar("Abonelik", D("229.99"), "229,99 TL · %0,43", D("0.01"))
-    assert card.sentence == "En büyük pay Faturalar: %51,40."
+    # Simulator trial (19 Nov 2026): no sentence; it only repeated the first bar.
+    assert card.sentence == ""
 
 
 def test_three_categories_or_fewer_have_no_detailed_part():

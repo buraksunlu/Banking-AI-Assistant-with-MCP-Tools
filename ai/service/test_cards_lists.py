@@ -31,7 +31,8 @@ def test_the_merchant_card_is_the_categories_card_for_merchants():
         Bar("Migros Jet", D("5317.50"), "5.317,50 TL · %9,96", D("0.21")))),)
     # K7-A: rows four and five in the detail; the sixth merchant is not in the facts (LIST_LIMIT), so not on the card.
     assert [bar.label for bar in card.detailed[0].rows] == ["Akaryakıt İstasyonu", "Migros Sanal Market"]
-    assert card.sentence == "En büyük pay Okul Taksidi: %46,83."
+    # Simulator trial (19 Nov 2026): no sentence; it only repeated the first bar.
+    assert card.sentence == ""
 
 
 def item(merchant_name, category, amount, local_date, currency="TRY"):
