@@ -56,7 +56,7 @@ struct MainTabView: View {
                         TransactionHistoryView(model: history)
                     }
                     .navigationDestination(for: TransactionItem.self) { item in
-                        TransactionDetailView(item: item)
+                        TransactionDetailView(item: item, insight: chat.insight(for: item))
                     }
             }
             .tabItem { label(.profile) }

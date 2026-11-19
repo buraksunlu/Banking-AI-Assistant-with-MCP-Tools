@@ -9,6 +9,8 @@ struct AnswerCard: View {
     /// The link whose transactions go inside this card, or nil (`CardDisplay.cardTransactions`).
     var transactions: AssistantLink?
     var list: (AssistantLink) -> TransactionHistoryViewModel = { _ in fatalError("A card with transactions needs their list.") }
+    var breakdown: (AssistantLink) -> BreakdownViewModel? = { _ in nil }
+    var insight: (TransactionItem) -> TransactionInsightViewModel? = { _ in nil }
     let toggle: () -> Void
 
     var body: some View {
@@ -39,7 +41,7 @@ struct AnswerCard: View {
                 MoreLine(title: title, expanded: expanded, action: toggle)
             }
             if let transactions {
-                CardTransactions(link: transactions, list: list)
+                CardTransactions(link: transactions, list: list, breakdown: breakdown, insight: insight)
             }
             if CardDisplay.showsSentence(card.sentence, withTransactions: transactions != nil) {
                 Text(card.sentence)
@@ -84,16 +86,21 @@ private struct MoreLine: View {
     }
 }
 
-/// The answer's transactions inside its card (Bulgu 1): the first page of the link's own search, its first five rows, and the
-/// whole list when there are more. The rows and the count are the backend's; the phone adds nothing up.
+/// The answer's transactions inside its card (Bulgu 1): the first page of the link's own search, its first five rows (each opens
+/// its detail), and the whole list when there are more. The rows and the count are the backend's; the phone adds nothing up.
 private struct CardTransactions: View {
     let link: AssistantLink
     let list: (AssistantLink) -> TransactionHistoryViewModel
+    let breakdown: (AssistantLink) -> BreakdownViewModel?
+    let insight: (TransactionItem) -> TransactionInsightViewModel?
     @State private var model: TransactionHistoryViewModel
 
-    init(link: AssistantLink, list: @escaping (AssistantLink) -> TransactionHistoryViewModel) {
+    init(link: AssistantLink, list: @escaping (AssistantLink) -> TransactionHistoryViewModel,
+         breakdown: @escaping (AssistantLink) -> BreakdownViewModel?, insight: @escaping (TransactionItem) -> TransactionInsightViewModel?) {
         self.link = link
         self.list = list
+        self.breakdown = breakdown
+        self.insight = insight
         _model = State(initialValue: list(link))
     }
 
@@ -108,13 +115,21 @@ private struct CardTransactions: View {
             } else {
                 ForEach(Array(model.items.prefix(CardDisplay.previewRows))) { item in
                     HairlineDivider()
-                    TransactionRow(item: item)
-                        .padding(.vertical, Layout.small)
+                    // A short answer shows its rows here and has no "see all" link, so the row itself opens the detail
+                    // and its investment comparison (DEMO-02 simulator finding).
+                    NavigationLink {
+                        TransactionDetailView(item: item, insight: insight(item))
+                    } label: {
+                        TransactionRow(item: item)
+                            .padding(.vertical, Layout.small)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
                 if let title = CardDisplay.allTransactionsTitle(total: model.totalCount) {
                     HairlineDivider()
                     NavigationLink {
-                        LinkedTransactionsView(link: link, model: list(link))
+                        LinkedTransactionsView(link: link, model: list(link), breakdown: breakdown(link), insight: insight)
                     } label: {
                         HStack(spacing: Layout.tight) {
                             Text(title)

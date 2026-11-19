@@ -151,6 +151,20 @@ final class ChatViewModel {
         TransactionHistoryViewModel(api: api, filter: link.filter, criteria: link.criteria)
     }
 
+    /// The breakdown of a spending link (DEMO-02): only a plain list of personal purchases, narrowed at most by category or
+    /// merchant, is the backend's spending figure; transfers, incomes and amount-limited searches stay plain lists.
+    func breakdown(for link: AssistantLink) -> BreakdownViewModel? {
+        let criteria = link.criteria
+        guard criteria.kind == .purchase, criteria.accountType == .personal, criteria.direction == nil, criteria.counterparty == nil,
+              criteria.minAmount == nil, criteria.maxAmount == nil, criteria.currencyCode == nil else { return nil }
+        return BreakdownViewModel(api: api, filter: link.filter, criteria: criteria)
+    }
+
+    /// The detail screen's insight of one transaction (DEMO-02).
+    func insight(for item: TransactionItem) -> TransactionInsightViewModel {
+        TransactionInsightViewModel(api: api, id: item.id)
+    }
+
     private func failed(_ error: APIError, for id: UUID) {
         switch error {
         case .cancelled:
