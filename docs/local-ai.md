@@ -1253,8 +1253,9 @@ birimi başına kart).
   birimi) kartlarını kendisi kurar. Kalemler ilk 5 ödemeyi bütün para birimleri için birlikte listeler; kart kendi para biriminin olanlarını
   bu 5'ten alır, bu yüzden kartta kalemlerde olmayan ödeme yok.
 - **Cümleler** yalnız kalemdeki sayıları kullanır ("Aylık toplam 609,99 TL.", "Tahmini toplam 229,99 TL.", "En büyüğü Okul Taksidi:
-  25.000,00 TL.", "En büyük pay Okul Taksidi: %46,83."); adet yazılmaz (kalemlerde yok, denetim kartı düşürürdü). `card_texts` satırları ve
-  notları da verir.
+  25.000,00 TL."); adet yazılmaz (kalemlerde yok, denetim kartı düşürürdü). `card_texts` satırları ve
+  notları da verir. (19 Kasım 2026 simülatör denemesi: kategori ve işyeri kartlarında "En büyük pay …" cümlesi kalktı; ilk çubuğu
+  tekrar ediyordu. Bakiye kartı gibi cümlesiz; düz metin cevabı "başlık: rakam" olur.)
 - **Doğrulama:** Murat/Zeynep'in demo anındaki gerçek MCP sonuçlarıyla elle değerler (`test_cards_lists.py`); Python 1422 → 1433, Api 600 →
   605, iOS 413 → 417; 9 kasıtlı bozma yakalandı (Python 4, .NET 2, iOS 3). Cevap doğruluğu (gerçek model) **29/29**: A09 artık kartlı
   (Can'ın Spotify'ı, "109,99 TL / ay"), yeni A27 (Murat yaklaşan: Netflix 229,99 TL, "12 Ekim 2026 · 2 gün sonra"), A28 (Murat en büyük:

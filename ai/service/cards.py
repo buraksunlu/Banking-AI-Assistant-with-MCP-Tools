@@ -187,9 +187,9 @@ def _categories(arguments: dict, result: dict, row: dict, suffix: str) -> Card:
     currency, categories = row["currencyCode"], row["categories"]
     bars = _bars([(c["displayName"], c["amount"], f"{money(c['amount'], currency)} · {percent(c['percentage'])}", None)
                   for c in categories])
-    sentence = f"En büyük pay {categories[0]['displayName']}: {percent(categories[0]['percentage'])}." if categories else ""
+    # Simulator trial (19 Nov 2026): no sentence; "the largest share" only repeated the first bar.
     return Card(f"Kategoriler · {_label(result['period'])}{suffix}", _headline(row["totalAmount"], currency), None,
-                _part(bars[:SIMPLE_ROWS]), _part(bars[SIMPLE_ROWS:]), sentence)
+                _part(bars[:SIMPLE_ROWS]), _part(bars[SIMPLE_ROWS:]), "")
 
 
 def _category_spending(arguments: dict, result: dict, row: dict, suffix: str) -> Card:
@@ -261,9 +261,9 @@ def _merchants(arguments: dict, result: dict, row: dict, suffix: str) -> Card:
     currency, merchants = row["currencyCode"], row["merchants"][:FACT_ROWS]
     bars = _bars([(m["displayName"], m["amount"], f"{money(m['amount'], currency)} · {percent(m['percentage'])}", None)
                   for m in merchants])
-    sentence = f"En büyük pay {merchants[0]['displayName']}: {percent(merchants[0]['percentage'])}."
+    # As the categories card: the first bar already says it.
     return Card(f"İşyerleri · {_label(result['period'])}{suffix}", _headline(row["totalAmount"], currency), None,
-                _part(bars[:SIMPLE_ROWS]), _part(bars[SIMPLE_ROWS:]), sentence)
+                _part(bars[:SIMPLE_ROWS]), _part(bars[SIMPLE_ROWS:]), "")
 
 
 def _highest(arguments: dict, result: dict, row: dict, suffix: str) -> Card:
