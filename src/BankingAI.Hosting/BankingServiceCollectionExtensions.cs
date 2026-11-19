@@ -75,6 +75,7 @@ public static class BankingServiceCollectionExtensions
         services.AddScoped<SpendingAdviceService>();
         services.AddScoped<MarketPriceReader>();
         services.AddScoped<WhatIfService>();
+        services.AddScoped<SpendingBreakdownService>();
         return services;
     }
 
