@@ -7,7 +7,7 @@ namespace BankingAI.Data.Simulation;
 
 /// <summary>
 /// Writes the day plans into the live database (RT-02a): every planned transaction after the fixed data's end
-/// (<see cref="SyntheticTransactionSeeder.RealisticCutoff"/>) up to a moment, through the same writers as the seeds (S4-A), so
+/// (<see cref="SyntheticTransactionSeeder.RealisticCutoff"/>) up to a moment, and Murat's history before it (DEMO-01), through the same writers as the seeds (S4-A), so
 /// validation and the atomic balance rules hold. Running it again writes nothing new: the plan's identifiers are stable and the
 /// writers answer a stored row with <see cref="WriteOutcome.AlreadyExisted"/>.
 /// </summary>
@@ -27,14 +27,21 @@ public static class LiveSimulator
     }
 
     /// <summary>
-    /// Writes the plan from the end of the fixed data up to <paramref name="until"/>. With <paramref name="dryRun"/> it only counts what
+    /// Everything the live database gets up to <paramref name="until"/>: Murat's history before the fixed data's end (DEMO-01), then the
+    /// day plans after it, in time order.
+    /// </summary>
+    public static IReadOnlyList<PlannedTransaction> PlanUntil(DateTimeOffset until) =>
+        [.. DayPlan.MuratBefore(SyntheticTransactionSeeder.RealisticCutoff), .. DayPlan.Between(SyntheticTransactionSeeder.RealisticCutoff, until)];
+
+    /// <summary>
+    /// Writes the plan (<see cref="PlanUntil"/>) up to <paramref name="until"/>. With <paramref name="dryRun"/> it only counts what
     /// is missing; a debit the balance cannot carry is skipped and counted (S8-A), as a card is refused, and the rest goes on.
     /// </summary>
     public static async Task<CatchUpResult> CatchUpAsync(BankingDbContext db, DateTimeOffset until, bool dryRun,
         Action<string>? log = null, CancellationToken cancellationToken = default)
     {
         EnsureLive(db);
-        var plan = DayPlan.Between(SyntheticTransactionSeeder.RealisticCutoff, until);
+        var plan = PlanUntil(until);
         var ids = plan.SelectMany(p => p.ToTransactions()).Select(t => t.Id).ToArray();
         var stored = (await db.Transactions.AsNoTracking().Where(t => ids.Contains(t.Id)).Select(t => t.Id).ToListAsync(cancellationToken))
             .ToHashSet();
