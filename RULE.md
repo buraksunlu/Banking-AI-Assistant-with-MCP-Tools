@@ -937,6 +937,8 @@ Her önemli geliştirme sonunda mevcut proje durumunu takip et.
 Şunları güncel tut:
 
 COMPLETED
+- Sunum kumandası, iPhone (DEMO-04 PR1, 19 Kasım 2026, `fin-demo-presentation-link`; docs/ios.md "iOS-ae"): yalnız DEBUG derlemede
+  `compass://ask?q=…` soruyu yazılmış gibi gönderir, `compass://tab/<ad>` sekmeyi açar; bilinmeyen bağlantı yok sayılır. iOS 478.
 - Simülatör bulguları (17 Kasım 2026, `fix/chat-sim-findings`; docs/local-ai.md "Simülatör bulguları"): bakiye kartında cümle yok; tamamlanmış ay
   sorusu son üç tam ayı satır olarak gösterir; öneri kartında oran tutarın altında ayrı satır (`detail`); modelin tahmin ettiği kategori toplam
   harcamaya döner, bilinmeyen argümana ay sayısı sorulmaz; bekleyen soruya dönemli kısa cevap özgün soruyla okunur, soru sonrası eski çağrı bağlam
