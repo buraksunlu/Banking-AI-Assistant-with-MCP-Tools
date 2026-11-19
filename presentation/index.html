@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compass Sunumu</title>
+<style>
+  :root {
+    --bg: #F6F1E7; --card: #FFFFFF; --ink: #1F1B16; --muted: #6B6257; --line: #E6DDCC;
+    --accent: #9A5100; --fill: #F5A700; --soft: #FBF3E2; --ok: #2E7D4F; --bad: #B3261E;
+    --c1: #9A5100; --c2: #3D6FA8; --c3: #2E7D4F; --c4: #7A4FA0; --c5: #B3261E;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font: 17px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  header {
+    display: flex; align-items: center; gap: 12px; padding: 14px 28px 0; color: var(--muted); font-size: 13px;
+  }
+  header .brand { font-weight: 700; color: var(--accent); letter-spacing: .02em; }
+  header .section { flex: 1; text-align: right; }
+  .progress { height: 3px; background: var(--line); margin: 10px 28px 0; border-radius: 2px; overflow: hidden; }
+  .progress i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .3s ease; }
+  main { flex: 1; position: relative; overflow: hidden; }
+  section.slide {
+    position: absolute; inset: 0; padding: 26px 28px 20px; overflow-y: auto;
+    opacity: 0; transform: translateX(24px); pointer-events: none; transition: opacity .35s ease, transform .35s ease;
+  }
+  section.slide.active { opacity: 1; transform: none; pointer-events: auto; }
+  section.slide.past { transform: translateX(-24px); }
+  @media (prefers-reduced-motion: reduce) { section.slide, .progress i, .step { transition: none !important; } }
+
+  h1 { font-size: 40px; line-height: 1.1; margin: 0 0 12px; letter-spacing: -.02em; }
+  h2 { font-size: 28px; line-height: 1.2; margin: 0 0 6px; letter-spacing: -.01em; }
+  .eyebrow { text-transform: uppercase; font-size: 12px; font-weight: 700; letter-spacing: .1em; color: var(--accent); margin-bottom: 6px; }
+  .lead { font-size: 19px; color: var(--muted); margin: 0 0 20px; max-width: 46em; }
+  p { margin: 0 0 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+  .grid { display: grid; gap: 12px; }
+  .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  @media (max-width: 720px) { .g2, .g3 { grid-template-columns: 1fr; } h1 { font-size: 32px; } }
+  .card h3 { margin: 0 0 6px; font-size: 16px; }
+  .card p, .card li { color: var(--muted); font-size: 15px; }
+  ul.clean { list-style: none; padding: 0; margin: 0; }
+  ul.clean li { padding: 6px 0 6px 26px; position: relative; }
+  ul.clean li::before { content: ""; position: absolute; left: 4px; top: 14px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+  ul.no li::before { background: var(--bad); border-radius: 2px; }
+  ul.yes li::before { background: var(--ok); }
+  .tag { display: inline-block; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--soft); color: var(--accent); }
+
+  /* The remote: a question on a slide goes to the assistant in the simulator. */
+  .asks { display: flex; flex-direction: column; gap: 8px; margin: 14px 0; }
+  button.ask, button.tab {
+    font: inherit; text-align: left; cursor: pointer; border: 1px solid var(--line); background: var(--card); color: var(--ink);
+    border-radius: 14px; padding: 12px 16px 12px 46px; position: relative; min-height: 48px; transition: border-color .15s, background .15s;
+  }
+  button.ask::before {
+    content: "▶"; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; border-radius: 50%;
+    background: var(--fill); color: var(--ink); font-size: 10px; display: grid; place-items: center;
+  }
+  button.tab { padding-left: 16px; display: inline-flex; align-items: center; gap: 8px; min-height: 40px; font-size: 14px; }
+  button.tab::before { content: "📱"; }
+  button.ask:hover, button.tab:hover { border-color: var(--accent); }
+  button.ask:focus-visible, button.tab:focus-visible { outline: 3px solid var(--fill); outline-offset: 2px; }
+  button.sent { border-color: var(--ok); background: #F1F8F3; }
+  button.failed { border-color: var(--bad); background: #FCEFEE; }
+  button .why { display: block; font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+
+  /* Diagrams */
+  svg.diagram { width: 100%; height: auto; display: block; }
+  svg text { font-family: inherit; }
+  .flow { counter-reset: step; display: flex; flex-direction: column; gap: 8px; margin: 8px 0 14px; }
+  .step {
+    display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 12px; background: var(--card);
+    border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; opacity: .35; transition: opacity .3s;
+  }
+  .step.on { opacity: 1; }
+  .step::before {
+    counter-increment: step; content: counter(step); width: 30px; height: 30px; border-radius: 50%; background: var(--soft);
+    color: var(--accent); font-weight: 700; display: grid; place-items: center;
+  }
+  .step b { display: block; }
+  .step span { color: var(--muted); font-size: 14px; }
+  .who { font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .who.code { background: #E8F0F8; color: var(--c2); }
+  .who.model { background: var(--soft); color: var(--accent); }
+  .who.data { background: #EAF4EE; color: var(--c3); }
+
+  .metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .metric { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+  .metric .num { font-size: 32px; font-weight: 700; letter-spacing: -.02em; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .metric .lbl { font-size: 14px; color: var(--muted); }
+  .bars { display: flex; flex-direction: column; gap: 8px; }
+  .bar { display: grid; grid-template-columns: 110px 1fr 56px; align-items: center; gap: 10px; font-size: 14px; }
+  .bar .track { height: 14px; background: var(--line); border-radius: 7px; overflow: hidden; }
+  .bar .track i { display: block; height: 100%; background: var(--accent); border-radius: 7px; }
+  .bar .n { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+
+  .cover { display: flex; flex-direction: column; justify-content: center; min-height: 100%; }
+  .cover .logo { width: 84px; height: 84px; border-radius: 22px; background: var(--fill); display: grid; place-items: center; margin-bottom: 22px; }
+  .quote { font-size: 22px; line-height: 1.35; border-left: 4px solid var(--fill); padding: 4px 0 4px 16px; margin: 18px 0; }
+
+  footer {
+    display: flex; align-items: center; gap: 10px; padding: 10px 28px 16px; border-top: 1px solid var(--line); background: var(--bg);
+  }
+  footer button {
+    font: inherit; border: 1px solid var(--line); background: var(--card); border-radius: 12px; min-width: 44px; min-height: 40px;
+    cursor: pointer; color: var(--ink);
+  }
+  footer .count { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+  footer .spacer { flex: 1; }
+  #status { font-size: 14px; color: var(--muted); }
+  #status.bad { color: var(--bad); }
+  #status.good { color: var(--ok); }
+  aside.notes {
+    display: none; position: fixed; left: 16px; right: 16px; bottom: 74px; background: #1F1B16; color: #F6F1E7;
+    border-radius: 14px; padding: 12px 16px; font-size: 15px; box-shadow: 0 10px 30px rgba(0,0,0,.25);
+  }
+  body.show-notes aside.notes.current { display: block; }
+  .hint { font-size: 13px; color: var(--muted); }
+  kbd { font: 12px ui-monospace, Menlo, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; background: var(--card); }
+</style>
+</head>
+<body>
+<header>
+  <span class="brand">Compass · Kılavuz</span>
+  <span class="section" id="section"></span>
+</header>
+<div class="progress"><i id="bar"></i></div>
+
+<main id="deck">
+
+<!-- 1 -->
+<section class="slide" data-section="Giriş">
+  <div class="cover">
+    <div class="logo">
+      <svg width="46" height="46" viewBox="0 0 46 46" aria-hidden="true"><circle cx="23" cy="23" r="19" fill="none" stroke="#1F1B16" stroke-width="3"/><path d="M23 8 L28 23 L23 38 L18 23 Z" fill="#1F1B16"/><circle cx="23" cy="23" r="3" fill="#F5A700"/></svg>
+    </div>
+    <div class="eyebrow">Backend stajı · Kasım 2026</div>
+    <h1>Kendi verine soru sorabildiğin<br>bir harcama ve yatırım asistanı</h1>
+    <p class="lead">Türkçe soru → yerel yapay zekâ aracı seçer → bankanın kendi kodu hesaplar → telefonda kart olarak cevap.</p>
+    <div class="tabs"><button class="tab" data-tab="home">Ana sayfayı göster</button></div>
+    <p class="hint">Gezinme <kbd>←</kbd> <kbd>→</kbd> · konuşmacı notu <kbd>N</kbd> · soru düğmesi simülatörde sorar</p>
+  </div>
+  <aside class="notes">Merhaba. Solda uygulamanın kendisi, sağda sunum. Sunumdaki soru düğmelerine bastığımda soru gerçekten uygulamadaki asistana gidiyor; aradaki her şey gerçek.</aside>
+</section>
+
+<!-- 2 -->
+<section class="slide" data-section="Sorun">
+  <div class="eyebrow">Sorun</div>
+  <h2>Uygulamalar rakam gösterir, soruya cevap vermez</h2>
+  <p class="lead">İnsanlar parasıyla ilgili kendi kelimeleriyle soru sorar; ekranlar ise sabit listeler ve grafikler sunar.</p>
+  <div class="quote">"Bu ay geçen aya göre fazla mı harcıyorum?"<br>"Önümüzdeki hafta hangi ödemelerim çıkacak?"<br>"Kahveye harcadığımı dolar olarak tutsaydım?"</div>
+  <div class="grid g2">
+    <div class="card"><h3>Bankada yapay zekânın zorluğu</h3><ul class="clean no"><li>Model rakam uydurabilir</li><li>Müşteri verisi buluta gidemez</li><li>Model başkasının verisini ya da yazma işlemini istememeli</li></ul></div>
+    <div class="card"><h3>Hedef</h3><ul class="clean yes"><li>Doğru rakam, her seferinde</li><li>Tamamen yerel model (Ollama, Qwen 4B)</li><li>Kısa, görsel, günlük dil</li></ul></div>
+  </div>
+  <aside class="notes">Asıl risk modelin yanlış rakam söylemesi. Bunu çözmenin yolu modele rakam yazdırmamak: sonraki slayt.</aside>
+</section>
+
+<!-- 3 -->
+<section class="slide" data-section="İlke">
+  <div class="eyebrow">Temel ilke</div>
+  <h2>Model yorumlar ve araç seçer.<br>Backend hesaplar ve yetkilendirir.</h2>
+  <p class="lead">Finansal gerçeğin tek kaynağı .NET backend'dir; model yalnızca hangi soruyu hangi araçla cevaplayacağını seçer.</p>
+  <div class="grid g2">
+    <div class="card"><h3>Modelin işi</h3><ul class="clean yes"><li>Soruyu anlamak, aracı seçmek</li><li>Belirsizse soruyu yazmak (kod denetler)</li><li>Göreli tarihi yorumlamak ("geçen salı")</li></ul></div>
+    <div class="card"><h3>Modelin asla yapmadığı</h3><ul class="clean no"><li>SQL, veritabanı erişimi</li><li>Toplama, yüzde, para hesabı</li><li>Yazma: transfer, ödeme, hesap açma</li><li>Müşteri kimliği seçmek (token'dan gelir)</li></ul></div>
+  </div>
+  <div class="card" style="margin-top:12px"><h3>Sonuç</h3><p>Rakamı ve kartı her zaman kod yazar; cevaptaki her sayı araç sonucunda ya da kullanıcının sorusunda geçmek zorundadır. Geçmezse cevap gitmez.</p></div>
+  <aside class="notes">Bu cümle projenin anayasası. Bütün kararlar buradan çıkıyor.</aside>
+</section>
+
+<!-- 4 -->
+<section class="slide" data-section="Mimari">
+  <div class="eyebrow">Mimari</div>
+  <h2>Beş parça, tek yön</h2>
+  <p class="lead">iPhone yalnız .NET API ile konuşur. Model, araçları salt okunur MCP sunucusundan keşfeder ve müşterinin token'ıyla çağırır.</p>
+  <div class="card">
+  <svg class="diagram" viewBox="0 0 720 360" role="img" aria-label="Mimari: iPhone, .NET API, AI servisi, Ollama, MCP sunucusu, PostgreSQL">
+    <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#9A5100"/></marker></defs>
+    <g font-size="14">
+      <rect x="10" y="30" width="150" height="80" rx="14" fill="#FBF3E2" stroke="#9A5100"/>
+      <text x="85" y="64" text-anchor="middle" font-weight="700" fill="#1F1B16">iPhone</text>
+      <text x="85" y="86" text-anchor="middle" fill="#6B6257">SwiftUI</text>
+
+      <rect x="230" y="30" width="190" height="80" rx="14" fill="#E8F0F8" stroke="#3D6FA8"/>
+      <text x="325" y="60" text-anchor="middle" font-weight="700" fill="#1F1B16">.NET API</text>
+      <text x="325" y="80" text-anchor="middle" fill="#6B6257">JWT · hız sınırı</text>
+      <text x="325" y="98" text-anchor="middle" fill="#6B6257">hesaplar · analizler</text>
+
+      <rect x="490" y="30" width="220" height="80" rx="14" fill="#FBF3E2" stroke="#9A5100"/>
+      <text x="600" y="60" text-anchor="middle" font-weight="700" fill="#1F1B16">AI servisi</text>
+      <text x="600" y="80" text-anchor="middle" fill="#6B6257">FastAPI · LangChain</text>
+      <text x="600" y="98" text-anchor="middle" fill="#6B6257">kurallar · kontrol · kart</text>
+
+      <rect x="530" y="170" width="180" height="70" rx="14" fill="#fff" stroke="#9A5100" stroke-dasharray="5 4"/>
+      <text x="620" y="200" text-anchor="middle" font-weight="700" fill="#1F1B16">Ollama</text>
+      <text x="620" y="222" text-anchor="middle" fill="#6B6257">qwen3.5:4b · yerel</text>
+
+      <rect x="230" y="170" width="220" height="80" rx="14" fill="#EAF4EE" stroke="#2E7D4F"/>
+      <text x="340" y="200" text-anchor="middle" font-weight="700" fill="#1F1B16">MCP sunucusu</text>
+      <text x="340" y="220" text-anchor="middle" fill="#6B6257">20 araç · salt okunur</text>
+      <text x="340" y="238" text-anchor="middle" fill="#6B6257">yalnız 127.0.0.1</text>
+
+      <rect x="230" y="290" width="220" height="60" rx="14" fill="#fff" stroke="#3D6FA8"/>
+      <text x="340" y="317" text-anchor="middle" font-weight="700" fill="#1F1B16">PostgreSQL</text>
+      <text x="340" y="337" text-anchor="middle" fill="#6B6257">EF Core · numeric(18,2)</text>
+
+      <path d="M160 70 H226" stroke="#9A5100" stroke-width="2" marker-end="url(#ar)"/>
+      <path d="M420 70 H486" stroke="#9A5100" stroke-width="2" marker-end="url(#ar)"/>
+      <path d="M620 110 V166" stroke="#9A5100" stroke-width="2" marker-end="url(#ar)"/>
+      <path d="M540 110 C 520 150, 480 180, 454 200" stroke="#2E7D4F" stroke-width="2" fill="none" marker-end="url(#ar)"/>
+      <path d="M340 250 V286" stroke="#3D6FA8" stroke-width="2" marker-end="url(#ar)"/>
+      <path d="M300 110 V166" stroke="#3D6FA8" stroke-width="2" stroke-dasharray="4 4" marker-end="url(#ar)"/>
+      <text x="190" y="60" text-anchor="middle" font-size="11" fill="#6B6257">soru</text>
+      <text x="455" y="60" text-anchor="middle" font-size="11" fill="#6B6257">token</text>
+      <text x="520" y="168" font-size="11" fill="#2E7D4F">araç + token</text>
+      <text x="150" y="146" font-size="11" fill="#3D6FA8">ekranlar: REST, model yok</text>
+    </g>
+  </svg>
+  </div>
+  <p class="hint" style="margin-top:10px">Ortak çekirdek: API ve MCP aynı okuma servislerini ve aynı JWT kurallarını kullanır; yazma servisleri yalnız API'de.</p>
+  <aside class="notes">Önemli nokta: MCP sunucusu yalnız okur. Model istese de yazma yapabileceği bir araç yok; bu bir prompt kuralı değil, mimari.</aside>
+</section>
+
+<!-- 5 -->
+<section class="slide" data-section="Uygulama">
+  <div class="eyebrow">Uygulama</div>
+  <h2>Ana ekran: yapay zekâ kapalıyken de dolu</h2>
+  <p class="lead">Üç kart, her biri ayrı bir REST cevabı. Telefon hiçbir toplamı kendisi hesaplamaz; rakamlar backend'den gelir.</p>
+  <div class="grid g3">
+    <div class="card"><span class="tag">Kart 1</span><h3>Bu ay</h3><p>Şimdiye kadarki harcama ve geçen ayın aynı günleriyle farkı.</p></div>
+    <div class="card"><span class="tag">Kart 2</span><h3>Kategoriler</h3><p>Paranın gittiği ilk üç kategori.</p></div>
+    <div class="card"><span class="tag">Kart 3</span><h3>Yaklaşan ödemeler</h3><p>30 gün; abonelik, fatura, taksit 4/9.</p></div>
+  </div>
+  <div class="tabs" style="margin-top:14px">
+    <button class="tab" data-tab="home">Ana sayfa</button>
+    <button class="tab" data-tab="analysis">Analiz</button>
+    <button class="tab" data-tab="profile">Profil</button>
+  </div>
+  <aside class="notes">Ana sayfada aşağı kaydır, yaklaşan ödemelerde "Tümü"ne bas. Analiz'de halka ve aylık çubuklar.</aside>
+</section>
+
+<!-- 6 -->
+<section class="slide" data-section="Bir soru">
+  <div class="eyebrow">Bir sorunun yolculuğu</div>
+  <h2>Kim neyi yapıyor?</h2>
+  <p class="lead">Düğmeye bas; adımlar sırayla yanar, simülatörde cevap gelir.</p>
+  <div class="flow" id="journey">
+    <div class="step"><div><b>Kelime kuralları ve yazım düzeltme</b><span>"harcadim" → harcadım; konu grubu daraltılır</span></div><em class="who code">kod</em></div>
+    <div class="step"><div><b>Araç seçimi</b><span>20 araçtan ilgili grup gösterilir, model birini seçer</span></div><em class="who model">model</em></div>
+    <div class="step"><div><b>Argüman denetimi</b><span>dönem, tutar, işyeri kullanıcının sözünde mi?</span></div><em class="who code">kod</em></div>
+    <div class="step"><div><b>MCP aracı hesaplar</b><span>müşteri token'dan, SQL backend'de</span></div><em class="who data">backend</em></div>
+    <div class="step"><div><b>Kart ve cümle</b><span>rakamı Türkçe yazan ve kartı kuran kod</span></div><em class="who code">kod</em></div>
+    <div class="step"><div><b>Sayı kontrolü</b><span>cevaptaki her sayı kaynağında var mı?</span></div><em class="who code">kod</em></div>
+  </div>
+  <div class="asks"><button class="ask" data-play="journey">Bu ay ne kadar harcadım?</button></div>
+  <aside class="notes">Altı adımın yalnız biri model. Rakamı model hiç görmeden kart oluşuyor.</aside>
+</section>
+
+<!-- 7 -->
+<section class="slide" data-section="Sohbet">
+  <div class="eyebrow">Harcama soruları</div>
+  <h2>Kategori, işyeri, karşılaştırma</h2>
+  <p class="lead">Cevap bir kart: büyük rakam, çubuklar ve işlemlere giden bağlantı.</p>
+  <div class="asks">
+    <button class="ask">Geçen ay en çok hangi kategoriye harcadım?<span class="why">Kategori kartı, payları backend hesaplar</span></button>
+    <button class="ask">Bu ay geçen aya göre nasıl gidiyorum?<span class="why">Karşılaştırma: fark ve yüzde</span></button>
+    <button class="ask">Son 6 ayda aylık harcamam nasıl?<span class="why">Aylık seri; devam eden ay ayrı işaretli</span></button>
+  </div>
+  <aside class="notes">Karttaki "İşlemleri gör" bağlantısı aynı rakamın satırlarını açar; liste toplamı rakamla aynı.</aside>
+</section>
+
+<!-- 8 -->
+<section class="slide" data-section="Sohbet">
+  <div class="eyebrow">Belirsizlik</div>
+  <h2>Tahmin etmez, sorar</h2>
+  <p class="lead">Dönem ya da işyeri belli değilse asistan dokunulabilir seçeneklerle geri sorar; cevabı kod önceki soruyla birleştirir.</p>
+  <div class="asks">
+    <button class="ask">Migros'a ne kadar harcadım?<span class="why">Dönem yok → "Hangi dönem?" seçenekleri</span></button>
+    <button class="ask">Peki geçen ay?<span class="why">Takip sorusu: son çağrının işyeri korunur</span></button>
+    <button class="ask">Peki kategorilere göre?<span class="why">Aynı dönem, başka araç</span></button>
+  </div>
+  <div class="card"><p style="margin:0">Takipte yalnız son çağrı hatırlanır, rakamlar asla; her rakam yeniden hesaplanır.</p></div>
+  <aside class="notes">İlk soruda seçeneklerden birine simülatörde dokun. Sonra "Peki geçen ay?" ile takip.</aside>
+</section>
+
+<!-- 9 -->
+<section class="slide" data-section="Rutin">
+  <div class="eyebrow">Rutin ödemeler</div>
+  <h2>Abonelik, fatura, taksit</h2>
+  <p class="lead">Düzenli ödemeyi kural bulur: en az 3 ödeme, 26–35 gün arayla, tutar ±%10. Taksit sırası açıklamadan okunur.</p>
+  <div class="asks">
+    <button class="ask">Önümüzdeki 30 günde hangi ödemelerim var?<span class="why">Tahmini tarih, gün ve tutar; taksit 4/9</span></button>
+    <button class="ask">Aboneliklerim neler?<span class="why">Düzenli ödeme listesi, kanıtıyla</span></button>
+  </div>
+  <div class="tabs"><button class="tab" data-tab="home">Ana sayfadaki kartı göster</button></div>
+  <aside class="notes">Aynı rakamlar ana ekrandaki "Yaklaşan ödemeler" kartında da var: tek kaynak.</aside>
+</section>
+
+<!-- 10 -->
+<section class="slide" data-section="Yatırım">
+  <div class="eyebrow">Ne olurdu?</div>
+  <h2>Geçmiş fiyatla "harcamasaydım" ve "biriktirseydim"</h2>
+  <p class="lead">Dolar, euro ve gram altının resmî geçmiş fiyatlarıyla. Tahmin ya da tavsiye yok; her cevapta sabit uyarı.</p>
+  <div class="asks">
+    <button class="ask">Geçen ay harcamasaydım ne olurdu?<span class="why">Tek seferlik: ayın ilk günü alınmış sayılır</span></button>
+    <button class="ask">Ayda 2 bin TL biriktirseydim ne olurdu?<span class="why">Süre sorulur; aylık birikim + en kötü an</span></button>
+  </div>
+  <div class="grid g2">
+    <div class="card"><h3>Dalgalanma iki açıdan</h3><p>Fiyatın tepe→dip düşüşü ve birikimin kendi yaşadığı en kötü an.</p></div>
+    <div class="card"><h3>Sınır</h3><p>Fiyat 10 günden eskiyse rakam yok; alış-satış farkı ve enflasyon uyarıda.</p></div>
+  </div>
+  <aside class="notes">Kişiye özel yatırım danışmanlığı izne bağlı; bu yüzden yalnız geçmiş ve "ne olurdu".</aside>
+</section>
+
+<!-- 11 -->
+<section class="slide" data-section="Bankacılık">
+  <div class="eyebrow">Temel bankacılık</div>
+  <h2>Bakiye, gelir, transfer, işlem arama</h2>
+  <div class="asks">
+    <button class="ask">Bakiyem ne kadar?</button>
+    <button class="ask">Maaşım yattı mı?<span class="why">"yattı mı" = bu ay, kuralla</span></button>
+    <button class="ask">2 bin TL üstü harcamalarım neler?<span class="why">Tutar sınırını kod okur, model değil</span></button>
+    <button class="ask">Kimlere para gönderdim?<span class="why">Karşı taraf maskeli: "Deniz M***"</span></button>
+  </div>
+  <aside class="notes">Karşı tarafın adı veritabanına kopyalanmıyor, okurken maskeleniyor.</aside>
+</section>
+
+<!-- 12 -->
+<section class="slide" data-section="Dayanıklılık">
+  <div class="eyebrow">Gerçek insanlar böyle yazar</div>
+  <h2>Serbest yazılış ve yazım hatası</h2>
+  <p class="lead">Türkçe karaktersiz, devrik, eksik harfli cümleler kapalı bir kelime listesiyle düzeltilir; ad ve rakama dokunulmaz.</p>
+  <div class="asks">
+    <button class="ask">gecen ay ne kadr harcadim<span class="why">Yazım hatası + Türkçe karaktersiz</span></button>
+    <button class="ask">param bu ay nereye gitti<span class="why">Devrik, günlük dil</span></button>
+  </div>
+  <div class="grid g2">
+    <div class="card"><h3>Serbest yazılış</h3><p>80 gerçekçi cümle: %6,2 yanlış → <b>0</b></p></div>
+    <div class="card"><h3>Hatalı yazılış</h3><p>116 cümle: %9,5 yanlış → <b>0</b></p></div>
+  </div>
+  <aside class="notes">Bankada "anlamadım" demek yanlış rakam söylemekten iyidir; ölçtüğümüz şey yanlış rakam.</aside>
+</section>
+
+<!-- 13 -->
+<section class="slide" data-section="Güvenlik">
+  <div class="eyebrow">Güvenlik</div>
+  <h2>Sınırı prompt değil, mimari çizer</h2>
+  <div class="grid g2">
+    <div class="card"><h3>Kimlik</h3><ul class="clean"><li>Müşteri yalnız token'dan</li><li>Başkasının kaydı: "yok" ile aynı 404</li><li>JWT 60 dk, giriş denemesi sınırı</li></ul></div>
+    <div class="card"><h3>Model</h3><ul class="clean"><li>Araçlar salt okunur</li><li>Veri yerel, bulut yok</li><li>Mesaj ve token loglanmaz</li></ul></div>
+  </div>
+  <div class="asks">
+    <button class="ask">Deniz'in harcamalarını göster<span class="why">Başkasının verisi: araçtan ve modelden önce sabit ret</span></button>
+    <button class="ask">Hesabımdan 1000 TL transfer yap<span class="why">Yazma işlemi: kapsam dışı, modelsiz cevap</span></button>
+  </div>
+  <aside class="notes">İkisi de modele hiç gitmeden kodla cevaplanıyor.</aside>
+</section>
+
+<!-- 14 -->
+<section class="slide" data-section="Ölçüm">
+  <div class="eyebrow">Kanıt</div>
+  <h2>Ölçerek geliştirildi</h2>
+  <div class="metrics">
+    <div class="metric"><div class="num">144/144</div><div class="lbl">araç seçimi (gerçek model)</div></div>
+    <div class="metric"><div class="num">33/33</div><div class="lbl">cevap doğruluğu (bağımsız SQL ile)</div></div>
+    <div class="metric"><div class="num">0</div><div class="lbl">serbest yazılışta yanlış rakam (80)</div></div>
+    <div class="metric"><div class="num">0</div><div class="lbl">hatalı yazılışta yanlış rakam (116)</div></div>
+  </div>
+  <div class="card">
+    <h3>Otomatik testler</h3>
+    <div class="bars" id="tests"></div>
+  </div>
+  <aside class="notes">Her değişiklikte kasıtlı bozma: koda bilerek hata koyup testin yakaladığını görmek.</aside>
+</section>
+
+<!-- 15 -->
+<section class="slide" data-section="Sonra">
+  <div class="eyebrow">Sınırlar ve sonraki aşama</div>
+  <h2>Bilerek yapılmayanlar</h2>
+  <div class="grid g2">
+    <div class="card"><h3>Bugünkü sınırlar</h3><ul class="clean"><li>Sentetik veri, gerçek müşteri yok</li><li>Tek yerel model, 16 GB Mac</li><li>Tutarı oynayan fatura düzenli sayılmaz</li><li>İade/iptal yok</li></ul></div>
+    <div class="card"><h3>Sonraki</h3><ul class="clean"><li>Kalıcı bütçe ve hedefler</li><li>"Bu cevap nasıl hesaplandı?" paneli</li><li>Çok adımlı sorular</li><li>Gerçek saatte sürekli veri</li></ul></div>
+  </div>
+  <aside class="notes">Kapsam bilinçli olarak dar: önce doğru, sonra geniş.</aside>
+</section>
+
+<!-- 16 -->
+<section class="slide" data-section="Son">
+  <div class="cover">
+    <div class="eyebrow">Teşekkürler</div>
+    <h1>Sorular?</h1>
+    <p class="lead">Dilediğiniz bir soruyu birlikte soralım.</p>
+    <div class="asks">
+      <button class="ask">Bu ay en büyük harcamalarım neler?</button>
+      <button class="ask">Market bütçem 8 bin TL, bu ay aşar mıyım?</button>
+    </div>
+  </div>
+  <aside class="notes">Serbest soru gelirse simülatörde elle yaz.</aside>
+</section>
+
+</main>
+
+<footer>
+  <button id="prev" aria-label="Önceki slayt">←</button>
+  <button id="next" aria-label="Sonraki slayt">→</button>
+  <span class="count" id="count"></span>
+  <span class="spacer"></span>
+  <span id="status" role="status" aria-live="polite"></span>
+</footer>
+
+<script>
+(() => {
+  // Figures as of 19 November 2026 (README); written here by hand, not counted by the page.
+  const tests = [["Api (.NET)", 657], ["Application", 572], ["MCP sunucusu", 263], ["Data", 225], ["Python (AI)", 1893], ["iPhone", 478]];
+  const max = Math.max(...tests.map(t => t[1]));
+  document.getElementById("tests").innerHTML = tests.map(([name, n]) =>
+    `<div class="bar"><span>${name}</span><span class="track"><i style="width:${(n / max * 100).toFixed(1)}%"></i></span><span class="n">${n.toLocaleString("tr-TR")}</span></div>`
+  ).join("");
+
+  const slides = [...document.querySelectorAll("section.slide")];
+  const status = document.getElementById("status");
+  let index = 0;
+  try { index = Math.min(slides.length - 1, Math.max(0, parseInt(location.hash.slice(1), 10) - 1 || 0)); } catch { index = 0; }
+
+  function show(next) {
+    index = Math.min(slides.length - 1, Math.max(0, next));
+    slides.forEach((s, i) => {
+      s.classList.toggle("active", i === index);
+      s.classList.toggle("past", i < index);
+      s.querySelector("aside.notes")?.classList.toggle("current", i === index);
+    });
+    document.getElementById("count").textContent = `${index + 1} / ${slides.length}`;
+    document.getElementById("section").textContent = slides[index].dataset.section || "";
+    document.getElementById("bar").style.width = `${(index + 1) / slides.length * 100}%`;
+    history.replaceState(null, "", `#${index + 1}`);
+  }
+
+  function say(text, tone) {
+    status.textContent = text;
+    status.className = tone || "";
+  }
+
+  async function remote(command, button) {
+    button.classList.remove("sent", "failed");
+    say("Simülatöre gönderiliyor…");
+    try {
+      const response = await fetch("/api/remote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command) });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || `Hata ${response.status}`);
+      button.classList.add("sent");
+      say(command.ask ? "Soru asistana gitti" : "Ekran açıldı", "good");
+      return true;
+    } catch (error) {
+      button.classList.add("failed");
+      say(error.message === "Failed to fetch" ? "Sunum yardımcısı kapalı (scripts/present.sh)" : error.message, "bad");
+      return false;
+    }
+  }
+
+  // The flow lights up one step at a time while the answer comes in the simulator.
+  function play(id) {
+    const steps = [...document.getElementById(id).querySelectorAll(".step")];
+    steps.forEach(s => s.classList.remove("on"));
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    steps.forEach((s, i) => setTimeout(() => s.classList.add("on"), reduce ? 0 : 450 * i));
+  }
+
+  document.querySelectorAll("button.ask").forEach(button => {
+    // The question is the button's own first line; the grey line under it is only for the audience.
+    const question = button.childNodes[0].textContent.trim();
+    button.addEventListener("click", async () => {
+      if (await remote({ ask: question }, button) && button.dataset.play) play(button.dataset.play);
+    });
+  });
+  document.querySelectorAll("button.tab").forEach(button =>
+    button.addEventListener("click", () => remote({ tab: button.dataset.tab }, button)));
+
+  document.getElementById("prev").addEventListener("click", () => show(index - 1));
+  document.getElementById("next").addEventListener("click", () => show(index + 1));
+  document.addEventListener("keydown", event => {
+    if (event.target.closest && event.target.closest("input, textarea")) return;
+    if (["ArrowRight", "PageDown", " "].includes(event.key)) { event.preventDefault(); show(index + 1); }
+    else if (["ArrowLeft", "PageUp"].includes(event.key)) { event.preventDefault(); show(index - 1); }
+    else if (event.key === "Home") show(0);
+    else if (event.key === "End") show(slides.length - 1);
+    else if (event.key.toLowerCase() === "n") document.body.classList.toggle("show-notes");
+  });
+
+  show(index);
+})();
+</script>
+</body>
+</html>

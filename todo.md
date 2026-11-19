@@ -890,12 +890,14 @@ kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir.
   öneri (satırda geçmiş fiyatla "altın olsaydı", grubun altında en fazla 2 alışkanlık önerisi; kategorisi belirsiz olan öneri almaz); işlem
   detayında aynı not. Kararlar 19 Kasım 2026 sohbetinde (rutin = abonelik/fatura/taksit; temel = sabit kategori tablosu). Ayrı tasarım.
 - [x] DEMO-03 — Ana ekranda gelir payı kartının yerine "yaklaşan rutin ödemeler" kartı (kullanıcı kararı B, 19 Kasım 2026). (19 Kasım 2026: tamam. K1-B K2-A K3-A K4-A K5-A: `upcoming-payments`/`recurring-payments` kalemlerine `routine` + `installment`, son taksiti ödenmiş plan yaklaşan değil; iPhone kartı toplam + ilk 3 + "Tümü (N)" liste ekranı; Murat canlıda 8 ödeme / 9.519,97 TL. Application 572, Api 657, McpServer 263, Data 225, Python 1893, iOS 463.)
-- [ ] DEMO-04 — Etkileşimli sunum (19 Kasım 2026 kullanıcı isteği; K1-A K2-A K3-A K4-A K6-A): ekranın solunda simülatör, sağında
+- [x] DEMO-04 — Etkileşimli sunum (19 Kasım 2026 kullanıcı isteği; K1-A K2-A K3-A K4-A K6-A): ekranın solunda simülatör, sağında
   tarayıcıda yerel sunum; slayttaki soruya tıklayınca soru simülatördeki asistana gider. İki PR. PR1 iPhone (tamam, 19 Kasım 2026):
   `compass://ask?q=…` ve `compass://tab/<home|analysis|assistant|profile>` (`App/DemoLink`, yalnız DEBUG, yalnız girişten sonra;
   soru normal sohbet yolundan, beklerken ikincisi düşer; bilinmeyen bağlantı yok sayılır). iOS 478 test, 4 kasıtlı bozma yakalandı.
-  PR2: `presentation/index.html` (çevrimdışı, kendi slayt motoru, görseller) + `presentation/server.py` (yalnız 127.0.0.1, yalnız
-  bilinen komutlar → `xcrun simctl openurl booted`) + `scripts/present.sh` (pencereleri yerleştirir); slayt rakamları canlıdan doğrulanır.
+  PR2 (tamam, 19 Kasım 2026): `presentation/index.html` (16 slayt, 21 soru düğmesi, çevrimdışı, kendi slayt motoru, SVG mimari, adım
+  adım yanan akış, konuşmacı notu `N`) + `presentation/server.py` (yalnız 127.0.0.1:7300, yalnız kendi sayfasının kökeni, iki komut,
+  kabuksuz `xcrun simctl openurl booted`, soru loglanmaz; 10 test, 4 kasıtlı bozma yakalandı) + `scripts/present.sh` (simülatör sola,
+  Safari sağa). Slaytlardaki ölçüm ve test sayıları README'den; canlı rakam slayta yazılmadı (cevap simülatörde gelir).
 - [ ] FIN-10 — Kullanıcıyla son kabul review'ü yap. Açık maddeleri yapılmış işaretleme; ertelenen işleri gerekçesiyle ayır.
 
 ## Kapsam dışında kalanlar
