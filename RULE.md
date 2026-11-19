@@ -1389,7 +1389,8 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 
 COMPLETED
 - Rutin / rutin olmayan döküm, iPhone (DEMO-02 PR2, 19 Kasım 2026, `demo-02b-breakdown-iphone`; docs/ios.md "iOS-ac"): harcama bağlantısı
-  dökümü açar (iki grup, etiketler, yatırım kartı, öneriler), uzun dönem düz liste; işlem detayında insight. iOS 454.
+  dökümü açar (iki grup, etiketler, yatırım kartı, öneriler), uzun dönem düz liste; işlem detayında insight; sohbet kartındaki satırlar da
+  detayı açar. iOS 454. #113: harcama olmayan araçların dönem sorusu "harca-/masraf" diyemez (sabit metne düşer).
 - Rutin / rutin olmayan döküm, backend (DEMO-02 PR1, 19 Kasım 2026, `demo-02a-breakdown-api`; docs/analytics.md "DEMO-02", docs/api.md):
   `GET /api/transactions/breakdown` ve `/{id}/insight`; taksit kalıbı + dönem sonuna göre düzenli ödeme + temel kategori; rutin olmayan
   isteğe bağlı TL'ye "kendi gününde" üç varlık; ≥ 28 günde en fazla 2 alışkanlık önerisi; > 31 gün `periodTooLong`. Application 564,
