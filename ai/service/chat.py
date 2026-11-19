@@ -40,7 +40,7 @@ from prompts import (ADVICE_DECLINED_TEXT, BARE_CHOICE_TEXT, CLARIFY_TEXT, DATE_
 from dates import CustomerDay, DateReading, check_range, period_line, read_dates, with_span_replaced
 from grounding import brand_in, category_in, check_arguments, mentions_period, unclear_amounts
 from spelling import correct
-from routing import (DATE_FIELDS, ONE_OFF, PLANNING, TREND, Route, Router, group_of, hide_dates, is_spending_question, narrow,
+from routing import (COMPARE, DATE_FIELDS, ONE_OFF, PLANNING, TREND, Route, Router, comparison_of, fold_turkish, group_of, hide_dates, is_spending_question, narrow,
                      planning_of, trend_months)
 from suggestions import OTHER_PERSON_SUGGESTIONS, OUT_OF_SCOPE_SUGGESTIONS, AskedStore, OfferedStore, follow_ups, match, panel_questions, result_shape
 from tools import ToolArgumentsRejected, ToolGateway
@@ -282,6 +282,11 @@ class ChatService:
                 return self._ask(ask_months_again(waiting), [], token, deadline)
             if arguments is not None:
                 question = f"{waiting.question} ({message})"
+                if waiting.tool in ACCOUNT_TOOLS:
+                    # Simulator trial (19 Nov 2026): the limit, its currency and the direction are read from the user's question
+                    # again, as on the first turn; the waiting call held the model's limit without a currency (refused by the
+                    # server) and the model's direction ("Received" for "gönderdim").
+                    arguments = code_arguments(waiting.tool, arguments, waiting.question, None)
                 # "3000" answered the amount; the currency the model guessed as well is asked next, not run.
                 later = tuple(name for name in waiting.later if name not in arguments)
                 if later:
@@ -371,7 +376,9 @@ class ChatService:
             # CHAT-09 K13-A: the words chose the scenario and the model was shown it alone; choosing nothing there is the small
             # model's indecision, not an out-of-scope question. Its arguments are read from the words, and checked below as always.
             # ACC-01b K2-C: the account tools the same way, their figures read by code (accounts.fallback_arguments).
-            if route.only == TREND:
+            if route.only == COMPARE:
+                arguments = {"comparison": comparison_of(fold_turkish(shown))}
+            elif route.only == TREND:
                 # CHAT-12 PR3 K3-A: the count the user wrote ("son 6 ayda"), asked like any count when there is none; the check below
                 # does not ask a required count that is missing, it would run the tool without one.
                 if (months := trend_months(shown)) is None:
@@ -422,6 +429,9 @@ class ChatService:
             # K4-C (simulator trial): "Mart ayında alışverişe ne kadar harcadım" got GROCERY from the model; no category the user named
             # means all of the spending, so the total answers it (the check used to ask "Kaç aylık bakayım?" for the category).
             call = ToolCall(SUMMARY_TOOL, {k: v for k, v in call.arguments.items() if k != "categoryCode"})
+        if call.tool == COMPARE and (comparison := comparison_of(fold_turkish(shown))) is not None:
+            # Which comparison is the words', not the model's guess (simulator trial, 19 Nov 2026).
+            call = ToolCall(COMPARE, {**call.arguments, "comparison": comparison})
         checked = {k: v for k, v in call.arguments.items() if not (reading.kind == "found" and k == "period")}
         grounding = check_arguments(checked, schemas[call.tool], shown, carryable(message, context.arguments) if context else None)
         if grounding.missing is not None:

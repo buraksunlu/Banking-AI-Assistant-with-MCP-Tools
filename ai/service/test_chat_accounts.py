@@ -82,7 +82,8 @@ def test_a_said_period_is_run_and_carded():
     reply = chat.answer("Geçen ay maaşım ne kadar yattı?", TOKEN, DAY)
 
     assert gateway.calls[0][:2] == ("get_income", {"period": "LastMonth"})
-    assert (reply.answer, explainer.calls) == ("Eylül 2026: 1 gelir, toplam 85.000,00 TL.", [])
+    # Without a card sentence the plain answer is the card's title and figure.
+    assert (reply.answer, explainer.calls) == ("Gelir · Eylül 2026: 85.000,00 TL", [])
     assert [c.title for c in reply.cards] == ["Gelir · Eylül 2026"]
 
 
@@ -157,3 +158,26 @@ def test_a_short_question_without_peki_does_not_carry_the_limit():
     chat.answer("Bu ay?", TOKEN, DAY)
 
     assert gateway.calls[1][:2] == ("search_transactions", {"period": "ThisMonth"})
+
+
+def test_a_limit_asked_for_its_period_keeps_its_currency():
+    # The model guesses a period the user did not say, so it is asked. Simulator trial (19 Nov 2026): "bu ay" under the period question ran the search with the limit but without its currency; the
+    # MCP server refused it and the user got the fixed "Sorunuzu tam anlayamadım". The reply now reads the limit again, as the first
+    # turn does.
+    chat, _, gateway, _ = chat_with([MURAT_OVER_2000], turns=[[ToolCall("search_transactions", {"period": "ThisMonth", "minAmount": 2000})]])
+
+    asked = chat.answer("2 bin TL üstü harcamalarım neler?", TOKEN, DAY)
+    reply = chat.answer("bu ay", TOKEN, DAY)
+
+    assert (asked.type, asked.choices) == ("clarification", PERIOD_CHOICES)
+    assert gateway.calls[0][:2] == ("search_transactions", {"period": "ThisMonth", "minAmount": 2000, "currencyCode": "TRY"})
+    assert reply.type == "answer"
+
+
+def test_a_transfer_asked_for_its_period_keeps_its_direction():
+    chat, _, gateway, _ = chat_with([search(SEPTEMBER, [], [])], turns=[[ToolCall("get_transfers", {"period": "ThisMonth", "direction": "Received"})]])
+
+    chat.answer("Kimlere para gönderdim?", TOKEN, DAY)
+    chat.answer("geçen ay", TOKEN, DAY)
+
+    assert gateway.calls[0][:2] == ("get_transfers", {"period": "LastMonth", "direction": "Sent"})

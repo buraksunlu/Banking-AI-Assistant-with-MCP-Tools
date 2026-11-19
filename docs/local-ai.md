@@ -1552,3 +1552,17 @@ Kararlar K1-B, K2-B, K3-A, K4-B. Testler `ai/service/test_other_person.py`.
 - **Örneklemin üç hatası AI-12 dışı** (reddedilmeyen mesajın yolu değişmedi): "MARKET HARCAMAMI YÜZDE 30…" modelde kategori düştü (dalgalanma);
   "Ayda 5 bin 6 ay…" bilinen CHAT-11; "hasan'dan para geldi mi" karşı taraf küçük harfle döndü, ölçüm harf duyarlı karşılaştırıyor.
 - **Doğrulama:** Python 1833 → 1873 modelsiz (`pytest ai -k "not real"`). .NET, iPhone ve sözleşme değişmedi.
+
+## Sunum denemesi düzeltmeleri (19 Kasım 2026, simülatör, Murat canlı)
+
+- **Karşılaştırma kelimeleri** (`routing._COMPARE_WORDS`: "geçen/önceki aya göre|kıyasla|oranla", "aynı günlerine göre") modele yalnız
+  `compare_spending`'i gösterir (`Route.only`); hangi karşılaştırma kodun (`routing.comparison_of`): yanında "bu ay" varsa `MonthToDate`, yoksa
+  `PreviousFullMonth` (araç açıklaması, S17/S18/R06). Model boş dönerse kod kurar, yanlış seçerse kod düzeltir. Önce: "Bu ay geçen aya göre nasıl
+  gidiyorum?" telefonda sabit "anlayamadım", başka turda Ekim–Eylül karşılaştırması.
+- **Hesap aracının dönem sorusu cevaplanınca** (`chat`, bekleyen soru yolu) tutar sınırı, para birimi ve transfer yönü kullanıcının özgün
+  sorusundan yeniden okunur (`accounts.code_arguments`), ilk turdaki gibi. Önce: "2 bin TL üstü…" → "bu ay" para birimsiz gidip sunucudan
+  reddediliyordu (sabit "anlayamadım"); "Kimlere para gönderdim?" → dönem cevabında modelin "Received" yönü kalıyordu.
+- **Cümlesiz kartlar:** aylık seri ("Son tam ay …") ve gelir ("N gelir, toplam …") kartı başlıktaki rakamı tekrar ediyordu, kalktı (kategori ve
+  işyeri #117'de). Transfer ve arama kartı cümlesini tutar (yön ve adet söyler). Düz metin cevabı "başlık: rakam".
+- Gerçek modelle canlıda beşi de doğru: MonthToDate; 5 harcama 15.600,00 TL (bu ay, 2.000 TL üstü); Ekim'de 1 transfer gönderildi 2.500,00 TL.
+

@@ -34,9 +34,6 @@ def route(message, previous=None, classifier=None):
     ("Geçen ay en çok hangi kategoriye harcadım?", (GENERAL,)),
     ("Faturalara ne kadar harcadım?", (GENERAL,)),
     ("Son 3 ayda Starbucks'a ne kadar verdim?", (GENERAL,)),
-    ("Geçen aya göre nasılım?", (GENERAL,)),
-    # "aylara göre" shows the trend alone since CHAT-12 PR3 (test_free_rules); "geçen aya göre" compares and is no series.
-    ("Harcamam geçen aya göre nasıl değişti?", (GENERAL,)),
     ("Transferlerim harcamaya dahil mi?", (GENERAL,)),          # a question about transfers, not a request
     ("Aboneliklerim neler?", (GENERAL,)),                      # payment words keep the model's classifier out of it
     ("Önümüzdeki 7 günde hangi ödemelerim var?", (GENERAL,)),
@@ -99,7 +96,6 @@ def test_a_follow_up_without_its_own_rule_keeps_the_last_calls_group(message, pr
 
 @pytest.mark.parametrize(("message", "previous", "groups"), [
     ("Aboneliklerim neler?", "check_budget", (GENERAL,)),
-    ("Bir önceki ayla karşılaştır", "check_budget", (GENERAL,)),
     ("Peki 1.500 TL bütçe olsa?", "check_budget", (PLANNING,)),
 ])
 def test_a_follow_ups_own_rule_comes_first(message, previous, groups):
