@@ -942,3 +942,18 @@ test durumu (`AnswerCardTests`); 1 kasıtlı bozma yakalandı.
 - Telefon toplama/yüzde yapmaz; bilinmeyen `reason` çözümleme hatasıdır (tahmin edilmez). Testler `BreakdownTests` (iOS 438 → 454 test
   durumu); kasıtlı bozmalar: etiket, fark işareti, `periodTooLong` dalı yakalandı; `minAmount` koşulu tek başına yakalanmaz (backend tutar
   sınırını hep para birimiyle gönderir, `currencyCode` koşulu aynı bağlantıyı zaten düz listeye bırakır).
+
+## iOS-ae: sunum kumandası (DEMO-04 PR1; 19 Kasım 2026)
+
+Sunumda slayttaki soruya tıklanınca soru simülatördeki asistana gider. Yol: sayfa → yerel yardımcı (PR2) →
+`xcrun simctl openurl booted "compass://ask?q=…"` → `MainTabView.onOpenURL` → `DemoLink` → Asistan sekmesi + `ChatViewModel.send`.
+
+- Bağlantılar: `compass://ask?q=<soru>` (kırpılır, boşsa ya da API'nin 500 karakter sınırını aşarsa yok sayılır) ve
+  `compass://tab/home|analysis|assistant|profile`. Başka her şey (bilinmeyen komut, büyük harfli ad, başka şema) yok sayılır, tahmin edilmez.
+- Yalnız DEBUG derlemede (K4-A): mesaj gönderten bir bağlantı sürüm derlemesinde saldırı yüzeyi olurdu. Şema Info.plist'te her
+  derlemede kayıtlıdır ama sürümde bağlantıyı okuyan kod yoktur.
+- Yalnız girişten sonra: giriş ekranında işleyici yok, bağlantı düşer (şifreyi yine kullanıcı girer).
+- Soru normal yoldan gider (token, hız sınırı, AI, MCP); cevap beklenirken gelen ikinci soru düşer (sıraya girmez). Açık soru sayfası kapanır.
+- Türkçe harfler bağlantıda yüzde kodlu gelir; simülatöre yapıştırmadaki harf bozulması burada yoktur.
+- Testler `BankingAITests/DemoLinkTests.swift` (16 durum); kasıtlı bozma: kırpma, sınır, sekme, büyük harf, hepsi yakalandı.
+

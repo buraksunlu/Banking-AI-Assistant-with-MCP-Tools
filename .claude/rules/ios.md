@@ -45,3 +45,4 @@ göster (N)" satırıyla açılır (`ChatMessage.expanded`, istek atmaz); satır
 gösterir (`CardDisplay.cardTransactions`, `CardTransactions`), cümlesi gizlenir. Ana ekranın
 "Kılavuz'a sor…" alanı ve kategori satırları `AskSheet` ile kayan sayfayı açar; sayfa Asistan sekmesiyle aynı `ChatViewModel`'i gösterir.
 Gelir payı kartı (INC-04) `Insights/` altındadır (UX-01 PR2'den beri Analiz sekmesinde; ana ekrandaki kısa hâli DEMO-03'te kalktı): tek istek `spending-advice?period=LastMonth` (ay backend'in), paylar ve öneri metni backend'den, telefon yalnız çizer; çubuk %100'de kırpılır (metin tam), en fazla 2 öneri, bilinmeyen grup adı çözümleme hatasıdır (başka grup gibi çizilmez); kart modele bağlı değildir. İleride IOS-12 içgörü bölümüne taşınır.
+Sunum kumandası (DEMO-04): `App/DemoLink` yalnız `#if DEBUG`; `compass://ask?q=` ve `compass://tab/<ad>` dışındaki bağlantı yok sayılır, soru `ChatViewModel.send` ile gider (yeni gönderim yolu açılmaz).

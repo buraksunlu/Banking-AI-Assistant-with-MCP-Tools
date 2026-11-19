@@ -76,6 +76,14 @@ struct MainTabView: View {
             .presentationDragIndicator(.visible)
             .environment(\.customerTimeZone, home.timeZone)
         }
+        #if DEBUG
+        // The presentation's remote (DemoLink). Only here, after sign-in: on the login screen a link has no handler and is dropped.
+        .onOpenURL { url in
+            guard let link = DemoLink(url: url) else { return }
+            sheet.isPresented = false
+            Task { await link.perform(in: chat, show: show) }
+        }
+        #endif
     }
 
     /// A panel row's question or the empty field opens the sheet (K5-A).
