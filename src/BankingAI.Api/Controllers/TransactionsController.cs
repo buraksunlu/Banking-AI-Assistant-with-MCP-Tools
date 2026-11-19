@@ -31,7 +31,8 @@ public sealed record TransactionPage(
 /// account, while a single transaction is addressed by its own id.
 /// </remarks>
 [ApiController]
-public sealed class TransactionsController(TransactionSearchService search, ITransactionWriteService writer) : ControllerBase
+public sealed class TransactionsController(
+    TransactionSearchService search, ITransactionWriteService writer, SpendingBreakdownService breakdown) : ControllerBase
 {
     /// <summary>Period used when the client gives neither a period nor dates (decision 1-B).</summary>
     public const PeriodKind DefaultPeriod = PeriodKind.Last3Months;
@@ -100,6 +101,34 @@ public sealed class TransactionsController(TransactionSearchService search, ITra
                 AmountParameter.Parse(minAmount, nameof(minAmount)), AmountParameter.Parse(maxAmount, nameof(maxAmount)), currencyCode,
                 ExactEnum.Parse<AccountType>(accountType, nameof(accountType), "Personal veya Business olmalı."), counterparty),
             cancellationToken));
+
+    /// <summary>
+    /// <c>GET /api/transactions/breakdown</c> (DEMO-02): the period's purchases on personal accounts in two groups, "Rutin ve temel" and
+    /// "Rutin olmayan", per currency, with the non-routine discretionary lira spending compared with dollars, euros and gold bought on
+    /// each purchase's own day and at most two habit advices. The period is required (no <c>AllTime</c>); a period longer than 31 days
+    /// answers <c>periodTooLong: true</c> with no currencies, and the client shows the plain list. <paramref name="categoryCode"/> and
+    /// <paramref name="merchant"/> narrow it like a chat answer's link.
+    /// </summary>
+    [HttpGet("api/transactions/breakdown")]
+    public async Task<ActionResult<SpendingBreakdown>> BreakdownAsync(
+        [FromQuery] string? period,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        [FromQuery] string? categoryCode,
+        [FromQuery] string? merchant,
+        CancellationToken cancellationToken) =>
+        Ok(await breakdown.GetAsync(
+            new SpendingBreakdownQuery(User.GetCustomerId(), PeriodParameters.Resolve(period, from, to, null), from, to, categoryCode, merchant),
+            cancellationToken));
+
+    /// <summary>
+    /// <c>GET /api/transactions/{id}/insight</c> (DEMO-02): one transaction's routine reason and spending group and, for a non-routine
+    /// discretionary lira purchase at least 7 days old, what it would be worth in dollars, euros and gold today; otherwise a fixed note
+    /// says why. Another customer's transaction gets exactly the 404 of a missing one.
+    /// </summary>
+    [HttpGet("api/transactions/{id}/insight")]
+    public async Task<ActionResult<TransactionInsight>> InsightAsync(Guid id, CancellationToken cancellationToken) =>
+        Ok(await breakdown.InsightAsync(User.GetCustomerId(), id, cancellationToken));
 
     /// <summary>
     /// <c>GET /api/transactions/{id}</c>: one transaction of the customer, of any kind and on any of their accounts,

@@ -111,7 +111,7 @@ public sealed class OpenApiContractTests
         }
         // 29 protected operations (INC-01 income-share, INC-02 spending-advice, INV-01 what-if/one-off and monthly, UX-01 PR3
         // category-spending) + health and login.
-        Assert.Equal(31, Operations(document).Count());
+        Assert.Equal(33, Operations(document).Count());
     }
 
     [Theory]

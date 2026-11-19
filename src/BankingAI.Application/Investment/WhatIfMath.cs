@@ -43,6 +43,9 @@ public sealed record MonthlyAssetWhatIf(
 /// The shared engine of every scenario (OC-01): lira → units at the buy price → value at the valuation price. One value per day,
 /// so buying and selling use the same price (K3-A). Units stay exact; only reported figures are rounded.
 /// </summary>
+/// <summary>One purchase of a basket (DEMO-02): its day and its lira amount.</summary>
+public sealed record BasketBuy(DateOnly Date, decimal Amount);
+
 public static class WhatIfMath
 {
     /// <summary>The fixed warning returned with every result (K11-A, OC-09).</summary>
@@ -77,6 +80,31 @@ public static class WhatIfMath
             (units, worth, difference, percent) = OneOff(amount, buy.Price!.Value, value.Price!.Value);
         return new AssetWhatIf(asset.Symbol, asset.Name, asset.BaseUnit, buy.RequestedDate, buy.PriceDate, buy.Price,
             value.RequestedDate, value.PriceDate, value.Price, units, worth, difference, percent, status, value.Source ?? buy.Source);
+    }
+
+    /// <summary>
+    /// DEMO-02: several purchases, each bought on its own day at that day's price, valued together at <paramref name="value"/>. The
+    /// units add up exactly; only reported figures are rounded. Any buy or the valuation without a usable price leaves no figures, and
+    /// <c>Status</c> is the worst one. <c>BuyDate</c> is the first buy's day; a basket has no single buy price.
+    /// </summary>
+    public static AssetWhatIf Basket(MarketAssetInfo asset, IReadOnlyList<(BasketBuy Buy, PricePoint Price)> buys, PricePoint value)
+    {
+        ArgumentNullException.ThrowIfNull(asset);
+        ArgumentNullException.ThrowIfNull(buys);
+        ArgumentNullException.ThrowIfNull(value);
+        if (buys.Count == 0)
+            throw new ArgumentException("En az bir alım gerekir.", nameof(buys));
+        var first = buys.MinBy(b => b.Buy.Date).Buy.Date;
+        var status = buys.Select(b => b.Price.Status).Append(value.Status).Max();
+        if (status != PriceStatus.Ok)
+            return new AssetWhatIf(asset.Symbol, asset.Name, asset.BaseUnit, first, null, null, value.RequestedDate, value.PriceDate,
+                value.Price, null, null, null, null, status, value.Source);
+        var invested = buys.Sum(b => b.Buy.Amount);
+        var units = buys.Sum(b => b.Buy.Amount / b.Price.Price!.Value);
+        var worth = units * value.Price!.Value;
+        return new AssetWhatIf(asset.Symbol, asset.Name, asset.BaseUnit, first, null, null, value.RequestedDate, value.PriceDate,
+            value.Price, Math.Round(units, 6, MidpointRounding.AwayFromZero), Round(worth), Round(worth - invested),
+            Round((worth - invested) * 100m / invested), status, value.Source);
     }
 
     /// <summary>The fewest monthly buys (INV-03 K10): one buy is the one-off scenario, and one month has no volatility to show.</summary>

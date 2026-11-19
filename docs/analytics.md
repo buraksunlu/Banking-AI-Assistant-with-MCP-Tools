@@ -684,6 +684,21 @@ Murat Market serisi (Nis–Eki): 8.654,00 · 10.339,00 · 12.896,00 · 16.078,50
 
 Sınırlar: işyeri ya da hesap türüne göre ayrı seri yok; seri penceresi dönemden bağımsız hep "bugünden geriye"dir.
 
+## DEMO-02 — Rutin / rutin olmayan döküm (`SpendingBreakdownService`, 19 Kasım 2026)
+
+Kullanıcı kararları K1 (rutin olmayanların toplamı için üç varlık; satır notu yok), K2-A, K3-A, K4-A, K5-A, K6-A; tasarım
+`docs/superpowers/specs/2026-11-19-demo-02-routine-breakdown-design.md`.
+
+- Sınıflandırma (`RoutineClassifier`, saf): açıklamada `TAKSIT nn/NN` → taksit (ilk taksit de); değilse düzenli ödeme kuralı (dönemin
+  **son günü** "bugün", pencere 6 ay, grup hesap + para birimi + işyeri) → abonelik / fatura / düzenli ödeme; değilse temel kategori → Temel;
+  geri kalan rutin olmayan. İptal edilen abonelik ödendiği aylarda rutin kalır (Can'ın Netflix'i Haziran 2026'da rutin, testli).
+- Yatırım (`WhatIfMath.Basket`): her uygun harcama kendi gününün fiyatıyla alınır, birimler toplanır, iş "bugün"ünün fiyatıyla değerlenir;
+  bir fiyat eski/eksikse o varlıkta rakam yok. "Harcamasaydım" aracından (dönem başında tek alım) farklı yöntem; cevapta `method` yazılı.
+- Alışkanlık önerisi (`HabitAdviceRules`, saf): sınırlar dahil; ortalama 0 ise "son 6 ayda bu işyerine harcamanız yoktu" cümlesi.
+- Doğrulanmış rakamlar (sabit DB, Murat Eylül 2026): 53.388,39 = rutin ve temel 51.495,89 (18) + rutin olmayan 1.892,50 (Can Kırtasiye
+  belirsiz + Sinema 642,50); Sinema → dolar 651,75 / euro 630,33 / altın 627,58; öneri yok (1,12 kat). Canlı (Murat Ekim 2026): rutin
+  36.744,87 (49; 2 taksit), rutin olmayan 38.599,50 (12) = SQL; iki öneri (Otel yeni, Trendyol 4 kez 10.840 / ortalama 2.254,92).
+
 ## ANA-08 — Kenar durumları (`AnalyticsEdgeCaseTests`)
 
 Geçici kayıtlar testin kendi DB transaction'ında eklenir ve rollback edilir; demo verisi 116
