@@ -889,7 +889,7 @@ kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir.
 - [x] DEMO-02 — (19 Kasım 2026: tamam. PR1 #111 backend, PR2 #112 iPhone — `BreakdownView`, `InvestmentCard`, detayda insight, sohbet kartındaki satırlar da detayı açar; iOS 454; simülatörde denendi. Bulgu düzeltmesi #113: transfer/gelir/arama/hesap dönem sorusunda "harcama" sözü reddedilir.) (PR1 backend tamam — `GET /api/transactions/breakdown` + `/{id}/insight`, K1 güncellendi: satır notu yok, rutin olmayanların toplamına üç varlık; Application 566, Api 657. Kalan: PR2 iPhone.) İşlem listesinde (sohbetteki "İşlemleri gör" dahil) "Rutin ve temel" / "Rutin olmayan" iki grup; rutin olmayanların hepsine
   öneri (satırda geçmiş fiyatla "altın olsaydı", grubun altında en fazla 2 alışkanlık önerisi; kategorisi belirsiz olan öneri almaz); işlem
   detayında aynı not. Kararlar 19 Kasım 2026 sohbetinde (rutin = abonelik/fatura/taksit; temel = sabit kategori tablosu). Ayrı tasarım.
-- [ ] DEMO-03 — Ana ekranda gelir payı kartının yerine "yaklaşan rutin ödemeler" kartı (kullanıcı kararı B, 19 Kasım 2026). Ayrı tasarım.
+- [x] DEMO-03 — Ana ekranda gelir payı kartının yerine "yaklaşan rutin ödemeler" kartı (kullanıcı kararı B, 19 Kasım 2026). (19 Kasım 2026: tamam. K1-B K2-A K3-A K4-A K5-A: `upcoming-payments`/`recurring-payments` kalemlerine `routine` + `installment`, son taksiti ödenmiş plan yaklaşan değil; iPhone kartı toplam + ilk 3 + "Tümü (N)" liste ekranı; Murat canlıda 8 ödeme / 9.519,97 TL. Application 572, Api 657, McpServer 263, Data 225, Python 1893, iOS 463.)
 - [ ] FIN-10 — Kullanıcıyla son kabul review'ü yap. Açık maddeleri yapılmış işaretleme; ertelenen işleri gerekçesiyle ayır.
 
 ## Kapsam dışında kalanlar

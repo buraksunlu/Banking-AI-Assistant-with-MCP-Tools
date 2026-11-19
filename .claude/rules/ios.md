@@ -28,7 +28,7 @@ kart (`Chat/ChoiceList`), dokununca yalnız etiket gider (ekranda Türkçe baş 
 (sabit kimlik eski satırları tutar); tutar sorusunda son satır `inputHint`, dokununca yazı alanına odaklanır (mesaj göndermez); gönderimde ve hatada boşalır, seçenekli cevapta öneri gösterilmez; `choices` alanı zorunlu
 ve bozuk seçenek bütün cevabı düşürür (link gibi atlanmaz). Ana ekran (UX-01 PR2, H2) üç kartlık "bu ay" panelidir (`Home/`): `MonthPaceViewModel`
 (`period-comparison?comparison=MonthToDate`; üst satırdaki gün ve "N gün" `current.endDate`'ten, telefon tarih okumaz), kendi
-`CategoryBreakdownViewModel`'i (hep bu ay, ilk 3) ve INC-04'ün `IncomeShareViewModel`'i; kartlar birbirine ve modele bağlı değildir, fark
+`CategoryBreakdownViewModel`'i (hep bu ay, ilk 3) ve DEMO-03'ün `UpcomingPaymentsViewModel`'i (`upcoming-payments?days=30`, ilk 3 + "Tümü"; gelir payı yalnız Analiz'de); kartlar birbirine ve modele bağlı değildir, fark
 backend'in `change`/`percentageChange`'i (sözcük yalnız işaretten, `null` asla "%0"). Hesaplar (IOS-04, `AccountsViewModel`) ve son işlemler
 Profil'deki "Hesaplarım" ekranındadır (`Profile/MyAccountsView`), "Tüm işlemler" de Profil'den açılır; büyük gelir kartı Analiz sekmesinin altındadır.
 Kartta numara `AccountDisplay.shortNumber` ile kısalır ("•••• 001", UI-03), tam numara hesap detayında; tutar her ekranda `Formatting/Money` ile yazılır (sohbetle aynı: `577.490,18 TL`), mobilde hesap yapılmaz. "Tüm işlemler" `APIRequest.history` ile bütün geçmişi
@@ -44,4 +44,4 @@ Cevap kartları (UX-01 PR5): `AssistantReply.cards` atlanabilir (bozuk kart dü�
 göster (N)" satırıyla açılır (`ChatMessage.expanded`, istek atmaz); satırsız tek kart (özet, işyeri) bağlantının ilk 5 işlemini içinde
 gösterir (`CardDisplay.cardTransactions`, `CardTransactions`), cümlesi gizlenir. Ana ekranın
 "Kılavuz'a sor…" alanı ve kategori satırları `AskSheet` ile kayan sayfayı açar; sayfa Asistan sekmesiyle aynı `ChatViewModel`'i gösterir.
-Gelir payı kartı (INC-04) `Insights/` altındadır (UX-01 PR2'den beri Analiz sekmesinde; ana ekranda kısa hâli `Home/IncomeGlanceCard`): tek istek `spending-advice?period=LastMonth` (ay backend'in), paylar ve öneri metni backend'den, telefon yalnız çizer; çubuk %100'de kırpılır (metin tam), en fazla 2 öneri, bilinmeyen grup adı çözümleme hatasıdır (başka grup gibi çizilmez); kart modele bağlı değildir. İleride IOS-12 içgörü bölümüne taşınır.
+Gelir payı kartı (INC-04) `Insights/` altındadır (UX-01 PR2'den beri Analiz sekmesinde; ana ekrandaki kısa hâli DEMO-03'te kalktı): tek istek `spending-advice?period=LastMonth` (ay backend'in), paylar ve öneri metni backend'den, telefon yalnız çizer; çubuk %100'de kırpılır (metin tam), en fazla 2 öneri, bilinmeyen grup adı çözümleme hatasıdır (başka grup gibi çizilmez); kart modele bağlı değildir. İleride IOS-12 içgörü bölümüne taşınır.

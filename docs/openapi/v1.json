@@ -5937,7 +5937,9 @@
           "categoryDisplayName",
           "accountName",
           "currencyCode",
-          "pattern"
+          "pattern",
+          "routine",
+          "installment"
         ],
         "type": "object",
         "properties": {
@@ -5961,9 +5963,18 @@
           },
           "pattern": {
             "$ref": "#/components/schemas/RecurringPattern"
+          },
+          "routine": {
+            "$ref": "#/components/schemas/RoutineReason"
+          },
+          "installment": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
-        "description": "One recurring payment. The category comes from the group's latest payment;\n`Pattern` explains why it counts as recurring."
+        "description": "One recurring payment. The category comes from the group's latest payment;\n`Pattern` explains why it counts as recurring. `Routine` (Subscription / Bill / Installment / Recurring) and\n`Installment` (the latest paid one, \"03/12\"; null if not numbered) come from the latest statement (DEMO-03)."
       },
       "RecurringPayments": {
         "required": [
@@ -6741,7 +6752,9 @@
           "estimatedAmount",
           "daysUntil",
           "isOverdue",
-          "pattern"
+          "pattern",
+          "routine",
+          "installment"
         ],
         "type": "object",
         "properties": {
@@ -6784,9 +6797,18 @@
           },
           "pattern": {
             "$ref": "#/components/schemas/RecurringPattern"
+          },
+          "routine": {
+            "$ref": "#/components/schemas/RoutineReason"
+          },
+          "installment": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
-        "description": "One expected payment. Date and amount are estimates: the date is the recurring rule's next expected date (last\npayment + one month on its usual day) and the amount is the latest payment's. `IsOverdue` marks an expected\ndate that has passed without a payment yet; `DaysUntil` is then negative. `Pattern` is the evidence."
+        "description": "One expected payment. Date and amount are estimates: the date is the recurring rule's next expected date (last\npayment + one month on its usual day) and the amount is the latest payment's. `IsOverdue` marks an expected\ndate that has passed without a payment yet; `DaysUntil` is then negative. `Pattern` is the evidence.\n`Routine` says why it is routine (never `Essential`: it is recurring) and `Installment` is the next numbered\ninstallment (\"04/09\"), null for any other payment (DEMO-03)."
       },
       "UpcomingPayments": {
         "required": [

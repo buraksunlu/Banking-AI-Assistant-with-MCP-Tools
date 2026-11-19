@@ -35,4 +35,10 @@ public sealed class RoutineClassifierTests
     [InlineData("POS 1234 ODEME", null)]
     public void Everything_else_is_non_routine(string raw, string? category) =>
         Assert.Null(RoutineClassifier.Classify(raw, category, recurring: false));
+
+    [Theory]
+    [InlineData("03/12", "04/12")]
+    [InlineData("08/09", "09/09")]
+    [InlineData("09/09", null)]   // the last one is paid: nothing to come (DEMO-03)
+    public void The_next_installment(string paid, string? next) => Assert.Equal(next, RoutineClassifier.NextInstallment(paid));
 }

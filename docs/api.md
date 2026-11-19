@@ -646,6 +646,10 @@ tutarı; ikisi de **tahmindir**, `pattern` kanıtıdır. `totals` para birimi ba
   "totals": [ { "currencyCode": "TRY", "estimatedTotal": 329.98 } ] }
 ```
 
+DEMO-03: her kalem `routine` (`Subscription` / `Bill` / `Installment` / `Recurring`; `Essential` hiç gelmez, kalem zaten düzenli)
+ve `installment` (sıradaki numaralı taksit, `"04/09"`; numarasız ödemede `null`) taşır; son taksiti ödenmiş plan listelenmez.
+`recurring-payments` kalemleri aynı iki alanı son ödenen taksitle (`"03/09"`) taşır.
+
 `days=5` → yalnız Netflix (`to` 2026-10-15). `days` 0, 32 veya `abc` → 400 `errors.days`. Token yoksa 401, başkasının
 hesabı 404, işletme hesabı 400 (`errors.accountId`). Deniz ve Ege: boş listeler.
 

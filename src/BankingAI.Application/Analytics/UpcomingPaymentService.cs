@@ -12,10 +12,13 @@ public sealed record UpcomingPaymentQuery(Guid CustomerId, int Days = UpcomingPa
 /// One expected payment. Date and amount are estimates: the date is the recurring rule's next expected date (last
 /// payment + one month on its usual day) and the amount is the latest payment's. <c>IsOverdue</c> marks an expected
 /// date that has passed without a payment yet; <c>DaysUntil</c> is then negative. <c>Pattern</c> is the evidence.
+/// <c>Routine</c> says why it is routine (never <c>Essential</c>: it is recurring) and <c>Installment</c> is the next numbered
+/// installment ("04/09"), null for any other payment (DEMO-03).
 /// </summary>
 public sealed record UpcomingPayment(
     string Merchant, string? CategoryCode, string CategoryDisplayName, string AccountName, string CurrencyCode,
-    DateOnly EstimatedDate, decimal EstimatedAmount, int DaysUntil, bool IsOverdue, RecurringPattern Pattern);
+    DateOnly EstimatedDate, decimal EstimatedAmount, int DaysUntil, bool IsOverdue, RecurringPattern Pattern,
+    RoutineReason Routine, string? Installment);
 
 /// <summary>Sum of the estimated amounts in one currency.</summary>
 public sealed record CurrencyUpcomingTotal(string CurrencyCode, decimal EstimatedTotal);
@@ -52,12 +55,16 @@ public sealed class UpcomingPaymentService(RecurringPaymentService recurring)
 
         // No lower bound: an expected date that has passed is still a payment to come (decision K1-A). The recurring
         // rule drops it by itself once the last payment is more than 35 days old.
+        // A plan whose last installment is paid has nothing to come, though the recurring rule still sees it (DEMO-03 K1-B).
         var payments = found.Payments
             .Where(p => p.Pattern.NextExpectedDate <= to)
-            .Select(p => new UpcomingPayment(
-                p.Merchant, p.CategoryCode, p.CategoryDisplayName, p.AccountName, p.CurrencyCode,
-                p.Pattern.NextExpectedDate, p.Pattern.LatestAmount,
-                p.Pattern.NextExpectedDate.DayNumber - today.DayNumber, p.Pattern.NextExpectedDate < today, p.Pattern))
+            .Select(p => (Payment: p, Next: p.Installment is { } paid ? RoutineClassifier.NextInstallment(paid) : null))
+            .Where(x => x.Payment.Installment is null || x.Next is not null)
+            .Select(x => new UpcomingPayment(
+                x.Payment.Merchant, x.Payment.CategoryCode, x.Payment.CategoryDisplayName, x.Payment.AccountName,
+                x.Payment.CurrencyCode, x.Payment.Pattern.NextExpectedDate, x.Payment.Pattern.LatestAmount,
+                x.Payment.Pattern.NextExpectedDate.DayNumber - today.DayNumber, x.Payment.Pattern.NextExpectedDate < today,
+                x.Payment.Pattern, x.Payment.Routine, x.Next))
             .OrderBy(p => p.EstimatedDate)
             .ThenBy(p => p.Merchant, StringComparer.Ordinal)
             .ToList();

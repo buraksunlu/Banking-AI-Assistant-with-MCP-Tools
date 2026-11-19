@@ -915,6 +915,17 @@ yok, en az tutar geçmez). Simülatörde denenmedi.
 kartında "gelirin %60,31" burada durur, dar ekranda satır kırılmaz. Cümlesi boş gelen kart (bakiye) alt cümle göstermez. Testler: iOS 435 → 438
 test durumu (`AnswerCardTests`); 1 kasıtlı bozma yakalandı.
 
+## iOS-ad: ana ekranda yaklaşan ödemeler kartı (DEMO-03; 19 Kasım 2026)
+
+- Panelin üçüncü kartı gelir payı yerine "Yaklaşan ödemeler" (`Home/UpcomingPaymentsCard`, `UpcomingPaymentsViewModel`):
+  `GET /api/analytics/upcoming-payments?days=30`; backend'in toplamı (para birimi başına satır), en yakın 3 ödeme (işyeri, etiket
+  Abonelik / Fatura / Taksit 4/9 / Düzenli ödeme, tutar, "25 Kasım · 6 gün sonra"), 3'ten fazlaysa "Tümü (N)" → `UpcomingPaymentsView`
+  (aynı cevap, ikinci istek yok), altta "Tahmini; son ödemelere göre." Gün yazısı backend'in `daysUntil`/`isOverdue`'sundan (bugün, yarın,
+  N gün sonra, N gün gecikti; gecikti kırmızı); telefon tarih hesabı ve toplama yapmaz. Boş: "Önümüzdeki 30 günde beklenen düzenli ödeme yok."
+- Gelir payı kartı yalnız Analiz sekmesinde kalır; `IncomeGlanceCard` ve `HomeDisplay.incomeTitle/incomeGlance/offersAdvice` silindi
+  (testleri de). Kararlar K1-B K2-A K3-A K4-A K5-A. Testler `UpcomingPaymentsTests` (11 durum); kasıtlı bozmalar (gecikme işareti, "Tümü"
+  sınırı, yenilemede toplam kaybı) yakalandı. Murat canlıda: 8 ödeme, 9.519,97 TL.
+
 ## iOS-ac: rutin / rutin olmayan döküm ve işlemin yatırım karşılaştırması (DEMO-02 PR2; 19 Kasım 2026)
 
 - Sohbetteki "İşlemleri gör" bir **harcama** bağlantısıysa (kişisel hesap, `Purchase`; yön, kişi, tutar sınırı ve para birimi yok)
