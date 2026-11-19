@@ -797,6 +797,9 @@ _ask(pending) → ChatReply("clarification", soru cümlesi, choices = clarificat
   kısmını anıp diğerlerini atlayamaz ("Bir kerede mi hesaplayayım?"), (2) alt alta, `;` ya da `-` ile liste yazamaz (satırlar iki kez
   görünürdü), (3) satırlarda olmayan dönemi anamaz, (4) seçeneklerde ya da kullanıcının sözünde olmayan sayı yazamaz ("1) 2)" de dahil),
   (5) işyeri sorusunda "işyeri" demelidir.
+- **Konu (DEMO-02 simülatör bulgusu, 19 Kasım 2026):** harcama olmayan araçların (transfer, gelir, işlem arama, hesaplar) dönem sorusu
+  "harca-" ya da "masraf" diyemez ("Kimlere para gönderdim?" → "Hangi dönem için harcamalarınızı …?" çıkmıştı); geçmezse sabit
+  "Hangi dönem için?". Prompt değişmedi (ölçüm gerekmedi).
 
 Ölçüm (`question_eval.py`, gerçek `qwen3.5:4b`, `--pause 1`; vakalar 10 → 14, dönem ×2, ay sayısı, işyeri eklendi, eşik %80):
 ilk `clarify-v3` 13/14 (tek hata soğuk açılış süresi) ama iki zayıf soru denetimden geçti: dönem sorusu seçenekleri "- Bu ay - Geçen

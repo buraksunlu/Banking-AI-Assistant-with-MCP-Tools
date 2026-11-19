@@ -24,6 +24,10 @@ MAX_REPLY_WORDS = 4
 MONTH_EXAMPLES = (3, 6, 12)
 # The currencies of a budget as people say them; the value is the tool's code.
 CURRENCY_OPTIONS = (("TL", "TRY"), ("Euro", "EUR"), ("Dolar", "USD"), ("Sterlin", "GBP"))
+# Tools whose answer is not spending (transfers, income, a transaction search, balances): their worded question must not call
+# it spending (DEMO-02 simulator finding: "Kimlere para gönderdim?" was asked about "harcamalarınızı").
+NOT_SPENDING_TOOLS = frozenset({"get_transfers", "get_income", "search_transactions", "get_accounts"})
+SPENDING_WORDS = re.compile(fold_rule(r"harca|masraf"))
 # The monthly "what if" saving (INC-03): lira only, so its amount question names the currency.
 MONTHLY_SAVING = "what_if_monthly"
 # INV-03 PR2: the saving's duration, within the server's own limits (WhatIfMath.MinimumMonths/MaximumMonths, MCP [Range(2, 22)]);
@@ -355,6 +359,8 @@ def check_question(text: str, pending: Pending) -> bool:
         return False
     # The clarify-v3 trial asked "Hangi şehir için …?" for ‘şehir’: a merchant question must say it is about a merchant.
     if pending.kind == "merchant" and "isyer" not in folded:
+        return False
+    if pending.tool in NOT_SPENDING_TOOLS and SPENDING_WORDS.search(folded):
         return False
     # Naming some options and not the others leans the user to one ("Bir kerede mi hesaplayayım?"); naming none is fine.
     named = [_named(o, folded, pending.kind) for o in pending.options]
