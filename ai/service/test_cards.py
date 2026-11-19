@@ -261,7 +261,8 @@ def test_the_trend_card_is_the_months_with_the_highest_and_lowest_complete_month
     # K5-D: chosen, not computed; the running month is not a whole month.
     assert card.detailed == (Block("stats", items=(
         Stat("En yüksek ay", "Eylül 2026 · 53.388,39 TL"), Stat("En düşük ay", "Nisan 2026 · 19.852,89 TL"))),)
-    assert card.sentence == "Son tam ay Eylül 2026: 53.388,39 TL."
+    # Simulator trial (19 Nov 2026): no sentence; it repeated the highlighted bar and the headline.
+    assert card.sentence == ""
 
 
 # --- what every card shares

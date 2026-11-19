@@ -203,3 +203,4 @@ Değerlendirmede yasak metin Türkçe harf katlanarak aranır ("TALIMAT" = "tali
 `<veri`/"backend" yasak). `LangChainExplainer.explain` geçmeyen cevaba bir kez düzeltme ister (`prompts.build_retry_messages`), iki deneme
 tek süreyi paylaşır; yine geçmezse `AnswerRejected` → 502 `ai_answer_rejected`. Sayı okuma/harf katlama yalnız `answer_check.py`'da
 (`scoring.py` oradan import eder; `answer_check` standart kütüphaneyle sınırlı kalmalı). Testlerde model `_ask`, saat `clock` ile değiştirilir.
+**Karşılaştırma (sunum denemesi, 19 Kasım 2026):** `routing.comparison_of` karşılaştırma kelimelerinde aracı ve türünü kodla seçer ("bu ay" → `MonthToDate`); hesap aracının bekleyen dönem sorusu cevaplanınca `code_arguments` özgün sorudan yeniden çalışır.

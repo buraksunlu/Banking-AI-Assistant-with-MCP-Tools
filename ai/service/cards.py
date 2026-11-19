@@ -250,11 +250,11 @@ def _trend(arguments: dict, result: dict, row: dict, suffix: str) -> Card:
     items = (Stat("En yüksek ay", f"{month(highest['year'], highest['month'])} · {money(highest['amount'], currency)}"),
              Stat("En düşük ay", f"{month(lowest['year'], lowest['month'])} · {money(lowest['amount'], currency)}"))
     series = Block("series", points=_points(months, currency), highlight=SHORT_MONTHS[last["month"] - 1])
-    sentence = f"Son tam ay {month(last['year'], last['month'])}: {money(last['amount'], currency)}."
     windows = result["months"]
     span = period(_start(windows[0]["period"]), date.fromisoformat(windows[-1]["period"]["endDate"]))
+    # Simulator trial (19 Nov 2026): no sentence; "Son tam ay …" repeated the highlighted bar and the headline.
     return Card(f"Aylık harcama · {span}{suffix}", _headline(last["amount"], currency), None, (series,),
-                (Block("stats", items=items),), sentence)
+                (Block("stats", items=items),), "")
 
 
 def _merchants(arguments: dict, result: dict, row: dict, suffix: str) -> Card:
@@ -485,7 +485,9 @@ def _listing(tool: str, arguments: dict, result: dict) -> list[Card]:
         count = _LISTING_SENTENCES[(tool, direction)].format(count=t["count"])
         cards.append(Card(f"{name} · {label}{f' ({currency})' if several else ''}", _headline(t["amount"], currency), None,
                           _list(entries[:SIMPLE_ROWS]), _list(entries[SIMPLE_ROWS:]),
-                          f"{label}: {count}, toplam {money(t['amount'], currency)}."))
+                          # Simulator trial (19 Nov 2026): the income card has no sentence, it repeated the headline;
+                          # transfers and searches keep theirs, it says the direction and the count.
+                          "" if tool == "get_income" else f"{label}: {count}, toplam {money(t['amount'], currency)}."))
     return cards
 
 

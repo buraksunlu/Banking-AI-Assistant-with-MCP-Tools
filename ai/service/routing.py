@@ -158,6 +158,22 @@ _EVERY_MONTH = re.compile(fold_rule(r"\bher\s+ay\b.*\bharca|\bharca.*\bher\s+ay\
 TREND = "get_monthly_trend"
 TREND_MONTHS = range(1, 13)
 
+# Simulator trial (19 Nov 2026): "Bu ay geçen aya göre nasıl gidiyorum?" got the fixed "anlayamadım" on the phone and last month
+# against the month before on another run. The comparison words show the model the comparison alone, and code chooses which one:
+# "bu ay" beside them is this month so far against the same days of last month (S18), otherwise last month against the month
+# before (S17, R06; the tool's own description).
+_COMPARE_WORDS = re.compile(fold_rule(r"\b(?:geçen|önceki|bir\s+önceki)\s+ay(?:a|la|ın\s+aynı\s+günlerine)\s+"
+                                      r"(?:göre|kıyasla|oranla|karşılaştır)|\baynı\s+günlerine\s+göre"))
+_THIS_MONTH = re.compile(fold_rule(r"\bbu\s+ay"))
+COMPARE = "compare_spending"
+
+
+def comparison_of(folded: str) -> str | None:
+    """The comparison the words ask for, or None when they ask for none."""
+    if _COMPARE_WORDS.search(folded) is None:
+        return None
+    return "MonthToDate" if _THIS_MONTH.search(folded) else "PreviousFullMonth"
+
 # CHAT-12 K4-A: "ne kadar" alone says nothing about what is meant ("elimde ne kadar para var" is a balance); it no longer sends a
 # message to the spending tools by itself. With it and no other rule, the model's intent question decides.
 _WEAK_WORDS = re.compile(fold_rule(r"\bne\s+kadar"))
@@ -327,6 +343,8 @@ class Router:
         # A limit is a search only after the planning words: "1.000 TL'den fazla azaltsam" is a saving.
         if account == SEARCH:
             return Route((ACCOUNTS,), only=SEARCH)
+        if comparison_of(folded) is not None:
+            return Route((GENERAL,), only=COMPARE)
         if _TREND_WORDS.search(folded) or (_EVERY_MONTH.search(folded) and trend_months(message) is not None):
             return Route((GENERAL,), only=TREND)
         if _GENERAL_WORDS.search(folded):

@@ -45,7 +45,8 @@ def test_the_income_card():
 
     assert (card.title, card.headline.text) == ("Gelir · Eylül 2026", "85.000,00 TL")
     assert card.simple == (Block("list", entries=(Entry("Maaş", "Murat aile TRY · 15 Eylül 2026", "85.000,00 TL"),)),)
-    assert card.sentence == "Eylül 2026: 1 gelir, toplam 85.000,00 TL."
+    # Simulator trial (19 Nov 2026): no sentence; it repeated the headline. Transfers and searches keep theirs (count, direction).
+    assert card.sentence == ""
 
 
 def test_the_transfer_card_names_the_person_and_its_direction():
