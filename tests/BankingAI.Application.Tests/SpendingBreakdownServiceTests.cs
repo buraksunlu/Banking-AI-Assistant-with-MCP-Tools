@@ -14,6 +14,11 @@ public sealed class SpendingBreakdownServiceTests
     private static readonly Guid Cinema = Guid.Parse("30000000-0000-0000-0000-000000012207");
     private static readonly Guid Netflix = Guid.Parse("30000000-0000-0000-0000-000000012205");
 
+    // Data tests briefly commit a temporary active asset; only the three real ones are compared.
+    private static readonly string[] Symbols = ["USDTRY", "EURTRY", "GRAM_GOLD_TRY"];
+
+    private static IEnumerable<AssetWhatIf> Real(IEnumerable<AssetWhatIf> assets) => assets.Where(a => Symbols.Contains(a.Symbol));
+
     private static BankingDbContext Db()
     {
         Assert.False(string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("BANKINGAI_CONNECTION_STRING")),
@@ -59,7 +64,7 @@ public sealed class SpendingBreakdownServiceTests
             (investment.Amount, investment.ExcludedRecent, investment.Method, investment.ValueDate, investment.Disclaimer));
         Assert.Equal(
             [("USDTRY", 651.75m, 9.25m, 1.44m), ("EURTRY", 630.33m, -12.17m, -1.89m), ("GRAM_GOLD_TRY", 627.58m, -14.92m, -2.32m)],
-            investment.Assets.Select(a => (a.Symbol, a.Value!.Value, a.Difference!.Value, a.DifferencePercent!.Value)));
+            Real(investment.Assets).Select(a => (a.Symbol, a.Value!.Value, a.Difference!.Value, a.DifferencePercent!.Value)));
         // The cinema is 1,12 times its usual month: no advice.
         Assert.Empty(lira.NonRoutine.Advice);
     }
@@ -117,7 +122,7 @@ public sealed class SpendingBreakdownServiceTests
 
         Assert.Equal(("Sinema", SpendingGroup.Discretionary, (RoutineReason?)null, (string?)null),
             (cinema.Transaction.Merchant, cinema.Group, cinema.Routine, cinema.Note));
-        Assert.Equal([651.75m, 630.33m, 627.58m], cinema.Investment!.Assets.Select(a => a.Value!.Value));
+        Assert.Equal([651.75m, 630.33m, 627.58m], Real(cinema.Investment!.Assets).Select(a => a.Value!.Value));
         Assert.Equal(("Netflix", RoutineReason.Subscription, (BreakdownInvestment?)null, "Rutin ödeme"),
             (netflix.Transaction.Merchant, netflix.Routine!.Value, netflix.Investment, netflix.Note));
     }

@@ -2786,6 +2786,178 @@
         ]
       }
     },
+    "/api/transactions/breakdown": {
+      "get": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "`GET /api/transactions/breakdown` (DEMO-02)",
+        "description": "`GET /api/transactions/breakdown` (DEMO-02): the period's purchases on personal accounts in two groups, \"Rutin ve temel\" and\n\"Rutin olmayan\", per currency, with the non-routine discretionary lira spending compared with dollars, euros and gold bought on\neach purchase's own day and at most two habit advices. The period is required (no `AllTime`); a period longer than 31 days\nanswers `periodTooLong: true` with no currencies, and the client shows the plain list. categoryCode and\nmerchant narrow it like a chat answer's link.",
+        "parameters": [
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "categoryCode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "merchant",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpendingBreakdown"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
+    "/api/transactions/{id}/insight": {
+      "get": {
+        "tags": [
+          "Transactions"
+        ],
+        "summary": "`GET /api/transactions/{id}/insight` (DEMO-02)",
+        "description": "`GET /api/transactions/{id}/insight` (DEMO-02): one transaction's routine reason and spending group and, for a non-routine\ndiscretionary lira purchase at least 7 days old, what it would be worth in dollars, euros and gold today; otherwise a fixed note\nsays why. Another customer's transaction gets exactly the 404 of a missing one.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransactionInsight"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input: a field-by-field list in errors.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid token (unauthorized) or the customer no longer exists (session_invalid).",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found; another customer's resource is answered the same way.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected error, without any detail.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "Bearer": []
+          }
+        ]
+      }
+    },
     "/api/transactions/{id}": {
       "get": {
         "tags": [
@@ -3466,6 +3638,44 @@
           }
         },
         "description": "A backend query the assistant ran for the answer, with the arguments it used, so the client can show how the\nanswer was found (AI-11) or link to the matching screen (CHAT-07)."
+      },
+      "BreakdownInvestment": {
+        "required": [
+          "amount",
+          "excludedRecent",
+          "method",
+          "valueDate",
+          "assets",
+          "disclaimer"
+        ],
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "excludedRecent": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "method": {
+            "type": "string"
+          },
+          "valueDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "assets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssetWhatIf"
+            }
+          },
+          "disclaimer": {
+            "type": "string"
+          }
+        },
+        "description": "\"Had this been invested\" for lira purchases (DEMO-02 K1): every purchase bought on its own day, valued on the customer's today.\n`Amount` is what was compared; `ExcludedRecent` the eligible spending younger than\nint SpendingBreakdownRules.MinimumAgeDays days, left out. No assets when everything was too recent."
       },
       "BudgetCheck": {
         "required": [
@@ -4150,6 +4360,26 @@
         },
         "description": "One currency of the month: the income figures of INC-01, the three groups, the categories, at most\nint SpendingAdviceRules.MaximumAdvice pieces of advice and, when there is none, the reason."
       },
+      "CurrencyBreakdown": {
+        "required": [
+          "currencyCode",
+          "routine",
+          "nonRoutine"
+        ],
+        "type": "object",
+        "properties": {
+          "currencyCode": {
+            "type": "string"
+          },
+          "routine": {
+            "$ref": "#/components/schemas/RoutineGroup"
+          },
+          "nonRoutine": {
+            "$ref": "#/components/schemas/NonRoutineGroup"
+          }
+        },
+        "description": "One currency's two groups; currencies are never added together."
+      },
       "CurrencyCategoryBreakdown": {
         "required": [
           "currencyCode",
@@ -4638,6 +4868,46 @@
           }
         },
         "description": "One group's spending; the share is null without income."
+      },
+      "HabitAdvice": {
+        "required": [
+          "merchant",
+          "count",
+          "amount",
+          "usualMonthly",
+          "excess",
+          "message"
+        ],
+        "type": "object",
+        "properties": {
+          "merchant": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "amount": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "usualMonthly": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "excess": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "description": "One piece of habit advice: the merchant's period, its usual month, the difference and a fixed Turkish sentence filled by code."
       },
       "HealthResponse": {
         "required": [
@@ -5368,6 +5638,69 @@
         ],
         "type": "string"
       },
+      "NonRoutineGroup": {
+        "required": [
+          "total",
+          "count",
+          "items",
+          "investment",
+          "advice"
+        ],
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NonRoutineItem"
+            }
+          },
+          "investment": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BreakdownInvestment"
+              }
+            ]
+          },
+          "advice": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HabitAdvice"
+            }
+          }
+        },
+        "description": "The \"Rutin olmayan\" group of one currency with its comparison and habit advice (lira only)."
+      },
+      "NonRoutineItem": {
+        "required": [
+          "transaction",
+          "eligible"
+        ],
+        "type": "object",
+        "properties": {
+          "transaction": {
+            "$ref": "#/components/schemas/TransactionItem"
+          },
+          "eligible": {
+            "type": "boolean"
+          }
+        },
+        "description": "A non-routine purchase; `Eligible` is false for an unclassified or \"Diğer\" purchase, which gets no comparison."
+      },
       "OneOffWhatIf": {
         "required": [
           "period",
@@ -5689,6 +6022,69 @@
           }
         }
       },
+      "RoutineGroup": {
+        "required": [
+          "total",
+          "count",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number",
+            "format": "decimal"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RoutineItem"
+            }
+          }
+        },
+        "description": "The \"Rutin ve temel\" group of one currency."
+      },
+      "RoutineItem": {
+        "required": [
+          "transaction",
+          "reason",
+          "installment"
+        ],
+        "type": "object",
+        "properties": {
+          "transaction": {
+            "$ref": "#/components/schemas/TransactionItem"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/RoutineReason"
+          },
+          "installment": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "A purchase of the routine group with its reason; `Installment` is \"03/12\" for a numbered installment."
+      },
+      "RoutineReason": {
+        "enum": [
+          "Subscription",
+          "Bill",
+          "Installment",
+          "Recurring",
+          "Essential"
+        ],
+        "type": "string",
+        "description": "Why a purchase is in the \"Rutin ve temel\" group (DEMO-02)."
+      },
       "RunningReturn": {
         "required": [
           "date",
@@ -5875,6 +6271,40 @@
         },
         "description": "Result of SpendingAdviceService: the month, the income window of INC-01, the usual months before the month\n(`UsualFrom`–`UsualTo`), the savings window ending with the month, the thresholds and one row per currency with\nspending in the month."
       },
+      "SpendingBreakdown": {
+        "required": [
+          "period",
+          "periodTooLong",
+          "merchantMatch",
+          "currencies"
+        ],
+        "type": "object",
+        "properties": {
+          "period": {
+            "$ref": "#/components/schemas/ResolvedPeriod"
+          },
+          "periodTooLong": {
+            "type": "boolean"
+          },
+          "merchantMatch": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MerchantMatch"
+              }
+            ]
+          },
+          "currencies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CurrencyBreakdown"
+            }
+          }
+        },
+        "description": "A period's purchases in two groups (DEMO-02). `PeriodTooLong` is true, with no currencies, for a period longer than\nint SpendingBreakdownRules.MaximumPeriodDays days; the caller shows the plain list instead."
+      },
       "SpendingComparison": {
         "required": [
           "current",
@@ -5962,6 +6392,58 @@
           "Credit"
         ],
         "type": "string"
+      },
+      "TransactionInsight": {
+        "required": [
+          "transaction",
+          "routine",
+          "installment",
+          "group",
+          "investment",
+          "note"
+        ],
+        "type": "object",
+        "properties": {
+          "transaction": {
+            "$ref": "#/components/schemas/TransactionItem"
+          },
+          "routine": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RoutineReason"
+              }
+            ]
+          },
+          "installment": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "group": {
+            "$ref": "#/components/schemas/SpendingGroup"
+          },
+          "investment": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BreakdownInvestment"
+              }
+            ]
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One transaction as the breakdown sees it: its routine reason, its spending group and, when it is a non-routine discretionary\nlira purchase old enough, what it would be worth invested; otherwise `Note` says why there is no comparison."
       },
       "TransactionItem": {
         "required": [

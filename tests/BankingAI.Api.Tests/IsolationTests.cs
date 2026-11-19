@@ -28,6 +28,7 @@ public sealed class IsolationTests
         ["GET api/accounts/{accountId}/transactions"] = "/api/accounts/{0}/transactions",
         ["GET api/transactions"] = "/api/transactions?period=ThisMonth&accountId={0}",
         ["GET api/transactions/{id}"] = "/api/transactions/{0}",
+        ["GET api/transactions/{id}/insight"] = "/api/transactions/{0}/insight",
         ["GET api/analytics/spending-summary"] = "/api/analytics/spending-summary?period=ThisMonth&accountId={0}",
         ["GET api/analytics/category-breakdown"] = "/api/analytics/category-breakdown?period=ThisMonth&accountId={0}",
         ["GET api/analytics/category-spending"] = "/api/analytics/category-spending?categoryCode=GROCERY&period=ThisMonth&accountId={0}",
@@ -90,7 +91,7 @@ public sealed class IsolationTests
     [MemberData(nameof(ReadEndpoints))]
     public async Task Another_customers_id_gets_exactly_the_404_of_a_missing_one(string endpoint)
     {
-        var foreignId = endpoint == "GET api/transactions/{id}" ? DenizTransaction : DenizTryAccount;
+        var foreignId = endpoint.StartsWith("GET api/transactions/{id}", StringComparison.Ordinal) ? DenizTransaction : DenizTryAccount;
 
         var foreign = await GetAsync(string.Format(Reads[endpoint], foreignId), Ada);
         var missing = await GetAsync(string.Format(Reads[endpoint], Guid.NewGuid()), Ada);

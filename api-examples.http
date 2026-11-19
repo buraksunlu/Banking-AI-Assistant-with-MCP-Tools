@@ -47,6 +47,14 @@ Authorization: Bearer {{token}}
 GET {{baseUrl}}/api/transactions/30000000-0000-0000-0000-000000000602
 Authorization: Bearer {{token}}
 
+### Harcama dökümü, geçen ay — beklenen: 200 (Ada: rutin ve temel / rutin olmayan, yatırım karşılaştırması; 31 günden uzun dönemde periodTooLong)
+GET {{baseUrl}}/api/transactions/breakdown?period=LastMonth
+Authorization: Bearer {{token}}
+
+### Tek işlemin dökümdeki yeri — beklenen: 200 (grup, rutin nedeni ya da üç varlıklı karşılaştırma ya da sebep notu)
+GET {{baseUrl}}/api/transactions/30000000-0000-0000-0000-000000000602/insight
+Authorization: Bearer {{token}}
+
 ### Bütün hesaplarda arama: bu ay giden transferler — beklenen: 200, 1.500 "Deniz M***"
 GET {{baseUrl}}/api/transactions?period=ThisMonth&kind=Transfer&direction=Debit
 Authorization: Bearer {{token}}

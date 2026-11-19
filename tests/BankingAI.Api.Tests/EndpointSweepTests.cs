@@ -26,6 +26,8 @@ public sealed class EndpointSweepTests
             ("/api/accounts/20000000-0000-0000-0000-000000000001/transactions", """{"kind":"Salary","amount":10,"description":"Tarama"}"""),
         ["GET api/transactions"] = ("/api/transactions?period=ThisMonth", null),
         ["GET api/transactions/{id}"] = ("/api/transactions/30000000-0000-0000-0000-000000000602", null),
+        ["GET api/transactions/breakdown"] = ("/api/transactions/breakdown?period=LastMonth", null),
+        ["GET api/transactions/{id}/insight"] = ("/api/transactions/30000000-0000-0000-0000-000000000602/insight", null),
         ["GET api/analytics/spending-summary"] = ("/api/analytics/spending-summary?period=ThisMonth", null),
         ["GET api/analytics/category-breakdown"] = ("/api/analytics/category-breakdown?period=ThisMonth", null),
         ["GET api/analytics/category-spending"] = ("/api/analytics/category-spending?categoryCode=GROCERY&period=ThisMonth", null),
