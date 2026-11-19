@@ -423,3 +423,25 @@ def test_the_duration_limits_are_the_servers_own():
     tools = json.loads((Path(__file__).parent.parent / "model_check" / "mcp_tools.json").read_text("utf-8"))["tools"]
     months = next(t for t in tools if t["function"]["name"] == "what_if_monthly")["function"]["parameters"]["properties"]["months"]
     assert (months["minimum"], months["maximum"]) == (MINIMUM_MONTHS, MAXIMUM_MONTHS)
+
+
+# DEMO-02 simulator finding: "Kimlere para gönderdim?" was asked "Hangi dönem için harcamalarınızı …?". A tool that is not about
+# spending must not get a spending question; the check rejects it and the fixed text is shown.
+@pytest.mark.parametrize("tool", ["get_transfers", "get_income", "search_transactions", "get_accounts"])
+@pytest.mark.parametrize("text", [
+    "Hangi dönem için harcamalarınızı öğrenmek istiyorsunuz?",
+    "Hangi döneme ait harcamaları görmek istersiniz?",
+    "Hangi dönemdeki masraflarınıza bakayım?",
+    "HANGİ DÖNEM İÇİN HARCADIKLARINIZI GÖSTEREYİM?",
+])
+def test_a_question_about_spending_is_not_shown_for_a_tool_that_is_not_about_spending(tool, text):
+    assert not check_question(text, ask_period(tool, {}, "Kimlere para gönderdim?"))
+
+
+@pytest.mark.parametrize("tool", ["get_transfers", "get_income", "search_transactions"])
+def test_a_neutral_question_is_still_shown_for_a_tool_that_is_not_about_spending(tool):
+    assert check_question("Hangi dönem için bakayım?", ask_period(tool, {}, "Kimlere para gönderdim?"))
+
+
+def test_a_spending_tool_may_still_say_spending():
+    assert check_question("Hangi döneme ait harcamaları öğrenmek istiyorsunuz?", PERIOD)

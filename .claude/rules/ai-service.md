@@ -115,7 +115,7 @@ ile ayrı gider; `template` ve model yazımı (`clarify-v3`) yalnız soru cümle
 `AMOUNT_EXAMPLES` 1.000/5.000/10.000 TL; tutar sorusunda ayrıca `ChatReply.input_hint` "Başka bir tutar yazın", sözleşmede
 `inputHint`, PR3b D6-A); yeni tür ya da seçenek eklenince her etiketin `resolve`/`chosen_tool` ile kendi değerine
 eşleştiği test genişletilir. `check_question` seçenek saymaz, ama yarım anma, liste, sunulmayan dönem, sayı ve "işyeri" demeyen işyeri
-sorusunu reddeder. Prompt değişince `question_eval.py` (8 vaka, eşik %80) önce/sonra. Senaryo sorusu yok (PR3b D8-B): belirsiz "ne
+sorusunu ve harcama olmayan araçta (`NOT_SPENDING_TOOLS`) "harca-/masraf" diyen soruyu reddeder. Prompt değişince `question_eval.py` (8 vaka, eşik %80) önce/sonra. Senaryo sorusu yok (PR3b D8-B): belirsiz "ne
 olurdu" modelsiz aylık birikimdir, tutar sorusuna "tek seferlik" cevabı (`wants_one_off`) tek seferliğe geçer. İki "ne olurdu", bütçe ve
 tasarruf cevaplarını kod yazar (`ToolOutcome.written`); `written` dolu bir sonuçta model, tavsiye/ad denetimi ve "Dönem:" satırı
 çalışmaz. Kullanıcının rakamları takipte yalnız "peki/ya…" ile taşınır (`conversation.carried`).
