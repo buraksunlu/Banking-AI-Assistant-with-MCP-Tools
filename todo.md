@@ -840,7 +840,7 @@ kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir.
 
 - [x] SEC-01a — Kullanıcı kararlarıyla gerçek giriş: ayrı `CustomerCredentials` tablosu (onaylı migration `AddCustomerCredentials`), kullanıcı adı (CUST-n değil), ASP.NET `PasswordHasher` özeti, `UpdatedAt` sunucu saati, `CredentialStore` (çakışma = hata), CLI `users set-password` (gizli/iki kez/borudan). Demo kullanıcıları ada/deniz/ege; rastgele şifreler yalnız yerel `.env`'de, `.env.example`'da boş satırlar. 17 test + kasıtlı 2 güvenlik hatası yakalandı. docs/security.md.
 - [x] SEC-01b — `POST /api/auth/login` → `{ token, expiresAt }` (HS256 JWT, 60 dk, `ClockSkew` 0), yanlış şifre ve bilinmeyen kullanıcı aynı 401 (bilinmeyen kullanıcı da bir PBKDF2 doğrulaması öder), eksik/boş alan 400, IP başına dakikada 5 deneme → 429 (başarılılar da sayılır), `GET /api/me` (müşteri kimliği cevapta yok). Kullanıcı kararlarıyla: bütün endpoint'ler varsayılan olarak token ister (FallbackPolicy; tokensız bilinmeyen route 401), `BANKINGAI_JWT_SIGNING_KEY` yoksa/32 bayttan kısaysa API açılmaz. `CredentialStore.VerifyAsync`, `TokenIssuer`, `User.GetCustomerId()`. Testler: geçici commit'li "Test Api" müşterisi + `tests/Shared/CommittedRowsLock` (paralel test projeleri arası advisory lock); paralel koşuda ortaya çıkan iki eski test sorunu düzeltildi (Ada'nın girişi olduğu için yanlış kısıta takılan credential testi; "ilk müşteri"ye geçici hesap açan iki test → sabit Ada/Deniz). 4 kasıtlı bozma (limit, anahtar kontrolü, ClockSkew, FallbackPolicy) + kilitsiz koşu kırmızı; tam paket 10/10 yeşil. Data 58, Api 22, Application 136. Gerçek API'de ada ile giriş/me/429 denendi. Hesap kilitleme, logout/iptal, refresh token sonraya.
-- [ ] SEC-02 — Hesap/müşteri izolasyonunu API, servis ve MCP boyunca test et. Başka hesaba ID vererek erişim mümkün olmamalı; UI'da gizlemek yeterli değil. (17 Kasım 2026 todo taraması: kısmen — API'de başka müşterinin hesabı ve işlemi 404 (`AccountsEndpointTests`, `TransactionCreateEndpointTests`), MCP'de aynı araç başka token (`ToolCallTests`); kalan: API, servis ve MCP boyunca tek izolasyon seti.)
+- [x] SEC-02 — Hesap/müşteri izolasyonunu API, servis ve MCP boyunca test et. Başka hesaba ID vererek erişim mümkün olmamalı; UI'da gizlemek yeterli değil. (19 Kasım 2026, `sec-02-isolation`: tek izolasyon seti. API `IsolationTests` (20): hesap/işlem kimliği alan bütün uçlar gerçek route tablosundan bulunur (yeni uç örneksiz kırmızı), Ada'nın Deniz'in kimliğiyle her okuması olmayan kimlikle birebir aynı 404'ü alır (traceId hariç), yazma ters kurulur (geçici müşterinin hesabına Ada yazamaz, bakiye ve liste değişmez). MCP `IsolationTests` (41): sunucunun yayınladığı 20 aracın hepsi iki token'la çağrılır, cevapta diğer müşterinin izi yok; yalnız rakam dönen araçlar için Murat ve Selin'in cevapları farklı olmalı. Servis katmanı `CustomerScope` üzerinden ikisinde de sınanır. Kararlar K1-B K2-A K3-A K4-C K5-B. Üç kasıtlı bozma yakalandı. Api 624 → 644, McpServer 222 → 263.)
 - [ ] SEC-03 — (19 Ekim 2026: açıklama tarafında başladı — AI-05 değerlendirmesinde açıklamaya gizlenmiş talimat ve veri bloğundan kaçma vakaları, `<veri>` etiketleri ve `<`/`>` etkisizleştirme; tool seçimi, RawDescription ve kullanıcı mesajı tarafı açık.) Prompt injection örneklerini dene. Kullanıcı mesajı, RawDescription ve tool verisindeki talimatlar yetkiyi veya allowlist'i değiştiremesin.
 - [ ] SEC-04 — LLM'nin SQL veya banking write operasyonu yaptıramadığını doğrula. Bilinmeyen tool ve ayrıcalık iddiaları reddedilsin.
 - [ ] SEC-05 — Secret/log kontrolü yap. Bağlantı parolası, API anahtarı ve gereksiz müşteri detayları log/fixture/repo içine girmesin.
@@ -900,15 +900,15 @@ deterministik analytics → PostgreSQL. Son model ölçümü (17 Kasım 2026): a
 0 yanlış, cevap doğruluğu 33/33. Testler: .NET Data 223, Application 511, Api 624, McpServer 222; Python 1833 modelsiz
 (`pytest ai -k "not real"`); iOS 438 test durumu; hepsi geçti.
 
-**Bitiş yolu: kullanıcı kararı B (17 Kasım 2026).** Kapanış işleri + kategorilendirme ve işlem açıklaması. Sıra:
+**Bitiş yolu: kullanıcı kararı C (19 Kasım 2026; 17 Kasım'daki B'nin yerine).** Yeni büyük özellik yok; kısa ve kanıtlı güvenlik, yalnız işlem açıklaması, veritabanı işleri tek sıfırdan kurulum provasına iner, sonra sunum paketi. Kategorilendirme (CAT-01–08) ertelendi. Sıra:
 
 1. [x] Todo taraması ve README (FIN-01a; K1-B kanıtlı işaret + tekrarları birleştirme, K2-B isteğe bağlı maddeler satır içinde
    "ertelendi", K3-B README durum, uçlar, ölçülmüş test sayıları, bilinen sınırlar).
-2. [ ] Güvenlik kanıtı: SEC-02 (API + servis + MCP izolasyon seti), SEC-03 (prompt injection, sohbet tarafı), SEC-04 (model SQL/yazma
+2. [ ] Güvenlik kanıtı: ~~SEC-02~~ (tamam, 19 Kasım 2026), SEC-03 (prompt injection, sohbet tarafı; küçük test seti), SEC-04 (model SQL/yazma
    yaptıramaz), SEC-05 (secret/log taraması), ~~AI-12'nin kalanı~~ (tamam, 17 Kasım 2026), AI-13 (veri minimizasyonu), SEC-07 (yalnız
    MCP token'ı).
-3. [ ] Veritabanı kabulü ve sıfırdan kurulum: DB-01–08, OPS-05.
-4. [ ] Kategorilendirme: CAT-01–08 (önce kural, çözülemezse Qwen; eşik ölçülerek; atomik kayıt).
+3. [ ] Sıfırdan kurulum provası: OPS-05 + FIN-01b (DB-01–08 bu provaya iner, K-C).
+4. ~~Kategorilendirme: CAT-01–08~~ (ertelendi, kullanıcı kararı C 19 Kasım 2026; sonraki aşama).
 5. [ ] İşlem açıklaması: EXP-01/02.
 6. [ ] Değerlendirme: EVAL-02'nin kalanı, EVAL-03–06.
 7. [ ] Kapanış: FIN-01b (yeni makinede kurulum, 3. adımdan sonra), FIN-02 (mimari + ER), FIN-03, FIN-04 (tek sonuç raporu),

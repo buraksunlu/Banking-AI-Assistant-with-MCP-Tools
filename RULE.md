@@ -1384,10 +1384,16 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
   kullanıcıyla netleşir; açıkça istenen varlık korunur. Eksik veride kazanan uydurulmaz.
 
 ==================================================
-29. MEVCUT PROJE DURUMU — 17 KASIM 2026
+29. MEVCUT PROJE DURUMU — 19 KASIM 2026
 ==================================================
 
 COMPLETED
+- Müşteri izolasyonu (SEC-02, 19 Kasım 2026, `sec-02-isolation`; docs/security.md "SEC-02"): API ve MCP'de tek izolasyon seti. API: hesap/işlem
+  kimliği alan her uç route tablosundan bulunur; başka müşterinin kimliği olmayan kimlikle birebir aynı 404 (traceId hariç), yazma ters
+  kurulu (geçici müşteri). MCP: 20 aracın hepsi iki token'la, diğer müşterinin izi yok; rakamlı araçlarda iki personanın cevabı farklı.
+  Kararlar K1-B K2-A K3-A K4-C K5-B; üç kasıtlı bozma (`CustomerScope` sahiplik koşulları) yakalandı. Api 624 → 644, McpServer 222 → 263.
+  Bitiş yolu C (19 Kasım 2026, B'nin yerine): yeni büyük özellik yok; güvenlik kanıtı, işlem açıklaması, sıfırdan kurulum provası, sunum;
+  kategorilendirme (CAT) ertelendi.
 - Başka kişinin verisi (AI-12 kalanı, 17 Kasım 2026, `ai-12-other-person`; docs/local-ai.md "AI-12"): "Deniz'in bakiyesi", "annemin
   hesabında", "diğer müşteriler", "CUST-5" ve "Peki Deniz'in?" araç ve model çağrılmadan ayrı sabit metinle reddediliyor (önce kullanıcının
   kendi bakiyesi Deniz'inmiş gibi gösteriliyordu; sızıntı yoktu, araçlar yalnız token'ın müşterisini görür). Kendi transferleri ("Deniz'e

@@ -75,3 +75,15 @@ SwiftUI ──(Bearer token)──► API ──(aynı token, HTTP header)──
   `Retry-After`. Sınırlayıcı kimlik doğrulamadan sonra çalışır (`UseAuthentication` → `UseAuthorization` →
   `UseRateLimiter`); giriş sınırı IP'ye bakmaya devam eder. AI servisine yalnız .NET ulaşabildiği (127.0.0.1) sürece
   ikinci bir sınır gerekmez.
+
+### Müşteri izolasyonu kanıtı (SEC-02, 19 Kasım 2026)
+
+- `tests/BankingAI.Api.Tests/IsolationTests.cs`: hesap ya da işlem kimliği (`id`, `accountId`) alan bütün uçlar API'nin gerçek route
+  tablosundan bulunur; tabloda örneği olmayan yeni uç testi kırar. Ada, Deniz'in hesap/işlem kimliğiyle her okumada olmayan kimlikle
+  birebir aynı 404 gövdesini alır (yalnız `traceId` farklı); cevapta Deniz'e ait hiçbir değer yoktur. Yazma ters kuruludur: Ada geçici bir
+  test müşterisinin hesabına işlem ekleyemez, o hesabın bakiyesi ve listesi değişmez (demo hesabı hiç hedeflenmez).
+- `tests/BankingAI.McpServer.Tests/IsolationTests.cs`: sunucunun yayınladığı her araç (bugün 20) Ada ve Deniz'in token'larıyla çağrılır;
+  cevapta diğer müşterinin hesap kimliği, işyeri ya da tam karşı taraf adı yoktur. Yalnız rakam dönen araçlar iz taşımadığı için Murat ve
+  Selin'in cevaplarının farklı olması ayrıca denetlenir (token yanlış müşteriye okunsaydı aynı olurdu). Yeni araç örneksiz testi kırar.
+- Servis katmanı: bütün okuma ve yazma `CustomerScope` üzerinden yetkilendirilir; iki sahiplik koşulu tek tek ve birlikte kaldırıldığında
+  testler kırmızıya döner (kasıtlı bozma, 19 Kasım 2026).
