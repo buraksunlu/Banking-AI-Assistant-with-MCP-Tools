@@ -811,6 +811,21 @@ demo gününde ulaşılabilen ilk 1'i (1 Aralık 2024; K1-A); tek alım tek sefe
 Hatalar (400): tutar da `fromAdvice` da yok (`fromAdvice=false` dahil), ikisi birlikte, `fromAdvice` ile para birimi, tutar var para
 birimi yok, TRY dışı para birimi, biçimsiz tutar (`1000,50`), sınır dışı tutar; token yoksa 401.
 
+### `GET /api/transactions/breakdown?period=…` ya da `?from=…&to=…` `[&categoryCode=…][&merchant=…]` (DEMO-02 PR1)
+
+Dönemin kişisel hesaplardaki harcamaları para birimi başına iki grupta: `routine` ("Rutin ve temel": `reason` = `Subscription`, `Bill`,
+`Installment` (+ `installment` "03/12"), `Recurring` ya da `Essential`) ve `nonRoutine` ("Rutin olmayan": `eligible` false ise kategorisi
+belirsiz, karşılaştırmaya girmez). Yalnız TRY'de `nonRoutine.investment` (uygun ve en az 7 günlük harcamalar **kendi günlerinde** dolar, euro,
+gram altın alınmış sayılır, `method: "EachOnItsOwnDay"`; `excludedRecent` dışarıda kalan yeni tutar; sabit `disclaimer`) ve en fazla 2
+`nonRoutine.advice` (dönem ≥ 28 gün; işyerinin dönemi son 6 tam ayın aylık ortalamasının ≥ 1,5 katı ve fark ≥ 500). Dönem zorunlu, `AllTime`
+yok; 31 günden uzun dönem `200` + `periodTooLong: true` + boş `currencies` (istemci düz listeyi gösterir). Hatalar: dönem/kategori 400, token 401.
+
+### `GET /api/transactions/{id}/insight` (DEMO-02 PR1)
+
+Tek işlemin `routine`/`installment`, `group` (`Essential`/`Discretionary`/`Unknown`) ve rutin olmayan isteğe bağlı TL harcamada (≥ 7 gün) üç
+varlıklı `investment`; değilse `note` ("Rutin ödeme", "Temel harcama", "Kategorisi belirsiz", "Yalnız TL harcamalarda", "Yalnız harcamalarda",
+"Karşılaştırmak için erken"). Rutin kararı işlemin kendi gününe göre. Başka müşterinin işlemi olmayanla aynı 404.
+
 ## Sohbet asistanı (AI-14b + AI-07, 19 Ekim 2026)
 
 iPhone yalnız .NET API ile konuşur; API token'ı, müşteriyi, hız sınırını ve mesajı kontrol edip mesajı aynı token'la

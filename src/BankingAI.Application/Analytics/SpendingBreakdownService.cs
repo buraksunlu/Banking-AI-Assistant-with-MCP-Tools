@@ -67,6 +67,18 @@ public static class SpendingBreakdownRules
     public const string RecentNote = "Karşılaştırmak için erken";
     public const string LiraOnlyNote = "Yalnız TL harcamalarda";
     public const string PurchaseOnlyNote = "Yalnız harcamalarda";
+
+    /// <summary>
+    /// The purchases old enough to compare (at least <see cref="MinimumAgeDays"/> days before <paramref name="today"/>) and the
+    /// amount of the younger ones, which is reported as left out.
+    /// </summary>
+    public static (IReadOnlyList<TransactionItem> Old, decimal ExcludedRecent) Investable(
+        IReadOnlyList<TransactionItem> eligible, DateOnly today)
+    {
+        ArgumentNullException.ThrowIfNull(eligible);
+        var lastBuyDay = today.AddDays(-MinimumAgeDays);
+        return (eligible.Where(i => i.LocalDate <= lastBuyDay).ToList(), eligible.Where(i => i.LocalDate > lastBuyDay).Sum(i => i.Amount));
+    }
 }
 
 /// <summary>
@@ -214,9 +226,7 @@ public sealed class SpendingBreakdownService(BankingDbContext db, PeriodResolver
     private async Task<BreakdownInvestment> InvestAsync(
         IReadOnlyList<TransactionItem> eligible, DateOnly today, CancellationToken cancellationToken)
     {
-        var lastBuyDay = today.AddDays(-SpendingBreakdownRules.MinimumAgeDays);
-        var old = eligible.Where(i => i.LocalDate <= lastBuyDay).ToList();
-        var excluded = eligible.Where(i => i.LocalDate > lastBuyDay).Sum(i => i.Amount);
+        var (old, excluded) = SpendingBreakdownRules.Investable(eligible, today);
         IReadOnlyList<AssetWhatIf> assets = [];
         if (old.Count > 0)
         {

@@ -42,10 +42,18 @@ public static class HabitAdviceRules
             .Select(x => (x.Input, x.Usual, Excess: x.Input.Amount - x.Usual))
             .OrderByDescending(x => x.Excess).ThenBy(x => x.Input.Merchant, StringComparer.Ordinal)
             .Take(MaximumAdvice)
-            .Select(x => new HabitAdvice(x.Input.Merchant, x.Input.Count, x.Input.Amount, x.Usual, x.Excess,
-                $"{x.Input.Merchant} için bu dönemde {x.Input.Count} kez {Money(x.Input.Amount)} harcadınız; "
-                + $"son {UsualMonths} ayın aylık ortalaması {Money(x.Usual)}. Ortalamanızda kalsaydınız {Money(x.Excess)} size kalırdı."))
+            .Select(x => new HabitAdvice(x.Input.Merchant, x.Input.Count, x.Input.Amount, x.Usual, x.Excess, Message(x.Input, x.Usual, x.Excess)))
             .ToList();
+    }
+
+    private static string Message(HabitInput input, decimal usual, decimal excess)
+    {
+        var head = $"{input.Merchant} için bu dönemde {input.Count} kez {Money(input.Amount)} harcadınız; ";
+        // "An average of 0,00 TL" reads like an error: a merchant new in the period is named as new.
+        if (input.UsualTotal == 0m)
+            return head + $"son {UsualMonths} ayda bu işyerine harcamanız yoktu. "
+                + $"{(input.Count == 1 ? "Bu harcamayı" : "Bu harcamaları")} yapmasaydınız {Money(excess)} size kalırdı.";
+        return head + $"son {UsualMonths} ayın aylık ortalaması {Money(usual)}. Ortalamanızda kalsaydınız {Money(excess)} size kalırdı.";
     }
 
     private static string Money(decimal value) => $"{value.ToString("N2", TurkishNumbers)} TL";

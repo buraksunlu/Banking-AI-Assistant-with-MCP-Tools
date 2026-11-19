@@ -46,5 +46,10 @@ public sealed class HabitAdviceRulesTests
         var advice = Assert.Single(HabitAdviceRules.Evaluate([new HabitInput("Biletix", 1, 2800m, 0m)], 31));
 
         Assert.Equal((0m, 2800m), (advice.UsualMonthly, advice.Excess));
+        // "an average of 0,00 TL" reads like an error; a merchant new in the period is named as new.
+        Assert.Equal("Biletix için bu dönemde 1 kez 2.800,00 TL harcadınız; son 6 ayda bu işyerine harcamanız yoktu. "
+            + "Bu harcamayı yapmasaydınız 2.800,00 TL size kalırdı.", advice.Message);
+        Assert.EndsWith("Bu harcamaları yapmasaydınız 3.000,00 TL size kalırdı.",
+            Assert.Single(HabitAdviceRules.Evaluate([new HabitInput("Zara", 2, 3000m, 0m)], 31)).Message);
     }
 }

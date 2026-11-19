@@ -886,7 +886,7 @@ kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir.
   Mayıs 2024'e. 1.796 işlem yazıldı; Murat 2.053 işlem, 8 rutin ödeme, Ekim'e 2 öneri. Testler: MuratStoryTests 23, altın dosya, Data 225,
   Application 534. Sıradaki: rutin ve temel / rutin olmayan ayrımı + "altın olsaydı" notu (DEMO-02), ana ekranda yaklaşan rutin ödemeler
   kartı (DEMO-03, kullanıcı kararı B). docs/synthetic-seed.md "DEMO-01".
-- [ ] DEMO-02 — İşlem listesinde (sohbetteki "İşlemleri gör" dahil) "Rutin ve temel" / "Rutin olmayan" iki grup; rutin olmayanların hepsine
+- [ ] DEMO-02 — (19 Kasım 2026: PR1 backend tamam — `GET /api/transactions/breakdown` + `/{id}/insight`, K1 güncellendi: satır notu yok, rutin olmayanların toplamına üç varlık; Application 566, Api 657. Kalan: PR2 iPhone.) İşlem listesinde (sohbetteki "İşlemleri gör" dahil) "Rutin ve temel" / "Rutin olmayan" iki grup; rutin olmayanların hepsine
   öneri (satırda geçmiş fiyatla "altın olsaydı", grubun altında en fazla 2 alışkanlık önerisi; kategorisi belirsiz olan öneri almaz); işlem
   detayında aynı not. Kararlar 19 Kasım 2026 sohbetinde (rutin = abonelik/fatura/taksit; temel = sabit kategori tablosu). Ayrı tasarım.
 - [ ] DEMO-03 — Ana ekranda gelir payı kartının yerine "yaklaşan rutin ödemeler" kartı (kullanıcı kararı B, 19 Kasım 2026). Ayrı tasarım.

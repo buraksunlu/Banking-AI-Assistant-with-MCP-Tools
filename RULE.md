@@ -1388,6 +1388,10 @@ Bu güncel kuralları projenin yeni source of truth’u olarak kabul et.
 ==================================================
 
 COMPLETED
+- Rutin / rutin olmayan döküm, backend (DEMO-02 PR1, 19 Kasım 2026, `demo-02a-breakdown-api`; docs/analytics.md "DEMO-02", docs/api.md):
+  `GET /api/transactions/breakdown` ve `/{id}/insight`; taksit kalıbı + dönem sonuna göre düzenli ödeme + temel kategori; rutin olmayan
+  isteğe bağlı TL'ye "kendi gününde" üç varlık; ≥ 28 günde en fazla 2 alışkanlık önerisi; > 31 gün `periodTooLong`. Application 564,
+  Api 657. Sıradaki PR2 iPhone.
 - Murat demo verisi (DEMO-01, 19 Kasım 2026, `demo-01-murat-data`; docs/synthetic-seed.md "DEMO-01"): yalnız canlıda 15 Mayıs 2024 – bugün,
   taksit/abonelik/rutin dışı/transfer/belirli gün; sabit DB ve fixture'lar değişmedi; canlıya yazılmış gün planı altın dosyayla kilitli.
   1.796 işlem yazıldı (Murat 2.053, 8 rutin ödeme, Ekim 2026'ya 2 öneri); fiyatlar canlıda Mayıs 2024'ten. Sıradaki DEMO-02 (rutin / rutin
