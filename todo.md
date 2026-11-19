@@ -881,6 +881,15 @@ kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir.
 - [ ] FIN-07 — Demo: recurring payments, işlem açıklaması ve merchant normalization akışını göster.
 - [ ] FIN-08 — Demo: USD/EUR/altın tarihsel karşılaştırmasını kaynak/fiyat tarihiyle göster; eksik veri ve negatif fark örneklerini de dene.
 - [ ] FIN-09 — Demo: başka müşteriye erişim, bozuk input ve AI servis kesintisinde kontrollü davranışı göster.
+- [x] DEMO-01 — (19 Kasım 2026 kullanıcı kararı: demo kişisi Murat, yaklaşım A.) Murat'ın verisi yalnız canlıda 15 Mayıs 2024 – bugün:
+  taksitler (bitmiş/süren), abonelikler (iptal dahil), rutin dışı çeşitlilik, Ekim 2026 öneri ayı, 5 Eylül, transferler; fiyatlar canlıda
+  Mayıs 2024'e. 1.796 işlem yazıldı; Murat 2.053 işlem, 8 rutin ödeme, Ekim'e 2 öneri. Testler: MuratStoryTests 23, altın dosya, Data 225,
+  Application 534. Sıradaki: rutin ve temel / rutin olmayan ayrımı + "altın olsaydı" notu (DEMO-02), ana ekranda yaklaşan rutin ödemeler
+  kartı (DEMO-03, kullanıcı kararı B). docs/synthetic-seed.md "DEMO-01".
+- [ ] DEMO-02 — İşlem listesinde (sohbetteki "İşlemleri gör" dahil) "Rutin ve temel" / "Rutin olmayan" iki grup; rutin olmayanların hepsine
+  öneri (satırda geçmiş fiyatla "altın olsaydı", grubun altında en fazla 2 alışkanlık önerisi; kategorisi belirsiz olan öneri almaz); işlem
+  detayında aynı not. Kararlar 19 Kasım 2026 sohbetinde (rutin = abonelik/fatura/taksit; temel = sabit kategori tablosu). Ayrı tasarım.
+- [ ] DEMO-03 — Ana ekranda gelir payı kartının yerine "yaklaşan rutin ödemeler" kartı (kullanıcı kararı B, 19 Kasım 2026). Ayrı tasarım.
 - [ ] FIN-10 — Kullanıcıyla son kabul review'ü yap. Açık maddeleri yapılmış işaretleme; ertelenen işleri gerekçesiyle ayır.
 
 ## Kapsam dışında kalanlar

@@ -1,14 +1,14 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
-using BankingAI.Data.Seeding;
 using BankingAI.Data.Simulation;
 using Xunit;
 
 namespace BankingAI.Data.Tests.Simulation;
 
-// DEMO-01: the live database already holds the day plan's rows from the fixed data's end to 19 November 2026. A changed row there would
-// be the same identifier with other content, which the writers refuse, so every row of that window is kept in a golden file and must be
-// planned again exactly as it was. New rows are free. BANKINGAI_UPDATE_DAYPLAN_GOLDEN=1 writes the file (and fails, so it gets committed).
+// DEMO-01: the live database already holds every row of the catch-up plan up to 19 November 2026 (Murat's history before the fixed
+// data and the day plans after it). A changed row there would be the same identifier with other content, which the writers refuse, so
+// every row of that window is kept in a golden file and must be planned again exactly as it was. New rows are free.
+// BANKINGAI_UPDATE_DAYPLAN_GOLDEN=1 writes the file (and fails, so it gets committed).
 public sealed class DayPlanGoldenTests
 {
     private static readonly DateTimeOffset Until = new(2026, 11, 19, 21, 0, 0, TimeSpan.Zero);
@@ -17,7 +17,7 @@ public sealed class DayPlanGoldenTests
         Path.Combine(Path.GetDirectoryName(source)!, "day-plan-golden.txt");
 
     private static IEnumerable<string> CurrentLines() =>
-        DayPlan.Between(SyntheticTransactionSeeder.RealisticCutoff, Until)
+        LiveSimulator.PlanUntil(Until)
             .SelectMany(p => p.ToTransactions())
             .Select(t => string.Join('|', t.Id, t.AccountId, t.Amount.ToString(CultureInfo.InvariantCulture), t.CurrencyCode, t.Kind,
                 t.RawDescription, t.OccurredAt.ToString("O", CultureInfo.InvariantCulture)));
