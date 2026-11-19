@@ -9,6 +9,8 @@ struct AnswerCard: View {
     /// The link whose transactions go inside this card, or nil (`CardDisplay.cardTransactions`).
     var transactions: AssistantLink?
     var list: (AssistantLink) -> TransactionHistoryViewModel = { _ in fatalError("A card with transactions needs their list.") }
+    var breakdown: (AssistantLink) -> BreakdownViewModel? = { _ in nil }
+    var insight: (TransactionItem) -> TransactionInsightViewModel? = { _ in nil }
     let toggle: () -> Void
 
     var body: some View {
@@ -39,7 +41,7 @@ struct AnswerCard: View {
                 MoreLine(title: title, expanded: expanded, action: toggle)
             }
             if let transactions {
-                CardTransactions(link: transactions, list: list)
+                CardTransactions(link: transactions, list: list, breakdown: breakdown, insight: insight)
             }
             if CardDisplay.showsSentence(card.sentence, withTransactions: transactions != nil) {
                 Text(card.sentence)
@@ -89,11 +91,16 @@ private struct MoreLine: View {
 private struct CardTransactions: View {
     let link: AssistantLink
     let list: (AssistantLink) -> TransactionHistoryViewModel
+    let breakdown: (AssistantLink) -> BreakdownViewModel?
+    let insight: (TransactionItem) -> TransactionInsightViewModel?
     @State private var model: TransactionHistoryViewModel
 
-    init(link: AssistantLink, list: @escaping (AssistantLink) -> TransactionHistoryViewModel) {
+    init(link: AssistantLink, list: @escaping (AssistantLink) -> TransactionHistoryViewModel,
+         breakdown: @escaping (AssistantLink) -> BreakdownViewModel?, insight: @escaping (TransactionItem) -> TransactionInsightViewModel?) {
         self.link = link
         self.list = list
+        self.breakdown = breakdown
+        self.insight = insight
         _model = State(initialValue: list(link))
     }
 
@@ -114,7 +121,7 @@ private struct CardTransactions: View {
                 if let title = CardDisplay.allTransactionsTitle(total: model.totalCount) {
                     HairlineDivider()
                     NavigationLink {
-                        LinkedTransactionsView(link: link, model: list(link))
+                        LinkedTransactionsView(link: link, model: list(link), breakdown: breakdown(link), insight: insight)
                     } label: {
                         HStack(spacing: Layout.tight) {
                             Text(title)

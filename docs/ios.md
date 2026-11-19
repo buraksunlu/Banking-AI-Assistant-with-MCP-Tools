@@ -914,3 +914,18 @@ yok, en az tutar geçmez). Simülatörde denenmedi.
 `AnswerBar` artık isteğe bağlı bir `detail` alanı okur (yoksa boş). `CardDisplay` bu alanı tutarın altında küçük ikinci satır olarak gösterir; öneri
 kartında "gelirin %60,31" burada durur, dar ekranda satır kırılmaz. Cümlesi boş gelen kart (bakiye) alt cümle göstermez. Testler: iOS 435 → 438
 test durumu (`AnswerCardTests`); 1 kasıtlı bozma yakalandı.
+
+## iOS-ac: rutin / rutin olmayan döküm ve işlemin yatırım karşılaştırması (DEMO-02 PR2; 19 Kasım 2026)
+
+- Sohbetteki "İşlemleri gör" bir **harcama** bağlantısıysa (kişisel hesap, `Purchase`; yön, kişi, tutar sınırı ve para birimi yok)
+  `ChatViewModel.breakdown(for:)` → `BreakdownViewModel` → `GET /api/transactions/breakdown` (bağlantının dönemi: ad ya da iki gün; kategori,
+  işyeri). Ekran `Transactions/BreakdownView`: para birimi başına "Rutin ve temel" ve "Rutin olmayan" başlıkları (adet · toplam, backend'in),
+  rutin satırında etiket (Abonelik / Fatura / Taksit 4/12 / Düzenli ödeme / Temel), belirsiz satırda "Kategorisi belirsiz", altta
+  `InvestmentCard` (dolar / euro / gram altın; bugünkü değer + fark, yöntem satırı, dahil edilmeyen son 7 gün, sabit uyarı) ve en fazla 2
+  öneri satırı. `periodTooLong` → bugünkü sayfalı düz liste (`LinkedTransactionsView` aynı ekran). Diğer bağlantılar değişmedi.
+- İşlem detayı (`TransactionDetailView(item:insight:)`): `GET /api/transactions/{id}/insight`; rutin etiketi, rutin olmayan isteğe bağlı
+  TL harcamada "Bu harcama yatırılsaydı" kartı, değilse backend'in notu ("Rutin ödeme", "Temel harcama", "Karşılaştırmak için erken" …).
+  Döküm satırları detayı açık hedefle açar (sohbet yığınında `TransactionItem` hedefi tanımlı değil); Profil yığınındaki detay da insight alır.
+- Telefon toplama/yüzde yapmaz; bilinmeyen `reason` çözümleme hatasıdır (tahmin edilmez). Testler `BreakdownTests` (iOS 438 → 454 test
+  durumu); kasıtlı bozmalar: etiket, fark işareti, `periodTooLong` dalı yakalandı; `minAmount` koşulu tek başına yakalanmaz (backend tutar
+  sınırını hep para birimiyle gönderir, `currencyCode` koşulu aynı bağlantıyı zaten düz listeye bırakır).

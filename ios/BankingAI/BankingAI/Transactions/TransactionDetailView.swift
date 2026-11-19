@@ -16,6 +16,8 @@ extension EnvironmentValues {
 /// own record (IOS-06). Everything is the backend's field; nothing is calculated.
 struct TransactionDetailView: View {
     let item: TransactionItem
+    /// The transaction's place in the breakdown (DEMO-02); nil leaves the screen as it was.
+    var insight: TransactionInsightViewModel? = nil
     @Environment(\.customerTimeZone) private var zone
 
     var body: some View {
@@ -51,6 +53,8 @@ struct TransactionDetailView: View {
                 .padding(.horizontal, Layout.regular)
                 .cardSurface(padding: 0)
 
+                if let insight { InsightSection(model: insight) }
+
                 VStack(alignment: .leading, spacing: Layout.small) {
                     SectionTitle(text: "Banka kaydı")
                     Text(item.rawDescription)
@@ -67,6 +71,7 @@ struct TransactionDetailView: View {
         .blackScreen()
         .navigationTitle("İşlem detayı")
         .navigationBarTitleDisplayMode(.inline)
+        .task { await insight?.load() }
     }
 
     /// The label and value of every line of the information card; a line the backend has no field for is left out.
@@ -88,5 +93,40 @@ struct TransactionDetailView: View {
         let day = TransactionDisplay.date(item.localDate)
         guard let zone, let time = TransactionDisplay.time(utc: item.occurredAtUtc, in: zone) else { return day }
         return "\(day) · \(time)"
+    }
+}
+
+/// The detail's breakdown part (DEMO-02): the routine tag, then the comparison or the backend's note on why there is none.
+private struct InsightSection: View {
+    let model: TransactionInsightViewModel
+
+    var body: some View {
+        switch model.state {
+        case .loading:
+            Text("Yükleniyor")
+                .font(Typography.caption)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .cardSurface()
+                .skeleton()
+        case .failed(let message):
+            StatusBand(text: message, actionTitle: "Tekrar dene") { Task { await model.load() } }
+        case .loaded(let insight):
+            VStack(alignment: .leading, spacing: Layout.small) {
+                if let tag = BreakdownDisplay.insightTag(insight) {
+                    Text(tag)
+                        .font(Typography.eyebrow)
+                        .foregroundStyle(Palette.accent.color)
+                }
+                if let investment = insight.investment {
+                    InvestmentCard(title: BreakdownDisplay.singleInvestmentTitle, investment: investment)
+                } else if let note = insight.note {
+                    Text(note)
+                        .font(Typography.caption)
+                        .foregroundStyle(Palette.secondaryText.color)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .cardSurface()
+                }
+            }
+        }
     }
 }

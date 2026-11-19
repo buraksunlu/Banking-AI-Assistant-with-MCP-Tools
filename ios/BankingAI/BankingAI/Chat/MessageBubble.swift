@@ -7,6 +7,9 @@ struct MessageBubble: View {
     let canRetry: Bool
     /// The list a link under this answer opens; built when the button is tapped (CHAT-07).
     let list: (AssistantLink) -> TransactionHistoryViewModel
+    /// The breakdown a spending link opens (DEMO-02) and a transaction's insight; nil keeps the plain list.
+    var breakdown: (AssistantLink) -> BreakdownViewModel? = { _ in nil }
+    var insight: (TransactionItem) -> TransactionInsightViewModel? = { _ in nil }
     /// Whether a card of this answer is open, by position, and its "Tümünü göster" line.
     var expanded: (Int) -> Bool = { _ in false }
     var toggle: (Int) -> Void = { _ in }
@@ -48,7 +51,8 @@ struct MessageBubble: View {
             } else {
                 // The card is the answer (UX-01 K2-A): its sentence is the text, so the text is not shown twice.
                 ForEach(Array(message.cards.enumerated()), id: \.offset) { index, card in
-                    AnswerCard(card: card, expanded: expanded(index), transactions: inside, list: list) { toggle(index) }
+                    AnswerCard(card: card, expanded: expanded(index), transactions: inside, list: list, breakdown: breakdown,
+                               insight: insight) { toggle(index) }
                 }
             }
             // Under its own answer for good, unlike the suggestions: the list is the proof of this answer's figure. A card without
@@ -57,7 +61,7 @@ struct MessageBubble: View {
                 // A link with its own destination, not a value: a value link pushed after the chat's own destination link
                 // makes the unnamed stack pop straight back (found on the simulator, not by any unit test).
                 NavigationLink {
-                    LinkedTransactionsView(link: link, model: list(link))
+                    LinkedTransactionsView(link: link, model: list(link), breakdown: breakdown(link), insight: insight)
                 } label: {
                     HStack(spacing: Layout.tight) {
                         Text(link.title)

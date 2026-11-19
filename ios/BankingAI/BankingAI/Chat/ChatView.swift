@@ -31,6 +31,7 @@ struct ChatView: View {
                         }
                         ForEach(model.messages) { message in
                             MessageBubble(message: message, canRetry: model.canSend, list: model.transactions(for:),
+                                          breakdown: model.breakdown(for:), insight: model.insight(for:),
                                           expanded: { model.isExpanded(message.id, card: $0) },
                                           toggle: { model.toggleExpanded(message.id, card: $0) }) {
                                 Task { await model.retry(message.id) }
