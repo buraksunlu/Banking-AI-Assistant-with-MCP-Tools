@@ -79,8 +79,7 @@ def test_an_impossible_date_is_invalid_with_a_reason_for_the_user(message, reaso
 
 @pytest.mark.parametrize(
     "message",
-    ["Geçen salı ne harcadım?", "3 gün önce ne harcadım?", "Geçen yıl ne harcadım?", "Bayramda ne harcadım?",
-     "Hafta sonu ne harcadım?", "Evvelsi gün ne harcadım?", "03/09 ne harcadım?", "Cuma günü ne harcadım?"],
+    ["Bayramda ne harcadım?", "Hafta sonu ne harcadım?", "03/09 ne harcadım?", "Cuma günü ne harcadım?", "Salı günü ne harcadım?"],
 )
 def test_a_date_that_code_cannot_read_is_left_for_the_second_step(message):
     assert read_dates(message, TODAY).kind == "unreadable"
@@ -135,21 +134,126 @@ def test_the_customer_day_holds_the_calendar_the_api_sent():
 from dates import check_range  # noqa: E402
 
 
+# --- CHAT-14: what has a fixed rule is read by code, never by the model ----------------------------------------------------------
+
 @pytest.mark.parametrize(
-    "message",
-    ["Eylül'ün ilk haftası ne harcadım?", "Eylül'ün son haftasında ne harcadım?", "Eylül başında ne harcadım?",
-     "Ekim sonu ne harcadım?", "Kasım ortasında ne harcadım?"],
+    ("message", "start", "end"),
+    [
+        # K3-A: the weeks of a month are its days (1-7, 8-14, 15-21, 22-28) and its last week its last seven days.
+        ("Eylül'ün ilk haftası ne harcadım?", date(2026, 9, 1), date(2026, 9, 7)),
+        ("eylulun ilk haftasi", date(2026, 9, 1), date(2026, 9, 7)),
+        ("Eylül'ün son haftasında ne harcadım?", date(2026, 9, 24), date(2026, 9, 30)),
+        ("Ağustosun son haftası ne harcadım?", date(2026, 8, 25), date(2026, 8, 31)),
+        ("Şubat'ın son haftası", date(2026, 2, 22), date(2026, 2, 28)),
+        ("Şubat 2024'ün son haftası", date(2024, 2, 23), date(2024, 2, 29)),
+        ("Eylül ayının üçüncü haftası", date(2026, 9, 15), date(2026, 9, 21)),
+        ("Ağustos'un dördüncü haftası", date(2026, 8, 22), date(2026, 8, 28)),
+        # The running month ends today, as a whole month does: the second week of October is 8-10 October on the 10th.
+        ("Ekimin ikinci haftası ne harcadım?", date(2026, 10, 8), date(2026, 10, 10)),
+        ("Ekim'in ilk haftası", date(2026, 10, 1), date(2026, 10, 7)),
+        # Written with a number: read as the whole month before (1-10 October for "the 2nd week").
+        ("Ekim'in 2. haftası", date(2026, 10, 8), date(2026, 10, 10)),
+        ("Eylül'ün 3. haftası", date(2026, 9, 15), date(2026, 9, 21)),
+        ("eylul 1. hafta", date(2026, 9, 1), date(2026, 9, 7)),
+        # K2-B: beginning 1-10, middle 11-20, end 21 to the last day; a month after this one is last year's.
+        ("Eylül başında ne harcadım?", date(2026, 9, 1), date(2026, 9, 10)),
+        ("Kasım ortasında ne harcadım?", date(2025, 11, 11), date(2025, 11, 20)),
+        ("Eylül sonu ne harcadım?", date(2026, 9, 21), date(2026, 9, 30)),
+        ("Ağustos sonunda", date(2026, 8, 21), date(2026, 8, 31)),
+        # Since the new year, last year, N days ago, the day before yesterday.
+        ("Yılbaşından beri ne harcadım?", date(2026, 1, 1), date(2026, 10, 10)),
+        ("yılbaşından bu yana", date(2026, 1, 1), date(2026, 10, 10)),
+        ("Geçen yıl ne harcadım?", date(2025, 1, 1), date(2025, 12, 31)),
+        ("geçen sene", date(2025, 1, 1), date(2025, 12, 31)),
+        ("3 gün önce ne harcadım?", date(2026, 10, 7), date(2026, 10, 7)),
+        ("Evvelsi gün ne harcadım?", date(2026, 10, 8), date(2026, 10, 8)),
+        # "Geçen <gün>" is the latest such day before today, never today itself (today is a Saturday).
+        ("Geçen salı ne harcadım?", date(2026, 10, 6), date(2026, 10, 6)),
+        ("geçen pazartesi", date(2026, 10, 5), date(2026, 10, 5)),
+        ("geçen cuma günü", date(2026, 10, 9), date(2026, 10, 9)),
+        ("geçen cumartesi", date(2026, 10, 3), date(2026, 10, 3)),
+        ("geçen pazar", date(2026, 10, 4), date(2026, 10, 4)),
+        ("Geçen hafta sonu ne harcadım?", date(2026, 10, 3), date(2026, 10, 4)),
+        # K4-A: N weeks ago is that Monday-Sunday week, N months ago that whole month, N years ago that whole year.
+        ("2 hafta önce ne harcadım?", date(2026, 9, 21), date(2026, 9, 27)),
+        ("1 hafta önce", date(2026, 9, 28), date(2026, 10, 4)),
+        ("3 ay önce ne harcadım?", date(2026, 7, 1), date(2026, 7, 31)),
+        ("1 ay önce", date(2026, 9, 1), date(2026, 9, 30)),
+        ("1 yıl önce", date(2025, 1, 1), date(2025, 12, 31)),
+    ],
 )
-def test_a_part_of_a_month_is_not_the_whole_month(message):
-    # Read as "Eylül" it would answer for thirty days when the user asked for seven.
-    assert read_dates(message, TODAY).kind == "unreadable"
+def test_an_expression_with_a_fixed_rule_is_read_by_code(message, start, end):
+    assert found(message) == (start, end)
 
 
-def test_since_the_new_year_is_one_expression():
-    message = "Yılbaşından beri ne harcadım?"
+@pytest.mark.parametrize(
+    ("message", "start", "end"),
+    [
+        # The live trial's day, a Friday (27 November 2026).
+        ("Yılbaşından beri ne kadar harcadım?", date(2026, 1, 1), date(2026, 11, 27)),
+        ("Eylül'ün ilk haftası ne harcadım?", date(2026, 9, 1), date(2026, 9, 7)),
+        ("Geçen salı ne harcadım?", date(2026, 11, 24), date(2026, 11, 24)),
+        ("Geçen cuma ne harcadım?", date(2026, 11, 20), date(2026, 11, 20)),
+        ("Geçen hafta sonu", date(2026, 11, 21), date(2026, 11, 22)),
+        ("2 hafta önce", date(2026, 11, 9), date(2026, 11, 15)),
+        ("3 ay önce", date(2026, 8, 1), date(2026, 8, 31)),
+        ("3 gün önce ne harcadım?", date(2026, 11, 24), date(2026, 11, 24)),
+        ("Kasım sonu", date(2026, 11, 21), date(2026, 11, 27)),
+    ],
+)
+def test_the_rules_hold_on_another_day(message, start, end):
+    reading = read_dates(message, date(2026, 11, 27))
+
+    assert (reading.kind, reading.start, reading.end) == ("found", start, end)
+
+
+def test_a_part_of_a_month_that_has_not_begun_is_not_yet():
+    reading = read_dates("Ekim sonu ne harcadım?", TODAY)
+
+    assert reading.kind == "invalid" and "henüz gelmedi" in reading.reason
+
+
+@pytest.mark.parametrize(
+    ("message", "words"),
+    [
+        ("Yılbaşından beri ne harcadım?", "Yılbaşından beri"),
+        ("Eylül'ün ilk haftası ne harcadım?", "Eylül'ün ilk haftası"),
+        ("Geçen salı ne harcadım?", "Geçen salı"),
+        ("geçen cuma günü market", "geçen cuma günü"),
+        ("Migros'a 2 hafta önce ne verdim?", "2 hafta önce"),
+        ("Salı günü ne harcadım?", "Salı günü"),
+    ],
+)
+def test_the_span_holds_the_words_of_the_date(message, words):
     reading = read_dates(message, TODAY)
 
-    assert (reading.kind, message[slice(*reading.span)]) == ("unreadable", "Yılbaşından beri")
+    assert message[slice(*reading.span)] == words
+
+
+# --- K1-C: a range the model gave must fit the words it was read from -----------------------------------------------------------
+
+from dates import fits_words  # noqa: E402
+
+
+@pytest.mark.parametrize(
+    ("expression", "start", "end", "fits"),
+    [
+        # The case found live: "the second week of October" came back as a week of September.
+        ("ekimin ikinci haftası", date(2026, 9, 14), date(2026, 9, 20), False),
+        ("ekimin ikinci haftası", date(2026, 10, 8), date(2026, 10, 14), True),
+        ("Salı günü", date(2026, 10, 5), date(2026, 10, 5), False),
+        ("Salı günü", date(2026, 10, 6), date(2026, 10, 6), True),
+        ("cumartesi", date(2026, 10, 9), date(2026, 10, 9), False),
+        ("cuma", date(2026, 10, 9), date(2026, 10, 9), True),
+        ("2025 yılbaşında", date(2026, 1, 1), date(2026, 1, 1), False),
+        ("2025 yılbaşında", date(2025, 1, 1), date(2025, 1, 1), True),
+        # Nothing in the words to hold the range to: the code checks of check_range are all there is.
+        ("bayramda", date(2026, 3, 20), date(2026, 3, 22), True),
+        ("03/09", date(2026, 9, 3), date(2026, 9, 3), True),
+    ],
+)
+def test_a_range_the_model_gave_must_fit_the_month_weekday_and_year_written(expression, start, end, fits):
+    assert fits_words(expression, start, end) is fits
 
 
 @pytest.mark.parametrize(

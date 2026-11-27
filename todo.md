@@ -475,6 +475,16 @@ liste bağlantısı) K7-A (eski 121 vaka bozulmaz, yeni ≥ 14/16, cevap doğrul
   özgün soruyla okunur; soru sorulduysa eski çağrı takip bağlamı olmaz). "nerelere" genel harcama kelimesi ve yazım düzelticisinde korunur.
   Ölçüm: araç seçimi 144/144, serbest yazılış 78 doğru · 2 sordu · 0 yanlış (N56 tek başına 5/5 doğru, model dalgalanması), hatalı yazılış 106 · 6 ·
   4 · **0 yanlış**, cevap 33/33. Python 1810 → 1833, Api 624, iOS 435 → 438; 18 kasıtlı bozma yakalandı (Python 16, .NET 1, iOS 1).
+- [x] CHAT-14 — Takvim hesabı kodda (27 Kasım 2026, dal `chat-14-dates-by-code`; DEMO-05 PR3 canlı denemesinde bulundu; docs/local-ai.md
+  "Takvim hesabı kodda"). Bulgu: aynı tarih ifadesi sıcaklık 0'da iki çağrıda farklı aralık aldı ("ekimin ikinci haftası" → 14-20 Eylül,
+  `check_range`'ten geçti; "Eylül'ün ilk haftası" bir "anlamadım" bir 1-7 Eylül); süre sebep değildi. Kararlar K1-C (kuralı belli ifadeler
+  `dates.read_dates`'te, modele kalanın aralığı `fits_words` ile yazan ay/gün adı/yıla tutturulur), K2-B (ay başı 1-10, ortası 11-20, sonu 21-son
+  gün), K3-A (ayın haftaları 1-7/8-14/15-21/22-28, son hafta son 7 gün), K4-A (N hafta/ay/yıl önce o takvim birimi), K5-A (`date_eval --repeat`,
+  eşik 0 yanlış), K6-A (PR3 işi kendi dalında commit'li bekledi), K7-A ("3 gün önce" harcamasız günde 502 ayrı dal). Prompt `date-v4` değişmedi.
+  Ölçüm: tarih (5 tur) önce 11/15 vaka · 63/75 tur · 12 soru · 0 yanlış → sonra 15/15 · 75/75 · 0 · 0; araç seçimi 157/157; modelsiz ifade
+  ölçümü ana dalla aynı (0 engelleyici açık). Python 1906 → 1959; 5 kasıtlı bozma yakalandı. Bilerek değişen eski testler: "Geçen salı/3 gün
+  önce/Geçen yıl/Evvelsi gün" artık kodla okunuyor, ayın parçası ve "yılbaşından beri" testleri aralığı denetliyor, sahte model testleri
+  "Salı günü"nü kullanıyor.
 
 ## 14. SwiftUI — çalışan endpoint üzerine küçük ekranlar
 

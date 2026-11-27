@@ -147,7 +147,7 @@ def test_a_date_in_the_future_is_asked_back():
 def test_a_date_code_cannot_read_is_asked_back_when_there_is_no_second_step():
     chat, selector, _, _ = dated()
 
-    reply = chat.answer("Geçen salı ne harcadım?", TOKEN, DAY)
+    reply = chat.answer("Salı günü ne harcadım?", TOKEN, DAY)
 
     assert reply.type == "clarification" and selector.calls == []
     assert reply.answer.startswith("Tarihi anlayamadım.")
@@ -324,9 +324,9 @@ def with_interpreter(interpreter, **options):
 def test_a_date_the_model_reads_is_run_like_one_code_read():
     chat, selector, gateway, _, interpreter = with_interpreter(FakeInterpreter(LAST_TUESDAY), results=YESTERDAY)
 
-    reply = chat.answer("Geçen salı ne harcadım?", TOKEN, DAY)
+    reply = chat.answer("Salı günü ne harcadım?", TOKEN, DAY)
 
-    assert interpreter.calls == [("Geçen salı", DAY)]
+    assert interpreter.calls == [("Salı günü", DAY)]
     # Only the words of the date go to the second step, and the first model sees a period name, as for any date.
     assert selector.calls[0][0] == "bu ay ne harcadım?"
     assert gateway.calls[0][1] == {"period": "Custom", "from": "2026-10-06", "to": "2026-10-06"}
@@ -347,7 +347,7 @@ def test_a_range_the_checks_refuse_is_asked_back_with_the_reason():
     future = check_range("2026-10-11", "2026-10-11", DAY.today)
     chat, selector, gateway, _, _ = with_interpreter(FakeInterpreter(future))
 
-    reply = chat.answer("Geçen salı ne harcadım?", TOKEN, DAY)
+    reply = chat.answer("Salı günü ne harcadım?", TOKEN, DAY)
 
     assert reply.type == "clarification" and "henüz gelmedi" in reply.answer and gateway.calls == []
 
@@ -355,9 +355,30 @@ def test_a_range_the_checks_refuse_is_asked_back_with_the_reason():
 def test_a_model_that_is_down_means_the_period_is_asked():
     chat, _, gateway, _, _ = with_interpreter(FakeInterpreter(error=OllamaUnavailable("down")))
 
-    reply = chat.answer("Geçen salı ne harcadım?", TOKEN, DAY)
+    reply = chat.answer("Salı günü ne harcadım?", TOKEN, DAY)
 
     assert reply.type == "clarification" and gateway.calls == []
+
+
+def test_a_range_of_the_model_that_misses_the_written_weekday_is_asked_back():
+    # CHAT-14 K1-C: a real day passes check_range; a Monday for "Salı günü" must not run.
+    monday = check_range("2026-10-05", "2026-10-05", DAY.today)
+    chat, selector, gateway, _, _ = with_interpreter(FakeInterpreter(monday))
+
+    reply = chat.answer("Salı günü ne harcadım?", TOKEN, DAY)
+
+    assert (reply.type, selector.calls, gateway.calls) == ("clarification", [], [])
+    assert reply.answer.startswith("Tarihi anlayamadım.")
+
+
+def test_an_expression_with_a_fixed_rule_never_reaches_the_model():
+    chat, _, gateway, _, interpreter = with_interpreter(FakeInterpreter(LAST_TUESDAY), results=YESTERDAY)
+
+    reply = chat.answer("Geçen salı ne harcadım?", TOKEN, DAY)
+
+    assert interpreter.calls == []
+    assert gateway.calls[0][1] == {"period": "Custom", "from": "2026-10-06", "to": "2026-10-06"}
+    assert reply.answer.startswith("Dönem: 6 Ekim 2026.\n\n")
 
 
 def test_the_second_step_is_not_asked_for_what_code_can_read_or_for_no_date():
