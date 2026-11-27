@@ -937,6 +937,12 @@ Her önemli geliştirme sonunda mevcut proje durumunu takip et.
 Şunları güncel tut:
 
 COMPLETED
+- Yetenek haritası (DEMO-05 PR3, 27 Kasım 2026, `demo-05c-capability-map`; K13 A+B, K14-B, K15-A, K16-A): slayt 7 iki görünüm (20 araç /
+  araçların üstündeki katman: on aile, 57 yetenek, sayfadaki tek JSON bloğundan çizilir), takip yetenekleri iki adımlı, sayaç araç + yetenek.
+  Zaman slaytında belirli tarih, aralık ve hatalı tarih. `presentation/live_trial.py` slaytların gönderebildiği her soruyu canlı zincirde
+  Murat olarak sorar ve `live_trial.json`'a yalnız tür/araç/süre yazar; `test_capabilities.py` sayfayı ona karşı denetler (sorulmamış ya da
+  hata almış soru, ret ailesinde cevap, başka araca giden araç sorusu kırmızı). 90 soru, 0 hata; testler 32. Bulgular: "3 gün önce" harcamasız
+  günde 502 (ayrı dal); 30 dk boşta kalan model ilk soruda 504 (betik önce ısıtır, paneldeki model ışığı bellekte olmayı göstermiyor).
 - Hazırlık paneli (DEMO-05 PR2, 27 Kasım 2026, `demo-05b-setup-panel`; K7 A+B, K8-A, K9-A, K10-C, K11-A): `scripts/stage.sh`
   (status/start/stop/install, canlı DB, adımlar demo.sh ve run-live.sh'tan; ikisine dokunulmadı) + `server.py` `POST /api/control` (yalnız
   sabit fiil + ad, yalnız kendi kökeni, aynı anda tek komut, kendi oturumunda; çıktı `logs/stage.log`) ve `GET /api/status`. Sayfada `H`

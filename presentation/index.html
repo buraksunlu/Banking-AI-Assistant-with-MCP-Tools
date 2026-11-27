@@ -165,6 +165,13 @@
   .slide.active svg.arch .boxg { animation: rise .6s both; animation-delay: calc(var(--i) * 120ms + 200ms); }
 
   /* Feature map */
+  .views { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid var(--line); border-radius: 999px; margin-bottom: 10px; }
+  .views button { font: inherit; font-size: 13px; color: var(--muted); background: transparent; border: 0; border-radius: 999px; padding: 6px 14px; cursor: pointer; min-height: 32px; }
+  .views button.on { color: var(--stage); background: var(--amber-2); font-weight: 700; }
+  .views button:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+  .chip .step { position: absolute; right: 10px; top: 8px; font: 10px ui-monospace, Menlo, monospace; color: var(--amber); }
+  .chip .then { display: block; font-size: 11px; color: var(--amber-2); margin-top: 3px; }
+  .chip.sent .step { display: none; }
   .families { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
   .families button { font: inherit; font-size: 13px; color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
   .families button.on { color: var(--stage); background: var(--amber); border-color: var(--amber); font-weight: 700; }
@@ -440,12 +447,17 @@
 
 <!-- ============ 7. Feature map ============ -->
 <section class="slide" data-chapter="Özellikler" data-title="Özellik haritası" data-phone="assistant">
-  <div class="eyebrow r" style="--i:0">Bütün araçlar</div>
-  <h2 class="r" style="--i:1"><span data-count="20">0</span> araç, 7 aile</h2>
-  <p class="lead r" style="--i:2">Her kutu bir MCP aracı. Dokun: örnek sorusu simülatöre gider.</p>
+  <div class="eyebrow r" style="--i:0">Bütün yapabildikleri</div>
+  <h2 class="r" style="--i:1" id="mapTitle"><span data-count="20">0</span> araç, 7 aile</h2>
+  <p class="lead r" style="--i:2" id="mapLead">Her kutu bir MCP aracı. Dokun: örnek sorusu simülatöre gider.</p>
+  <div class="views r" style="--i:3" id="views" role="tablist">
+    <button type="button" role="tab" data-view="tools" class="on">Araçlar · 20</button>
+    <button type="button" role="tab" data-view="abilities">Araçların üstündeki katman · <span id="abilityCount"></span></button>
+  </div>
   <div class="families r" style="--i:3" id="families"></div>
   <div class="map r" style="--i:4" id="map"></div>
-  <aside class="notes">Aile seçerek daralt. Bu harita sunumun içindekiler tablosu; sonraki slaytlar ailelere tek tek giriyor.</aside>
+  <aside class="notes">Önce araçlar: sunumun içindekiler tablosu. Sonra “katman”: aynı araçların etrafındaki kod (tarih, geri soru, takip,
+  yazılış, ret). İki adımlı kutular (1/2) iki kez dokunulur. Hepsi 27 Kasım'da canlıda Murat ile denendi (presentation/live_trial.json).</aside>
 </section>
 
 <!-- ============ 8. Spending ============ -->
@@ -474,8 +486,10 @@
     <button class="ask" data-tool="compare_spending" data-q="Geçen aya göre harcamam arttı mı?"><b>Geçen aya göre harcamam arttı mı?</b><small>Geçen ay ↔ önceki ay</small></button>
     <button class="ask" data-tool="get_monthly_trend" data-q="Son 6 ayda harcamam aylara göre nasıl değişti?"><b>Son 6 ayda aylara göre</b><small>Devam eden ay ayrı işaretli</small></button>
     <button class="ask" data-q="1-5 Eylül'de ne kadar harcadım?"><b>1-5 Eylül'de ne kadar harcadım?</b><small>Tarihi kod okur, cevap "Dönem:" ile başlar</small></button>
-    <button class="ask" data-q="Geçen salı ne harcadım?"><b>Geçen salı ne harcadım?</b><small>Göreli tarih: model yorumlar, kod denetler</small></button>
-    <button class="ask" data-q="Dün ne harcadım?"><b>Dün ne harcadım?</b><small>Gün ve hafta dönemleri</small></button>
+    <button class="ask" data-q="20 Ekim'de ne harcadım?"><b>20 Ekim'de ne harcadım?</b><small>Tek gün; yıl yazılmazsa en yakın geçmiş</small></button>
+    <button class="ask" data-q="Eylül'ün ilk haftası ne harcadım?"><b>Eylül'ün ilk haftası ne harcadım?</b><small>Göreli tarih: model yorumlar, kod denetler</small></button>
+    <button class="ask" data-q="Yılbaşından beri ne kadar harcadım?"><b>Yılbaşından beri ne kadar harcadım?</b><small>Tek ifade, tek dönem</small></button>
+    <button class="ask" data-q="31 Şubat'ta ne harcadım?"><b>31 Şubat'ta ne harcadım?</b><small>Olmayan gün: modelsiz, nedenini söyler</small></button>
   </div>
 </section>
 
@@ -658,7 +672,7 @@
     <h1 class="r" style="--i:1"><span class="shine">Sorularınız?</span></h1>
     <p class="lead r" style="--i:2">Sizin sorunuzu birlikte soralım. Hazır birkaç tane:</p>
     <div class="asks two r" style="--i:3">
-      <button class="ask" data-q="Bu hafta ne harcadım?"><b>Bu hafta ne harcadım?</b></button>
+      <button class="ask" data-q="Geçen hafta ne kadar harcadım?"><b>Geçen hafta ne harcadım?</b></button>
       <button class="ask" data-q="Geçen ay en çok hangi işyerine harcadım?"><b>Geçen ay en çok hangi işyerine?</b></button>
       <button class="ask" data-q="Her ay otomatik çekilen ödemelerim hangileri?"><b>Otomatik çekilen ödemelerim?</b></button>
       <button class="ask" data-q="Geçen ay kimden para geldi?"><b>Geçen ay kimden para geldi?</b></button>
@@ -688,6 +702,516 @@
 
 <div class="overview" id="overview" role="dialog" aria-label="Slayt haritası"><div class="eyebrow">Slayt haritası · <kbd>O</kbd> kapatır</div><div class="list" id="overviewList"></div></div>
 
+<script type="application/json" id="capabilities">
+{
+"families": [
+[
+"Dönemler",
+"#F5A700"
+],
+[
+"Belirli tarih",
+"#7FB2E8"
+],
+[
+"Göreli tarih",
+"#9CC3F0"
+],
+[
+"Hatalı tarih",
+"#FF7A6B"
+],
+[
+"Geri soru",
+"#B79BE6"
+],
+[
+"Takip",
+"#6BCB8B"
+],
+[
+"Serbest yazılış",
+"#FFC94D"
+],
+[
+"Yazım ve tutar",
+"#D9822B"
+],
+[
+"Ret ve sınır",
+"#F7EFE2"
+],
+[
+"Cevabın kendisi",
+"#C9A27A"
+]
+],
+"items": [
+{
+"f": 0,
+"title": "Geçen hafta",
+"steps": [
+"Geçen hafta ne kadar harcadım?"
+],
+"note": "Pazartesi–pazar, müşterinin saat diliminde"
+},
+{
+"f": 0,
+"title": "Son 30 gün",
+"steps": [
+"Son 30 günde kategorilere göre harcamam nasıl?"
+],
+"note": "Kayan pencere: bugün dahil 30 gün"
+},
+{
+"f": 0,
+"title": "Son 3 ay + kategori",
+"steps": [
+"Son 3 ayda markete ne kadar harcadım?"
+],
+"note": "Dönem ve kategori aynı cümlede"
+},
+{
+"f": 0,
+"title": "Bu yıl",
+"steps": [
+"Bu yıl ne kadar harcadım?"
+],
+"note": "1 Ocak'tan bugüne"
+},
+{
+"f": 1,
+"title": "Tek gün",
+"steps": [
+"20 Ekim'de ne harcadım?"
+],
+"note": "Tarihi kod okur; cevap “Dönem:” satırıyla başlar"
+},
+{
+"f": 1,
+"title": "Aralık",
+"steps": [
+"1-5 Eylül arası ne kadar harcadım?"
+],
+"note": "Model tarihi hiç görmez, “bu ay” görür"
+},
+{
+"f": 1,
+"title": "Bütün ay",
+"steps": [
+"Eylül'de ne kadar harcadım?"
+],
+"note": "Yıl yazılmazsa en yakın geçmiş"
+},
+{
+"f": 1,
+"title": "İki ay arası",
+"steps": [
+"28 Ağustos - 3 Eylül arası ne harcadım?"
+],
+"note": "Ay sınırını aşan aralık"
+},
+{
+"f": 1,
+"title": "Rakamla tarih",
+"steps": [
+"01.09.2026 - 05.09.2026 arası ne harcadım?"
+],
+"note": "Noktalı yazım da aynı dönem"
+},
+{
+"f": 1,
+"title": "Tarih + kategori",
+"steps": [
+"Eylül'de markete ne kadar harcadım?"
+],
+"note": "Tarih kodun, kategori modelin"
+},
+{
+"f": 1,
+"title": "Bu ayın bir günü",
+"steps": [
+"15 Kasım'da ne harcadım?"
+],
+"note": "Bugün dahil, gelecek değil"
+},
+{
+"f": 2,
+"title": "Ayın ilk haftası",
+"steps": [
+"Eylül'ün ilk haftası ne harcadım?"
+],
+"note": "Model yorumlar, kod aralığı denetler"
+},
+{
+"f": 2,
+"title": "Yılbaşından beri",
+"steps": [
+"Yılbaşından beri ne kadar harcadım?"
+],
+"note": "Tek ifade, tek dönem"
+},
+{
+"f": 2,
+"title": "Geçen hafta sonu",
+"steps": [
+"Geçen hafta sonu ne harcadım?"
+],
+"note": "Cumartesi–pazar; harcama yoksa açıkça söyler"
+},
+{
+"f": 2,
+"title": "Geçen salı",
+"steps": [
+"Geçen salı ne harcadım?"
+],
+"note": "Gün adı; nadiren “Tarihi anlayamadım” der"
+},
+{
+"f": 3,
+"title": "Olmayan gün",
+"steps": [
+"31 Şubat'ta ne harcadım?"
+],
+"note": "Modelsiz, anında: nedenini söyler, dönem sorar"
+},
+{
+"f": 3,
+"title": "Gelecek",
+"steps": [
+"Aralık 2026'da ne harcadım?"
+],
+"note": "“Bu tarih henüz gelmedi”"
+},
+{
+"f": 3,
+"title": "Çok uzun aralık",
+"steps": [
+"1 Ocak 2024 - 5 Ekim 2026 arası ne harcadım?"
+],
+"note": "Sınır 24 ay, backend'le aynı"
+},
+{
+"f": 3,
+"title": "Ters aralık",
+"steps": [
+"5-1 Eylül arası ne harcadım?"
+],
+"note": "“Bitiş başlangıçtan önce olamaz”"
+},
+{
+"f": 4,
+"title": "Dönem yok",
+"steps": [
+"Ne kadar harcadım?"
+],
+"note": "Tahmin etmez; dokunulabilir seçenekler"
+},
+{
+"f": 4,
+"title": "İki Migros",
+"steps": [
+"Migros'a ne kadar harcadım?",
+"geçen ay"
+],
+"note": "Önce dönem, sonra hangi Migros: seçenekleri backend verir"
+},
+{
+"f": 4,
+"title": "Yüzde yok",
+"steps": [
+"Harcamalarımı azaltsam ne kadar biriktiririm?"
+],
+"note": "Kullanıcının rakamını model uyduramaz"
+},
+{
+"f": 4,
+"title": "Süre yok",
+"steps": [
+"Ayda 1.000 TL biriktirseydim ne olurdu?"
+],
+"note": "3 / 6 / 12 ay seçenekleri"
+},
+{
+"f": 4,
+"title": "Ay sayısı yok",
+"steps": [
+"Harcamam aylara göre nasıl değişti?"
+],
+"note": "Son 3 / 6 / 12 ay"
+},
+{
+"f": 4,
+"title": "Konu belli değil",
+"steps": [
+"hava nasıl"
+],
+"note": "Anlamadığını söyler, konu seçtirir"
+},
+{
+"f": 5,
+"title": "Dönem değiştir",
+"steps": [
+"Bu ay ne kadar harcadım?",
+"Peki geçen ay?"
+],
+"note": "Son çağrı hatırlanır, rakam yeniden hesaplanır"
+},
+{
+"f": 5,
+"title": "Tarih aralığı kaydır",
+"steps": [
+"1-5 Eylül arası ne kadar harcadım?",
+"Peki 6-10 Eylül?"
+],
+"note": "Takipte de tarih kodun"
+},
+{
+"f": 5,
+"title": "Araç değiştir",
+"steps": [
+"Geçen ay en çok hangi kategoriye harcadım?",
+"Peki işyerlerine göre?"
+],
+"note": "Aynı dönem, başka araç"
+},
+{
+"f": 5,
+"title": "Süre değiştir",
+"steps": [
+"Ayda 1.000 TL 6 ay biriktirseydim ne olurdu?",
+"Peki 3 ay?"
+],
+"note": "Kullanıcının rakamı “peki” ile taşınır"
+},
+{
+"f": 5,
+"title": "Dönemi büyüt",
+"steps": [
+"Geçen ay en büyük harcamalarım neler?",
+"Ya bu yıl?"
+],
+"note": "“Ya …” de takip"
+},
+{
+"f": 5,
+"title": "Soruya kısa cevap",
+"steps": [
+"Ne kadar harcadım?",
+"bu ay"
+],
+"note": "Geri sorunun cevabı soruyu kodla tamamlar"
+},
+{
+"f": 6,
+"title": "Eş anlam",
+"steps": [
+"elimde ne kadar para var"
+],
+"note": "Bakiye; modelsiz"
+},
+{
+"f": 6,
+"title": "Devrik",
+"steps": [
+"param ne kadar kaldı"
+],
+"note": "Kelimeler aracı seçer"
+},
+{
+"f": 6,
+"title": "Tek kelime",
+"steps": [
+"bakiye?"
+],
+"note": "En kısa soru"
+},
+{
+"f": 6,
+"title": "Konuşma dili",
+"steps": [
+"maaş yattı mı ya"
+],
+"note": "Dönemsiz “yattı mı” = bu ay"
+},
+{
+"f": 6,
+"title": "Argo fiil",
+"steps": [
+"geçen ay kimlere para attım"
+],
+"note": "“para attım” = gönderilen transfer"
+},
+{
+"f": 6,
+"title": "Belirsiz fiil",
+"steps": [
+"geçen ay ne kadar gitti"
+],
+"note": "“gitti” = harcama"
+},
+{
+"f": 6,
+"title": "Kısaltma",
+"steps": [
+"eft geçen ay"
+],
+"note": "Transfer listesi"
+},
+{
+"f": 7,
+"title": "Eksik harf",
+"steps": [
+"maşım yattı mı"
+],
+"note": "Kapalı kelime listesiyle düzeltme: maaşım"
+},
+{
+"f": 7,
+"title": "Harf atlanmış",
+"steps": [
+"harcdım bu ay ne kadar"
+],
+"note": "Kök yeter, devrik de olur"
+},
+{
+"f": 7,
+"title": "Türkçe harfsiz",
+"steps": [
+"bu ay maas geldi mi"
+],
+"note": "Kurallar harfleri katlayarak okur"
+},
+{
+"f": 7,
+"title": "Ek bitişik",
+"steps": [
+"migrosa geçen ay ne kadar ödedim"
+],
+"note": "İşyeri adına ek gelse de bulur"
+},
+{
+"f": 7,
+"title": "“5bin”",
+"steps": [
+"geçen ay 5bin üstü harcamam var mı"
+],
+"note": "Tutarı kod okur, model değil"
+},
+{
+"f": 7,
+"title": "“2 binin üstü”",
+"steps": [
+"2 binin üstündeki harcamalarım geçen ay"
+],
+"note": "Ekli tutar, sonda dönem"
+},
+{
+"f": 7,
+"title": "Tutar aralığı",
+"steps": [
+"geçen ay 100 ile 300 tl arası harcamalarım"
+],
+"note": "En az ve en çok birlikte"
+},
+{
+"f": 7,
+"title": "Süre + tutar",
+"steps": [
+"1,5 yıl boyunca ayda 500 TL biriktirseydim bugün ne olurdu?"
+],
+"note": "“1,5 yıl” süre, “500” tutar: karışmaz"
+},
+{
+"f": 7,
+"title": "“yarıya”",
+"steps": [
+"Market harcamamı yarıya indirsem ne kazanırım?"
+],
+"note": "Söz olarak yüzde: %50"
+},
+{
+"f": 8,
+"title": "Başkasının hesabı",
+"steps": [
+"Deniz'in bakiyesi ne kadar?"
+],
+"note": "Modele gitmeden sabit cevap"
+},
+{
+"f": 8,
+"title": "Aile de olsa",
+"steps": [
+"Eşimin geçen ayki harcamaları"
+],
+"note": "Yalnız token'ın müşterisi"
+},
+{
+"f": 8,
+"title": "Para gönderme",
+"steps": [
+"Selin'e 500 tl gönder"
+],
+"note": "Yazma yok: araç hiç yok"
+},
+{
+"f": 8,
+"title": "Yatırım tavsiyesi",
+"steps": [
+"Altın alayım mı?"
+],
+"note": "Geçmişi gösterir, tavsiye vermez"
+},
+{
+"f": 8,
+"title": "Hisse",
+"steps": [
+"Hangi hisseye yatırım yapayım?"
+],
+"note": "Kapsam dışı"
+},
+{
+"f": 8,
+"title": "Kredi kartı borcu",
+"steps": [
+"kredi kartı borcum ne kadar"
+],
+"note": "Veride olmayan ürün: uydurmaz"
+},
+{
+"f": 9,
+"title": "Kart + İşlemleri gör",
+"steps": [
+"Bu ay ne kadar harcadım?"
+],
+"note": "Kartın altındaki “İşlemleri gör”e dokun: aynı rakamın satırları"
+},
+{
+"f": 9,
+"title": "Liste kartı",
+"steps": [
+"Bu ay 2.000 TL üstü harcamalarım neler?"
+],
+"note": "Satırlar kartın içinde; “Tümünü göster”"
+},
+{
+"f": 9,
+"title": "Uyarı notu",
+"steps": [
+"Geçen ay harcadığım parayla altın alsaydım bugün ne olurdu?"
+],
+"note": "Her “ne olurdu” cevabının altında sabit uyarı"
+},
+{
+"f": 9,
+"title": "Harcamasaydım kartı",
+"steps": [],
+"note": "Profil → Hesaplarım → bir işlem → yatırım karşılaştırması",
+"tab": "profile"
+}
+]
+}
+</script>
 <script>
 (() => {
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -726,16 +1250,59 @@
   try { JSON.parse(sessionStorage.getItem("compass-shown") || "[]").forEach(t => shown.add(t)); } catch { /* private window */ }
 
   // ---------- feature map ----------
+  // Two views (DEMO-05 PR3, K13-A): the twenty MCP tools, and the layer of code around them (dates, clarifying questions,
+  // follow-ups, phrasings, refusals). The second list lives in the JSON block above, where test_capabilities.py reads it too.
+  const ABILITIES = JSON.parse(document.getElementById("capabilities").textContent);
+  const shownAbilities = new Set();
+  try { JSON.parse(sessionStorage.getItem("compass-abilities") || "[]").forEach(t => shownAbilities.add(t)); } catch { /* private window */ }
   const map = document.getElementById("map"), fam = document.getElementById("families");
-  map.innerHTML = TOOLS.map(([tool, f, name, q]) =>
-    `<button class="chip ask-chip" data-tool="${tool}" data-q="${q}" data-family="${f}"><i style="background:${FAMILIES[f][1]}"></i><b>${name}</b><span>“${q}”</span><code>${tool}</code></button>`).join("");
-  fam.innerHTML = `<button class="on" data-f="all">Hepsi · 20</button>` + FAMILIES.map(([n, c], i) =>
-    `<button data-f="${i}">${n} · ${TOOLS.filter(t => t[1] === i).length}</button>`).join("");
+  document.getElementById("abilityCount").textContent = ABILITIES.items.length;
+  let view = "tools";
+  const escape = text => text.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+  function abilityChip(item, i) {
+    const color = ABILITIES.families[item.f][1];
+    if (item.tab) return `<button class="chip" data-tab="${item.tab}" data-ability="${i}" data-family="${item.f}"><i style="background:${color}"></i><b>${escape(item.title)}</b><span>${escape(item.note)}</span></button>`;
+    const steps = item.steps.length > 1 ? `<em class="step">1/${item.steps.length}</em><span class="then">sonra: “${escape(item.steps[1])}”</span>` : "";
+    return `<button class="chip ask-chip" data-q="${escape(item.steps[0])}" data-ability="${i}" data-family="${item.f}"><i style="background:${color}"></i><b>${escape(item.title)}</b><span>“${escape(item.steps[0])}”</span>${steps}<code>${escape(item.note)}</code></button>`;
+  }
+  function renderMap() {
+    const families = view === "tools" ? FAMILIES : ABILITIES.families;
+    const count = f => view === "tools" ? TOOLS.filter(t => t[1] === f).length : ABILITIES.items.filter(t => t.f === f).length;
+    map.innerHTML = view === "tools"
+      ? TOOLS.map(([tool, f, name, q]) => `<button class="chip ask-chip" data-tool="${tool}" data-q="${q}" data-family="${f}"><i style="background:${FAMILIES[f][1]}"></i><b>${name}</b><span>“${q}”</span><code>${tool}</code></button>`).join("")
+      : ABILITIES.items.map(abilityChip).join("");
+    fam.innerHTML = `<button class="on" data-f="all">Hepsi · ${view === "tools" ? 20 : ABILITIES.items.length}</button>` +
+      families.map(([n], i) => `<button data-f="${i}">${n} · ${count(i)}</button>`).join("");
+    document.getElementById("mapTitle").innerHTML = view === "tools" ? "20 araç, 7 aile" : `${ABILITIES.items.length} yetenek, ${ABILITIES.families.length} aile`;
+    document.getElementById("mapLead").textContent = view === "tools"
+      ? "Her kutu bir MCP aracı. Dokun: örnek sorusu simülatöre gider."
+      : "Araçların etrafındaki kod: tarihi okur, eksikte sorar, takibi hatırlar, yazılışı düzeltir, sınırı korur. 1/2 kutular iki dokunuş.";
+    document.querySelectorAll("#views button").forEach(b => b.classList.toggle("on", b.dataset.view === view));
+    updateTally();
+    markNext();
+  }
+  document.getElementById("views").addEventListener("click", e => {
+    const b = e.target.closest("[data-view]"); if (!b || b.dataset.view === view) return;
+    view = b.dataset.view; renderMap();
+  });
   fam.addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
     fam.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
     map.querySelectorAll(".chip").forEach(c => c.classList.toggle("dim", b.dataset.f !== "all" && c.dataset.family !== b.dataset.f));
   });
+
+  // A follow-up chip sends its steps one per click; it counts as shown after the last one.
+  function advance(chip) {
+    const item = ABILITIES.items[+chip.dataset.ability], next = (+chip.dataset.done || 0) + 1;
+    if (item.steps.length > 1 && next < item.steps.length) {
+      chip.dataset.done = next; chip.dataset.q = item.steps[next]; chip.classList.remove("sent");
+      chip.querySelector(".step").textContent = `${next + 1}/${item.steps.length}`;
+      chip.querySelector("span").textContent = `“${item.steps[next]}”`;
+      chip.querySelector(".then").textContent = "önceki cevaba bağlanır";
+      return;
+    }
+    shownAbilities.add(item.title); updateTally();
+  }
 
   // ---------- slides ----------
   const slides = [...document.querySelectorAll("section.slide")];
@@ -773,7 +1340,7 @@
     if (slide.querySelector("#typo")) playTypo();
     if (slide.querySelector("#check1")) playCheck();
     if (slide.querySelector("#coverTyped")) typeCover();
-    if (slide.querySelector("#endTally")) document.getElementById("endTally").textContent = `Bu sunumda ${shown.size} / 20 araç canlı gösterildi.`;
+    if (slide.querySelector("#endTally")) document.getElementById("endTally").textContent = `Bu sunumda ${shown.size} / 20 araç ve ${shownAbilities.size} / ${ABILITIES.items.length} yetenek canlı gösterildi.`;
     slide.scrollTop = 0;
   }
 
@@ -846,10 +1413,14 @@
 
   function updateTally() {
     const n = shown.size;
-    document.getElementById("tally").textContent = `${n} / 20 araç`;
+    document.getElementById("tally").textContent = `${n} / 20 araç · ${shownAbilities.size} / ${ABILITIES.items.length} yetenek`;
     document.getElementById("ring").style.strokeDashoffset = 50.27 * (1 - n / 20);
     document.querySelectorAll("[data-tool]").forEach(b => { if (shown.has(b.dataset.tool)) b.classList.add("sent"); });
-    try { sessionStorage.setItem("compass-shown", JSON.stringify([...shown])); } catch { /* private window */ }
+    document.querySelectorAll("[data-ability]").forEach(b => { if (shownAbilities.has(ABILITIES.items[+b.dataset.ability].title)) b.classList.add("sent"); });
+    try {
+      sessionStorage.setItem("compass-shown", JSON.stringify([...shown]));
+      sessionStorage.setItem("compass-abilities", JSON.stringify([...shownAbilities]));
+    } catch { /* private window */ }
   }
 
   async function strip() {
@@ -910,6 +1481,7 @@
   async function ask(button, event) {
     if (await remote({ ask: button.dataset.q }, button, event)) {
       if (button.dataset.tool) { shown.add(button.dataset.tool); updateTally(); }
+      if (button.dataset.ability) advance(button);
       if (button.dataset.journey) journey();
     }
     markNext();
@@ -949,7 +1521,7 @@
       return;
     }
     const tab = event.target.closest("[data-tab]");
-    if (tab) remote({ tab: tab.dataset.tab }, tab, event);
+    if (tab && await remote({ tab: tab.dataset.tab }, tab, event) && tab.dataset.ability) advance(tab);
   });
 
   document.getElementById("prev").addEventListener("click", () => show(index - 1));
@@ -974,7 +1546,7 @@
       showPhoneState(phoneTab ? TAB_NAMES[phoneTab] : "bekliyor");
       if (autoFollow) follow(slides[index]);
     }
-    else if (key.toLowerCase() === "r" && event.shiftKey) { shown.clear(); document.querySelectorAll(".sent").forEach(b => b.classList.remove("sent")); updateTally(); markNext(); }
+    else if (key.toLowerCase() === "r" && event.shiftKey) { shown.clear(); shownAbilities.clear(); renderMap(); document.querySelectorAll(".sent").forEach(b => b.classList.remove("sent")); updateTally(); markNext(); }
   });
 
   // ---------- the setup panel (DEMO-05 PR2) ----------
@@ -1082,6 +1654,7 @@
   };
 
   showPhoneState("bekliyor");
+  renderMap();
   poll();
   setInterval(poll, 3000);
   updateTally();
