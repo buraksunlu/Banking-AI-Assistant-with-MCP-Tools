@@ -923,8 +923,18 @@ kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir.
   sabit adlarla, `/api/status`; canlı DB; "Derle ve kur", eski derlemeyi (`compass://` yok) tanıyıp kurar; "Hepsini durdur" Colima/PostgreSQL'e
   dokunmaz. Sunucu testleri 10 → 25, 4 kasıtlı bozma yakalandı (beyaz liste, kabuk, köken, durum sızıntısı); eski testlerdeki `self.fail`
   gölgesi düzeltildi. Kullanıcı ekranda doğruladı: sütun yerleşimi, panelden başlatma, soru simülatöre gidiyor.
-  PR3 yetenek haritası (K13 A+B, K14-B, K16-A): araçların üstündeki katman (tarih, geri soru, takip, yazılış, ret, cevabın kendisi), örnekler
-  ölçümden ve canlı Murat denemesinden. PR4 ters yön (telefon yalnız DEBUG'da durum olayı gönderir, metin yok).
+  PR3 yetenek haritası (tamam, 27 Kasım 2026; K13 A+B, K14-B, K15-A, K16-A): slayt 7'de ikinci görünüm "Araçların üstündeki katman" (on
+  aile, 57 yetenek; takip yetenekleri 1/2 → 2/2), sayaç "N / 20 araç · M / 57 yetenek"; Zaman slaytına belirli tarih ("20 Ekim'de"), aralık
+  ("Eylül'ün ilk haftası", "Yılbaşından beri") ve hatalı tarih ("31 Şubat'ta"). Slaytların gönderebildiği 90 soru canlı zincirde Murat olarak
+  soruldu, hepsi cevap/geri soru/ret (`presentation/live_trial.py` → `live_trial.json`, yalnız tür + araç + süre). Testler 25 → 32
+  (`test_capabilities.py`), 6 kasıtlı bozma yakalandı. Bulgular (bu PR'da düzeltilmedi): "3 gün önce ne harcadım?" harcamasız günde 3'te 2
+  `ai_answer_rejected` (502; sayfadan çıkarıldı, ayrı `fix/` dalı); Murat'ın canlı verisi 22 Kasım'da bitiyor (Dün/Bu hafta "harcama yok");
+  "hava nasıl" ret yerine konu sorusu alıyor; 30 dk boşta kalan model ilk soruda yükleniyor ve 30 s'de 504 veriyor, paneldeki "model"
+  ışığı yalnız kurulu olduğuna bakıyor (bellekte olduğuna değil); deneme betiği önce modeli ısıtıyor.
+  İkinci ve üçüncü denemede "Eylül'ün ilk haftası" / "Yılbaşından beri" geri soruya düştü: model aynı ifadeye farklı aralık veriyordu → CHAT-14
+  (takvim hesabı kodda, #122); CHAT-14'ten sonra son deneme 90/90, cevap türleri ilk denemeyle aynı, ortanca 2,9 sn. "Bu ay → Peki geçen ay?"
+  zinciri iki denemede 27-34 sn sürdü (biri 504), tek başına 2,5-3,9 sn; önünde model yazımı geri sorular vardı, neden doğrulanmadı.
+  PR4 ters yön (telefon yalnız DEBUG'da durum olayı gönderir, metin yok).
 - [ ] FIN-10 — Kullanıcıyla son kabul review'ü yap. Açık maddeleri yapılmış işaretleme; ertelenen işleri gerekçesiyle ayır.
 
 ## Kapsam dışında kalanlar

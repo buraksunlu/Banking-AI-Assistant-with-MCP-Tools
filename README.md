@@ -336,6 +336,15 @@ Debug derleyip kurar. Işıklar telefonun altında hep görünür. Panel `server
 aynı script terminalden de kullanılır (`scripts/stage.sh status`, `start all`, `stop all`, `install app`). Panelden başlayan servisler
 sahne kapanınca da çalışır; "Hepsini durdur" servisleri kapatır ve modeli boşaltır, veritabanına dokunmaz.
 
+Yetenek haritası (DEMO-05 PR3, slayt 7): "Araçlar · 20" ve "Araçların üstündeki katman · 57" (on aile: dönemler, belirli/göreli/hatalı
+tarih, geri soru, takip, serbest yazılış, yazım ve tutar, ret ve sınır, cevabın kendisi). Takip yetenekleri iki adımlıdır (1/2 → 2/2).
+Slaytların gönderebildiği her soru canlı zincirde Murat olarak sorulmuştur; sonuç (yalnız cevap türü, araçlar, süre; rakam yok)
+`presentation/live_trial.json`'dadır ve `test_capabilities.py` sayfayı ona karşı denetler. Slayta soru eklenince ya da sunumdan önce:
+
+```sh
+ai/.venv/bin/python presentation/live_trial.py   # servisler açıkken; modeli ısıtır, her soruyu sorar, live_trial.json'ı yazar
+```
+
 Boşluk simülatörün nerede olduğuna göre çizilir; bunun için izin gerekmez. Sistem Ayarları → Gizlilik ve Güvenlik → Erişilebilirlik'te
 **CompassPresenter** açıksa sahne simülatörü boşluğa kendisi taşır; değilse simülatörü boşluğa bir kez sürüklemek yeter. Uygulama her
 yeniden derlemede yeni imza aldığı için `present.sh` yalnız kaynak değişince derler.
