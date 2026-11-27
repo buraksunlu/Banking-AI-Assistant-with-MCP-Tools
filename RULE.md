@@ -943,6 +943,10 @@ COMPLETED
   Murat olarak sorar ve `live_trial.json`'a yalnız tür/araç/süre yazar; `test_capabilities.py` sayfayı ona karşı denetler (sorulmamış ya da
   hata almış soru, ret ailesinde cevap, başka araca giden araç sorusu kırmızı). 90 soru, 0 hata; testler 32. Bulgular: "3 gün önce" harcamasız
   günde 502 (ayrı dal); 30 dk boşta kalan model ilk soruda 504 (betik önce ısıtır, paneldeki model ışığı bellekte olmayı göstermiyor).
+- Takvim hesabı kodda (CHAT-14, 27 Kasım 2026, `chat-14-dates-by-code`; K1-C K2-B K3-A K4-A K5-A K6-A K7-A): ayın parçası, yılbaşından beri,
+  geçen yıl, N gün/hafta/ay/yıl önce, evvelsi gün, geçen <gün>, geçen hafta sonu `dates.read_dates`'te (model görmez); modele kalan kuralsız
+  ifadenin aralığı `dates.fits_words` ile yazan ay/gün adı/yıla tutturulur (`chat._read`), tutmazsa dönem sorulur. `date_eval.py --repeat 5`
+  sohbetin kendi okumasından geçer, eşik 0 yanlış: 75/75 (önce 63/75). Araç seçimi 157/157, Python 1959.
 - Hazırlık paneli (DEMO-05 PR2, 27 Kasım 2026, `demo-05b-setup-panel`; K7 A+B, K8-A, K9-A, K10-C, K11-A): `scripts/stage.sh`
   (status/start/stop/install, canlı DB, adımlar demo.sh ve run-live.sh'tan; ikisine dokunulmadı) + `server.py` `POST /api/control` (yalnız
   sabit fiil + ad, yalnız kendi kökeni, aynı anda tek komut, kendi oturumunda; çıktı `logs/stage.log`) ve `GET /api/status`. Sayfada `H`

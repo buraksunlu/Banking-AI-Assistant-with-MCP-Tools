@@ -557,15 +557,15 @@ Sorulan dönem **araçsız** da bekleyebilir (K12-C, `Pending.tool == ""`): geç
 
 ### İkinci adım: göreli tarihler (CHAT-08 PR3, 23 Ekim 2026)
 
-Kodun okuyamadığı ama tarihe benzeyen ifade ("geçen salı", "3 gün önce", "evvelsi gün", "geçen hafta sonu", "geçen yıl", "yılbaşından beri",
-"Eylül'ün ilk haftası", "Ekim sonu") `unreadable` olur ve `LangChainDateInterpreter`'a gider (araç seçiciden ayrı, küçük bir adım; CHAT-01
+Kodun okuyamadığı ama tarihe benzeyen ifade (CHAT-14'ten beri yalnız kuralsız olanlar: "salı günü", "5/10", "bayramda"; aşağıdaki
+"Takvim hesabı kodda") `unreadable` olur ve `LangChainDateInterpreter`'a gider (araç seçiciden ayrı, küçük bir adım; CHAT-01
 sınıflayıcısı gibi: JSON şemasına bağlı `{understood, from, to}`, en çok 60 token, ≤ 5 sn). Modele **yalnız ifadenin kendisi** gider (mesajın
 geri kalanı değil) ve kodun hazırladığı takvim: bugün + haftanın günü + yıl, her haftanın gününün bugünden önceki en son tarihi
 ("geçen salı: 2026-10-06" biçiminde, kullanıcının sözleriyle) ve son 14 gün. Gün adı hesabı model işi değil, tablodan bakmadır.
 Modelin cevabı `dates.check_range` ile gerçek gün, başlangıç ≤ bitiş, gelecek değil, ≤ 24 ay diye denetlenir; denetimi geçerse sohbet kodun
 okuduğu bir tarihle aynı yoldan gider (model "bu ay" görür, çağrı `Custom` olur, cevabın başında `Dönem: 6 Ekim 2026.`); geçmezse
 nedeni söylenir, anlaşılmadıysa ("bayramda", "o zamanlar") ya da model kapalıysa/yavaşsa "Tarihi anlayamadım." + dönem sorusu. Ayın bir
-parçası ("Eylül'ün ilk haftası", "Ekim sonu") bütün ay diye okunmaz, buraya gelir. Dönem sorusuna verilen cevap da ("geçen salı") aynı
+parçası ("Eylül'ün ilk haftası", "Ekim sonu") bütün ay diye okunmaz (CHAT-14'ten beri kod hesaplar). Dönem sorusuna verilen cevap da ("geçen salı") aynı
 yoldan okunur.
 
 Ölçüm `ai/.venv/bin/python ai/model_check/date_eval.py [--pause 1]` (10 vaka, bugün 10 Ekim 2026 Cumartesi, elle hesaplanmış aralıklar; iki
@@ -573,6 +573,40 @@ ifade anlaşılmamalı). Eşik 9/10. Prompt sürümleri: `date-v1` **2/10** (mod
 gün kayma), `date-v3` 9/10 ("geçen salı" hâlâ pazartesi), `date-v4` **10/10** (tablo kullanıcının sözleriyle). Canlı (Murat): "geçen salı" →
 6 Ekim 3.290,50 TL, "3 gün önce" → 7 Ekim 449,90 TL, "Eylül'ün ilk haftasında" → 1-7 Eylül 5.566,40 TL (SQL ile aynı). Bilinen sınır:
 "geçen salı" bugünden önceki en son salıdır (bu hafta içindeki salı dahil).
+
+### Takvim hesabı kodda (CHAT-14, 27 Kasım 2026)
+
+Bulgu (DEMO-05 PR3 canlı denemesi): aynı ifade, sıcaklık 0'da bile, iki çağrıda farklı aralık aldı. "Eylül'ün ilk haftası" ve "Yılbaşından
+beri" ilk denemede "Tarihi anlayamadım", sonrakilerde doğru; "ekimin ikinci haftası" ilk çağrıda **14-20 Eylül** (gerçek günler, `check_range`'ten
+geçti), ikincide 8-14 Ekim. Süre sebep değildi (1,5-2,1 sn, sınır 5 sn). Eski ölçüm her vakayı bir kez sorduğu için 10/10 gösteriyordu.
+
+Kural (K1-C): kuralı belli her ifadeyi `dates.read_dates` modelsiz okur; model bu ifadeleri hiç görmez.
+
+| İfade | Kural |
+|---|---|
+| "Eylül'ün ilk/ikinci/üçüncü/dördüncü haftası", "2. haftası" | ayın 1-7 / 8-14 / 15-21 / 22-28'i (K3-A) |
+| "… son haftası" | ayın son 7 günü (Eylül: 24-30) |
+| "Eylül başı / ortası / sonu" | 1-10 / 11-20 / 21-ayın son günü (K2-B) |
+| "yılbaşından beri / bu yana" | bu yılın 1 Ocak'ı - bugün |
+| "geçen yıl / sene" | geçen yılın tamamı |
+| "3 gün önce", "evvelsi gün" | tek gün |
+| "2 hafta önce" / "3 ay önce" / "1 yıl önce" | o pazartesi-pazar haftası / o ayın / o yılın tamamı (K4-A) |
+| "geçen salı" | bugünden önceki en son salı, bugün hiç değil |
+| "geçen hafta sonu" | bu haftadan önceki haftanın cumartesi-pazarı |
+
+Ay ve yıl seçimi bütün ayla aynıdır (bu aydan sonraki ay geçen yılındır); devam eden parça bugüne kesilir (10 Ekim'de "ekimin ikinci haftası"
+8-10 Ekim), başlamamış olan "Bu tarih henüz gelmedi." alır. Modele yalnız kuralsız ifadeler kalır ("salı günü", "5/10", "bayramda"); onun
+aralığı ayrıca `dates.fits_words` ile ifadede yazan ay, gün adı ve yıla tutturulur, tutmazsa dönem sorulur (`chat._read`). Prompt `date-v4`
+değişmedi: koda geçen kurallar, modele hâlâ gelen benzer ifadelere yardım ediyor.
+
+Ölçüm (K5-A) artık her ifadeyi sohbetin kendi tarih okumasından (`ChatService._read`) N kez geçirir ve doğru / sordu / yanlış sayar; eşik
+**0 yanlış**: `ai/.venv/bin/python ai/model_check/date_eval.py --repeat 5 [--pause 0.3]` (15 vaka). Önce (ana dal, aynı ölçüm) 11/15 vaka her
+turda doğru, 63/75 tur doğru, 12 soru, 0 yanlış ("geçen salı" ve "3 gün önce" 5'te 1 soruya düştü; "ekimin ikinci haftası" tarih bile
+sayılmıyordu); sonra **15/15, 75/75, 0 soru, 0 yanlış**.
+
+Sınırlar: "bu ayın / geçen ayın ilk haftası" ve yazıyla "iki gün önce" kodda tarih sayılmaz; "Ekim'in 5. haftası" bütün Ekim okunur ("Ekim'in
+harcaması" bütün ay olduğu için kalıpla kapatılmadı; rakamlı 1.-4. hafta önceden de sessizce bütün aydı); "3 Ekim'den beri" tek gün okunur;
+söz denetimi yalnız ay, gün adı ve yıla bakar.
 
 ## Gelir, öneri ve "ne olurdu" sohbeti (INC-03 PR2, 9 Kasım 2026)
 
