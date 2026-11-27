@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from answer_check import AnswerCheck, check_answer, fold_turkish, has_advice, parse_turkish_numbers
+from answer_check import EMPTY_RESULT, AnswerCheck, check_answer, fold_turkish, has_advice, parse_turkish_numbers
 from contracts import Fact
 
 QUESTION = "Bu ay ne kadar harcadım?"
@@ -67,6 +67,24 @@ def test_small_counts_are_checked_too():
 
 def test_a_repeated_invented_number_is_listed_once():
     assert check("73,50 TL günlük, yani 73,50 TL.").invented_numbers == ("73,50",)
+
+
+NOTHING_FOUND = [Fact(label="Dönem", text="24 Kasım 2026"), Fact(label=EMPTY_RESULT, text="Bu dönemde harcama bulunamadı.")]
+
+
+def test_a_zero_is_true_when_the_facts_say_nothing_was_found():
+    # The live answer to "3 gün önce ne harcadım?" on a day with no spending, refused twice and sent as a 502.
+    answer = "3 gün önce (24 Kasım 2026) harcamanız bulunmamaktadır. Bu dönemde harcama tutarı 0 TL'dir."
+    assert check(answer, question="3 gün önce ne harcadım?", facts=NOTHING_FOUND).ok
+    assert check("0,00 TL harcadınız, 0 işlem.", facts=NOTHING_FOUND).ok
+
+
+def test_a_zero_is_still_invented_when_something_was_found():
+    assert check("Sınıflandırılmamış harcamanız dışında 0 TL kaldı.").invented_numbers == ("0",)
+
+
+def test_nothing_found_allows_only_the_zero():
+    assert check("Bu dönemde 120,00 TL harcadınız.", facts=NOTHING_FOUND).invented_numbers == ("120,00",)
 
 
 @pytest.mark.parametrize("answer", ["", "   \n"])

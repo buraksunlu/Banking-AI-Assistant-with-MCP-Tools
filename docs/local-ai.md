@@ -414,6 +414,7 @@ Kural, toplanan 50 gerçek cevaba uygulandığında hiçbirini yanlışlıkla re
 | Değer olarak karşılaştırılır | "735 TL" ↔ "735,00 TL" | ✅ |
 | İşaret yok sayılır | "415,00 TL azaldı" ↔ "-415,00 TL" | ✅ |
 | Küçük sayılar da kontrol edilir | "3 kategoride" (veride 3 yok) | ❌ |
+| Boş sonuçta sıfır doğrudur (`fix/empty-result-zero`) | "Sonuç: Bu dönemde harcama bulunamadı." altında "harcama tutarı 0 TL" | ✅ |
 | Boş cevap | "" | ❌ |
 | Sistemden söz etme (`<veri`, `</veri`, "backend"; Türkçe harf katlanarak) | "backend tarafından hesaplanmış" | ❌ |
 
@@ -424,6 +425,10 @@ Kural, toplanan 50 gerçek cevaba uygulandığında hiçbirini yanlışlıkla re
 - İki deneme **tek** 30 sn'yi paylaşır. Kalan süre ilk denemenin süresinden kısaysa düzeltme denenmez, cevap doğrudan reddedilir.
 - Yine geçmezse 502 `ai_answer_rejected`, "Asistan cevabı doğrulanamadı." (`ai_bad_response`'tan ayrı: model düzgün cevap verdi
   ama kontrolden geçmedi). Logda yalnız sayım yazılır ("invented numbers: 1"); sayıların kendisi ve soru yazılmaz.
+- Boş sonuç (27 Kasım 2026, `fix/empty-result-zero`): "3 gün önce ne harcadım?" harcamasız günde 3'te 3 502 aldı. Model doğru cevabın
+  sonuna "Bu dönemde harcama tutarı 0 TL'dir." ekliyordu; boş sonuç olgusunda rakam yok, düzeltmeden sonra da aynı cümle geldi. Boş sonucu
+  söyleyen olgu (`answer_check.EMPTY_RESULT`, "Sonuç"; `facts.py` aynı sabiti kullanır) varken yalnız **0** izinli; başka sayı yine
+  uydurmadır. Sınır: cevap bazen "harcamanız bulunmamaktadır" ile "0 TL" sözünü birlikte söylüyor (doğru, biraz tekrarlı).
 
 ## Kod yerleşimi (K4-B)
 

@@ -491,6 +491,12 @@ liste bağlantısı) K7-A (eski 121 vaka bozulmaz, yeni ≥ 14/16, cevap doğrul
   `clarification.input_hint`; .NET ve iPhone alanı türe bakmadan geçirir/çizer. Canlı: "5-1 Eylül" → satır → "1-7 Eylül" → "Dönem: 1-7 Eylül
   2026."; "aylara göre" → "8" → aylık seri. Python 1959 → 1961; 3 kasıtlı bozma yakalandı; bilerek değişen 3 eski test (dönem, oran ve konu
   sorusunun cevabı artık satırı taşıyor).
+- [x] Boş sonuçta 502 düzeltmesi (27 Kasım 2026, dal `fix/empty-result-zero`; CHAT-14 K7-A, DEMO-05 PR3 bulgusu). Kök neden: harcamasız
+  günde model "Bu dönemde harcama tutarı 0 TL'dir." ekliyor, "Sonuç: Bu dönemde harcama bulunamadı." olgusunda rakam olmadığı için kontrol
+  0'ı uydurma sayıp düzeltmeden sonra da reddediyordu. Tarih okuması sebep değildi (aralık doğru, 24 Kasım). Düzeltme: boş sonuç olgusu
+  varken yalnız 0 izinli (`answer_check.EMPTY_RESULT`, `facts.py` ortak sabit). Canlı (Murat, 27 Kasım): "3 gün önce" 0/3 → 3/3 cevap,
+  "Dün" ve "Bu ay" aynı. Python 1961 → 1965; 3 kasıtlı bozma yakalandı (her zaman 0, boşta başka sayı, etiket adı). Sınır: "3 gün önce"
+  sorusu sayfaya geri konmadı (DEMO-05 PR4'te ele alınabilir).
 
 ## 14. SwiftUI — çalışan endpoint üzerine küçük ekranlar
 
@@ -934,7 +940,7 @@ kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir.
   ("Eylül'ün ilk haftası", "Yılbaşından beri") ve hatalı tarih ("31 Şubat'ta"). Slaytların gönderebildiği 90 soru canlı zincirde Murat olarak
   soruldu, hepsi cevap/geri soru/ret (`presentation/live_trial.py` → `live_trial.json`, yalnız tür + araç + süre). Testler 25 → 32
   (`test_capabilities.py`), 6 kasıtlı bozma yakalandı. Bulgular (bu PR'da düzeltilmedi): "3 gün önce ne harcadım?" harcamasız günde 3'te 2
-  `ai_answer_rejected` (502; sayfadan çıkarıldı, ayrı `fix/` dalı); Murat'ın canlı verisi 22 Kasım'da bitiyor (Dün/Bu hafta "harcama yok");
+  `ai_answer_rejected` (502; sayfadan çıkarıldı; düzeltildi, `fix/empty-result-zero`); Murat'ın canlı verisi 22 Kasım'da bitiyor (Dün/Bu hafta "harcama yok");
   "hava nasıl" ret yerine konu sorusu alıyor; 30 dk boşta kalan model ilk soruda yükleniyor ve 30 s'de 504 veriyor, paneldeki "model"
   ışığı yalnız kurulu olduğuna bakıyor (bellekte olduğuna değil); deneme betiği önce modeli ısıtıyor.
   İkinci ve üçüncü denemede "Eylül'ün ilk haftası" / "Yılbaşından beri" geri soruya düştü: model aynı ifadeye farklı aralık veriyordu → CHAT-14

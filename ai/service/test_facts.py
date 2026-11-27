@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from answer_check import EMPTY_RESULT
 from contracts import Fact
 from facts import ToolOutcome, outcome_for
 
@@ -60,6 +61,17 @@ def test_summary_without_spending_says_so():
 
     assert outcome_for("get_spending_summary", {"period": "Today"}, result).facts == facts(
         ("Dönem", "10 Ekim 2026"), ("Sonuç", "Bu dönemde harcama bulunamadı."))
+
+
+def test_an_empty_result_carries_the_label_the_answer_check_reads():
+    # The check lets "0 TL" through only under this label; a renamed label would bring the 502 back.
+    empty = {"period": period("Today", "2026-10-10", "2026-10-10"), "currencies": []}
+    recurring = {"period": period("Last6Months", "2026-04-10", "2026-10-10"), "payments": [], "monthlyTotals": []}
+
+    labels = [fact.label for fact in outcome_for("get_spending_summary", {"period": "Today"}, empty).facts]
+    labels += [fact.label for fact in outcome_for("get_recurring_payments", {}, recurring).facts]
+
+    assert labels.count(EMPTY_RESULT) == 2
 
 
 # Category breakdown (docs/api.md: Ada this month FOOD 590 %80,27, unclassified 145 %19,73)
