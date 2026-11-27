@@ -1,7 +1,7 @@
 import pytest
 
 from clarification import (PendingStore, ask_amount, ask_amount_again, ask_months, ask_months_again, months_out_of_range, ask_count, ask_currency, ask_merchant, ask_percent, ask_period,
-                           ask_complete_month, ask_topic, check_question, choices, chosen_tool, input_hint, resolve, template)
+                           ask_area, ask_complete_month, ask_topic, check_question, choices, chosen_tool, input_hint, resolve, template)
 from prompts import build_clarify_messages
 
 # CHAT-03 K3-A/K4-B/K5-A: the question is remembered for one reply, the reply is matched against the stored options in code,
@@ -370,13 +370,30 @@ def test_a_monthly_amount_reply_that_also_says_the_duration_answers_both():
     assert resolve(MONTHLY, "5 bin 30 ay") == {"amount": 5000, "currencyCode": "TRY"}   # out of range: asked next, with its note
 
 
-def test_only_an_amount_question_invites_an_amount_of_ones_own():
+def test_every_question_whose_typed_answer_is_read_invites_one():
     # PR3b D6-A: the app draws this as the card's last row, which opens the keyboard instead of sending anything.
     assert input_hint(AMOUNT) == input_hint(MONTHLY) == "Başka bir tutar yazın"
     assert input_hint(DURATION) == "Başka bir süre yazın (2–22 ay)"
-    assert all(input_hint(p) == "" for p in (PERIOD, MONTHS, CITY, CURRENCY, PERCENT, TOPIC))
     # Simulator trial 17 Nov 2026 (K2-B): the whole-month question invites a month of one's own.
     assert input_hint(LAST_MONTH) == "Başka bir ay yazın"
+    # CHAT-15 K1-C (simulator, 27 Nov 2026): a period, a count and a cut were read when typed, but nothing said so.
+    assert input_hint(PERIOD) == "Başka bir dönem ya da tarih yazın (ör. 1-7 Eylül)"
+    assert input_hint(MONTHS) == "Başka bir ay sayısı yazın (1–12)"
+    assert input_hint(PERCENT) == "Başka bir oran yazın (%1–100)"
+    # "I did not understand": a clearer question of one's own is the useful thing to type.
+    assert input_hint(TOPIC) == input_hint(ask_area("Bunu nasıl yaparım?")) == "Ya da sorunuzu farklı yazın"
+
+
+def test_a_question_whose_options_are_all_there_is_invites_nothing():
+    # A merchant is matched among its candidates only, another name would be a new question; the currencies are all listed.
+    assert input_hint(CITY) == input_hint(CURRENCY) == ""
+
+
+def test_what_the_rows_invite_completes_the_question():
+    # The typed answers the hints name; a date for the period question is read by the chat (test_chat_dates).
+    assert resolve(MONTHS, "8")["months"] == 8
+    assert resolve(PERCENT, "%15")["reductionPercent"] == 15
+    assert resolve(MONTHS, "13") is None   # outside the limits the row names
 
 
 @pytest.mark.parametrize("pending", [TOPIC], ids=["topic"])

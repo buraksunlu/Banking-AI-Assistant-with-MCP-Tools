@@ -193,7 +193,8 @@ def test_a_saving_question_the_model_left_asks_the_cut():
 
     reply = chat.answer("Tasarruf etsem ne olur?", TOKEN)
 
-    assert reply == ChatReply("clarification", PERCENT_QUESTION, [], [], choices=PERCENT_CHOICES) and gateway.calls == []
+    assert reply == ChatReply("clarification", PERCENT_QUESTION, [], [], choices=PERCENT_CHOICES,
+                              input_hint="Başka bir oran yazın (%1–100)") and gateway.calls == []
 
 
 def test_words_of_both_ask_which_calculation():
@@ -203,7 +204,7 @@ def test_words_of_both_ask_which_calculation():
     asked = chat.answer("2", TOKEN)
     chat.answer("%20", TOKEN)
 
-    assert reply == ChatReply("clarification", TOPIC_TEXT, [], [], choices=TOPIC_CHOICES)
+    assert reply == ChatReply("clarification", TOPIC_TEXT, [], [], choices=TOPIC_CHOICES, input_hint="Ya da sorunuzu farklı yazın")
     assert asked.answer == PERCENT_QUESTION
     # After the choice the model is shown the chosen tool alone, like a scenario the words chose.
     assert names(selector.calls[1][1]) == ["simulate_savings"]

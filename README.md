@@ -36,7 +36,7 @@ scripts/demo.sh stop
 | MCP | Tamam: salt okunur `BankingAI.McpServer`, 20 araç (harcama, ödemeler, planlama, gelir, ne olurdu, hesaplar ve işlem arama); AI servisi araçları oradan keşfedip çalıştırır ([docs/mcp.md](docs/mcp.md)) |
 | SwiftUI | Tamam: giriş (Keychain), ana panel, hesaplar ve hesap detayı, işlemler, kategori ve aylık grafikler, sohbet (cevap kartları, seçenekler, işlem listesine bağlantı), profil ([docs/ios.md](docs/ios.md)) |
 
-**Testler (17 Kasım 2026, hepsi geçti; Python 27 Kasım 2026):** .NET Data 223, Application 511, Api 624, McpServer 222; Python 1959 modelsiz; iOS 438 test durumu.
+**Testler (17 Kasım 2026, hepsi geçti; Python 27 Kasım 2026):** .NET Data 223, Application 511, Api 624, McpServer 222; Python 1961 modelsiz; iOS 438 test durumu.
 **Son model ölçümü (`qwen3.5:4b`):** araç seçimi 144/144, serbest yazılış (80) 0 yanlış, hatalı yazılış (116) 0 yanlış, cevap doğruluğu 33/33.
 
 **Bilinen sınırlar:** kategoriler yalnız seed'den gelir (kural + model ile kategorilendirme CAT-01–08 açık); tek bir işlemi açıklama

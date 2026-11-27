@@ -267,7 +267,9 @@ def test_a_guessed_period_is_asked_back_and_nothing_runs():
 
     reply = chat.answer("Ne kadar harcadım?", TOKEN)
 
-    assert reply == ChatReply("clarification", PERIOD_QUESTION, [], [], choices=PERIOD_CHOICES)
+    # CHAT-15: the card's last row invites a period or a date of one's own.
+    assert reply == ChatReply("clarification", PERIOD_QUESTION, [], [], choices=PERIOD_CHOICES,
+                              input_hint="Başka bir dönem ya da tarih yazın (ör. 1-7 Eylül)")
     assert gateway.calls == [] and explainer.calls == []
 
 
