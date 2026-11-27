@@ -937,6 +937,8 @@ Her önemli geliştirme sonunda mevcut proje durumunu takip et.
 Şunları güncel tut:
 
 COMPLETED
+- Yazma satırı (CHAT-15, 27 Kasım 2026, `chat-15-input-hints`; K1-C): `clarification.input_hint` yazılan cevabın okunduğu her soruda dolu
+  (dönem, ay sayısı, oran, tutar, süre, tamamlanmış ay; konu/alan "Ya da sorunuzu farklı yazın"); işyeri adayı ve para birimi boş. Python 1961.
 - Sıcak model (DEMO-05 PR4a, 27 Kasım 2026, `demo-05d-warm-model`; K1-A K2-D K3-A): `stage.sh` model durumu `/api/ps` ile (`on` bellekte,
   `cold` sarı); "Başlat" `keep_alive -1` ile yükler ve AI servisi açıksa `live_trial.py --warm` ile iki soru + iki takip sorar; sahneden açılan
   AI servisi `BANKINGAI_LLM_KEEP_ALIVE=-1`, `present.sh` kapanışta modeli boşaltır. Bulgu: yalnız yükleme yetmiyor (ilk sorular ~25 sn, araç

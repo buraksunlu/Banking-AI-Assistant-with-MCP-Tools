@@ -485,6 +485,12 @@ liste bağlantısı) K7-A (eski 121 vaka bozulmaz, yeni ≥ 14/16, cevap doğrul
   ölçümü ana dalla aynı (0 engelleyici açık). Python 1906 → 1959; 5 kasıtlı bozma yakalandı. Bilerek değişen eski testler: "Geçen salı/3 gün
   önce/Geçen yıl/Evvelsi gün" artık kodla okunuyor, ayın parçası ve "yılbaşından beri" testleri aralığı denetliyor, sahte model testleri
   "Salı günü"nü kullanıyor.
+- [x] CHAT-15 — Her geri soruda kendi cevabını yazma satırı (27 Kasım 2026, dal `chat-15-input-hints`; simülatör: "5-1 Eylül" dönem
+  sorusunda yazma satırı yoktu). K1-C: yazılan cevabın okunduğu her soru `inputHint` alır (dönem, ay sayısı, oran; konu/alan sorusu "Ya da
+  sorunuzu farklı yazın"); işyeri adayı ve para birimi almaz (kodda doğrulandı: işyeri yalnız adaylar arasında eşleşir). Yalnız
+  `clarification.input_hint`; .NET ve iPhone alanı türe bakmadan geçirir/çizer. Canlı: "5-1 Eylül" → satır → "1-7 Eylül" → "Dönem: 1-7 Eylül
+  2026."; "aylara göre" → "8" → aylık seri. Python 1959 → 1961; 3 kasıtlı bozma yakalandı; bilerek değişen 3 eski test (dönem, oran ve konu
+  sorusunun cevabı artık satırı taşıyor).
 
 ## 14. SwiftUI — çalışan endpoint üzerine küçük ekranlar
 

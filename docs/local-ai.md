@@ -845,7 +845,10 @@ işyerini" diyor → **14/14**. Araç seçimi değişmedi (ölçüm gerekmedi); 
 
 - **D7-A:** bütün tutar sorularında örnekler `1.000 / 5.000 / 10.000 TL` (`AMOUNT_EXAMPLES`; bütçe ve aylık birikim aynı).
 - **D6-A:** tutar sorusunun cevabı `inputHint = "Başka bir tutar yazın"` taşır (`clarification.input_hint`); iPhone bunu kartın son
-  satırı olarak çizer, dokununca yazı alanını açar. Diğer sorularda `""`.
+  satırı olarak çizer, dokununca yazı alanını açar. Diğer sorularda `""`. **CHAT-15 (27 Kasım 2026, K1-C):** yazılan cevabın okunduğu her
+  soru satır alır: dönem "Başka bir dönem ya da tarih yazın (ör. 1-7 Eylül)" (tarihi CHAT-08 okur), ay sayısı "Başka bir ay sayısı yazın
+  (1–12)" ve oran "Başka bir oran yazın (%1–100)" (sınırlar sorunun kendisinden), konu/alan sorusu "Ya da sorunuzu farklı yazın". İşyeri
+  adayı (yalnız listedekiler eşleşir) ve para birimi (hepsi listede) `""` kalır.
 - **D8-B (K17-C'nin yerine):** "tek seferlik mi, aylık mı?" sorusu kalktı. Senaryo kelimesi ve rakam ipucu yoksa (ya da iki yöne
   işaret ediyorsa) soru aylık birikimdir; model hiç çağrılmaz, tutar sözlerden okunur ya da sorulur. Dönem/tarih/kategori yine tek
   seferliğe, tutar aylığa götürür (K18-B). Tutar sorusuna kısa bir "tek seferlik / bir kerede / toplu" cevabı tek seferliğe geçer

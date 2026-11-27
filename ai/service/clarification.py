@@ -44,6 +44,10 @@ AMOUNT_EXAMPLES = (1000, 5000, 10000)
 # PR3b D6-A: an amount question also invites one of the user's own; the app draws it as a row that opens the keyboard.
 AMOUNT_HINT = "Başka bir tutar yazın"
 MONTH_HINT = "Başka bir ay yazın"
+# CHAT-15 K1-C (simulator, 27 Nov 2026): a typed period or date, count or cut was already read, but no row said so. The period's
+# example is a range code reads (CHAT-08), the limits are the question's own.
+PERIOD_HINT = "Başka bir dönem ya da tarih yazın (ör. 1-7 Eylül)"
+RETRY_HINT = "Ya da sorunuzu farklı yazın"
 WHOLE_MONTH_QUESTION = "Hangi ay için bakayım? Bu analiz yalnız tamamlanmış aylar için yapılabiliyor."
 # CHAT-09 K19-C: the two planning calculations, as the user is offered them. (K17-C's "one-off or monthly?" question was dropped
 # in CHAT-10 PR3b D8-B: an undecided "what if" is the monthly saving.)
@@ -245,10 +249,18 @@ def ask_area(question: str) -> Pending:
 
 
 def input_hint(pending: Pending) -> str:
-    """The row that invites an answer of the user's own (PR3b D6-A); empty for a question whose options are all there is."""
+    """The row that invites an answer of the user's own (PR3b D6-A, CHAT-15): only where a typed answer is read. A merchant is
+    matched among its candidates and the currencies are all listed, so those invite nothing; a topic or an area question means
+    the message was not understood, so it invites the question asked another way."""
     if pending.whole_month:
         return MONTH_HINT
-    return {"amount": AMOUNT_HINT, "duration": DURATION_HINT}.get(pending.kind, "")
+    if pending.kind == "count":
+        return f"Başka bir ay sayısı yazın ({pending.minimum}–{pending.maximum})"
+    if pending.kind == "percent":
+        return f"Başka bir oran yazın (%{pending.minimum}–{pending.maximum})"
+    if pending.kind in CHOICE_KINDS:
+        return RETRY_HINT
+    return {"amount": AMOUNT_HINT, "duration": DURATION_HINT, "period": PERIOD_HINT}.get(pending.kind, "")
 
 
 def choices(pending: Pending) -> list[Choice]:
