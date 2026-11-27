@@ -9,7 +9,7 @@ import json
 import unittest
 from pathlib import Path
 
-from live_trial import abilities, cases, key, page, slide_chains, summary, tool_questions
+from live_trial import WARM, abilities, cases, key, page, slide_chains, summary, tool_questions, warm
 
 ROOT = Path(__file__).parent
 PAGE = page()
@@ -76,6 +76,41 @@ class TrialTests(unittest.TestCase):
                  "toolCalls": [{"tool": "get_spending_summary", "arguments": {"period": "ThisMonth"}}]}
         self.assertEqual(summary(reply, 2.345), {"type": "answer", "tools": ["get_spending_summary"], "seconds": 2.3})
         self.assertEqual(summary({"type": "http 502"}, 1), {"type": "http 502", "tools": [], "seconds": 1})
+
+
+class WarmTests(unittest.TestCase):
+    """DEMO-05 PR4a K3 (A, after the measurement): a model just loaded spent ~25 s on each of the first two questions and on the
+    first follow-up, rebuilding the tool prompt's cache; the warm-up asks each kind twice, so the audience's first one is not."""
+
+    def test_the_warm_up_is_two_questions_and_two_follow_ups_that_were_answered_live(self):
+        self.assertEqual(len(WARM), 2)
+        self.assertEqual(len({chain[0] for chain in WARM}), 2)
+        self.assertEqual(len({chain[1] for chain in WARM}), 2)
+        for chain in WARM:
+            with self.subTest(chain=key(chain)):
+                self.assertTrue(chain[1].startswith("Peki "))
+                self.assertEqual(RESULTS[key(chain)]["type"], "answer")
+
+    def test_every_chain_is_asked_once_when_it_is_answered(self):
+        asked = []
+
+        warm(lambda chain: asked.append(chain) or "answer")
+
+        self.assertEqual(asked, WARM)
+
+    def test_a_chain_that_times_out_is_asked_again(self):
+        # The first request to a cold model loads it and can end in 504: that is the model starting, not a failure.
+        replies, asked = iter(["http 504", "answer", "answer"]), []
+
+        warm(lambda chain: asked.append(chain) or next(replies))
+
+        self.assertEqual(asked, [WARM[0], WARM[0], WARM[1]])
+
+    def test_a_service_that_never_answers_stops_the_warm_up_with_a_reason(self):
+        with self.assertRaises(SystemExit) as stop:
+            warm(lambda chain: "http 502")
+
+        self.assertIn("did not answer", str(stop.exception))
 
 
 if __name__ == "__main__":

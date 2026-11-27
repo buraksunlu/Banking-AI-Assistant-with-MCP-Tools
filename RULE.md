@@ -937,6 +937,10 @@ Her önemli geliştirme sonunda mevcut proje durumunu takip et.
 Şunları güncel tut:
 
 COMPLETED
+- Sıcak model (DEMO-05 PR4a, 27 Kasım 2026, `demo-05d-warm-model`; K1-A K2-D K3-A): `stage.sh` model durumu `/api/ps` ile (`on` bellekte,
+  `cold` sarı); "Başlat" `keep_alive -1` ile yükler ve AI servisi açıksa `live_trial.py --warm` ile iki soru + iki takip sorar; sahneden açılan
+  AI servisi `BANKINGAI_LLM_KEEP_ALIVE=-1`, `present.sh` kapanışta modeli boşaltır. Bulgu: yalnız yükleme yetmiyor (ilk sorular ~25 sn, araç
+  istemi önbelleği) → ısıtma; sonra ilk sorular 4,5-6,9 sn. Önbellek kök sorunu AI-17. Sunum testleri 45 (`test_stage.py` sahte Ollama).
 - Yetenek haritası (DEMO-05 PR3, 27 Kasım 2026, `demo-05c-capability-map`; K13 A+B, K14-B, K15-A, K16-A): slayt 7 iki görünüm (20 araç /
   araçların üstündeki katman: on aile, 57 yetenek, sayfadaki tek JSON bloğundan çizilir), takip yetenekleri iki adımlı, sayaç araç + yetenek.
   Zaman slaytında belirli tarih, aralık ve hatalı tarih. `presentation/live_trial.py` slaytların gönderebildiği her soruyu canlı zincirde

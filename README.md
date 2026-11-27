@@ -336,6 +336,11 @@ Debug derleyip kurar. Işıklar telefonun altında hep görünür. Panel `server
 aynı script terminalden de kullanılır (`scripts/stage.sh status`, `start all`, `stop all`, `install app`). Panelden başlayan servisler
 sahne kapanınca da çalışır; "Hepsini durdur" servisleri kapatır ve modeli boşaltır, veritabanına dokunmaz.
 
+Sıcak model (DEMO-05 PR4a): "model" ışığı modelin bellekte olup olmadığını gösterir (sarı = kurulu ama bellekte değil; ilk soru zaman aşımına
+düşerdi). Model satırındaki "Başlat" modeli yükler ve servisler açıksa dört soruyla ısıtır (soğuktan ~2 dk); "Hepsini başlat" da servislerden
+sonra ısıtır. Sahneden açılan AI servisi modeli bellekten çıkarmaz, sahne kapanınca model boşaltılır. Yalnız ısıtma: `ai/.venv/bin/python
+presentation/live_trial.py --warm`.
+
 Yetenek haritası (DEMO-05 PR3, slayt 7): "Araçlar · 20" ve "Araçların üstündeki katman · 57" (on aile: dönemler, belirli/göreli/hatalı
 tarih, geri soru, takip, serbest yazılış, yazım ve tutar, ret ve sınır, cevabın kendisi). Takip yetenekleri iki adımlıdır (1/2 → 2/2).
 Slaytların gönderebildiği her soru canlı zincirde Murat olarak sorulmuştur; sonuç (yalnız cevap türü, araçlar, süre; rakam yok)
