@@ -24,3 +24,10 @@ logs/
 # Presenter app build output (presentation/host, scripts/present.sh)
 presentation/host/.build/
 presentation/host/build/
+
+# Local development notes and AI assistant config (kept on disk, not published)
+/.claude/
+/CLAUDE.md
+/RULE.md
+/todo.md
+/docs/superpowers/
