@@ -20,3 +20,7 @@ DerivedData/
 # Demo script logs (scripts/demo.sh)
 .demo/
 logs/
+
+# Presenter app build output (presentation/host, scripts/present.sh)
+presentation/host/.build/
+presentation/host/build/

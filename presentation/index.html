@@ -10,6 +10,8 @@
     --line: rgba(255, 238, 210, .13); --ink: #F7EFE2; --muted: #B9AC98; --faint: #7D7263;
     --amber: #F5A700; --amber-2: #FFC94D; --copper: #D9822B; --ok: #6BCB8B; --bad: #FF7A6B; --blue: #7FB2E8; --violet: #B79BE6;
     --radius: 18px;
+    /* The phone column and the hole inside it; the presenter app sets them to where the simulator really is (DEMO-05). */
+    --column: 468px; --hx: 24px; --hy: 24px; --hw: 420px; --hh: calc(100vh - 136px);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
@@ -238,6 +240,33 @@
   kbd { font: 11px ui-monospace, Menlo, monospace; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; color: var(--muted); }
   .hint { font-size: 13px; color: var(--faint); }
 
+  /* The stage (DEMO-05): inside the presenter app the phone column is part of the page and the simulator sits in its hole. */
+  #phone { display: none; }
+  body.hosted { padding-left: var(--column); }
+  body.hosted #phone {
+    display: block; position: fixed; z-index: 2; left: 0; top: 0; bottom: 0; width: var(--column);
+    border-right: 1px solid var(--line); background: linear-gradient(180deg, rgba(0, 0, 0, .28), rgba(0, 0, 0, .08));
+  }
+  #phone .hole { position: absolute; left: var(--hx); top: var(--hy); width: var(--hw); height: var(--hh); border-radius: 34px;
+                 box-shadow: 0 0 0 1px rgba(245, 167, 0, .35), 0 0 70px rgba(245, 167, 0, .22); }
+  #phone .hole span { display: none; }
+  body.no-phone #phone .hole { box-shadow: none; border: 2px dashed rgba(245, 167, 0, .55); display: grid; place-items: center; text-align: center; padding: 24px; color: var(--muted); }
+  body.no-phone #phone .hole span { display: block; }
+  #phone .dock { position: absolute; left: 12px; right: 12px; top: calc(var(--hy) + var(--hh) + 10px); display: grid; gap: 6px; }
+  #phone .dock .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  #phone .dock button { font: inherit; font-size: 12px; color: var(--ink); cursor: pointer; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-height: 34px; padding: 0 4px; }
+  #phone .dock button.on { border-color: var(--amber); color: var(--amber-2); }
+  #phone .dock button:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+  #phone .dock .state { font-size: 12px; color: var(--muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  body.hosted aside.notes { left: calc(var(--column) + 16px); }
+  body.hosted .overview { left: var(--column); }
+  /* Enter sends the slide's next question (K5-D). */
+  button.ask.next, .chip.next { border-color: rgba(245, 167, 0, .75); }
+  button.ask.next::after, .chip.next::after {
+    content: "⏎"; position: absolute; right: 10px; bottom: 7px; font: 11px ui-monospace, Menlo, monospace; color: var(--amber);
+    border: 1px solid rgba(245, 167, 0, .5); border-radius: 5px; padding: 0 5px;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
     .slide.active .r { opacity: 1; }
@@ -247,6 +276,14 @@
 <body>
 <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
 <div class="grain" aria-hidden="true"></div>
+
+<aside id="phone" aria-label="Simülatör">
+  <div class="hole"><span>Simülatörü buraya sürükle</span></div>
+  <div class="dock">
+    <div class="row"><button data-tab="home">Ana sayfa</button><button data-tab="analysis">Analiz</button><button data-tab="assistant">Asistan</button><button data-tab="profile">Profil</button></div>
+    <div class="state" id="phoneState"></div>
+  </div>
+</aside>
 
 <header>
   <span class="brand">
@@ -264,7 +301,7 @@
 <main id="deck">
 
 <!-- ============ 1. Cover ============ -->
-<section class="slide" data-chapter="Giriş" data-title="Kapak">
+<section class="slide" data-chapter="Giriş" data-title="Kapak" data-phone="home">
   <div class="cover">
     <svg class="compass r" style="--i:0" viewBox="0 0 120 120" aria-hidden="true">
       <g class="halo"><circle cx="60" cy="60" r="56" fill="none" stroke="rgba(245,167,0,.35)" stroke-width="1" stroke-dasharray="2 6"/></g>
@@ -282,13 +319,13 @@
       <div><b data-count="0" data-fixed="1">0</b>buluta giden veri</div>
     </div>
     <div class="tabs r" style="--i:5"><button class="tab" data-tab="home">Uygulamayı ana sayfaya al</button></div>
-    <p class="hint r" style="--i:6"><kbd>←</kbd> <kbd>→</kbd> gezin · <kbd>O</kbd> slayt haritası · <kbd>N</kbd> not · ▶ düğmesi soruyu simülatörde sorar</p>
+    <p class="hint r" style="--i:6"><kbd>←</kbd> <kbd>→</kbd> gezin · <kbd>O</kbd> slayt haritası · <kbd>N</kbd> not · ▶ düğmesi soruyu simülatörde sorar · <kbd>⏎</kbd> sıradaki soru · <kbd>S</kbd> telefon slaytı izler</p>
   </div>
   <aside class="notes">Solda uygulama, sağda sunum. ▶ düğmeleri soruyu gerçekten uygulamadaki asistana gönderiyor: arada hiçbir şey taklit değil. Sağ üstteki halka kaç aracı gösterdiğimi sayıyor.</aside>
 </section>
 
 <!-- ============ 2. A question, live ============ -->
-<section class="slide" data-chapter="Giriş" data-title="Bir soru, canlı">
+<section class="slide" data-chapter="Giriş" data-title="Bir soru, canlı" data-phone="assistant">
   <div class="eyebrow r" style="--i:0">Canlı</div>
   <h2 class="r" style="--i:1">Bir sorunun 3 saniyelik yolculuğu</h2>
   <p class="lead r" style="--i:2">Düğmeye bas: soru simülatöre gider, burada her durak sırayla yanar.</p>
@@ -361,7 +398,7 @@
 </section>
 
 <!-- ============ 6. The app ============ -->
-<section class="slide" data-chapter="Uygulama" data-title="Ekranlar">
+<section class="slide" data-chapter="Uygulama" data-title="Ekranlar" data-phone="home">
   <div class="eyebrow r" style="--i:0">Uygulama</div>
   <h2 class="r" style="--i:1">Asistan kapalıyken de dolu bir uygulama</h2>
   <p class="lead r" style="--i:2">Ekranlar REST'ten gelir, model kullanmaz. Telefon hiçbir toplamı hesaplamaz.</p>
@@ -375,7 +412,7 @@
 </section>
 
 <!-- ============ 7. Feature map ============ -->
-<section class="slide" data-chapter="Özellikler" data-title="Özellik haritası">
+<section class="slide" data-chapter="Özellikler" data-title="Özellik haritası" data-phone="assistant">
   <div class="eyebrow r" style="--i:0">Bütün araçlar</div>
   <h2 class="r" style="--i:1"><span data-count="20">0</span> araç, 7 aile</h2>
   <p class="lead r" style="--i:2">Her kutu bir MCP aracı. Dokun: örnek sorusu simülatöre gider.</p>
@@ -385,7 +422,7 @@
 </section>
 
 <!-- ============ 8. Spending ============ -->
-<section class="slide" data-chapter="Özellikler" data-title="Harcama">
+<section class="slide" data-chapter="Özellikler" data-title="Harcama" data-phone="assistant">
   <div class="eyebrow r" style="--i:0">1 · Harcama</div>
   <h2 class="r" style="--i:1">Ne kadar, nereye, kime?</h2>
   <p class="lead r" style="--i:2">Altı araç; her cevap bir kart: büyük rakam, çubuklar ve aynı rakamın satırlarına giden "İşlemleri gör".</p>
@@ -401,7 +438,7 @@
 </section>
 
 <!-- ============ 9. Time ============ -->
-<section class="slide" data-chapter="Özellikler" data-title="Zaman">
+<section class="slide" data-chapter="Özellikler" data-title="Zaman" data-phone="assistant">
   <div class="eyebrow r" style="--i:0">2 · Zaman</div>
   <h2 class="r" style="--i:1">Kıyas, seri ve tarih</h2>
   <p class="lead r" style="--i:2">"Bu ay geçen aya göre" ile "geçen aya göre" farklı sorulardır; hangisinin kastedildiğini kod okur. Tarihi model seçmez.</p>
@@ -416,7 +453,7 @@
 </section>
 
 <!-- ============ 10. Payments ============ -->
-<section class="slide" data-chapter="Özellikler" data-title="Rutin ödemeler">
+<section class="slide" data-chapter="Özellikler" data-title="Rutin ödemeler" data-phone="home">
   <div class="eyebrow r" style="--i:0">3 · Rutin ödemeler</div>
   <h2 class="r" style="--i:1">Abonelik, fatura, taksit</h2>
   <div class="card r" style="--i:2"><p style="margin:0">Kural, model değil: <b class="am">≥ 3 ödeme</b>, <b class="am">26–35 gün</b> arayla, tutar <b class="am">±%10</b>. Taksit sırası açıklamadan okunur ("TAKSIT 03/09" → sıradaki <b class="am">4/9</b>), son taksidi ödenmiş plan yaklaşan sayılmaz.</p></div>
@@ -429,7 +466,7 @@
 </section>
 
 <!-- ============ 11. Planning ============ -->
-<section class="slide" data-chapter="Özellikler" data-title="Planlama">
+<section class="slide" data-chapter="Özellikler" data-title="Planlama" data-phone="assistant">
   <div class="eyebrow r" style="--i:0">4 · Planlama</div>
   <h2 class="r" style="--i:1">Bütçe ve tasarruf</h2>
   <p class="lead r" style="--i:2">Kullanıcının söylediği rakamı (bütçe, yüzde) kod mesajda arar; model rakam uyduramaz. Eksikse dokunulabilir seçeneklerle sorar.</p>
@@ -441,7 +478,7 @@
 </section>
 
 <!-- ============ 12. Income ============ -->
-<section class="slide" data-chapter="Özellikler" data-title="Gelir ve öneri">
+<section class="slide" data-chapter="Özellikler" data-title="Gelir ve öneri" data-phone="analysis">
   <div class="eyebrow r" style="--i:0">5 · Gelir ve öneri</div>
   <h2 class="r" style="--i:1">Maaşın ne kadarı nereye gitti?</h2>
   <p class="lead r" style="--i:2">Taban: son 3 tam ayın ortalama maaşı. Harcama "temel" ve "isteğe bağlı" diye ayrılır; öneriyi model değil iki kural verir, en fazla 2 tane.</p>
@@ -453,7 +490,7 @@
 </section>
 
 <!-- ============ 13. What if ============ -->
-<section class="slide" data-chapter="Özellikler" data-title="Ne olurdu?">
+<section class="slide" data-chapter="Özellikler" data-title="Ne olurdu?" data-phone="assistant">
   <div class="eyebrow r" style="--i:0">6 · Ne olurdu?</div>
   <h2 class="r" style="--i:1">Harcamasaydım, biriktirseydim</h2>
   <p class="lead r" style="--i:2">Dolar, euro ve gram altının <b class="am">geçmiş</b> fiyatlarıyla. Tahmin yok, tavsiye yok; her cevabın altında sabit uyarı.</p>
@@ -466,7 +503,7 @@
 </section>
 
 <!-- ============ 14. Banking ============ -->
-<section class="slide" data-chapter="Özellikler" data-title="Temel bankacılık">
+<section class="slide" data-chapter="Özellikler" data-title="Temel bankacılık" data-phone="assistant">
   <div class="eyebrow r" style="--i:0">7 · Temel bankacılık</div>
   <h2 class="r" style="--i:1">Bakiye, maaş, transfer, arama</h2>
   <p class="lead r" style="--i:2">Kelimeler aracı seçer; tutar sınırı, transfer yönü ve "yattı mı = bu ay" kodun. Karşı taraf maskeli: "Deniz M***".</p>
@@ -479,7 +516,7 @@
 </section>
 
 <!-- ============ 15. Conversation ============ -->
-<section class="slide" data-chapter="Sohbet" data-title="Konuşma">
+<section class="slide" data-chapter="Sohbet" data-title="Konuşma" data-phone="assistant">
   <div class="eyebrow r" style="--i:0">Sohbet yetenekleri</div>
   <h2 class="r" style="--i:1">Tahmin etmez, sorar. Hatırlar, ama rakamı değil.</h2>
   <div class="grid g3 r" style="--i:2">
@@ -497,7 +534,7 @@
 </section>
 
 <!-- ============ 16. Robustness ============ -->
-<section class="slide" data-chapter="Sohbet" data-title="Yazım hatası">
+<section class="slide" data-chapter="Sohbet" data-title="Yazım hatası" data-phone="assistant">
   <div class="eyebrow r" style="--i:0">Gerçek insanlar böyle yazar</div>
   <h2 class="r" style="--i:1">Yazım hatası, Türkçe karaktersiz, devrik</h2>
   <div class="card r" style="--i:2">
@@ -520,7 +557,7 @@
 </section>
 
 <!-- ============ 17. Trust ============ -->
-<section class="slide" data-chapter="Güven" data-title="Sayı kontrolü">
+<section class="slide" data-chapter="Güven" data-title="Sayı kontrolü" data-phone="assistant">
   <div class="eyebrow r" style="--i:0">Güvenilir cevap</div>
   <h2 class="r" style="--i:1">Her sayı kaynağında aranır</h2>
   <p class="lead r" style="--i:2">Cevaptaki her tutar, yüzde ve tarih araç sonucunda ya da kullanıcının sorusunda geçmek zorunda. Geçmezse cevap gitmez.</p>
@@ -534,7 +571,7 @@
 </section>
 
 <!-- ============ 18. Security ============ -->
-<section class="slide" data-chapter="Güven" data-title="Güvenlik">
+<section class="slide" data-chapter="Güven" data-title="Güvenlik" data-phone="assistant">
   <div class="eyebrow r" style="--i:0">Güvenlik</div>
   <h2 class="r" style="--i:1">Sınırı prompt değil, mimari çizer</h2>
   <div class="shield r" style="--i:2">
@@ -588,7 +625,7 @@
 </section>
 
 <!-- ============ 22. End ============ -->
-<section class="slide" data-chapter="Son" data-title="Sorular">
+<section class="slide" data-chapter="Son" data-title="Sorular" data-phone="assistant">
   <div class="cover">
     <div class="eyebrow r" style="--i:0">Teşekkürler</div>
     <h1 class="r" style="--i:1"><span class="shine">Sorularınız?</span></h1>
@@ -691,6 +728,8 @@
     document.getElementById("chapter").textContent = slides[index].dataset.chapter;
     history.replaceState(null, "", `#${index + 1}`);
     enter(slides[index]);
+    markNext();
+    follow(slides[index]);
   }
 
   // What a slide does when it comes on screen: count up, grow bars, replay its demo.
@@ -809,37 +848,70 @@
     stops.forEach(s => s.classList.remove("on")); dot.style.opacity = 0;
   }
 
+  // The phone follows the slides (K5-D): a slide names its screen in data-phone and the phone opens it a moment after the slide
+  // settles (holding → skips the slides in between). Questions are never sent on their own; Enter sends the next one.
+  let phoneTab = null, autoFollow = true, followTimer = 0;
+  const phoneState = document.getElementById("phoneState");
+  const TAB_NAMES = { home: "Ana sayfa", analysis: "Analiz", assistant: "Asistan", profile: "Profil" };
+  function showPhoneState(text) {
+    phoneState.innerHTML = `📱 ${text} · <kbd>S</kbd> izleme ${autoFollow ? "açık" : "kapalı"}`;
+  }
+  function phoneShows(tab) {
+    phoneTab = tab;
+    document.querySelectorAll("#phone [data-tab]").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+    showPhoneState(TAB_NAMES[tab]);
+  }
+  function follow(slide) {
+    clearTimeout(followTimer);
+    const tab = slide.dataset.phone;
+    if (!autoFollow || !tab || tab === phoneTab) return;
+    followTimer = setTimeout(() => remote({ tab }), 400);
+  }
+
+  function markNext() {
+    document.querySelectorAll(".next").forEach(b => b.classList.remove("next"));
+    slides[index].querySelector("[data-q]:not(.sent)")?.classList.add("next");
+  }
+
+  async function ask(button, event) {
+    if (await remote({ ask: button.dataset.q }, button, event)) {
+      if (button.dataset.tool) { shown.add(button.dataset.tool); updateTally(); }
+      if (button.dataset.journey) journey();
+    }
+    markNext();
+  }
+
   async function remote(command, button, event) {
-    if (event && !reduce) {
+    if (button && event && !reduce) {
       const rect = button.getBoundingClientRect(), wave = document.createElement("span");
       const size = Math.max(rect.width, rect.height);
       wave.className = "wave"; wave.style.cssText = `width:${size}px;height:${size}px;left:${event.clientX - rect.left - size / 2}px;top:${event.clientY - rect.top - size / 2}px`;
       button.appendChild(wave); setTimeout(() => wave.remove(), 700);
     }
-    button.classList.remove("failed");
+    button?.classList.remove("failed");
     say("Simülatöre gönderiliyor…");
     try {
       const response = await fetch("/api/remote", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command) });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(body.error || `Hata ${response.status}`);
-      button.classList.add("sent");
+      button?.classList.add("sent");
       say(command.ask ? "Soru asistanda" : "Ekran açıldı", "good");
+      phoneShows(command.ask ? "assistant" : command.tab);
+      if (command.ask) showPhoneState("Soru asistanda");
       strip();
       return true;
     } catch (error) {
-      button.classList.add("failed");
+      button?.classList.add("failed");
+      showPhoneState("komut gitmedi");
       say(error.message === "Failed to fetch" || error.message === "Load failed" ? "Sunum yardımcısı kapalı" : error.message, "bad");
       return false;
     }
   }
 
   document.addEventListener("click", async event => {
-    const ask = event.target.closest("[data-q]");
-    if (ask) {
-      if (await remote({ ask: ask.dataset.q }, ask, event)) {
-        if (ask.dataset.tool) { shown.add(ask.dataset.tool); updateTally(); }
-        if (ask.dataset.journey) journey();
-      }
+    const question = event.target.closest("[data-q]");
+    if (question) {
+      ask(question, event);
       return;
     }
     const tab = event.target.closest("[data-tab]");
@@ -857,11 +929,35 @@
     else if (key.toLowerCase() === "n") document.body.classList.toggle("show-notes");
     else if (key.toLowerCase() === "o") document.body.classList.toggle("show-overview");
     else if (key === "Escape") document.body.classList.remove("show-overview", "show-notes");
-    else if (key.toLowerCase() === "r" && event.shiftKey) { shown.clear(); document.querySelectorAll(".sent").forEach(b => b.classList.remove("sent")); updateTally(); }
+    else if (key === "Enter" && !event.target.closest("button") && !document.body.classList.contains("show-overview")) {
+      event.preventDefault();
+      const next = slides[index].querySelector(".next");
+      if (next) ask(next); else say("Bu slaytın soruları gönderildi");
+    }
+    else if (key.toLowerCase() === "s" && !event.metaKey) {
+      autoFollow = !autoFollow;
+      showPhoneState(phoneTab ? TAB_NAMES[phoneTab] : "bekliyor");
+      if (autoFollow) follow(slides[index]);
+    }
+    else if (key.toLowerCase() === "r" && event.shiftKey) { shown.clear(); document.querySelectorAll(".sent").forEach(b => b.classList.remove("sent")); updateTally(); markNext(); }
   });
 
+  // ---------- the stage (DEMO-05) ----------
+  // Inside the presenter app the page gets a phone column; the app reports where the simulator is (null: none on the left).
+  const presenter = window.webkit?.messageHandlers?.presenter;
+  if (presenter) document.body.classList.add("hosted", "no-phone");
+  window.compassStage = hole => {
+    const root = document.documentElement.style;
+    document.body.classList.toggle("no-phone", !hole);
+    if (!hole) { ["--column", "--hx", "--hy", "--hw", "--hh"].forEach(name => root.removeProperty(name)); return; }
+    [["--column", hole.column], ["--hx", hole.x], ["--hy", hole.y], ["--hw", hole.width], ["--hh", hole.height]]
+      .forEach(([name, value]) => root.setProperty(name, `${value}px`));
+  };
+
+  showPhoneState("bekliyor");
   updateTally();
   show(index);
+  presenter?.postMessage("ready");
 })();
 </script>
 </body>

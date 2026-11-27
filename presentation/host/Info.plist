@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The stage's app bundle (DEMO-05): scripts/present.sh copies this next to the release build. A bundle opened with `open` is its
+     own app to macOS, so the Accessibility permission is given to CompassPresenter and not to whichever terminal started it. -->
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>local.compass.presenter</string>
+	<key>CFBundleName</key>
+	<string>CompassPresenter</string>
+	<key>CFBundleExecutable</key>
+	<string>CompassPresenter</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+</dict>
+</plist>
