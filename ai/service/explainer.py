@@ -93,10 +93,12 @@ class LangChainExplainer:
         return (message.content if isinstance(message.content, str) else "").strip()
 
 
-def stream_message(llm, messages: list[dict], deadline: float, clock, settings: OllamaSettings) -> AIMessageChunk:
+def stream_message(llm, messages: list[dict], deadline: float, clock, settings: OllamaSettings,
+                   text_limit: int | None = None) -> AIMessageChunk:
     """Streams one model turn into a single message (text and tool calls) and stops at ``deadline``.
 
-    Shared by the explainer and the chat's tool selection (AI-14a). Failures surface as ``OllamaError`` subclasses.
+    Shared by the explainer and the chat's tool selection (AI-14a). With ``text_limit``, reading also stops once that many
+    characters of text have come (AI-17). Failures surface as ``OllamaError`` subclasses.
     """
     # ChatOllama always streams, so the client timeout never ends an answer that keeps coming.
     # Reading the parts ourselves and closing the stream at the deadline also makes Ollama stop (AI-02).
@@ -108,6 +110,9 @@ def stream_message(llm, messages: list[dict], deadline: float, clock, settings: 
                 message = chunk if message is None else message + chunk
                 if clock() > deadline:
                     raise OllamaTimeout(f"No complete answer from Ollama within {settings.timeout_seconds:g} s.")
+                if text_limit is not None and len(str(message.content)) > text_limit:
+                    # A call that came is kept: only the text is cut.
+                    break
         finally:
             stream.close()
     except OllamaError:

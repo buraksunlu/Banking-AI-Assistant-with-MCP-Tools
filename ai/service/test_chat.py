@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from chat import ChatReply, ChatService, ToolCall
+from chat import TEXT_LIMIT, ChatReply, ChatService, ToolCall
 from clarification import TOPICS, Choice
 from contracts import Fact
 from ollama_client import OllamaSettings, OllamaTimeout, OllamaUnavailable, Readiness, check_ready
@@ -69,11 +69,12 @@ class FakeClock:
 class FakeSelector:
     def __init__(self, clock, calls, seconds=2.0, turns=None):
         self.clock, self.result, self.seconds, self.turns, self.calls = clock, calls, seconds, turns, []
-        self.contexts = []
+        self.contexts, self.text_limits = [], []
 
-    def select(self, message, tools, deadline, context=None):
+    def select(self, message, tools, deadline, context=None, text_limit=None):
         self.calls.append((message, tools, deadline))
         self.contexts.append(context)
+        self.text_limits.append(text_limit)
         self.clock.now += self.seconds
         # ``turns`` answers turn by turn (a question and its follow-ups); otherwise every turn gets the same calls.
         return self.turns.pop(0) if self.turns else self.result
@@ -785,6 +786,62 @@ def test_the_selector_caps_its_answer():
         selector = LangChainToolSelector(OllamaSettings(fake.url, "qwen3.5:4b", 5.0))
         selector.select("Bana bir fıkra anlat", DEFINITIONS, selector.clock() + 5.0)
     assert fake.requests[0][1]["options"]["num_predict"] == MAX_TOOL_CALL_TOKENS == 200
+
+
+def tool_call_chunk(name: str, arguments: dict) -> dict:
+    return {"model": "qwen3.5:4b", "created_at": "2026-10-19T00:00:00Z", "done": False,
+            "message": {"role": "assistant", "content": "", "tool_calls": [{"function": {"name": name, "arguments": arguments}}]}}
+
+
+PROSE = "Bu soruyu yanıtlamak için hangi kategoride ve ne kadar azaltmak istediğinizi belirtmeniz gerekir. "
+
+
+def test_a_text_limit_stops_reading_prose_that_never_becomes_a_call():
+    # AI-17: the planning question's model wrote 184 tokens of prose (9 s) the user never sees; code chooses the tool then.
+    from chat import LangChainToolSelector
+    from test_explainer import FakeOllamaStream, chunk, final
+
+    with FakeOllamaStream([chunk(PROSE) for _ in range(40)] + [final()], gap=0.05) as fake:
+        selector = LangChainToolSelector(OllamaSettings(fake.url, "qwen3.5:4b", 5.0))
+        started = selector.clock()
+        assert selector.select("Harcamalarımı azaltsam ne kadar biriktiririm?", DEFINITIONS, started + 5.0, text_limit=TEXT_LIMIT) == []
+        # All 40 parts would take 2 s.
+        assert selector.clock() - started < 1.0
+
+
+def test_without_a_text_limit_prose_before_a_call_keeps_the_call():
+    # S25 in the AI-17 run: 360 characters, then the right call; the general group therefore gets no limit.
+    from chat import LangChainToolSelector
+    from test_explainer import FakeOllamaStream, chunk, final
+
+    lines = [chunk(PROSE * 4), tool_call_chunk("get_merchant_spending", {"merchant": "Netflix", "period": "LastMonth"}), final()]
+    with FakeOllamaStream(lines) as fake:
+        selector = LangChainToolSelector(OllamaSettings(fake.url, "qwen3.5:4b", 5.0))
+        calls = selector.select("Geçen ay Netflix'e ne kadar ödedim?", DEFINITIONS, selector.clock() + 5.0)
+    assert calls == [ToolCall("get_merchant_spending", {"merchant": "Netflix", "period": "LastMonth"})]
+
+
+def test_a_call_within_the_text_limit_is_kept():
+    from chat import LangChainToolSelector
+    from test_explainer import FakeOllamaStream, chunk, final
+
+    lines = [chunk("Tamam."), tool_call_chunk("check_budget", {"amount": 3000, "currencyCode": "TRY"}), final()]
+    with FakeOllamaStream(lines) as fake:
+        selector = LangChainToolSelector(OllamaSettings(fake.url, "qwen3.5:4b", 5.0))
+        calls = selector.select("Bu ay 3.000 TL bütçem var", DEFINITIONS, selector.clock() + 5.0, text_limit=TEXT_LIMIT)
+    assert calls == [ToolCall("check_budget", {"amount": 3000, "currencyCode": "TRY"})]
+
+
+def test_only_a_route_whose_words_choose_when_the_model_does_not_gets_a_text_limit():
+    # A planning list or a tool the words chose has code's own choice for "nothing"; the general list's "nothing" is out of scope.
+    chat, selector, _, _ = service([], gateway=FakeGateway(BUDGET_RESULT))
+    chat.answer("Bu ay bütçemi aşacak mıyım?", TOKEN)
+    general, general_selector, _, _ = service([SUMMARY_YESTERDAY])
+    general.answer("Dün ne harcadım?", TOKEN)
+    alone, alone_selector, _, _ = service([])
+    alone.answer("Harcamam aylara göre nasıl değişti?", TOKEN)
+
+    assert (selector.text_limits, general_selector.text_limits, alone_selector.text_limits) == ([TEXT_LIMIT], [None], [TEXT_LIMIT])
 
 
 def test_a_text_answer_cut_at_the_cap_means_no_tool():

@@ -937,6 +937,9 @@ Her önemli geliştirme sonunda mevcut proje durumunu takip et.
 Şunları güncel tut:
 
 COMPLETED
+- Araç seçicide metin sınırı (AI-17, 27 Kasım 2026, `ai-17-selector-text-limit`): planlama listesi ve sözcüklerin seçtiği tek araçta 120
+  karakterden sonra okuma kesilir (`chat.TEXT_LIMIT`), genel liste sınırsız. Önbellek kök nedeni (MLX önek önbelleği, sabit 8 GiB) belgede;
+  bellek baskısı OPS-07'de. Araç seçimi 157/157, Python 1969.
 - Boş sonuçta sıfır (27 Kasım 2026, `fix/empty-result-zero`): `answer_check.check_answer` "Sonuç" olgusu (`EMPTY_RESULT`, `facts.py` ile
   ortak) varken yalnız 0'a izin verir; harcamasız günde "3 gün önce" 3'te 3 502 → 3'te 3 cevap. Python 1965.
 - Yazma satırı (CHAT-15, 27 Kasım 2026, `chat-15-input-hints`; K1-C): `clarification.input_hint` yazılan cevabın okunduğu her soruda dolu

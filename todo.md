@@ -883,7 +883,11 @@ kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir.
 - [ ] OPS-04 — *(ertelendi, K2-B 17 Kasım 2026: bitiş için şart değil; FIN-10'da sonraki aşama)* Compose ile PostgreSQL/API/FastAPI/MCP bağlantılarını kur. Ollama Mac host üzerinde kalabilir; secret ve volume yönetimini belgele. Not (API-01b): API'de HTTPS yönlendirmesi kaldırıldı; TLS/HTTPS kararı burada verilecek.
 - [ ] OPS-05 — Sıfırdan yerel kurulum denemesi yap. DB migration/seed/import ayrı açık adımlar olarak çalışsın; mevcut veriyi yeniden başlatmada kaybetme.
 - [ ] OPS-06 — *(ertelendi, K2-B 17 Kasım 2026: bitiş için şart değil; FIN-10'da sonraki aşama)* (İsteğe bağlı; 19 Ekim 2026 taramasında önerildi) Otomatik test: GitHub Actions ile her PR'da .NET derleme + testler (PostgreSQL servis container'ı, migrate + seed) ve Python `pytest` (gerçek Ollama testleri kendiliğinden atlanır). Secret repoya girmez; test şifreleri CI'da üretilir. Private repo ücretsiz dakika sınırı ve süre ölçülerek karar verilir; cloud deployment değildir.
-- [ ] OPS-07 — *(ertelendi, K2-B 17 Kasım 2026: bitiş için şart değil; FIN-10'da sonraki aşama)* (22 Ekim 2026 kullanıcı kararı, CHAT-01'de not edildi) Ollama belleğinin ölçümler sırasında ~4 GB'tan 12,7 GB'a çıkmasını incele; 16 GB'lık Mac'in ısınmasının asıl nedeni bu. CHAT-01 ölçümü büyümenin araç sayısından bağımsız olduğunu gösterdi (9 ya da 11 araçla aynı). Bakılacaklar: runner/bağlam boyutu (`num_ctx`), aynı modelin farklı ayarlarla (`format`, `num_predict`) ikinci kez yüklenmesi, `keep_alive`, `/api/ps` çıktısı; sonuç ölçümle ve önce/sonra bellekle yazılır. (AI-16 buraya birleşti, 17 Kasım 2026: KV önbelleği, `num_ctx`, `OLLAMA_NUM_PARALLEL`, Ollama sürümü de incelenecek. 17 Kasım ölçümünde model yine 4 → 12 GB çıktı; simülatör ve paralel testler açıkken 16 GB Mac'te hafıza bitti.)
+- [ ] OPS-07 — *(ertelendi, K2-B 17 Kasım 2026: bitiş için şart değil; FIN-10'da sonraki aşama)* (22 Ekim 2026 kullanıcı kararı, CHAT-01'de not edildi) Ollama belleğinin ölçümler sırasında ~4 GB'tan 12,7 GB'a çıkmasını incele; 16 GB'lık Mac'in ısınmasının asıl nedeni bu. CHAT-01 ölçümü büyümenin araç sayısından bağımsız olduğunu gösterdi (9 ya da 11 araçla aynı). Bakılacaklar: runner/bağlam boyutu (`num_ctx`), aynı modelin farklı ayarlarla (`format`, `num_predict`) ikinci kez yüklenmesi, `keep_alive`, `/api/ps` çıktısı; sonuç ölçümle ve önce/sonra bellekle yazılır. (AI-16 buraya birleşti, 17 Kasım 2026: KV önbelleği, `num_ctx`, `OLLAMA_NUM_PARALLEL`, Ollama sürümü de incelenecek. 17 Kasım ölçümünde model yine 4 → 12 GB çıktı; simülatör ve paralel testler açıkken 16 GB Mac'te hafıza bitti.) **Kök neden bulundu
+(AI-17, 27 Kasım 2026):** Ollama 0.40.16'nın MLX önek önbelleği kayıtlarını 8 GiB'a kadar tutuyor (`mlxrunner/prefix_cache.go`,
+`maxPagedOutBytes`, sabit; ortam değişkeni yok); her istek ~120 MB ekliyor, ~5 dk'lık kullanımda Ollama ~11,8 GiB'a çıkıyor ve diğer
+süreçleri takasa itiyor (12 GB'ın 11,6 GB'ı). Seçenekler: Ollama'yı güncellemek (ana dalda yeni `retention.go`; ölçülmeli), sunumda
+Xcode ve gereksiz uygulamaları kapatmak, uzun ölçümlerin arasında modeli boşaltmak.
 - [ ] OBS-01 — *(ertelendi, K2-B 17 Kasım 2026: bitiş için şart değil; FIN-10'da sonraki aşama)* .NET tarafına trace/correlation kimliği ekle; DB sorgusu ve HTTP çağrıları ilişkilendirilsin.
 - [ ] OBS-02 — *(ertelendi, K2-B 17 Kasım 2026: bitiş için şart değil; FIN-10'da sonraki aşama)* FastAPI ve MCP üzerinden trace bağlamını taşı; tek sorunun uçtan uca izini örnekle doğrula.
 - [ ] OBS-03 — *(ertelendi, K2-B 17 Kasım 2026: bitiş için şart değil; FIN-10'da sonraki aşama)* Süre, hata, tool çağrı sayısı ve DB sorgu sayısı ölçümlerini ekle; finansal içerikleri gereksiz loglama.
@@ -955,11 +959,22 @@ kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir.
   (`test_stage.py` yeni: sahte Ollama'ya karşı `stage.sh`'ın model fonksiyonları), 6 kasıtlı bozma yakalandı. Bulgu: testin ilk sürümü çalışan
   AI servisinin `logs/live-ai.log`'unu bir kez ezdi (düzeltildi: test kendi klasörünü kullanır).
   PR4 ters yön (telefon yalnız DEBUG'da durum olayı gönderir, metin yok).
-- [ ] AI-17 — Araç isteminin önbelleği (DEMO-05 PR4a bulgusu, 27 Kasım 2026). Ollama'nın MLX çalıştırıcısı önbelleği yalnız kaydettiği noktalardan
+- [x] AI-17 — **Sonuç (27 Kasım 2026, dal `ai-17-selector-text-limit`; docs/local-ai.md "AI-17").** Kök neden Ollama 0.40.16'nın MLX önek
+  önbelleği: qwen3.5'in yinelemeli katmanlarının durumu yalnız istem işlenirken geçilen noktalarda kaydediliyor, sonradan kurulamıyor; bir
+  istem türünün ilk iki farklı çağrısı ve ilk takip baştan işleniyor, ikinci çağrı ayrılma noktasına kayıt bırakıyor. Denemedeki 24 sn'lik
+  "Peki geçen ay?" günün ilk takibiydi; PR4a ısıtması bunu kapattı. Isıtmadan sonra 103 istekte ortanca 1,6 sn, 11 takibin en yavaşı 2,8 sn;
+  ana araç istemi 11,8 GiB'ta da kaydını kaybetmedi (birden çok kolu olan düğüm atılmıyor). Kalan yavaşlık üretimdi: araç seçici emin
+  olmayınca 150-600 karakter metin yazıyor, kullanıcı görmüyor. Düzeltme: kodun kendi seçimi olan yollarda (planlama listesi, sözcüklerin
+  seçtiği tek araç) 120 karakterden sonra okuma kesiliyor (`chat.TEXT_LIMIT`, `explainer.stream_message(text_limit=)`); genel liste sınırsız
+  (S25'te 360 karakterden sonra doğru çağrı geliyor). Planlama sorusunda seçim 11,4 / 4,4 → 2,1 sn; araç seçimi 157/157 (önce de 157/157).
+  Python 1965 → 1969; 4 kasıtlı bozma yakalandı. Asıl kalan sorun OPS-07'ye taşındı: önbellek kayıtları için kodda sabit 8 GiB sınır
+  (ayarı yok) ~5 dk'da doluyor, Ollama ~11,8 GiB tutuyor, takas 12 GB'ın 11,6 GB'ı; o pencerede 4 jetonluk istek Ollama'da 1,1 sn, uçtan
+  uca 10,4 sn. Bu yüzden eşik ("geri sorudan sonraki ilk soru ≤ 8 sn") önbellek açısından sağlandı, bellek baskısında garanti değil.
+  (Eski metin: Araç isteminin önbelleği (DEMO-05 PR4a bulgusu, 27 Kasım 2026). Ollama'nın MLX çalıştırıcısı önbelleği yalnız kaydettiği noktalardan
   kullanıyor: yüklemeden sonraki ilk iki soru, ilk takip ve başka türden bir istemden (geri soru yazımı, niyet sorusu) sonra gelen takip
   ~2.250-2.425 jetonu baştan işliyor (~24 sn; log `cache hit … matched=2230 cached=33`). Canlı denemedeki "Bu ay → Peki geçen ay?" 27-34 sn
   bunun sonucuydu. İncelenecek: araç seçim istemini kısaltmak (ölçüm: araç seçimi), istem sırası (takip bağlamı ortak önekten sonra), Ollama
-  önbellek/paralel ayarları (OPS-07 ile birlikte). Eşik: araç seçimi bozulmadan geri sorudan sonraki ilk soru ≤ 8 sn.
+  önbellek/paralel ayarları (OPS-07 ile birlikte). Eşik: araç seçimi bozulmadan geri sorudan sonraki ilk soru ≤ 8 sn.)
 - [ ] FIN-10 — Kullanıcıyla son kabul review'ü yap. Açık maddeleri yapılmış işaretleme; ertelenen işleri gerekçesiyle ayır.
 
 ## Kapsam dışında kalanlar

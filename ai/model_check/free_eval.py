@@ -39,9 +39,9 @@ class RecordingSelector:
     def __init__(self, inner):
         self.inner, self.shown = inner, []
 
-    def select(self, message, tools, deadline, context=None):
+    def select(self, message, tools, deadline, context=None, text_limit=None):
         self.shown.append([tool["function"]["name"] for tool in tools])
-        return self.inner.select(message, tools, deadline, context)
+        return self.inner.select(message, tools, deadline, context, text_limit)
 
 
 def all_cases(data: dict) -> list[dict]:

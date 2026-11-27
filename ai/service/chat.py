@@ -78,12 +78,17 @@ class ChatReply:
 class ToolSelector(Protocol):
     """Lets the model choose among the given tools for a message."""
 
-    def select(self, message: str, tools: list[dict], deadline: float, context: LastCall | None = None) -> list[ToolCall]: ...
+    def select(self, message: str, tools: list[dict], deadline: float, context: LastCall | None = None,
+               text_limit: int | None = None) -> list[ToolCall]: ...
 
 
 # K8-A: a tool call is 30-60 tokens. Without a cap, a model that writes a text answer instead (a joke) can run past the
 # turn's limit; that text is never shown (the fixed out-of-scope reply is), so cutting it loses nothing.
 MAX_TOOL_CALL_TOKENS = 200
+# AI-17: shown a planning list or the one tool its words chose, the model that is unsure writes 150-200 tokens of prose (up to 9 s)
+# instead of a call; code then chooses from the words. 124 of the 126 calls in the eval came with no text, and the two with prose
+# before them (S25, S27) were in the general list, which gets no limit.
+TEXT_LIMIT = 120
 # A one-sentence question with two or three options is 40-80 tokens (CHAT-03 probe: 1,3-2,0 s).
 MAX_QUESTION_TOKENS = 120
 # The question is a nicety: when the model is slow, the fixed question is shown instead of keeping the user waiting.
@@ -114,10 +119,13 @@ class LangChainToolSelector:
         )
         self.clock = time.monotonic
 
-    def select(self, message: str, tools: list[dict], deadline: float, context: LastCall | None = None) -> list[ToolCall]:
-        """The tools the model chose (``context``: the previous call of a follow-up); an empty list when it answered in text."""
+    def select(self, message: str, tools: list[dict], deadline: float, context: LastCall | None = None,
+               text_limit: int | None = None) -> list[ToolCall]:
+        """The tools the model chose (``context``: the previous call of a follow-up); an empty list when it answered in text,
+        or wrote more than ``text_limit`` characters of it before any call."""
         # Bound per turn: the list comes from the MCP server on every turn, with the user's token (K1-A).
-        reply = stream_message(self.llm.bind_tools(tools), build_tool_messages(message, context), deadline, self.clock, self.settings)
+        reply = stream_message(self.llm.bind_tools(tools), build_tool_messages(message, context), deadline, self.clock, self.settings,
+                               text_limit)
         return [ToolCall(call["name"], call["args"]) for call in reply.tool_calls]
 
 
@@ -364,7 +372,9 @@ class ChatService:
 
         # Listed first: when the tools cannot answer, the single local model is not kept busy for nothing.
         listed = narrow(self.gateway.list_tools(token, deadline), route)
-        calls = [direct] if direct is not None else self.selector.select(shown, hide_dates(listed), deadline, context)
+        # Only where code chooses when the model does not (below); the general list's "nothing" is out of scope.
+        limit = TEXT_LIMIT if route.groups == (PLANNING,) or route.only is not None else None
+        calls = [direct] if direct is not None else self.selector.select(shown, hide_dates(listed), deadline, context, limit)
         if not calls and route.groups == (PLANNING,):
             # CHAT-09 K19-C: the model chose nothing from the planning list; the words (or the user's choice) name the tool, its
             # figures are then asked as always. Words that name both or neither are asked as a choice.

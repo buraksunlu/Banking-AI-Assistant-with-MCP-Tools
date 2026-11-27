@@ -1608,3 +1608,43 @@ Kararlar K1-B, K2-B, K3-A, K4-B. Testler `ai/service/test_other_person.py`.
   işyeri #117'de). Transfer ve arama kartı cümlesini tutar (yön ve adet söyler). Düz metin cevabı "başlık: rakam".
 - Gerçek modelle canlıda beşi de doğru: MonthToDate; 5 harcama 15.600,00 TL (bu ay, 2.000 TL üstü); Ekim'de 1 transfer gönderildi 2.500,00 TL.
 
+
+## AI-17: önbellek ve araç seçicinin metni (27 Kasım 2026)
+
+**Önbellek nasıl çalışıyor (Ollama 0.40.16, MLX çalıştırıcısı; kaynak `mlxrunner/prefix_cache.go`).** Ollama istemleri bir önek ağacında
+tutuyor. qwen3.5'in bir kısmı yinelemeli (recurrent) katman: durumu yalnız istem işlenirken geçilen noktalarda kaydedilebiliyor, sonradan
+geri kurulamıyor. Yeni bir istem, eşleştiği kısmın içindeki **en derin kayıtlı noktadan** devam ediyor; ayrıldığı noktaya da kayıt
+bırakıyor. Sonuç:
+
+| Durum | Log | Süre |
+|---|---|---|
+| Yüklemeden sonraki ilk soru | `cache miss matched=0` | ~2.250 jeton baştan, 15-24 sn |
+| İkinci farklı soru | `matched=2232 cached=0` (2.232'de kayıt yok) | yine baştan |
+| Sonraki sorular | `cached=2232 left=15` | 1,5-3 sn |
+| İlk takip (ayrı ikinci sistem mesajı, 2.230'da ayrılıyor) | `matched=2230 cached=33` | baştan, 24 sn (DEMO-05 PR3 denemesi) |
+
+PR4a'nın ısıtması (iki soru + iki takip) bu noktaları doldurduğu için sahnede açıklanan belirti kapandı: ısıtmadan sonra slaytların 103
+isteğinde ortanca 1,6 sn, 11 takibin en yavaşı 2,8 sn. Birden çok kolu olan düğüm hiç atılmadığı için ana araç istemi, bellek sınırına
+dayanıldığında da kaydını korudu. Tek kullanılan istemler (planlama listesi, tek araçlı istemler) önce atılıyor; ilk ve atıldıktan sonraki
+kullanımlarında 400-1.000 jetonu baştan işliyorlar (3-6 sn).
+
+**Araç seçicinin metni.** Kalan yavaşlığın büyük kısmı işleme değil üretim: emin olmayan model araç çağırmak yerine kullanıcının hiç
+görmediği 150-600 karakterlik metin yazıyor (planlama sorusu "Harcamalarımı azaltsam ne kadar biriktiririm?" 184 jeton, 9 sn). Kodun
+"model seçmezse" yolu olan yerlerde (planlama listesi, sözcüklerin seçtiği tek araç) `chat.TEXT_LIMIT` (120 karakter) aşılınca okuma
+kesiliyor ve kod sözcüklerden seçiyor. Genel liste sınırsız kalıyor: araç seçim ölçümünde 126 çağrının 124'ü metinsiz geldi, metinli
+ikisi (S25 "Netflix'e", S27) genel listedeydi ve S25'te doğru çağrı 360 karakterlik metnin arkasından geliyor; orada model seçmezse cevap
+kapsam dışı olurdu.
+
+| Ölçüm | Önce | Sonra |
+|---|---|---|
+| Araç seçimi (`tool_selection_eval.py --pause 0.3`) | 157/157 | 157/157 |
+| Araç çağırmayan 3 vakanın süresi | 3,5 / 2,6 / 2,1 sn | 1,9 / 1,6 / 1,6 sn |
+| Planlama sorusunda seçim (aynı koşul, art arda) | 11,4 / 4,4 sn | 2,1 / 2,1 sn |
+
+**Bellek (OPS-07).** Önbellek kayıtları için kodda sabit 8 GiB sınır var (`maxPagedOutBytes`, ortam değişkeni yok); her istek ~120 MB
+ekliyor, ~5 dk'lık kullanımda Ollama ~11,8 GiB tutuyor. 16 GB'lık Mac'te diğer süreçler takasa itiliyor (ölçümde 12 GB takasın 11,6 GB'ı
+dolu): o pencerede 4 jetonluk bir istek Ollama'da 1,1 sn, uçtan uca 10,4 sn sürdü. Bu, ayarla değil Ollama sürümü ya da makine yüküyle
+çözülür; öneriler OPS-07'de.
+
+Ölçme yöntemi: istek başına Ollama log'undaki `prefix_cache` satırları (`total`, `matched`, `cached`, `left`) ile süre yan yana. Model
+boşaltılıp sahne gibi yüklenip ısıtıldıktan sonra slaytların bütün soruları sırayla soruldu.
