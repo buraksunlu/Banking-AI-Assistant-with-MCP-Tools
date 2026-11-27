@@ -270,7 +270,7 @@ class OracleSelector:
     def __init__(self, expected):
         self.expected, self.used = expected, False
 
-    def select(self, message, tools, deadline, context=None) -> list[ToolCall]:
+    def select(self, message, tools, deadline, context=None, text_limit=None) -> list[ToolCall]:
         if self.used:
             return []
         self.used = True
