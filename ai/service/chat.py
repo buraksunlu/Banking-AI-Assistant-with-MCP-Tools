@@ -37,7 +37,7 @@ from facts import outcome_for
 from ollama_client import OllamaError, OllamaSettings
 from prompts import (ADVICE_DECLINED_TEXT, BARE_CHOICE_TEXT, CLARIFY_TEXT, DATE_SCHEMA, LIRA_ONLY_TEXT, INTENT_SCHEMA, OUT_OF_SCOPE_TEXT, OTHER_PERSON_TEXT, build_clarify_messages, build_date_messages,
                      build_intent_messages, build_tool_messages)
-from dates import CustomerDay, DateReading, check_range, period_line, read_dates, with_span_replaced
+from dates import CustomerDay, DateReading, check_range, fits_words, period_line, read_dates, with_span_replaced
 from grounding import brand_in, category_in, check_arguments, mentions_period, unclear_amounts
 from spelling import correct
 from routing import (COMPARE, DATE_FIELDS, ONE_OFF, PLANNING, TREND, Route, Router, comparison_of, fold_turkish, group_of, hide_dates, is_spending_question, narrow,
@@ -484,7 +484,14 @@ class ChatService:
         except OllamaError as error:
             logger.info("No model reading of a date (%s); the period is asked", type(error).__name__)
             return reading
-        return reading if interpreted is None else replace(interpreted, span=reading.span)
+        if interpreted is None:
+            return reading
+        expression = message[slice(*reading.span)]
+        if interpreted.kind == "found" and not fits_words(expression, interpreted.start, interpreted.end):
+            # CHAT-14 K1-C: a real range of the wrong month or weekday passes check_range; asking costs a tap, a wrong range a figure.
+            logger.info("The model's date range does not fit the written words; the period is asked")
+            return reading
+        return replace(interpreted, span=reading.span)
 
     def _run(self, call: ToolCall, question: str, token: str, deadline: float, day: CustomerDay | None = None) -> ChatReply:
         if call.tool == MONTHLY_TOOL and call.arguments.get("currencyCode") not in (None, LIRA):

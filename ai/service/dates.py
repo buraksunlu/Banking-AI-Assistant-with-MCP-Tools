@@ -4,8 +4,11 @@
 from the user's words must mean what the analyses mean by it, and the demo moment is fixed on the .NET side only.
 
 ``read_dates`` reads the patterns people use for a day, a range of days or a whole month, in code and without a model (K3-D1);
-the model never chooses a date (ANA-20). A message that looks like a date but is not one of these patterns ("geçen salı",
-"3 gün önce") is ``unreadable``: it needs the second step (K1-C). An impossible date ("31 Şubat", the future, more than 24
+the model never chooses a date (ANA-20). Every expression with a fixed calendar rule is read here too (CHAT-14 K1-C): a part of a
+month ("Eylül'ün ilk haftası", "Ekim sonu"), "yılbaşından beri", "geçen yıl", "3 gün önce", "evvelsi gün", "geçen salı", "geçen
+hafta sonu", "2 hafta önce": the model gave different ranges for the same words at temperature 0, one of them a week of the wrong
+month. A message that looks like a date but has no such rule ("salı günü", "bayramda", "03/09") is ``unreadable``: it needs the
+second step (K1-C), whose range ``fits_words`` holds to the month, weekday and year written. An impossible date ("31 Şubat", the future, more than 24
 months) is ``invalid`` with a reason written for the user (K5-B). A year the user did not write is the most recent past one
 (K4-A). Standard library only.
 """
@@ -81,16 +84,31 @@ _ONE_MONTH_RANGE = re.compile(
 _ONE_DAY = re.compile(_day("1") + rf"\s+(?P<m>{_MONTH}){_ENDING}{_AY}" + _year(""))
 _WHOLE_MONTH = re.compile(rf"(?<![a-z0-9])(?P<m>{_MONTH}){_ENDING}{_AY}" + _year(""))
 
-# A part of a month ("Eylül'ün ilk haftası", "Ekim sonu") is not the month: it goes to the second step, never to the whole month.
+# A part of a month ("Eylül'ün ilk haftası", "Ekim sonu") is not the month: read before the whole month, never as thirty days.
 _MONTH_PART = re.compile(
-    rf"(?<![a-z0-9])(?:{_MONTH})['’]?[a-z]*\s+(?:(?:ilk|son)\s+hafta[a-z]*|(?:basi|sonu|ortasi)[a-z]*)")
+    rf"(?<![a-z0-9])(?P<m>{_MONTH})(?:\s+(?P<y>20\d\d))?['’]?[a-z]*(?:\s+ayi[a-z]*)?\s+"
+    r"(?:(?P<nth>ilk|birinci|ikinci|ucuncu|dorduncu|son|[1-4]\.)\s*hafta[a-z]*|(?P<part>basi|ortasi|sonu)[a-z]*)")
+_NTH_WEEK = {"ilk": 1, "birinci": 1, "ikinci": 2, "ucuncu": 3, "dorduncu": 4, "1.": 1, "2.": 2, "3.": 3, "4.": 4}
+# K2-B: fixed thirds of a month; the "Dönem:" line of the answer shows the user the days that were taken.
+_PART_DAYS = {"basi": (1, 10), "ortasi": (11, 20), "sonu": (21, 31)}
 
 # The weekday names the second step's calendar is written with (date.weekday(): Monday is 0).
 WEEKDAYS = ("Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar")
+# Folded, longest first: "cumartesi" before "cuma", "pazartesi" before "pazar".
+_WEEKDAY = "pazartesi|cumartesi|carsamba|persembe|pazar|sali|cuma"
+_WEEKDAY_NUMBER = {"pazartesi": 0, "sali": 1, "carsamba": 2, "persembe": 3, "cuma": 4, "cumartesi": 5, "pazar": 6}
+_WEEKDAY_ENDING = r"(?:ya|ye|yi|da|de|dan|den|si|ki)?(?:\s+gun[a-z]*)?(?![a-z])"
+
+_SINCE_NEW_YEAR = re.compile(r"(?<![a-z])yilbasindan\s+(?:beri|bu\s+yana|itibaren|bugune\s+kadar)(?![a-z])")
+_LAST_YEAR = re.compile(r"(?<![a-z])gecen\s+(?:yil|sene)(?:ki|in|da|de|a|e)?(?![a-z])")
+_AGO = re.compile(r"(?<![\d.,])(?P<n>\d{1,2})\s*(?P<unit>gun|hafta|ay|yil|sene)\s+once(?:ki|si)?(?![a-z])")
+_DAY_BEFORE_YESTERDAY = re.compile(r"(?<![a-z])(?:evvelsi|evvelki)\s+gun[a-z]*")
+_LAST_WEEKEND = re.compile(r"(?<![a-z])gecen\s+hafta\s*sonu[a-z]*")
+_LAST_WEEKDAY = re.compile(rf"(?<![a-z])gecen\s+(?P<wd>{_WEEKDAY}){_WEEKDAY_ENDING}")
 
 # Looks like a date, is not a pattern above: weekdays, "N days ago", "last year", holidays, slash and short forms.
 _UNREADABLE = re.compile(
-    r"(?<![a-z])(?:gecen\s+)?(?:pazartesi|sali|carsamba|persembe|cumartesi|cuma|pazar)(?:ya|ye|yi|da|de|dan|den|si)?(?![a-z])"
+    rf"(?<![a-z])(?:gecen\s+)?(?:{_WEEKDAY}){_WEEKDAY_ENDING}"
     r"|(?<![a-z])(?:evvelsi|yilbasi[a-z]*(?:\s+beri)?|bayram[a-z]*|hafta\s*sonu[a-z]*|gecen\s+(?:yil|sene)|"
     r"\d+\s*(?:gun|hafta|ay|yil|sene)\s+once)(?![a-z])"
     r"|(?<![\d.,/])\d{1,2}/\d{1,2}(?:/\d{2,4})?(?![\d/])"
@@ -100,11 +118,11 @@ _UNREADABLE = re.compile(
 def read_dates(message: str, today: date) -> DateReading:
     """The dates ``message`` writes, relative to the customer's ``today``; see the module description for the four kinds."""
     text = fold_turkish(message)
-    part = _MONTH_PART.search(text)
-    if part:
-        return DateReading("unreadable", span=part.span())
-    for pattern, build in ((_NUMERIC_RANGE, _numeric_range), (_NUMERIC_DAY, _numeric_day), (_TWO_MONTHS, _two_months),
-                           (_ONE_MONTH_RANGE, _one_month_range), (_ONE_DAY, _one_day), (_WHOLE_MONTH, _whole_month)):
+    for pattern, build in ((_MONTH_PART, _month_part), (_NUMERIC_RANGE, _numeric_range), (_NUMERIC_DAY, _numeric_day),
+                           (_TWO_MONTHS, _two_months), (_ONE_MONTH_RANGE, _one_month_range), (_ONE_DAY, _one_day),
+                           (_WHOLE_MONTH, _whole_month), (_SINCE_NEW_YEAR, _since_new_year), (_LAST_YEAR, _last_year),
+                           (_AGO, _ago), (_DAY_BEFORE_YESTERDAY, _day_before_yesterday), (_LAST_WEEKEND, _last_weekend),
+                           (_LAST_WEEKDAY, _last_weekday)):
         match = pattern.search(text)
         if match:
             return replace(build(match.groupdict(), today), span=match.span())
@@ -265,3 +283,92 @@ def _whole_month(groups: dict, today: date) -> DateReading:
     last = _add_months(start, 1) - timedelta(days=1)
     # The running month ends today: the days to come have no purchases to ask about.
     return _checked(start, min(last, today), today)
+
+
+
+def _month_year(m: int, written: str | None, today: date) -> int:
+    # As for a whole month (K4-A): a month after this one is last year's.
+    return int(written) if written else (today.year if m <= today.month else today.year - 1)
+
+
+def _month_part(groups: dict, today: date) -> DateReading:
+    m = _MONTH_NUMBER[groups["m"]]
+    first = date(_month_year(m, groups["y"], today), m, 1)
+    last = (_add_months(first, 1) - timedelta(days=1)).day
+    if groups["nth"] == "son":
+        days = (last - 6, last)
+    elif groups["nth"]:
+        week = _NTH_WEEK[groups["nth"]]
+        days = (7 * week - 6, 7 * week)
+    else:
+        start, end = _PART_DAYS[groups["part"]]
+        days = (start, min(end, last))
+    return _until_today(first.replace(day=days[0]), first.replace(day=days[1]), today)
+
+
+def _until_today(start: date, end: date, today: date) -> DateReading:
+    """A range that may still be running: it ends today, as the running month does; one that has not begun is not yet."""
+    if start > today:
+        return _invalid("Bu tarih henüz gelmedi.")
+    return _checked(start, min(end, today), today)
+
+
+def _since_new_year(groups: dict, today: date) -> DateReading:
+    return _checked(date(today.year, 1, 1), today, today)
+
+
+def _last_year(groups: dict, today: date) -> DateReading:
+    return _checked(date(today.year - 1, 1, 1), date(today.year - 1, 12, 31), today)
+
+
+def _ago(groups: dict, today: date) -> DateReading:
+    """K4-A: the day, the Monday-Sunday week, the month or the year that holds the day N units back."""
+    n, unit = int(groups["n"]), groups["unit"]
+    if unit == "gun":
+        day = today - timedelta(days=n)
+        return _checked(day, day, today)
+    if unit == "hafta":
+        monday = today - timedelta(days=7 * n + today.weekday())
+        return _until_today(monday, monday + timedelta(days=6), today)
+    if unit == "ay":
+        first = _add_months(today.replace(day=1), -n)
+        return _until_today(first, _add_months(first, 1) - timedelta(days=1), today)
+    year = today.year - n
+    return _until_today(date(year, 1, 1), date(year, 12, 31), today)
+
+
+def _day_before_yesterday(groups: dict, today: date) -> DateReading:
+    day = today - timedelta(days=2)
+    return _checked(day, day, today)
+
+
+def _last_weekend(groups: dict, today: date) -> DateReading:
+    # The weekend of the week before this one: on a Saturday or a Sunday, the one under way is "bu hafta sonu".
+    monday = today - timedelta(days=today.weekday())
+    return _checked(monday - timedelta(days=2), monday - timedelta(days=1), today)
+
+
+def _last_weekday(groups: dict, today: date) -> DateReading:
+    # The latest such day before today, never today: the rule the second step's table was written with (date-v4).
+    back = (today.weekday() - _WEEKDAY_NUMBER[groups["wd"]] - 1) % 7 + 1
+    day = today - timedelta(days=back)
+    return _checked(day, day, today)
+
+
+_MONTH_WORD = re.compile(rf"(?<![a-z0-9])({_MONTH})")
+_WEEKDAY_WORD = re.compile(rf"(?<![a-z])({_WEEKDAY}){_WEEKDAY_ENDING}")
+_YEAR_WORD = re.compile(r"(?<![\d.,/])(20\d\d)(?!\d)")
+
+
+def fits_words(expression: str, start: date, end: date) -> bool:
+    """Whether a range the model gave keeps to the month, weekday and year written in ``expression`` (CHAT-14 K1-C): check_range
+    only knows that the days are real, so a week of September for "the second week of October" passed it."""
+    text = fold_turkish(expression)
+    months = {_MONTH_NUMBER[name] for name in _MONTH_WORD.findall(text)}
+    if months and not {start.month, end.month} <= months:
+        return False
+    weekday = _WEEKDAY_WORD.search(text)
+    if weekday and start.weekday() != _WEEKDAY_NUMBER[weekday.group(1)]:
+        return False
+    years = {int(year) for year in _YEAR_WORD.findall(text)}
+    return not years or {start.year, end.year} <= years
