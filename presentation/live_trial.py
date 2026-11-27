@@ -3,6 +3,7 @@
 Run it before the presentation and after a question is added to a slide; test_capabilities.py then checks the page against it:
 
     ai/.venv/bin/python presentation/live_trial.py            # the live services must be up (H on the stage, or run-live.sh)
+    ai/.venv/bin/python presentation/live_trial.py --warm     # only the warm-up (scripts/stage.sh runs it after loading the model)
 
 The token is signed locally with the .env key, as ai/model_check/answer_eval.py does; the key is never printed. Only the kind of
 reply, the tools and the seconds are kept: no answer text, so no figures of the demo customer land in the repo.
@@ -95,18 +96,39 @@ def chat(bearer: str, message: str, today: str) -> dict:
         return {"type": f"http {error.code}"}
 
 
-def warm_up(signing: str, today: str) -> None:
-    """A model idle for longer than its keep-alive (30 min, AI-15) is loaded by the first request, which then times out (504):
-    that is the model starting, not a slide question failing, so it is asked away before the trial and not recorded."""
-    for _ in range(3):
-        if not str(chat(token(signing), "Bu ay ne kadar harcadım?", today).get("type")).startswith("http"):
-            return
-    raise SystemExit("live_trial: the AI service did not answer three times; is the model up (H → Model)?")
+# DEMO-05 PR4a K3-A: right after a load the model spent ~25 s on each of the first two questions and on the first follow-up (the
+# tool prompt's ~2,250 tokens rebuilt; Ollama reuses its cache only from points it stored); afterwards ~3 s. Each kind twice, in
+# words the slides ask, so the audience's first question is not one of them.
+WARM = [["Bu ay ne kadar harcadım?", "Peki geçen ay?"],
+        ["Geçen ay en çok hangi kategoriye harcadım?", "Peki işyerlerine göre?"]]
+TRIES = 3
+
+
+def warm(ask) -> None:
+    """Asks every WARM chain with ``ask`` (a chain → the kind of the last reply); a chain that gets an HTTP error is asked again,
+    as the first request to a cold model loads it and may time out."""
+    for chain in WARM:
+        for _ in range(TRIES):
+            if not str(ask(chain)).startswith("http"):
+                break
+        else:
+            raise SystemExit("live_trial: the AI service did not answer the warm-up; is the model up (H → Model)?")
+
+
+def ask_chain(signing: str, today: str, chain: list[str]) -> str:
+    bearer, started, reply = token(signing), time.monotonic(), {}
+    for message in chain:  # One token per chain: a follow-up continues the conversation before it.
+        reply = chat(bearer, message, today)
+    print(f"{time.monotonic() - started:5.1f} s  {reply.get('type')}  {key(chain)}", flush=True)
+    return str(reply.get("type"))
 
 
 def main() -> None:
     signing, today, results = signing_key(), date.today().isoformat(), {}
-    warm_up(signing, today)
+    warm(lambda chain: ask_chain(signing, today, chain))
+    if "--warm" in sys.argv[1:]:
+        print("live_trial: warmed")
+        return
     for steps in cases(page()):
         bearer, started, reply = token(signing), time.monotonic(), {}
         for message in steps:  # One token per chain: a follow-up continues the conversation before it.

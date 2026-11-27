@@ -41,7 +41,9 @@ build_stage() {
 [[ "$mode" == "stage" ]] && build_stage
 
 python3 presentation/server.py & server=$!
-trap 'kill "$server" 2>/dev/null || true; [[ "$mode" == "stage" ]] && pkill -x CompassPresenter 2>/dev/null; true' EXIT INT TERM
+# K2-D (DEMO-05 PR4a): the stage's AI service keeps the model in memory; when the stage quits it is unloaded (12.7 GB), the
+# services keep running (K11-A) and the next question, or Başlat in the panel, loads it again.
+trap 'kill "$server" 2>/dev/null || true; [[ "$mode" == "stage" ]] && { pkill -x CompassPresenter 2>/dev/null; scripts/stage.sh stop model > /dev/null; }; true' EXIT INT TERM
 sleep 0.5
 open -a Simulator
 

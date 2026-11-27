@@ -934,7 +934,20 @@ kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir.
   İkinci ve üçüncü denemede "Eylül'ün ilk haftası" / "Yılbaşından beri" geri soruya düştü: model aynı ifadeye farklı aralık veriyordu → CHAT-14
   (takvim hesabı kodda, #122); CHAT-14'ten sonra son deneme 90/90, cevap türleri ilk denemeyle aynı, ortanca 2,9 sn. "Bu ay → Peki geçen ay?"
   zinciri iki denemede 27-34 sn sürdü (biri 504), tek başına 2,5-3,9 sn; önünde model yazımı geri sorular vardı, neden doğrulanmadı.
+  PR4a sıcak model (tamam, 27 Kasım 2026, dal `demo-05d-warm-model`; K1-A, K2-D, K3-A ölçümden sonra yeniden: yükle + dört soruluk ısıtma):
+  paneldeki "model" ışığı yalnız kurulu olduğuna bakıyordu; şimdi `/api/ps` ile bellekte mi (`on` / `cold` sarı / `missing` / `off`); Model
+  satırında "Başlat" modeli `keep_alive -1` ile yükler ve AI servisi açıksa iki normal + iki takip sorusuyla ısıtır (`live_trial.py --warm`,
+  "Hepsini başlat" da servislerden sonra ısıtır); sahneden açılan AI servisi modeli boşaltmaz, sahne kapanınca (`present.sh`) model boşalır.
+  Ölçüm bulgusu: yalnız yükleme yetmiyor; yüklemeden sonra ilk iki soru ve ilk takip ~25 sn (araç istemi ~2.250 jeton baştan işleniyor),
+  ısıtmadan sonra ısıtmada olmayan ilk sorular 4,5-4,7 sn, ilk takipler 6,6-6,9 sn; "Başlat" soğuktan 118 sn. Sunum testleri 32 → 45
+  (`test_stage.py` yeni: sahte Ollama'ya karşı `stage.sh`'ın model fonksiyonları), 6 kasıtlı bozma yakalandı. Bulgu: testin ilk sürümü çalışan
+  AI servisinin `logs/live-ai.log`'unu bir kez ezdi (düzeltildi: test kendi klasörünü kullanır).
   PR4 ters yön (telefon yalnız DEBUG'da durum olayı gönderir, metin yok).
+- [ ] AI-17 — Araç isteminin önbelleği (DEMO-05 PR4a bulgusu, 27 Kasım 2026). Ollama'nın MLX çalıştırıcısı önbelleği yalnız kaydettiği noktalardan
+  kullanıyor: yüklemeden sonraki ilk iki soru, ilk takip ve başka türden bir istemden (geri soru yazımı, niyet sorusu) sonra gelen takip
+  ~2.250-2.425 jetonu baştan işliyor (~24 sn; log `cache hit … matched=2230 cached=33`). Canlı denemedeki "Bu ay → Peki geçen ay?" 27-34 sn
+  bunun sonucuydu. İncelenecek: araç seçim istemini kısaltmak (ölçüm: araç seçimi), istem sırası (takip bağlamı ortak önekten sonra), Ollama
+  önbellek/paralel ayarları (OPS-07 ile birlikte). Eşik: araç seçimi bozulmadan geri sorudan sonraki ilk soru ≤ 8 sn.
 - [ ] FIN-10 — Kullanıcıyla son kabul review'ü yap. Açık maddeleri yapılmış işaretleme; ertelenen işleri gerekçesiyle ayır.
 
 ## Kapsam dışında kalanlar

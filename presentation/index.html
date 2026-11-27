@@ -1555,7 +1555,8 @@
   // everything is up, unless the presenter opened or closed it by hand.
   const PARTS = [
     { name: "Veritabanı", info: "Colima + PostgreSQL", lights: ["db"], acts: [["Başlat", { start: "db" }]] },
-    { name: "Model", info: "Ollama · qwen3.5:4b · harici SSD", lights: ["model"], acts: [["Başlat", { start: "model" }], ["Boşalt", { stop: "model" }]] },
+    { name: "Model", info: "Ollama · qwen3.5:4b · harici SSD · sahne kapanınca boşalır", lights: ["model"],
+      acts: [["Başlat", { start: "model" }], ["Boşalt", { stop: "model" }]] },
     { name: "Servisler", info: "API :5248 · MCP :5249 · AI :8000 · canlı veritabanı", lights: ["api", "mcp", "ai"],
       acts: [["Başlat", { start: "services" }], ["Durdur", { stop: "services" }]] },
     { name: "Simülatör", info: "iPhone 17 Pro", lights: ["simulator"], acts: [["Başlat", { start: "simulator" }]] },
@@ -1563,8 +1564,10 @@
   // Which lights a running command is about to change.
   const TOUCHES = { db: ["db"], model: ["model"], services: ["api", "mcp", "ai"], simulator: ["simulator", "app"], app: ["app"],
                     all: ["db", "model", "api", "mcp", "ai", "simulator", "app"] };
+  // cold (DEMO-05 PR4a): installed but not in memory; the first question would load it and time out, so it is not "ready".
   const WORDS = { on: "çalışıyor", off: "kapalı", running: "açık", installed: "kurulu, açık değil", missing: "kurulu değil",
-                  old: "eski derleme: Derle ve kur" };
+                  old: "eski derleme: Derle ve kur", cold: "bellekte değil: Başlat ile yükle" };
+  const word = (part, state) => part === "model" && state === "on" ? "bellekte" : WORDS[state];
   const NAMES = { db: "veritabanı", model: "model", api: "API", mcp: "MCP", ai: "AI", simulator: "simülatör", app: "uygulama" };
   const setupRows = document.getElementById("setupRows"), setupLast = document.getElementById("setupLast");
   const lightsButton = document.getElementById("lights");
@@ -1575,7 +1578,7 @@
 
   function tone(state, busy) {
     if (busy) return "busy";
-    return state === "on" || state === "running" ? "on" : state === "installed" ? "half" : state ? "off" : "";
+    return state === "on" || state === "running" ? "on" : state === "installed" || state === "cold" ? "half" : state ? "off" : "";
   }
 
   function render(status) {
@@ -1584,12 +1587,12 @@
     document.querySelectorAll(".light[data-part]").forEach(light => {
       const part = light.dataset.part;
       light.className = `light ${tone(parts[part], busyParts.includes(part))}`;
-      light.title = `${NAMES[part]}: ${busyParts.includes(part) ? "işleniyor…" : WORDS[parts[part]] || "bilinmiyor"}`;
+      light.title = `${NAMES[part]}: ${busyParts.includes(part) ? "işleniyor…" : word(part, parts[part]) || "bilinmiyor"}`;
     });
     PARTS.forEach((part, i) => {
       const states = part.lights.map(l => parts[l]).filter(Boolean);
       document.querySelector(`[data-row="${i}"]`).textContent = states.length
-        ? `${part.info} · ${part.lights.length > 1 ? part.lights.map(l => `${NAMES[l]} ${WORDS[parts[l]]}`).join(", ") : WORDS[states[0]]}`
+        ? `${part.info} · ${part.lights.length > 1 ? part.lights.map(l => `${NAMES[l]} ${word(l, parts[l])}`).join(", ") : word(part.lights[0], states[0])}`
         : part.info;
     });
     document.querySelectorAll("[data-control]").forEach(b => { b.disabled = Boolean(busy); });
