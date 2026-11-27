@@ -315,16 +315,24 @@ Bitiş yolu (17 Kasım 2026 kullanıcı kararı B; sıra ve maddeler [todo.md](t
 Sonraki aşamaya ertelenenler (real time simülatör, yeni analizler, kalıcı bütçe, içgörü kartları, Docker/CI) todo'da
 "ertelendi" diye işaretlidir. Her adımda önce plan yapılır, kullanıcı onaylar, sonra yalnız seçilen küçük kapsam uygulanır.
 
-## Etkileşimli sunum (DEMO-04)
+## Etkileşimli sunum (DEMO-04, DEMO-05)
 
-Solda simülatör, sağda tarayıcıda slaytlar; slayttaki soru düğmesi soruyu simülatördeki asistana gönderir.
+Tek sahne (DEMO-05): sunum uygulaması (`presentation/host`, macOS) ekranı kaplar; solda simülatörün durduğu boşluk ve altında sekme
+düğmeleri, sağda slaytlar. Slayttaki soru düğmesi soruyu simülatördeki asistana gönderir; slayt değişince telefon o slaytın ekranını
+kendisi açar (`S` kapatır), `⏎` slaytın sıradaki sorusunu gönderir.
 
 ```sh
 scripts/run-live.sh          # 1. terminal: API, MCP, AI servisi (canlı veritabanı)
 # Xcode: uygulamayı Debug derlemeyle simülatörde çalıştır, giriş yap
-scripts/present.sh           # 2. terminal: sunum yardımcısı + pencere yerleşimi → http://127.0.0.1:7300
+scripts/present.sh           # 2. terminal: sahne (gerekirse derler); ⌘Q kapatır
+scripts/present.sh --safari  # eski düzen: solda simülatör, sağda Safari
 python3 -m unittest discover -s presentation   # yardımcının testleri
+swift test --package-path presentation/host    # sahnenin yerleşim hesabı
 ```
+
+Boşluk simülatörün nerede olduğuna göre çizilir; bunun için izin gerekmez. Sistem Ayarları → Gizlilik ve Güvenlik → Erişilebilirlik'te
+**CompassPresenter** açıksa sahne simülatörü boşluğa kendisi taşır; değilse simülatörü boşluğa bir kez sürüklemek yeter. Uygulama her
+yeniden derlemede yeni imza aldığı için `present.sh` yalnız kaynak değişince derler.
 
 Yol: düğme → `POST /api/remote` (`presentation/server.py`, yalnız 127.0.0.1 ve yalnız kendi sayfası) → `xcrun simctl openurl booted
 compass://ask?q=…` → uygulamada `App/DemoLink` (yalnız DEBUG) → normal sohbet yolu. Ayrıntı docs/ios.md "iOS-ae".

@@ -937,6 +937,11 @@ Her önemli geliştirme sonunda mevcut proje durumunu takip et.
 Şunları güncel tut:
 
 COMPLETED
+- Tek sahne (DEMO-05 PR1, 27 Kasım 2026, `demo-05a-presenter-app`; K1-A K2-A K3-A K4-D K5-D): `presentation/host` Swift paketi
+  (AppKit + WebKit, Xcode projesi yok), `present.sh` onu `build/CompassPresenter.app` olarak paketler ve `open` ile açar. Pencere normal
+  pencerelerin bir kat altında (simülatör hep üstte); boşluk simülatörün izinsiz okunan konumundan (`CGWindowList`), Erişilebilirlik izni
+  varsa simülatör de taşınır (boyutlama denenir, Xcode 26 simülatörü reddediyor). Sayfa `body.hosted`'ta telefon sütunu + sekme düğmeleri;
+  slayt `data-phone` ile sekmesini açar, `⏎` sıradaki soru, `S` izleme. Yerleşim testleri 16 (`swift test`), sunucu 10 değişmedi.
 - Sunum turu (DEMO-04 PR3, 19 Kasım 2026, `demo-04c-presentation-tour`): `presentation/index.html` 22 slayt; 20 araç haritası, gösterilen
   araç sayacı, canlı boru hattı, `O` slayt haritası; animasyonlar "Hareketi azalt"ta kapalı. Yardımcı ve uygulama değişmedi.
 - Etkileşimli sunum (DEMO-04 PR2, 19 Kasım 2026, `demo-04b-presentation`): `scripts/present.sh` → `presentation/server.py` (127.0.0.1:7300,

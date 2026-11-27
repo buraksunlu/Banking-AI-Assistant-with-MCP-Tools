@@ -902,6 +902,15 @@ kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir.
   canlı boru hattı (her soruda iPhone→API→AI→MCP→DB şeridi; 2. slaytta adım adım günlük), 20 aracın 7 aileli haritası (dokununca örnek
   soru), "gösterilen araç" sayacı (N/20), yazım düzeltme ve sayı kontrolü canlandırmaları, `O` slayt haritası. 43 örnek sorunun hepsi
   ölçüm vakalarından ya da öneri tablosundan; modelsiz yönlendirmeyle denetlendi. Bulgu (ayrı iş): `spelling.correct` "harcdım"ı "harcım" yapıyor.
+- [ ] DEMO-05 — Tek sahne (27 Kasım 2026 kullanıcı isteği: simülatör ve sunum aynı düzlemde, birbirinin parçası; seçenek A, K1-A K2-A
+  K3-A K4-D K5-D K6-B; ek kararlar K7 A+B, K8-A, K9-A, K10-C, K11-A, K12-A). Üç PR. PR1 sahne (tamam, 27 Kasım 2026): `presentation/host`
+  (Swift paketi, `CompassPresenter.app`), tam ekran pencere normal pencerelerin bir kat altında (deneme: simülatör üstte kalıyor, klavye
+  geliyor, ilk tıklama ancak `acceptsFirstMouse` ile düğmeye ulaşıyor); boşluk simülatörün izinsiz okunan konumundan, izin varsa simülatör
+  de taşınır (K4-D: izin bu Mac'te gecikmeli geldi, terminalden başlatılan programa geçmedi; Xcode 26 simülatörü boyutlamayı reddediyor);
+  sayfada telefon sütunu, sekme düğmeleri, slaytın sekmesini açma, `⏎` sıradaki soru, `S`. Yerleşim testleri 16, 4 kasıtlı bozma yakalandı.
+  Kullanıcının ekran kontrolü yarım: üstte kalma ve klavye doğrulandı, sütun yerleşimi doğrulanmadı (PR2'de panel ile tamamlanır).
+  PR2 hazırlık paneli (`H` paneli + telefon altında ışıklar; `server.py` → `scripts/stage.sh` sabit adlar; canlı DB; uygulama başlat +
+  "Derle ve kur"; "Hepsini durdur" Colima/PostgreSQL'e dokunmaz). PR3 ters yön (telefon yalnız DEBUG'da durum olayı gönderir, metin yok).
 - [ ] FIN-10 — Kullanıcıyla son kabul review'ü yap. Açık maddeleri yapılmış işaretleme; ertelenen işleri gerekçesiyle ayır.
 
 ## Kapsam dışında kalanlar
