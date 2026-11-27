@@ -260,6 +260,33 @@
   #phone .dock .state { font-size: 12px; color: var(--muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   body.hosted aside.notes { left: calc(var(--column) + 16px); }
   body.hosted .overview { left: var(--column); }
+  /* The setup panel (DEMO-05 PR2): H opens it; the lights under the phone stay on screen. */
+  .setup {
+    display: none; position: fixed; z-index: 7; right: 20px; top: 52px; width: min(460px, calc(100vw - 40px));
+    background: rgba(29, 23, 18, .97); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .55);
+  }
+  body.show-setup .setup { display: block; }
+  .setup .all { display: flex; gap: 8px; margin: 4px 0 10px; }
+  .setup button { font: inherit; font-size: 13px; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; min-height: 34px; padding: 0 12px; cursor: pointer; }
+  .setup button.primary { background: var(--amber); color: var(--stage); border-color: var(--amber); font-weight: 700; }
+  .setup button:disabled { opacity: .4; cursor: default; }
+  .setup button:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+  .setup .row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 9px 0; border-top: 1px solid var(--line); }
+  .setup .row b { font-size: 14px; }
+  .setup .row small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .setup .row .acts { display: flex; gap: 6px; }
+  .setup .last { font-size: 12px; color: var(--muted); margin: 8px 0 0; min-height: 1.4em; }
+  .setup .last.bad { color: var(--bad); }
+  .light { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--faint); margin-right: 6px; vertical-align: 1px; }
+  .light.on { background: var(--ok); box-shadow: 0 0 8px rgba(107, 203, 139, .8); }
+  .light.off { background: var(--bad); }
+  .light.half { background: var(--amber); }
+  .light.busy { background: var(--amber); animation: blink 1s steps(1) infinite; }
+  #phone .dock .state { display: flex; justify-content: center; align-items: center; gap: 8px; }
+  #lights { display: inline-flex; gap: 3px; cursor: pointer; background: none; border: 0; padding: 4px; min-height: 0; }
+  #lights .light { width: 7px; height: 7px; margin: 0; }
+
   /* Enter sends the slide's next question (K5-D). */
   button.ask.next, .chip.next { border-color: rgba(245, 167, 0, .75); }
   button.ask.next::after, .chip.next::after {
@@ -281,7 +308,7 @@
   <div class="hole"><span>Simülatörü buraya sürükle</span></div>
   <div class="dock">
     <div class="row"><button data-tab="home">Ana sayfa</button><button data-tab="analysis">Analiz</button><button data-tab="assistant">Asistan</button><button data-tab="profile">Profil</button></div>
-    <div class="state" id="phoneState"></div>
+    <div class="state"><span id="phoneState"></span><button id="lights" type="button" aria-label="Hazırlık paneli (H)"></button></div>
   </div>
 </aside>
 
@@ -319,7 +346,7 @@
       <div><b data-count="0" data-fixed="1">0</b>buluta giden veri</div>
     </div>
     <div class="tabs r" style="--i:5"><button class="tab" data-tab="home">Uygulamayı ana sayfaya al</button></div>
-    <p class="hint r" style="--i:6"><kbd>←</kbd> <kbd>→</kbd> gezin · <kbd>O</kbd> slayt haritası · <kbd>N</kbd> not · ▶ düğmesi soruyu simülatörde sorar · <kbd>⏎</kbd> sıradaki soru · <kbd>S</kbd> telefon slaytı izler</p>
+    <p class="hint r" style="--i:6"><kbd>←</kbd> <kbd>→</kbd> gezin · <kbd>O</kbd> slayt haritası · <kbd>N</kbd> not · ▶ düğmesi soruyu simülatörde sorar · <kbd>⏎</kbd> sıradaki soru · <kbd>S</kbd> telefon slaytı izler · <kbd>H</kbd> hazırlık</p>
   </div>
   <aside class="notes">Solda uygulama, sağda sunum. ▶ düğmeleri soruyu gerçekten uygulamadaki asistana gönderiyor: arada hiçbir şey taklit değil. Sağ üstteki halka kaç aracı gösterdiğimi sayıyor.</aside>
 </section>
@@ -652,6 +679,13 @@
   <span id="status" role="status" aria-live="polite"></span>
 </footer>
 
+<div class="setup" id="setup" role="dialog" aria-label="Hazırlık">
+  <div class="eyebrow">Hazırlık · <kbd>H</kbd> kapatır</div>
+  <div class="all"><button class="primary" type="button" data-control='{"start":"all"}'>Hepsini başlat</button><button type="button" data-control='{"stop":"all"}'>Hepsini durdur</button></div>
+  <div id="setupRows"></div>
+  <p class="last" id="setupLast" role="status" aria-live="polite"></p>
+</div>
+
 <div class="overview" id="overview" role="dialog" aria-label="Slayt haritası"><div class="eyebrow">Slayt haritası · <kbd>O</kbd> kapatır</div><div class="list" id="overviewList"></div></div>
 
 <script>
@@ -928,7 +962,8 @@
     else if (key === "End") show(slides.length - 1);
     else if (key.toLowerCase() === "n") document.body.classList.toggle("show-notes");
     else if (key.toLowerCase() === "o") document.body.classList.toggle("show-overview");
-    else if (key === "Escape") document.body.classList.remove("show-overview", "show-notes");
+    else if (key === "Escape") document.body.classList.remove("show-overview", "show-notes", "show-setup");
+    else if (key.toLowerCase() === "h" && !event.metaKey) { setupAuto = false; document.body.classList.toggle("show-setup"); }
     else if (key === "Enter" && !event.target.closest("button") && !document.body.classList.contains("show-overview")) {
       event.preventDefault();
       const next = slides[index].querySelector(".next");
@@ -941,6 +976,98 @@
     }
     else if (key.toLowerCase() === "r" && event.shiftKey) { shown.clear(); document.querySelectorAll(".sent").forEach(b => b.classList.remove("sent")); updateTally(); markNext(); }
   });
+
+  // ---------- the setup panel (DEMO-05 PR2) ----------
+  // Each row is one part of the demo; its light comes from GET /api/status every 3 s, its buttons post one fixed command to
+  // /api/control (server.py → scripts/stage.sh). The panel opens by itself when a part is down at the start and closes once
+  // everything is up, unless the presenter opened or closed it by hand.
+  const PARTS = [
+    { name: "Veritabanı", info: "Colima + PostgreSQL", lights: ["db"], acts: [["Başlat", { start: "db" }]] },
+    { name: "Model", info: "Ollama · qwen3.5:4b · harici SSD", lights: ["model"], acts: [["Başlat", { start: "model" }], ["Boşalt", { stop: "model" }]] },
+    { name: "Servisler", info: "API :5248 · MCP :5249 · AI :8000 · canlı veritabanı", lights: ["api", "mcp", "ai"],
+      acts: [["Başlat", { start: "services" }], ["Durdur", { stop: "services" }]] },
+    { name: "Simülatör", info: "iPhone 17 Pro", lights: ["simulator"], acts: [["Başlat", { start: "simulator" }]] },
+    { name: "Uygulama", info: "Compass, Debug · giriş telefonda", lights: ["app"], acts: [["Aç", { start: "app" }], ["Derle ve kur", { install: "app" }]] }];
+  // Which lights a running command is about to change.
+  const TOUCHES = { db: ["db"], model: ["model"], services: ["api", "mcp", "ai"], simulator: ["simulator", "app"], app: ["app"],
+                    all: ["db", "model", "api", "mcp", "ai", "simulator", "app"] };
+  const WORDS = { on: "çalışıyor", off: "kapalı", running: "açık", installed: "kurulu, açık değil", missing: "kurulu değil",
+                  old: "eski derleme: Derle ve kur" };
+  const NAMES = { db: "veritabanı", model: "model", api: "API", mcp: "MCP", ai: "AI", simulator: "simülatör", app: "uygulama" };
+  const setupRows = document.getElementById("setupRows"), setupLast = document.getElementById("setupLast");
+  const lightsButton = document.getElementById("lights");
+  setupRows.innerHTML = PARTS.map((part, i) => `<div class="row"><div>${part.lights.map(l => `<span class="light" data-part="${l}"></span>`).join("")}<b>${part.name}</b><small data-row="${i}">${part.info}</small></div>
+    <div class="acts">${part.acts.map(([label, command]) => `<button type="button" data-control='${JSON.stringify(command)}'>${label}</button>`).join("")}</div></div>`).join("");
+  lightsButton.innerHTML = Object.keys(NAMES).map(l => `<span class="light" data-part="${l}"></span>`).join("");
+  let setupAuto = null, polling = false, pendingBusy = null;
+
+  function tone(state, busy) {
+    if (busy) return "busy";
+    return state === "on" || state === "running" ? "on" : state === "installed" ? "half" : state ? "off" : "";
+  }
+
+  function render(status) {
+    const parts = status?.parts || {}, busy = status?.busy || pendingBusy;
+    const busyParts = busy ? TOUCHES[busy.split(" ")[1]] || [] : [];
+    document.querySelectorAll(".light[data-part]").forEach(light => {
+      const part = light.dataset.part;
+      light.className = `light ${tone(parts[part], busyParts.includes(part))}`;
+      light.title = `${NAMES[part]}: ${busyParts.includes(part) ? "işleniyor…" : WORDS[parts[part]] || "bilinmiyor"}`;
+    });
+    PARTS.forEach((part, i) => {
+      const states = part.lights.map(l => parts[l]).filter(Boolean);
+      document.querySelector(`[data-row="${i}"]`).textContent = states.length
+        ? `${part.info} · ${part.lights.length > 1 ? part.lights.map(l => `${NAMES[l]} ${WORDS[parts[l]]}`).join(", ") : WORDS[states[0]]}`
+        : part.info;
+    });
+    document.querySelectorAll("[data-control]").forEach(b => { b.disabled = Boolean(busy); });
+    if (busy) { setupLast.className = "last"; setupLast.textContent = `Sürüyor: ${busy}…`; }
+    else if (status?.last) {
+      setupLast.className = status.last.ok ? "last" : "last bad";
+      setupLast.textContent = `${status.last.ok ? "✓" : "✗"} ${status.last.command}: ${status.last.line}`;
+    }
+    const ready = status && Object.values(parts).length && Object.values(parts).every(v => v === "on" || v === "running");
+    if (status && setupAuto === null) { setupAuto = !ready; document.body.classList.toggle("show-setup", !ready); }
+    else if (setupAuto && ready && !busy) { setupAuto = false; document.body.classList.remove("show-setup"); }
+  }
+
+  async function poll() {
+    if (polling) return;
+    polling = true;
+    try {
+      const response = await fetch("/api/status", { cache: "no-store" });
+      if (!response.ok) throw new Error();
+      const status = await response.json();
+      pendingBusy = null;
+      render(status);
+    } catch {
+      render(null);
+      setupLast.className = "last bad"; setupLast.textContent = "Durum okunamadı: sunum yardımcısı çalışıyor mu?";
+    } finally {
+      polling = false;
+    }
+  }
+
+  async function control(command) {
+    try {
+      const response = await fetch("/api/control", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(command) });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || `Hata ${response.status}`);
+      const [[verb, name]] = Object.entries(command);
+      pendingBusy = `${verb} ${name}`;
+      render(null);
+      setTimeout(poll, 500);
+    } catch (error) {
+      setupLast.className = "last bad";
+      setupLast.textContent = error.message === "Failed to fetch" || error.message === "Load failed" ? "Sunum yardımcısı kapalı" : error.message;
+    }
+  }
+
+  document.getElementById("setup").addEventListener("click", event => {
+    const button = event.target.closest("[data-control]");
+    if (button && !button.disabled) control(JSON.parse(button.dataset.control));
+  });
+  lightsButton.addEventListener("click", () => { setupAuto = false; document.body.classList.toggle("show-setup"); });
 
   // ---------- the stage (DEMO-05) ----------
   // Inside the presenter app the page gets a phone column; the app reports where the simulator is (null: none on the left).
@@ -955,6 +1082,8 @@
   };
 
   showPhoneState("bekliyor");
+  poll();
+  setInterval(poll, 3000);
   updateTally();
   show(index);
   presenter?.postMessage("ready");

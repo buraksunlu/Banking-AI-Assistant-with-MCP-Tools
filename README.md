@@ -330,6 +330,12 @@ python3 -m unittest discover -s presentation   # yardımcının testleri
 swift test --package-path presentation/host    # sahnenin yerleşim hesabı
 ```
 
+Hazırlık paneli (DEMO-05 PR2, `H`): veritabanı, model, API/MCP/AI (canlı veritabanı), simülatör ve uygulama için durum ışıkları ve
+Başlat/Durdur; "Hepsini başlat" sırayla açar, uygulama kurulu değilse ya da `compass://` bağlantısını tanımayan eski bir derlemeyse
+Debug derleyip kurar. Işıklar telefonun altında hep görünür. Panel `server.py` üzerinden yalnız sabit adlarla `scripts/stage.sh`'ı çalıştırır;
+aynı script terminalden de kullanılır (`scripts/stage.sh status`, `start all`, `stop all`, `install app`). Panelden başlayan servisler
+sahne kapanınca da çalışır; "Hepsini durdur" servisleri kapatır ve modeli boşaltır, veritabanına dokunmaz.
+
 Boşluk simülatörün nerede olduğuna göre çizilir; bunun için izin gerekmez. Sistem Ayarları → Gizlilik ve Güvenlik → Erişilebilirlik'te
 **CompassPresenter** açıksa sahne simülatörü boşluğa kendisi taşır; değilse simülatörü boşluğa bir kez sürüklemek yeter. Uygulama her
 yeniden derlemede yeni imza aldığı için `present.sh` yalnız kaynak değişince derler.

@@ -60,8 +60,6 @@ final class Presenter: NSObject, NSApplicationDelegate, WKNavigationDelegate, WK
         self.webView = webView
 
         NSApp.activate()
-        // Asks once; without the permission the simulator stays where it is put and the hole follows it.
-        _ = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": true] as CFDictionary)
         webView.load(URLRequest(url: url))
         Task { [weak self] in
             while let self {
@@ -73,7 +71,8 @@ final class Presenter: NSObject, NSApplicationDelegate, WKNavigationDelegate, WK
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
-    /// One look at the simulator: move or size it when allowed, then tell the page where it is.
+    /// One look at the simulator: move or size it when allowed, then tell the page where it is. The permission is only checked,
+    /// never asked for: asking on every start showed a system prompt each time the stage was reopened (DEMO-05 PR2 finding).
     private func tick() {
         guard let frame = SimulatorWindow.onScreen() else {
             snapper.lost()

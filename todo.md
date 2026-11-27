@@ -909,8 +909,12 @@ kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir.
   de taşınır (K4-D: izin bu Mac'te gecikmeli geldi, terminalden başlatılan programa geçmedi; Xcode 26 simülatörü boyutlamayı reddediyor);
   sayfada telefon sütunu, sekme düğmeleri, slaytın sekmesini açma, `⏎` sıradaki soru, `S`. Yerleşim testleri 16, 4 kasıtlı bozma yakalandı.
   Kullanıcının ekran kontrolü yarım: üstte kalma ve klavye doğrulandı, sütun yerleşimi doğrulanmadı (PR2'de panel ile tamamlanır).
-  PR2 hazırlık paneli (`H` paneli + telefon altında ışıklar; `server.py` → `scripts/stage.sh` sabit adlar; canlı DB; uygulama başlat +
-  "Derle ve kur"; "Hepsini durdur" Colima/PostgreSQL'e dokunmaz). PR3 ters yön (telefon yalnız DEBUG'da durum olayı gönderir, metin yok).
+  PR2 hazırlık paneli (tamam, 27 Kasım 2026): `H` paneli + telefon altında yedi ışık; `server.py` `/api/control` → `scripts/stage.sh`
+  sabit adlarla, `/api/status`; canlı DB; "Derle ve kur", eski derlemeyi (`compass://` yok) tanıyıp kurar; "Hepsini durdur" Colima/PostgreSQL'e
+  dokunmaz. Sunucu testleri 10 → 25, 4 kasıtlı bozma yakalandı (beyaz liste, kabuk, köken, durum sızıntısı); eski testlerdeki `self.fail`
+  gölgesi düzeltildi. Kullanıcı ekranda doğruladı: sütun yerleşimi, panelden başlatma, soru simülatöre gidiyor.
+  PR3 yetenek haritası (K13 A+B, K14-B, K16-A): araçların üstündeki katman (tarih, geri soru, takip, yazılış, ret, cevabın kendisi), örnekler
+  ölçümden ve canlı Murat denemesinden. PR4 ters yön (telefon yalnız DEBUG'da durum olayı gönderir, metin yok).
 - [ ] FIN-10 — Kullanıcıyla son kabul review'ü yap. Açık maddeleri yapılmış işaretleme; ertelenen işleri gerekçesiyle ayır.
 
 ## Kapsam dışında kalanlar
