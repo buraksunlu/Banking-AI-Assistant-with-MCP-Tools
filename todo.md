@@ -931,6 +931,9 @@ kullanabilir; MCP-08/MCP-15/MCP-25 merchant tool'ları tek araçta toplanabilir.
   `ai_answer_rejected` (502; sayfadan çıkarıldı, ayrı `fix/` dalı); Murat'ın canlı verisi 22 Kasım'da bitiyor (Dün/Bu hafta "harcama yok");
   "hava nasıl" ret yerine konu sorusu alıyor; 30 dk boşta kalan model ilk soruda yükleniyor ve 30 s'de 504 veriyor, paneldeki "model"
   ışığı yalnız kurulu olduğuna bakıyor (bellekte olduğuna değil); deneme betiği önce modeli ısıtıyor.
+  İkinci ve üçüncü denemede "Eylül'ün ilk haftası" / "Yılbaşından beri" geri soruya düştü: model aynı ifadeye farklı aralık veriyordu → CHAT-14
+  (takvim hesabı kodda, #122); CHAT-14'ten sonra son deneme 90/90, cevap türleri ilk denemeyle aynı, ortanca 2,9 sn. "Bu ay → Peki geçen ay?"
+  zinciri iki denemede 27-34 sn sürdü (biri 504), tek başına 2,5-3,9 sn; önünde model yazımı geri sorular vardı, neden doğrulanmadı.
   PR4 ters yön (telefon yalnız DEBUG'da durum olayı gönderir, metin yok).
 - [ ] FIN-10 — Kullanıcıyla son kabul review'ü yap. Açık maddeleri yapılmış işaretleme; ertelenen işleri gerekçesiyle ayır.
 

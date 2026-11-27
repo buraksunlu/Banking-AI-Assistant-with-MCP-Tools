@@ -9,105 +9,105 @@
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 3.0
+   "seconds": 2.8
   },
   "Son 30 günde kategorilere göre harcamam nasıl?": {
    "type": "answer",
    "tools": [
     "get_category_breakdown"
    ],
-   "seconds": 3.3
+   "seconds": 2.9
   },
   "Son 3 ayda markete ne kadar harcadım?": {
    "type": "answer",
    "tools": [
     "get_category_spending"
    ],
-   "seconds": 4.2
+   "seconds": 4.8
   },
   "Bu yıl ne kadar harcadım?": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 3.1
+   "seconds": 2.9
   },
   "20 Ekim'de ne harcadım?": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 2.5
+   "seconds": 2.4
   },
   "1-5 Eylül arası ne kadar harcadım?": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 3.3
+   "seconds": 2.6
   },
   "Eylül'de ne kadar harcadım?": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 2.9
+   "seconds": 2.7
   },
   "28 Ağustos - 3 Eylül arası ne harcadım?": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 3.3
+   "seconds": 2.4
   },
   "01.09.2026 - 05.09.2026 arası ne harcadım?": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 3.1
+   "seconds": 2.4
   },
   "Eylül'de markete ne kadar harcadım?": {
    "type": "answer",
    "tools": [
     "get_category_spending"
    ],
-   "seconds": 5.2
+   "seconds": 3.9
   },
   "15 Kasım'da ne harcadım?": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 3.0
+   "seconds": 2.4
   },
   "Eylül'ün ilk haftası ne harcadım?": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 6.8
+   "seconds": 2.3
   },
   "Yılbaşından beri ne kadar harcadım?": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 7.3
+   "seconds": 2.4
   },
   "Geçen hafta sonu ne harcadım?": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 10.8
+   "seconds": 9.9
   },
   "Geçen salı ne harcadım?": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 10.3
+   "seconds": 9.4
   },
   "31 Şubat'ta ne harcadım?": {
    "type": "clarification",
@@ -132,7 +132,7 @@
   "Ne kadar harcadım?": {
    "type": "clarification",
    "tools": [],
-   "seconds": 15.2
+   "seconds": 14.0
   },
   "Migros'a ne kadar harcadım? → geçen ay": {
    "type": "clarification",
@@ -144,64 +144,64 @@
   "Harcamalarımı azaltsam ne kadar biriktiririm?": {
    "type": "clarification",
    "tools": [],
-   "seconds": 20.4
+   "seconds": 17.7
   },
   "Ayda 1.000 TL biriktirseydim ne olurdu?": {
    "type": "clarification",
    "tools": [],
-   "seconds": 6.8
+   "seconds": 5.1
   },
   "Harcamam aylara göre nasıl değişti?": {
    "type": "clarification",
    "tools": [],
-   "seconds": 11.5
+   "seconds": 9.1
   },
   "hava nasıl": {
    "type": "clarification",
    "tools": [],
-   "seconds": 2.5
+   "seconds": 2.6
   },
   "Bu ay ne kadar harcadım? → Peki geçen ay?": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 9.2
+   "seconds": 27.2
   },
   "1-5 Eylül arası ne kadar harcadım? → Peki 6-10 Eylül?": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 8.2
+   "seconds": 7.1
   },
   "Geçen ay en çok hangi kategoriye harcadım? → Peki işyerlerine göre?": {
    "type": "answer",
    "tools": [
     "get_merchant_breakdown"
    ],
-   "seconds": 7.4
+   "seconds": 7.3
   },
   "Ayda 1.000 TL 6 ay biriktirseydim ne olurdu? → Peki 3 ay?": {
    "type": "answer",
    "tools": [
     "what_if_monthly"
    ],
-   "seconds": 6.9
+   "seconds": 5.4
   },
   "Geçen ay en büyük harcamalarım neler? → Ya bu yıl?": {
    "type": "answer",
    "tools": [
     "get_highest_transactions"
    ],
-   "seconds": 8.0
+   "seconds": 6.7
   },
   "Ne kadar harcadım? → bu ay": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 13.5
+   "seconds": 12.4
   },
   "elimde ne kadar para var": {
    "type": "answer",
@@ -229,49 +229,49 @@
    "tools": [
     "get_income"
    ],
-   "seconds": 3.0
+   "seconds": 2.8
   },
   "geçen ay kimlere para attım": {
    "type": "answer",
    "tools": [
     "get_transfers"
    ],
-   "seconds": 4.0
+   "seconds": 3.8
   },
   "geçen ay ne kadar gitti": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 3.4
+   "seconds": 2.9
   },
   "eft geçen ay": {
    "type": "answer",
    "tools": [
     "get_transfers"
    ],
-   "seconds": 3.0
+   "seconds": 2.4
   },
   "maşım yattı mı": {
    "type": "answer",
    "tools": [
     "get_income"
    ],
-   "seconds": 2.8
+   "seconds": 2.4
   },
   "harcdım bu ay ne kadar": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 3.9
+   "seconds": 5.0
   },
   "bu ay maas geldi mi": {
    "type": "answer",
    "tools": [
     "get_income"
    ],
-   "seconds": 2.9
+   "seconds": 2.0
   },
   "migrosa geçen ay ne kadar ödedim": {
    "type": "clarification",
@@ -285,28 +285,28 @@
    "tools": [
     "search_transactions"
    ],
-   "seconds": 3.8
+   "seconds": 4.6
   },
   "2 binin üstündeki harcamalarım geçen ay": {
    "type": "answer",
    "tools": [
     "search_transactions"
    ],
-   "seconds": 5.8
+   "seconds": 3.8
   },
   "geçen ay 100 ile 300 tl arası harcamalarım": {
    "type": "answer",
    "tools": [
     "search_transactions"
    ],
-   "seconds": 6.6
+   "seconds": 5.9
   },
   "1,5 yıl boyunca ayda 500 TL biriktirseydim bugün ne olurdu?": {
    "type": "answer",
    "tools": [
     "what_if_monthly"
    ],
-   "seconds": 5.1
+   "seconds": 7.4
   },
   "Market harcamamı yarıya indirsem ne kazanırım?": {
    "type": "answer",
@@ -328,7 +328,7 @@
   "Selin'e 500 tl gönder": {
    "type": "outOfScope",
    "tools": [],
-   "seconds": 5.0
+   "seconds": 6.2
   },
   "Altın alayım mı?": {
    "type": "outOfScope",
@@ -350,47 +350,47 @@
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 2.2
+   "seconds": 2.9
   },
   "Bu ay 2.000 TL üstü harcamalarım neler?": {
    "type": "answer",
    "tools": [
     "search_transactions"
    ],
-   "seconds": 3.7
+   "seconds": 3.5
   },
   "Geçen ay harcadığım parayla altın alsaydım bugün ne olurdu?": {
    "type": "answer",
    "tools": [
     "what_if_one_off"
    ],
-   "seconds": 8.9
+   "seconds": 9.6
   },
   "Geçen ay en çok hangi kategoriye harcadım?": {
    "type": "answer",
    "tools": [
     "get_category_breakdown"
    ],
-   "seconds": 2.3
+   "seconds": 2.9
   },
   "Geçen ay markete ne kadar harcadım?": {
    "type": "answer",
    "tools": [
     "get_category_spending"
    ],
-   "seconds": 3.8
+   "seconds": 3.9
   },
   "Bu ay harcamalarım işyerlerine göre nasıl dağıldı?": {
    "type": "answer",
    "tools": [
     "get_merchant_breakdown"
    ],
-   "seconds": 3.1
+   "seconds": 2.9
   },
   "Migros'a ne kadar harcadım?": {
    "type": "clarification",
    "tools": [],
-   "seconds": 6.7
+   "seconds": 6.4
   },
   "Bu ay en büyük harcamalarım neler?": {
    "type": "answer",
@@ -404,82 +404,82 @@
    "tools": [
     "compare_spending"
    ],
-   "seconds": 5.9
+   "seconds": 6.3
   },
   "Geçen aya göre harcamam arttı mı?": {
    "type": "answer",
    "tools": [
     "compare_spending"
    ],
-   "seconds": 6.0
+   "seconds": 6.3
   },
   "Son 6 ayda harcamam aylara göre nasıl değişti?": {
    "type": "answer",
    "tools": [
     "get_monthly_trend"
    ],
-   "seconds": 5.5
+   "seconds": 2.7
   },
   "1-5 Eylül'de ne kadar harcadım?": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 2.2
+   "seconds": 2.6
   },
   "Aboneliklerim neler?": {
    "type": "answer",
    "tools": [
     "get_recurring_payments"
    ],
-   "seconds": 1.7
+   "seconds": 1.4
   },
   "Önümüzdeki 30 günde hangi ödemelerim var?": {
    "type": "answer",
    "tools": [
     "get_upcoming_payments"
    ],
-   "seconds": 2.5
+   "seconds": 2.7
   },
   "Bu ay yeme içme için 1.000 TL bütçem var, aşar mıyım?": {
    "type": "answer",
    "tools": [
     "check_budget"
    ],
-   "seconds": 5.2
+   "seconds": 5.3
   },
   "Yeme içme harcamamı %20 azaltırsam yılda ne kadar biriktiririm?": {
    "type": "answer",
    "tools": [
     "simulate_savings"
    ],
-   "seconds": 5.0
+   "seconds": 5.6
   },
   "Geçen ay maaşımın ne kadarını harcadım?": {
    "type": "answer",
    "tools": [
     "get_income_share"
    ],
-   "seconds": 10.5
+   "seconds": 10.6
   },
   "Geçen ay nerede tasarruf edebilirim?": {
    "type": "answer",
    "tools": [
     "get_spending_advice"
    ],
-   "seconds": 10.5
+   "seconds": 2.7
   },
   "Ayda 1.000 TL 6 ay altın olarak biriktirseydim ne olurdu?": {
    "type": "answer",
    "tools": [
     "what_if_monthly"
    ],
-   "seconds": 5.5
+   "seconds": 5.4
   },
   "Ayda 2 bin TL biriktirseydim ne olurdu?": {
    "type": "clarification",
    "tools": [],
-   "seconds": 4.8
+   "seconds": 4.9
   },
   "Bakiyem ne kadar?": {
    "type": "answer",
@@ -493,61 +493,61 @@
    "tools": [
     "get_income"
    ],
-   "seconds": 2.6
+   "seconds": 2.0
   },
   "Geçen ay kime para gönderdim?": {
    "type": "answer",
    "tools": [
     "get_transfers"
    ],
-   "seconds": 4.3
+   "seconds": 3.6
   },
   "Kategorilere göre harcamam nasıl?": {
    "type": "clarification",
    "tools": [],
-   "seconds": 5.3
+   "seconds": 4.6
   },
   "Kategorilere göre harcamam nasıl? → Peki geçen ay?": {
    "type": "answer",
    "tools": [
     "get_category_breakdown"
    ],
-   "seconds": 4.6
+   "seconds": 4.2
   },
   "Kategorilere göre harcamam nasıl? → Peki geçen ay? → Peki işyerlerine göre?": {
    "type": "answer",
    "tools": [
     "get_merchant_breakdown"
    ],
-   "seconds": 8.8
+   "seconds": 9.1
   },
   "Kategorilere göre harcamam nasıl? → Peki geçen ay? → Peki işyerlerine göre? → Ya son 3 ayda?": {
    "type": "answer",
    "tools": [
     "get_merchant_breakdown"
    ],
-   "seconds": 10.7
+   "seconds": 12.8
   },
   "gecen ay ne kadar harcadim": {
    "type": "answer",
    "tools": [
     "get_spending_summary"
    ],
-   "seconds": 2.4
+   "seconds": 2.6
   },
   "param bu ay nereye gitti": {
    "type": "answer",
    "tools": [
     "get_category_breakdown"
    ],
-   "seconds": 2.4
+   "seconds": 2.7
   },
   "aboneliklerm neler": {
    "type": "answer",
    "tools": [
     "get_recurring_payments"
    ],
-   "seconds": 1.4
+   "seconds": 1.3
   },
   "Deniz'in harcamalarını göster": {
    "type": "outOfScope",
@@ -574,21 +574,21 @@
    "tools": [
     "get_merchant_breakdown"
    ],
-   "seconds": 3.0
+   "seconds": 3.4
   },
   "Her ay otomatik çekilen ödemelerim hangileri?": {
    "type": "answer",
    "tools": [
     "get_recurring_payments"
    ],
-   "seconds": 1.6
+   "seconds": 1.3
   },
   "Geçen ay kimden para geldi?": {
    "type": "answer",
    "tools": [
     "get_transfers"
    ],
-   "seconds": 3.4
+   "seconds": 3.7
   }
  }
 }

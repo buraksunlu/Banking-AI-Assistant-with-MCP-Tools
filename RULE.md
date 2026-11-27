@@ -941,8 +941,9 @@ COMPLETED
   araçların üstündeki katman: on aile, 57 yetenek, sayfadaki tek JSON bloğundan çizilir), takip yetenekleri iki adımlı, sayaç araç + yetenek.
   Zaman slaytında belirli tarih, aralık ve hatalı tarih. `presentation/live_trial.py` slaytların gönderebildiği her soruyu canlı zincirde
   Murat olarak sorar ve `live_trial.json`'a yalnız tür/araç/süre yazar; `test_capabilities.py` sayfayı ona karşı denetler (sorulmamış ya da
-  hata almış soru, ret ailesinde cevap, başka araca giden araç sorusu kırmızı). 90 soru, 0 hata; testler 32. Bulgular: "3 gün önce" harcamasız
-  günde 502 (ayrı dal); 30 dk boşta kalan model ilk soruda 504 (betik önce ısıtır, paneldeki model ışığı bellekte olmayı göstermiyor).
+  hata almış soru, ret ailesinde cevap, başka araca giden araç sorusu kırmızı). 90 soru, 0 hata (CHAT-14'ten sonra yeniden); testler 32. Bulgular:
+  "3 gün önce" harcamasız günde 502 (ayrı dal); 30 dk boşta kalan model ilk soruda 504 (betik önce ısıtır, paneldeki model ışığı bellekte olmayı
+  göstermiyor); model aynı tarihe farklı aralık veriyordu (CHAT-14 ile kapandı); "Bu ay → Peki geçen ay?" denemede ara sıra 27-34 sn.
 - Takvim hesabı kodda (CHAT-14, 27 Kasım 2026, `chat-14-dates-by-code`; K1-C K2-B K3-A K4-A K5-A K6-A K7-A): ayın parçası, yılbaşından beri,
   geçen yıl, N gün/hafta/ay/yıl önce, evvelsi gün, geçen <gün>, geçen hafta sonu `dates.read_dates`'te (model görmez); modele kalan kuralsız
   ifadenin aralığı `dates.fits_words` ile yazan ay/gün adı/yıla tutturulur (`chat._read`), tutmazsa dönem sorulur. `date_eval.py --repeat 5`
