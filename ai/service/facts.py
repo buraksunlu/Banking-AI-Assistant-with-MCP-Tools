@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
+from answer_check import EMPTY_RESULT
 from contracts import Fact
 from formatting import day, money, month, percent, period, price
 
@@ -239,7 +240,7 @@ def _recurring(arguments: dict, result: dict) -> ToolOutcome:
         suffix = f" ({total['currencyCode']})" if len(totals) > 1 else ""
         facts.append(_fact(f"Aylık toplam{suffix}", money(total["monthlyTotal"], total["currencyCode"])))
     if not payments:
-        facts.append(_fact("Sonuç", NO_RECURRING))
+        facts.append(_fact(EMPTY_RESULT, NO_RECURRING))
     elif len(totals) > 1:
         facts.append(_fact("Not", CURRENCIES_APART))
     return ToolOutcome([*facts, _fact("Not", RECURRING_RULE)])
@@ -258,7 +259,7 @@ def _upcoming(arguments: dict, result: dict) -> ToolOutcome:
         suffix = f" ({total['currencyCode']})" if len(totals) > 1 else ""
         facts.append(_fact(f"Tahmini toplam{suffix}", money(total["estimatedTotal"], total["currencyCode"])))
     if not payments:
-        facts.append(_fact("Sonuç", NO_UPCOMING))
+        facts.append(_fact(EMPTY_RESULT, NO_UPCOMING))
     elif len(totals) > 1:
         facts.append(_fact("Not", CURRENCIES_APART))
     return ToolOutcome([*facts, _fact("Not", UPCOMING_RULE)])
@@ -599,7 +600,7 @@ def _suffix(row: dict, rows: list[dict]) -> str:
 def _closing(facts: list[Fact], rows: list[dict], empty_text: str) -> list[Fact]:
     # The model only knows what the facts say: an empty result has to be stated, and so does "not added up".
     if not rows:
-        return [*facts, _fact("Sonuç", empty_text)]
+        return [*facts, _fact(EMPTY_RESULT, empty_text)]
     if len(rows) > 1:
         return [*facts, _fact("Not", CURRENCIES_APART)]
     return facts

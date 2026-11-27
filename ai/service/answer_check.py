@@ -15,6 +15,9 @@ if TYPE_CHECKING:
     # Only for type hints: importing contracts would pull in pydantic, which run.py does not have.
     from contracts import Fact
 
+# The label of the fact that says a tool found nothing (facts.py); under it a zero in the answer is a true figure.
+EMPTY_RESULT = "Sonuç"
+
 # Words that only appear when the model talks about the system instead of the user's money (AI-05 eval, X09).
 FORBIDDEN_MENTIONS = ("<veri", "</veri", "backend")
 
@@ -117,6 +120,9 @@ def check_answer(question: str, facts: list[Fact], answer: str) -> AnswerCheck:
 
     sources = [question, *(f"{fact.label} {fact.text}" for fact in facts)]
     allowed = {value for source in sources for value in parse_turkish_numbers(source)}
+    if any(fact.label == EMPTY_RESULT for fact in facts):
+        # "Bu dönemde harcama bulunamadı" has no digit, yet the model adds "harcama tutarı 0 TL" and the true answer was refused twice.
+        allowed.add(Decimal(0))
 
     # Compared by value, so "735" matches "735,00"; reported as written, so the correction quotes the model.
     invented = [text for text, value in _numbers_with_text(answer) if value not in allowed]

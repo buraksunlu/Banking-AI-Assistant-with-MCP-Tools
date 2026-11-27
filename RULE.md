@@ -937,6 +937,8 @@ Her önemli geliştirme sonunda mevcut proje durumunu takip et.
 Şunları güncel tut:
 
 COMPLETED
+- Boş sonuçta sıfır (27 Kasım 2026, `fix/empty-result-zero`): `answer_check.check_answer` "Sonuç" olgusu (`EMPTY_RESULT`, `facts.py` ile
+  ortak) varken yalnız 0'a izin verir; harcamasız günde "3 gün önce" 3'te 3 502 → 3'te 3 cevap. Python 1965.
 - Yazma satırı (CHAT-15, 27 Kasım 2026, `chat-15-input-hints`; K1-C): `clarification.input_hint` yazılan cevabın okunduğu her soruda dolu
   (dönem, ay sayısı, oran, tutar, süre, tamamlanmış ay; konu/alan "Ya da sorunuzu farklı yazın"); işyeri adayı ve para birimi boş. Python 1961.
 - Sıcak model (DEMO-05 PR4a, 27 Kasım 2026, `demo-05d-warm-model`; K1-A K2-D K3-A): `stage.sh` model durumu `/api/ps` ile (`on` bellekte,
