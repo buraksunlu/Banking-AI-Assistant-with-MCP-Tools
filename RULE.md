@@ -937,6 +937,11 @@ Her önemli geliştirme sonunda mevcut proje durumunu takip et.
 Şunları güncel tut:
 
 COMPLETED
+- Hazırlık paneli (DEMO-05 PR2, 27 Kasım 2026, `demo-05b-setup-panel`; K7 A+B, K8-A, K9-A, K10-C, K11-A): `scripts/stage.sh`
+  (status/start/stop/install, canlı DB, adımlar demo.sh ve run-live.sh'tan; ikisine dokunulmadı) + `server.py` `POST /api/control` (yalnız
+  sabit fiil + ad, yalnız kendi kökeni, aynı anda tek komut, kendi oturumunda; çıktı `logs/stage.log`) ve `GET /api/status`. Sayfada `H`
+  paneli ve telefon altında yedi ışık. Bulgular: eski derlemedeki uygulama `compass://`'ı tanımıyordu (status `old`, "Hepsini başlat" kurar);
+  `grep -q` + pipefail çalışan uygulamayı kapalı gösteriyordu; sahne her açılışta izin istemi gösteriyordu (istem kaldırıldı). Sunucu testleri 25.
 - Tek sahne (DEMO-05 PR1, 27 Kasım 2026, `demo-05a-presenter-app`; K1-A K2-A K3-A K4-D K5-D): `presentation/host` Swift paketi
   (AppKit + WebKit, Xcode projesi yok), `present.sh` onu `build/CompassPresenter.app` olarak paketler ve `open` ile açar. Pencere normal
   pencerelerin bir kat altında (simülatör hep üstte); boşluk simülatörün izinsiz okunan konumundan (`CGWindowList`), Erişilebilirlik izni

@@ -5,12 +5,16 @@ A browser page cannot reach the simulator, so a click posts `{"ask": "..."}` or 
 requests from its own page only (another site open in the same browser cannot drive the simulator), runs no shell and knows
 two commands; the app reads the same two (App/DemoLink.swift) and ignores everything else.
 
+The setup panel (DEMO-05 PR2) posts `{"start": "db"}` and the like to `/api/control`; each known command becomes
+`scripts/stage.sh <verb> <name>` with two fixed words (K8-A), one at a time, and `/api/status` reports what is running.
+
     python3 presentation/server.py            # http://127.0.0.1:7300
 """
 
 import json
 import subprocess
 import sys
+import threading
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -23,10 +27,83 @@ TABS = frozenset({"home", "analysis", "assistant", "profile"})
 MAX_LENGTH = 500
 ALLOWED_ORIGINS: set[str] = {f"http://{HOST}:{PORT}", f"http://localhost:{PORT}"}
 MAX_BODY = 4096
+REPO = Path(__file__).resolve().parent.parent
+STAGE_SCRIPT = "scripts/stage.sh"
+# What the panel may do (K10-C, K11-A): start every part, stop only the services and the model (the database stays up),
+# build and install only the app.
+CONTROLS: dict[str, frozenset[str]] = {
+    "start": frozenset({"db", "model", "services", "simulator", "app", "all"}),
+    "stop": frozenset({"services", "model", "all"}),
+    "install": frozenset({"app"}),
+}
 
 
 class SimulatorError(Exception):
     """The link could not be opened: no booted simulator, or Xcode's tools are missing."""
+
+
+class StageError(Exception):
+    """The status could not be read; the message is for the log, never for the page."""
+
+
+def control_args(command: object) -> list[str] | None:
+    """The stage.sh call for one panel command, or None for anything that is not exactly one known verb with one known name."""
+    if not isinstance(command, dict) or len(command) != 1:
+        return None
+    ((verb, name),) = command.items()
+    if verb not in CONTROLS or not isinstance(name, str) or name not in CONTROLS[verb]:
+        return None
+    return [STAGE_SCRIPT, verb, name]
+
+
+class Stage:
+    """Runs one stage.sh command at a time in the background and remembers how the last one ended.
+
+    The command runs in its own session so the services it starts outlive this server (K11-A: quitting the stage leaves them
+    running); its output goes to logs/stage.log, and only its last line is shown on the panel.
+    """
+
+    def __init__(self, repo: Path = REPO) -> None:
+        self.repo = repo
+        self.log = repo / "logs" / "stage.log"
+        self.lock = threading.Lock()
+        self.process: subprocess.Popen | None = None
+        self.command: str | None = None
+        self.last: dict | None = None
+
+    def start(self, args: list[str]) -> bool:
+        """Starts the command; False while another one is still running."""
+        with self.lock:
+            self._reap()
+            if self.process is not None:
+                return False
+            self.log.parent.mkdir(exist_ok=True)
+            with self.log.open("w") as output:
+                self.process = subprocess.Popen(args, cwd=self.repo, stdout=output, stderr=subprocess.STDOUT,
+                                                stdin=subprocess.DEVNULL, start_new_session=True)
+            self.command = " ".join(args[1:])
+            return True
+
+    def status(self) -> dict:
+        """The parts as `stage.sh status` sees them, the running command and how the last one ended."""
+        try:
+            result = subprocess.run([STAGE_SCRIPT, "status"], cwd=self.repo, capture_output=True, text=True, timeout=15)
+            parts = json.loads(result.stdout)
+        except (OSError, subprocess.TimeoutExpired, ValueError) as error:
+            raise StageError(str(error)) from error
+        if not isinstance(parts, dict):
+            raise StageError("status is not an object")
+        with self.lock:
+            self._reap()
+            return {"parts": parts, "busy": self.command if self.process else None, "last": self.last}
+
+    def _reap(self) -> None:
+        if self.process is None or self.process.poll() is None:
+            return
+        lines = [line for line in self.log.read_text(errors="replace").splitlines() if line.strip()] if self.log.exists() else []
+        self.last = {"command": self.command, "ok": self.process.returncode == 0, "line": lines[-1][:200] if lines else ""}
+        self.process = None
+        self.command = None
 
 
 def link_for(command: object) -> str | None:
@@ -54,12 +131,25 @@ def open_in_simulator(url: str) -> None:
         raise SimulatorError(result.stderr.strip() or f"simctl exit {result.returncode}")
 
 
-def make_handler(open_url: Callable[[str], None], root: Path) -> type[BaseHTTPRequestHandler]:
-    """The request handler: `GET /` is the slides, `POST /api/remote` one command; every other path is a 404."""
+def make_handler(open_url: Callable[[str], None], root: Path, control: Callable[[list[str]], bool] | None = None,
+                 status: Callable[[], dict] | None = None) -> type[BaseHTTPRequestHandler]:
+    """The request handler: `GET /` is the slides, `GET /api/status` the setup panel's lights, `POST /api/remote` one command
+    for the simulator and `POST /api/control` one for the stage; every other path is a 404."""
     page = root / "index.html"
+    if control is None or status is None:
+        stage = Stage()
+        control = control or stage.start
+        status = status or stage.status
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
+            if self.path == "/api/status":
+                try:
+                    self.answer(200, status())
+                except StageError as error:
+                    self.log_message("status: %s", error)
+                    self.answer(502, {"error": "Durum okunamadı."})
+                return
             if self.path not in ("/", "/index.html"):
                 self.answer(404, {"error": "Yok."})
                 return
@@ -72,7 +162,7 @@ def make_handler(open_url: Callable[[str], None], root: Path) -> type[BaseHTTPRe
             self.wfile.write(body)
 
         def do_POST(self) -> None:
-            if self.path != "/api/remote":
+            if self.path not in ("/api/remote", "/api/control"):
                 self.answer(404, {"error": "Yok."})
                 return
             # A page on another site can post here too; only our own page names our origin.
@@ -88,6 +178,15 @@ def make_handler(open_url: Callable[[str], None], root: Path) -> type[BaseHTTPRe
             except ValueError:
                 self.answer(400, {"error": "Komut okunamadı."})
                 return
+            if self.path == "/api/control":
+                args = control_args(command)
+                if args is None:
+                    self.answer(400, {"error": "Bilinmeyen komut."})
+                elif not control(args):
+                    self.answer(409, {"error": "Önceki komut sürüyor."})
+                else:
+                    self.answer(202, {"ok": True})
+                return
             url = link_for(command)
             if url is None:
                 self.answer(400, {"error": "Bilinmeyen komut."})
@@ -96,7 +195,10 @@ def make_handler(open_url: Callable[[str], None], root: Path) -> type[BaseHTTPRe
                 open_url(url)
             except SimulatorError as error:
                 self.log_message("simctl: %s", error)
-                self.answer(502, {"error": "Simülatör açık değil ya da bağlantıyı açamadı."})
+                # No app on the simulator knows the link: not installed, or built before the compass:// scheme (DEMO-04).
+                unknown = "LSApplicationWorkspaceErrorDomain" in str(error)
+                self.answer(502, {"error": "Uygulama bu bağlantıyı tanımıyor: H → Derle ve kur." if unknown
+                                  else "Simülatör açık değil ya da bağlantıyı açamadı."})
                 return
             self.answer(200, {"ok": True})
 
